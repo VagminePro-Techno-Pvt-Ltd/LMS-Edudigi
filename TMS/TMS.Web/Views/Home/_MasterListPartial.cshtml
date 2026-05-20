@@ -1,0 +1,34 @@
+﻿@model List<TMS.ViewModels.Account.FormViewModel>
+@if (Model.Any())
+{
+    <div class="card glass">
+        <div class="card-header p-2">
+            Masters
+        </div>
+        <div class="card-body">
+            <div class="row">
+                @foreach (var item in Model)
+                {
+                    <div class="col-6 col-lg-3 col-md-4 col-sm-6">
+                        <a asp-action="@item.Action" asp-controller="@item.Controller" asp-area="@item.Area">
+                            <div class="card card-shadow border-info glass" style="height:100px;">
+                                <div class="card-body align-center">
+                                    <div class="font-18">
+                                        @if (!string.IsNullOrWhiteSpace(item.IconClass))
+                                        {
+                                            <i class="@item.IconClass"></i>
+                                        }@item.Name
+                                    </div>
+                                    <div class="position-absolute top-0 end-0 broken-top-10">
+                                        <span class="badge bg-success" data-toggle="tooltip" title="Active">@item.RecordCountActive</span>
+                                        <span class="badge bg-warning ms-0" data-toggle="tooltip" title="Inactive">@item.RecordCountInactive</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}

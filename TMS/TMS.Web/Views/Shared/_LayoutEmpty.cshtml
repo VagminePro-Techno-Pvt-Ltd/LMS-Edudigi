@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en" class="loading white-layout" data-textdirection="ltr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - LMS</title>
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="https://pro.fontawesome.com/releases/v5.10.0/css/all.css" />
+
+    <!-- Disable favicon requests -->
+    <link rel="icon" href="data:,">
+
+    <link href="~/css/bootstrap.css" rel="stylesheet" asp-append-version="true" />
+    <link href="~/css/style.css" rel="stylesheet" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/TMS.Web.styles.css" asp-append-version="true" />
+
+    @await RenderSectionAsync("extracss", required: false)
+    
+</head>
+
+<body>
+    <!-- loader starts-->
+    <div class="empty-layout-logo-container">
+        <img src="~/images/logo.jpg" class="companyLogo" style="height:50px;" />
+    </div>
+    <div class="loader-wrapper topLoader">
+        <div class="loader-index"> <span></span></div>
+        <svg>
+            <defs></defs>
+            <filter id="goo">
+                <fegaussianblur in="SourceGraphic" stddeviation="11" result="blur"></fegaussianblur>
+                <fecolormatrix in="blur" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -9" result="goo"> </fecolormatrix>
+            </filter>
+        </svg>
+    </div>
+    <!-- loader ends-->
+    <!-- Page Body Start-->
+    <div class="page-body-wrapper">
+        <!-- BEGIN: Content-->
+        <div class="page-body">
+            <!-- Container-fluid starts-->
+            <div class="container-fluid">
+                <section>
+                    @RenderBody()
+                </section>
+            </div>
+            <!-- Container-fluid Ends-->
+        </div>
+        <!-- END: Content-->
+    </div>
+    <!-- Page Body End-->
+    <div class="loader-wrapper">
+        <div class="loader-index"> <span></span></div>
+        <svg>
+            <defs></defs>
+            <filter id="goo">
+                <fegaussianblur in="SourceGraphic" stddeviation="11" result="blur"></fegaussianblur>
+                <fecolormatrix in="blur" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -9" result="goo"> </fecolormatrix>
+            </filter>
+        </svg>
+    </div>
+    <!-- BEGIN: Theme JS-->
+    <script src="~/lib/jquery/dist/jquery.min.js" asp-append-version="true"></script>
+    <script src="~/js/bootstrap.bundle.min.js" asp-append-version="true"></script>
+    <!-- END: Theme JS-->
+    <!-- BEGIN: Custom JS-->
+    <script src="~/js/script.js" asp-append-version="true"></script>
+    <!-- END: Custom JS-->
+    <script src="~/js/app.util.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

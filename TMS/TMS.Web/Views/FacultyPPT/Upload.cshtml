@@ -1,0 +1,509 @@
+@model TMS.ViewModels.Academics.InteractivePPTViewModel
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    ViewData["Title"] = "Upload Interactive PPT";
+    int maxMB = 50;
+    var programs = ViewBag.Programs as IEnumerable<SelectListItem> ?? Enumerable.Empty<SelectListItem>();
+}
+
+@section extracss {
+<style>
+:root {
+    --ppt-primary: #2563eb;
+    --ppt-primary-light: #eff6ff;
+    --ppt-accent: linear-gradient(135deg,#2563eb,#7c3aed);
+    --ppt-radius: 16px;
+    --ppt-shadow: 0 8px 32px rgba(37,99,235,.10);
+    --ppt-border: #e2e8f0;
+}
+.ppt-wrapper { padding: 8px 0 32px; font-family: 'Jost', sans-serif; }
+
+.ppt-page-header { display:flex; align-items:flex-start; gap:18px; margin-bottom:28px; }
+.ppt-header-icon {
+    width:54px; height:54px; border-radius:14px; flex-shrink:0;
+    background:var(--ppt-accent);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 4px 16px rgba(124,58,237,.25);
+}
+.ppt-header-icon i  { font-size:22px; color:#fff; }
+.ppt-page-title     { font-size:26px; font-weight:800; color:#0f172a; margin:0 0 4px; }
+.ppt-page-sub       { font-size:14px; color:#64748b; margin:0; }
+
+.ppt-card { background:#fff; border:1px solid var(--ppt-border); border-radius:var(--ppt-radius); box-shadow:var(--ppt-shadow); overflow:hidden; }
+.ppt-card-header { background:var(--ppt-accent); padding:20px 28px; display:flex; align-items:center; gap:12px; }
+.ppt-card-header i  { font-size:18px; color:#fff; }
+.ppt-card-header h5 { margin:0; font-size:17px; font-weight:700; color:#fff; }
+.ppt-card-body { padding:32px 28px; }
+
+.ppt-section-badge {
+    display:inline-flex; align-items:center; gap:8px;
+    background:var(--ppt-primary-light); color:var(--ppt-primary);
+    font-size:12px; font-weight:700; letter-spacing:.6px;
+    padding:5px 14px; border-radius:30px; margin-bottom:18px;
+    text-transform:uppercase;
+}
+
+.ppt-label { font-size:13.5px; font-weight:700; color:#1e293b; margin-bottom:7px; display:flex; align-items:center; gap:6px; }
+.ppt-label .req { color:#ef4444; }
+.ppt-control {
+    border:2px solid #e2e8f0; border-radius:12px;
+    padding:11px 16px; font-size:14.5px; color:#1e293b;
+    width:100%; transition:border-color .2s, box-shadow .2s; background:#fff;
+    appearance: auto;
+}
+.ppt-control:focus  { outline:none; border-color:var(--ppt-primary); box-shadow:0 0 0 4px rgba(37,99,235,.10); }
+.ppt-control.is-invalid { border-color:#ef4444; }
+.ppt-control:disabled { background:#f8fafc; color:#94a3b8; cursor:not-allowed; }
+
+.ppt-drop-zone {
+    border:2.5px dashed #c7d2fe; border-radius:14px;
+    background:#f8faff; padding:36px 24px;
+    text-align:center; cursor:pointer;
+    transition:border-color .2s, background .2s; position:relative;
+}
+.ppt-drop-zone:hover, .ppt-drop-zone.drag-over { border-color:var(--ppt-primary); background:#eff6ff; }
+.ppt-drop-zone input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+.drop-icon  { width:56px; height:56px; border-radius:14px; background:var(--ppt-accent); display:flex; align-items:center; justify-content:center; margin:0 auto 14px; }
+.drop-icon i { font-size:24px; color:#fff; }
+.drop-title { font-size:15px; font-weight:700; color:#1e293b; margin-bottom:6px; }
+.drop-hint  { font-size:13px; color:#64748b; }
+.drop-hint strong { color:var(--ppt-primary); }
+.ppt-file-chosen { display:none; margin-top:14px; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:10px; padding:10px 16px; font-size:13.5px; color:#166534; font-weight:600; align-items:center; gap:10px; }
+.ppt-file-chosen.show { display:flex; }
+.ppt-file-chosen i { color:#16a34a; font-size:18px; }
+
+.ppt-divider { border:none; border-top:1.5px solid #f1f5f9; margin:28px 0; }
+
+.btn-ppt-upload { background:var(--ppt-accent); color:#fff; border:none; border-radius:12px; padding:13px 32px; font-size:15px; font-weight:700; display:inline-flex; align-items:center; gap:9px; transition:opacity .2s, transform .15s; cursor:pointer; }
+.btn-ppt-upload:hover { opacity:.9; transform:translateY(-1px); color:#fff; }
+.btn-ppt-upload:disabled { opacity:.65; cursor:not-allowed; transform:none; }
+.btn-ppt-reset { background:#f1f5f9; color:#475569; border:2px solid #e2e8f0; border-radius:12px; padding:12px 28px; font-size:14px; font-weight:700; display:inline-flex; align-items:center; gap:8px; transition:background .15s; cursor:pointer; }
+.btn-ppt-reset:hover { background:#e2e8f0; border-color:#cbd5e1; color:#1e293b; }
+
+.ppt-alert { border-radius:12px; padding:14px 20px; font-size:14px; font-weight:600; display:flex; align-items:center; gap:12px; margin-bottom:22px; }
+.ppt-alert i { font-size:18px; flex-shrink:0; }
+.ppt-alert.success { background:#f0fdf4; border:1.5px solid #bbf7d0; color:#166534; }
+.ppt-alert.error   { background:#fef2f2; border:1.5px solid #fecaca; color:#991b1b; }
+
+.ppt-spinner-overlay { display:none; position:fixed; inset:0; z-index:9999; background:rgba(15,23,42,.45); backdrop-filter:blur(3px); align-items:center; justify-content:center; }
+.ppt-spinner-overlay.show { display:flex; }
+.ppt-spinner-box  { background:#fff; border-radius:18px; padding:38px 48px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.2); min-width:240px; }
+.ppt-spinner-ring { width:58px; height:58px; border-radius:50%; border:5px solid #e2e8f0; border-top-color:var(--ppt-primary); animation:pptSpin .7s linear infinite; margin:0 auto 18px; }
+@@keyframes pptSpin { to { transform:rotate(360deg); } }
+.ppt-spinner-text { font-size:15px; font-weight:700; color:#1e293b; margin:0; }
+.ppt-spinner-sub  { font-size:12.5px; color:#64748b; margin:4px 0 0; }
+
+.field-validation-error { font-size:12.5px; color:#ef4444; margin-top:5px; display:block; }
+
+@@media (max-width:576px) {
+    .ppt-card-body { padding:22px 16px; }
+    .ppt-page-title { font-size:20px; }
+    .btn-ppt-upload, .btn-ppt-reset { width:100%; justify-content:center; }
+}
+</style>
+}
+
+<div class="ppt-spinner-overlay" id="pptSpinnerOverlay">
+    <div class="ppt-spinner-box">
+        <div class="ppt-spinner-ring"></div>
+        <p class="ppt-spinner-text">Uploading PPT...</p>
+        <p class="ppt-spinner-sub">Please wait, do not close this page.</p>
+    </div>
+</div>
+
+<div class="ppt-wrapper">
+
+    <div class="ppt-page-header">
+        <div class="ppt-header-icon">
+            <i class="fa-solid fa-file-powerpoint"></i>
+        </div>
+        <div>
+            <h1 class="ppt-page-title">Upload Interactive PPT</h1>
+            <p class="ppt-page-sub">Map your presentation to Program → Course → Unit → Topic.</p>
+        </div>
+    </div>
+
+    <div id="pptAlertBox" style="display:none;"></div>
+
+    <div class="ppt-card">
+        <div class="ppt-card-header">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <h5>New PPT Upload</h5>
+        </div>
+        <div class="ppt-card-body">
+
+            <form id="pptUploadForm"
+                  asp-controller="FacultyPPT"
+                  asp-action="Upload"
+                  method="post"
+                  enctype="multipart/form-data"
+                  novalidate>
+                @Html.AntiForgeryToken()
+
+                <!-- ── Section 1: Mapping ── -->
+                <span class="ppt-section-badge">
+                    <i class="fa-solid fa-sitemap"></i> Course Mapping
+                </span>
+
+                <div class="row g-3 mb-4">
+
+                    <!-- Program -->
+                    <div class="col-md-6">
+                        <label for="ProgramId" class="ppt-label">
+                            <i class="fa-solid fa-graduation-cap" style="color:#8b5cf6;"></i>
+                            Program <span class="req">*</span>
+                        </label>
+                        <select id="ProgramId" name="ProgramId" class="ppt-control" required>
+                            <option value="" disabled selected>— Select Program —</option>
+                            @foreach (var p in programs)
+                            {
+                                if (p.Selected)
+                                {
+                                    <option value="@p.Value" selected>@p.Text</option>
+                                }
+                                else
+                                {
+                                    <option value="@p.Value">@p.Text</option>
+                                }
+                            }
+                        </select>
+                        <span asp-validation-for="ProgramId" class="field-validation-error"></span>
+                    </div>
+
+                    <!-- Course -->
+                    <div class="col-md-6">
+                        <label for="CourseId" class="ppt-label">
+                            <i class="fa-solid fa-book" style="color:#2563eb;"></i>
+                            Course <span class="req">*</span>
+                        </label>
+                        <select id="CourseId" name="CourseId" class="ppt-control" required disabled>
+                            <option value="" disabled selected>— Select Program first —</option>
+                        </select>
+                        <span asp-validation-for="CourseId" class="field-validation-error"></span>
+                    </div>
+
+                    <!-- Unit -->
+                    <div class="col-md-6">
+                        <label for="UnitId" class="ppt-label">
+                            <i class="fa-solid fa-cubes" style="color:#10b981;"></i>
+                            Unit <span class="req">*</span>
+                        </label>
+                        <select id="UnitId" name="UnitId" class="ppt-control" required disabled>
+                            <option value="" disabled selected>— Select Course first —</option>
+                        </select>
+                        <span asp-validation-for="UnitId" class="field-validation-error"></span>
+                    </div>
+
+                    <!-- Topic -->
+                    <div class="col-md-6">
+                        <label for="TopicId" class="ppt-label">
+                            <i class="fa-solid fa-bookmark" style="color:#f59e0b;"></i>
+                            Topic <span class="req">*</span>
+                        </label>
+                        <select id="TopicId" name="TopicId" class="ppt-control" required disabled>
+                            <option value="" disabled selected>— Select Unit first —</option>
+                        </select>
+                        <span asp-validation-for="TopicId" class="field-validation-error"></span>
+                    </div>
+
+                </div>
+
+                <hr class="ppt-divider" />
+
+                <!-- ── Section 2: PPT Details ── -->
+                <span class="ppt-section-badge">
+                    <i class="fa-solid fa-file-lines"></i> PPT Details
+                </span>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-12">
+                        <label for="Title" class="ppt-label">
+                            <i class="fa-solid fa-heading" style="color:#2563eb;"></i>
+                            PPT Title <span class="req">*</span>
+                        </label>
+                        <input type="text" id="Title" name="Title"
+                               class="ppt-control"
+                               placeholder="e.g. Introduction to Accounting"
+                               maxlength="200"
+                               value="@Model.Title"
+                               required />
+                        <span asp-validation-for="Title" class="field-validation-error"></span>
+                    </div>
+                    <div class="col-12">
+                        <label for="Description" class="ppt-label">
+                            <i class="fa-solid fa-align-left" style="color:#64748b;"></i>
+                            Description
+                        </label>
+                        <textarea id="Description" name="Description"
+                                  class="ppt-control" rows="4" maxlength="1000"
+                                  placeholder="Brief overview of this presentation (optional)...">@Model.Description</textarea>
+                    </div>
+                </div>
+
+                <hr class="ppt-divider" />
+
+                <!-- ── Section 3: File Upload ── -->
+                <span class="ppt-section-badge">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> File Upload
+                </span>
+
+                <div class="mb-4">
+                    <label class="ppt-label mb-2">
+                        <i class="fa-solid fa-file-powerpoint" style="color:#ef4444;"></i>
+                        PPT / PPTX File <span class="req">*</span>
+                    </label>
+                    <div class="ppt-drop-zone" id="pptDropZone">
+                        <input type="file" name="PPTFile" id="PPTFile" accept=".ppt,.pptx" required />
+                        <div class="drop-icon"><i class="fa-solid fa-file-powerpoint"></i></div>
+                        <div class="drop-title">Drag &amp; drop your PPT here</div>
+                        <div class="drop-hint">
+                            or <strong>click to browse</strong> &mdash; .ppt / .pptx only &bull; max <strong>@maxMB MB</strong>
+                        </div>
+                    </div>
+                    <div class="ppt-file-chosen" id="pptFileChosen">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span id="pptFileName">file selected</span>
+                        <button type="button" id="pptRemoveFile"
+                                style="margin-left:auto;background:none;border:none;color:#dc2626;font-size:18px;cursor:pointer;line-height:1;">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <span class="field-validation-error" id="pptFileError"></span>
+                </div>
+
+                <!-- Buttons -->
+                <div class="d-flex flex-wrap gap-3 align-items-center pt-2">
+                    <button type="submit" id="btnUploadPPT" class="btn-ppt-upload">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Upload PPT
+                    </button>
+                    <button type="button" id="btnResetForm" class="btn-ppt-reset">
+                        <i class="fa-solid fa-rotate-left"></i> Reset
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    "use strict";
+
+    const MAX_BYTES = @maxMB * 1024 * 1024;
+    const ALLOWED   = [".ppt", ".pptx"];
+
+    const URL_COURSES = "@Url.Action("GetCoursesByProgram","FacultyPPT")";
+    const URL_UNITS   = "@Url.Action("GetUnitsByCourse","FacultyPPT")";
+    const URL_TOPICS  = "@Url.Action("GetTopicsByUnit","FacultyPPT")";
+
+    const $program = $("#ProgramId");
+    const $course  = $("#CourseId");
+    const $unit    = $("#UnitId");
+    const $topic   = $("#TopicId");
+    const $file    = $("#PPTFile");
+    const $spinner = $("#pptSpinnerOverlay");
+    const $alert   = $("#pptAlertBox");
+    const $form    = $("#pptUploadForm");
+    const $chosen  = $("#pptFileChosen");
+    const $fileErr = $("#pptFileError");
+
+    function resetSelect($sel, placeholder) {
+        $sel.empty()
+            .append('<option value="" disabled selected>' + placeholder + '</option>')
+            .prop("disabled", true);
+    }
+
+    function loadSelect($sel, url, param, placeholder) {
+        $sel.prop("disabled", true);
+        $.getJSON(url, param)
+            .done(function (data) {
+                $sel.empty().append('<option value="" disabled selected>' + placeholder + '</option>');
+                if (data && data.length) {
+                    $.each(data, function (_, item) {
+                        $sel.append('<option value="' + item.id + '">' + item.name + '</option>');
+                    });
+                    $sel.prop("disabled", false);
+                }
+            })
+            .fail(function () {
+                $sel.empty().append('<option value="" disabled selected>— Load error —</option>');
+            });
+    }
+
+    function showAlert(type, msg) {
+        var icon = type === "success" ? "fa-circle-check" : "fa-triangle-exclamation";
+        $alert.html('<div class="ppt-alert ' + type + '"><i class="fa-solid ' + icon + '"></i><span>' + msg + '</span></div>').show();
+        $("html,body").animate({ scrollTop: 0 }, 250);
+    }
+
+    // ── Cascade ───────────────────────────────────────────────────
+    $program.on("change", function () {
+        resetSelect($course, "— Select Program first —");
+        resetSelect($unit,   "— Select Course first —");
+        resetSelect($topic,  "— Select Unit first —");
+        var id = $(this).val();
+        console.log("🎓 Program changed. ProgramId:", id);
+        if (id) {
+            console.log("🔄 Loading courses for ProgramId:", id);
+            loadSelect($course, URL_COURSES, { programId: id }, "— Select Course —");
+        }
+    });
+
+    $course.on("change", function () {
+        resetSelect($unit,  "— Select Course first —");
+        resetSelect($topic, "— Select Unit first —");
+        var id = $(this).val();
+        console.log("📘 Course changed. CourseId:", id);
+        if (id) {
+            console.log("🔄 Loading units for CourseId:", id);
+            console.log("🌐 AJAX URL:", URL_UNITS);
+            console.log("📦 AJAX params:", { courseId: id });
+            
+            $.getJSON(URL_UNITS, { courseId: id })
+                .done(function (data) {
+                    console.log("✅ Units loaded successfully:", data);
+                    $unit.empty().append('<option value="" disabled selected>— Select Unit —</option>');
+                    if (data && data.length) {
+                        $.each(data, function (_, item) {
+                            $unit.append('<option value="' + item.id + '">' + item.name + '</option>');
+                        });
+                        $unit.prop("disabled", false);
+                        console.log("✅ Unit dropdown enabled with", data.length, "options");
+                    } else {
+                        console.warn("⚠️ No units found for CourseId:", id);
+                        $unit.append('<option value="" disabled>— No units found —</option>');
+                    }
+                })
+                .fail(function (xhr, status, error) {
+                    console.error("❌ Failed to load units:", error);
+                    console.error("❌ XHR:", xhr);
+                    console.error("❌ Status:", status);
+                    $unit.empty().append('<option value="" disabled selected>— Load error —</option>');
+                });
+        }
+    });
+
+    $unit.on("change", function () {
+        resetSelect($topic, "— Select Unit first —");
+        var id = $(this).val();
+        console.log("📦 Unit changed. UnitId:", id);
+        if (id) {
+            console.log("🔄 Loading topics for UnitId:", id);
+            console.log("🌐 AJAX URL:", URL_TOPICS);
+            console.log("📦 AJAX params:", { unitId: id });
+            
+            $.getJSON(URL_TOPICS, { unitId: id })
+                .done(function (data) {
+                    console.log("✅ Topics loaded successfully:", data);
+                    $topic.empty().append('<option value="" disabled selected>— Select Topic —</option>');
+                    if (data && data.length) {
+                        $.each(data, function (_, item) {
+                            $topic.append('<option value="' + item.id + '">' + item.name + '</option>');
+                        });
+                        $topic.prop("disabled", false);
+                        console.log("✅ Topic dropdown enabled with", data.length, "options");
+                    } else {
+                        console.warn("⚠️ No topics found for UnitId:", id);
+                        $topic.append('<option value="" disabled>— No topics found —</option>');
+                    }
+                })
+                .fail(function (xhr, status, error) {
+                    console.error("❌ Failed to load topics:", error);
+                    console.error("❌ XHR:", xhr);
+                    console.error("❌ Status:", status);
+                    $topic.empty().append('<option value="" disabled selected>— Load error —</option>');
+                });
+        }
+    });
+
+    // ── File ─────────────────────────────────────────────────────
+    function handleFile(f) {
+        $fileErr.text("");
+        if (!f) return;
+        var ext = "." + f.name.split(".").pop().toLowerCase();
+        if (!ALLOWED.includes(ext)) {
+            $fileErr.text("Only .ppt and .pptx files are allowed.");
+            $file.val(""); $chosen.removeClass("show"); return;
+        }
+        if (f.size > MAX_BYTES) {
+            $fileErr.text("File exceeds the maximum size of @maxMB MB.");
+            $file.val(""); $chosen.removeClass("show"); return;
+        }
+        $("#pptFileName").text(f.name + " (" + (f.size / 1048576).toFixed(2) + " MB)");
+        $chosen.addClass("show");
+    }
+
+    $file.on("change", function () { handleFile(this.files[0]); });
+
+    $("#pptDropZone").on("dragover dragenter", function (e) {
+        e.preventDefault(); $(this).addClass("drag-over");
+    }).on("dragleave drop", function (e) {
+        e.preventDefault(); $(this).removeClass("drag-over");
+        if (e.type === "drop") {
+            var dt = e.originalEvent.dataTransfer;
+            if (dt && dt.files.length) { $file[0].files = dt.files; handleFile(dt.files[0]); }
+        }
+    });
+
+    $("#pptRemoveFile").on("click", function () {
+        $file.val(""); $chosen.removeClass("show"); $fileErr.text("");
+    });
+
+    // ── Reset ─────────────────────────────────────────────────────
+    $("#btnResetForm").on("click", function () {
+        $form[0].reset();
+        resetSelect($course, "— Select Program first —");
+        resetSelect($unit,   "— Select Course first —");
+        resetSelect($topic,  "— Select Unit first —");
+        $chosen.removeClass("show"); $fileErr.text(""); $alert.hide();
+        $(".ppt-control").removeClass("is-invalid");
+    });
+
+    // ── Submit ────────────────────────────────────────────────────
+    $form.on("submit", function (e) {
+        e.preventDefault();
+        var valid = true;
+        $alert.hide(); $(".ppt-control").removeClass("is-invalid");
+
+        [$program, $course, $unit, $topic].forEach(function ($s) {
+            if (!$s.val()) { $s.addClass("is-invalid"); valid = false; }
+        });
+        if (!$("#Title").val().trim()) { $("#Title").addClass("is-invalid"); valid = false; }
+        if (!$file[0].files[0]) { $fileErr.text("Please select a PPT or PPTX file."); valid = false; }
+
+        if (!valid) { showAlert("error", "Please fill in all required fields before uploading."); return; }
+
+        var fd = new FormData(this);
+        $spinner.addClass("show");
+        $("#btnUploadPPT").prop("disabled", true);
+
+        $.ajax({
+            url: $form.attr("action"), type: "POST",
+            data: fd, processData: false, contentType: false,
+            success: function (res) {
+                $spinner.removeClass("show"); $("#btnUploadPPT").prop("disabled", false);
+                if (res && res.success) {
+                    showAlert("success", res.message || "PPT uploaded successfully!");
+                    $form[0].reset();
+                    resetSelect($course, "— Select Program first —");
+                    resetSelect($unit,   "— Select Course first —");
+                    resetSelect($topic,  "— Select Unit first —");
+                    $chosen.removeClass("show");
+                } else {
+                    showAlert("error", (res && res.message) || "Upload failed. Please try again.");
+                }
+            },
+            error: function (xhr) {
+                $spinner.removeClass("show"); $("#btnUploadPPT").prop("disabled", false);
+                var msg = "An unexpected error occurred.";
+                if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                showAlert("error", msg);
+            }
+        });
+    });
+
+})();
+</script>
+}

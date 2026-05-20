@@ -1,0 +1,135 @@
+@model TMS.Models.Assessments.ExamMaster
+
+@{
+    ViewData["Title"] = "Exam Instructions";
+}
+
+<div class="exam-page">
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+
+            <!-- Page Header -->
+            <div class="exam-page-header" style="margin-bottom:24px;">
+                <div>
+                    <h1>
+                        <span class="header-icon" style="background:#fff7ed; color:#ea580c;">
+                            <i class="fa-solid fa-scroll"></i>
+                        </span>
+                        Exam Instructions
+                    </h1>
+                    <p>Please read the following guidelines carefully before starting <strong>@Model.Title</strong>.</p>
+                </div>
+                <div class="header-actions">
+                    <a asp-action="Index" class="exam-btn exam-btn-secondary">
+                        <i class="fa-solid fa-arrow-left"></i> Back
+                    </a>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="exam-stats-row" style="grid-template-columns: repeat(4, 1fr);">
+                <div class="exam-stat-card orange">
+                    <span class="stat-label">Duration</span>
+                    <span class="stat-value">@Model.DurationMinutes<span style="font-size:14px; font-weight:400;"> min</span></span>
+                    <span class="stat-sub">Time limit</span>
+                </div>
+                <div class="exam-stat-card blue">
+                    <span class="stat-label">Total Marks</span>
+                    <span class="stat-value">@Model.TotalMarks</span>
+                    <span class="stat-sub">Maximum score</span>
+                </div>
+                <div class="exam-stat-card green">
+                    <span class="stat-label">Passing</span>
+                    <span class="stat-value">@Model.PassingMarks<span style="font-size:14px; font-weight:400;">%</span></span>
+                    <span class="stat-sub">Minimum required</span>
+                </div>
+                <div class="exam-stat-card purple">
+                    <span class="stat-label">Attempts</span>
+                    <span class="stat-value">@Model.AllowedAttempts</span>
+                    <span class="stat-sub">Maximum allowed</span>
+                </div>
+            </div>
+
+            <!-- Examination Rules -->
+            <div class="exam-section-box">
+                <div class="exam-section-title">
+                    <span class="title-icon" style="background:#fef9c3; color:#ca8a04;">
+                        <i class="fa-solid fa-circle-info"></i>
+                    </span>
+                    Examination Rules
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:14px;">
+                    <div style="display:flex; align-items:flex-start; gap:14px; padding:14px; background:#f8fafc; border-radius:12px; border:1px solid #f1f5f9;">
+                        <div style="width:32px; height:32px; border-radius:8px; background:#ecfdf5; color:#059669; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <i class="fa-solid fa-stopwatch" style="font-size:14px;"></i>
+                        </div>
+                        <div>
+                            <strong style="color:#1e293b; font-size:13.5px;">Countdown Timer</strong>
+                            <p style="margin:4px 0 0; font-size:12.5px; color:#64748b; line-height:1.5;">Once started, a countdown stopwatch is locked server-side. Auto-submit occurs immediately when the timer hits zero.</p>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:flex-start; gap:14px; padding:14px; background:#f8fafc; border-radius:12px; border:1px solid #f1f5f9;">
+                        <div style="width:32px; height:32px; border-radius:8px; background:#eff6ff; color:#3b82f6; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <i class="fa-solid fa-rotate-right" style="font-size:14px;"></i>
+                        </div>
+                        <div>
+                            <strong style="color:#1e293b; font-size:13.5px;">Page Recovery</strong>
+                            <p style="margin:4px 0 0; font-size:12.5px; color:#64748b; line-height:1.5;">If your browser crashes, re-opening the console resumes from where you left off. No answers are lost.</p>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:flex-start; gap:14px; padding:14px; background:#f8fafc; border-radius:12px; border:1px solid #f1f5f9;">
+                        <div style="width:32px; height:32px; border-radius:8px; background:#f5f3ff; color:#7c3aed; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <i class="fa-solid fa-floppy-disk" style="font-size:14px;"></i>
+                        </div>
+                        <div>
+                            <strong style="color:#1e293b; font-size:13.5px;">Auto-Save</strong>
+                            <p style="margin:4px 0 0; font-size:12.5px; color:#64748b; line-height:1.5;">The system automatically records your selected answers in the background every time you select an option.</p>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:flex-start; gap:14px; padding:14px; background:#f8fafc; border-radius:12px; border:1px solid #f1f5f9;">
+                        <div style="width:32px; height:32px; border-radius:8px; background:#fef2f2; color:#ef4444; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <i class="fa-solid fa-minus" style="font-size:14px;"></i>
+                        </div>
+                        <div>
+                            <strong style="color:#1e293b; font-size:13.5px;">Negative Marking</strong>
+                            <p style="margin:4px 0 0; font-size:12.5px; color:#64748b; line-height:1.5;">Incorrect answers on specific questions may carry negative mark penalties. Please verify carefully.</p>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:flex-start; gap:14px; padding:14px; background:#f8fafc; border-radius:12px; border:1px solid #f1f5f9;">
+                        <div style="width:32px; height:32px; border-radius:8px; background:#fff7ed; color:#ea580c; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <i class="fa-solid fa-user-check" style="font-size:14px;"></i>
+                        </div>
+                        <div>
+                            <strong style="color:#1e293b; font-size:13.5px;">Evaluation</strong>
+                            <p style="margin:4px 0 0; font-size:12.5px; color:#64748b; line-height:1.5;">MCQs are graded automatically. Subjective answers are reviewed by faculty and scores updated once marked.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Academic Integrity Alert -->
+            <div style="display:flex; gap:16px; padding:20px; background:#fffbeb; border:1px solid #fde68a; border-radius:12px; margin-bottom:28px;">
+                <div style="font-size:28px; color:#d97706; display:flex; align-items:flex-start;">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div>
+                    <h5 style="color:#92400e; font-size:15px; font-weight:700; margin:0 0 6px 0;">Academic Integrity Pledge</h5>
+                    <p style="color:#78350f; font-size:13px; line-height:1.6; margin:0;">
+                        By clicking "Begin Assessment", you certify that you will complete this exam individually and without utilizing unauthorized resources.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <a asp-action="Index" class="exam-btn exam-btn-secondary">
+                    <i class="fa-solid fa-arrow-left"></i> Cancel
+                </a>
+                <a asp-action="Attempt" asp-route-examId="@Model.Id" class="exam-btn exam-btn-primary" style="padding:12px 32px; font-size:15px;">
+                    <i class="fa-solid fa-play"></i> Begin Assessment
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

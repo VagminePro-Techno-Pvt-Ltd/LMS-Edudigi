@@ -1,0 +1,162 @@
+@model TMS.ViewModels.Academics.UnitContentPageViewModel
+
+@{
+    ViewData["Title"] = Model.QuadrantName + " — " + Model.UnitName;
+}
+
+<style>
+    .uc-page { padding: 8px 4px 32px; font-family: 'Jost','Segoe UI',sans-serif; }
+
+    .uc-bc { font-size:13px; color:#94a3b8; margin-bottom:14px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .uc-bc a { color:#64748b; text-decoration:none; transition:color .15s; }
+    .uc-bc a:hover { color:#6366f1; }
+    .uc-bc .sep { color:#cbd5e1; }
+    .uc-bc strong { color:#1e293b; }
+
+    /* Header Bar */
+    .uc-header {
+        background:#fff; border-radius:16px; border:1px solid #eef2f6;
+        padding:20px 24px; margin-bottom:24px; display:flex; align-items:center; gap:20px;
+        box-shadow:0 2px 10px rgba(0,0,0,0.03);
+    }
+    .uc-q-icon {
+        width:54px; height:54px; border-radius:12px; flex-shrink:0;
+        display:flex; align-items:center; justify-content:center; font-size:22px;
+    }
+    .uc-q-text h2 { font-size:18px; font-weight:800; color:#1e293b; margin:0 0 4px; }
+    .uc-q-text p { font-size:13px; color:#64748b; margin:0; }
+
+    /* Content List */
+    .content-list { background:#fff; border:1px solid #eef2f6; border-radius:16px; overflow:hidden; }
+
+    .content-row {
+        display:flex; align-items:center; justify-content:space-between;
+        padding:16px 24px; border-bottom:1px solid #f1f5f9; gap:16px;
+        transition:background .15s;
+    }
+    .content-row:last-child { border-bottom:none; }
+    .content-row:hover { background:#fafbff; }
+
+    .content-left { display:flex; align-items:center; gap:16px; flex:1; }
+    .content-type-icon { font-size:20px; width:28px; text-align:center; }
+    
+    .content-info h4 { font-size:14.5px; font-weight:700; color:#1e293b; margin:0 0 2px; }
+    .content-info p { font-size:12px; color:#94a3b8; margin:0; }
+
+    .content-actions { display:flex; align-items:center; gap:12px; }
+    
+    .btn-action {
+        padding:7px 16px; border-radius:8px; font-size:12.5px; font-weight:700;
+        display:inline-flex; align-items:center; gap:6px; text-decoration:none;
+        transition:all 0.2s; border:none; cursor:pointer;
+    }
+    .btn-view { background:#eff6ff; color:#3b82f6; }
+    .btn-view:hover { background:#3b82f6; color:#fff; }
+    
+    .btn-download { background:#f8fafc; color:#64748b; border:1px solid #e2e8f0; }
+    .btn-download:hover { background:#f1f5f9; border-color:#cbd5e1; }
+
+    /* Empty state */
+    .empty-state {
+        text-align:center; padding:80px 24px; background:#fff; border-radius:16px; border:1px dashed #cbd5e1;
+    }
+    .empty-state i { font-size:48px; color:#cbd5e1; margin-bottom:16px; display:block; }
+    .empty-state p { color:#94a3b8; font-size:15px; margin:0; }
+
+    @@media(max-width:600px){
+        .content-row { flex-direction:column; align-items:flex-start; }
+        .content-actions { margin-top:8px; width:100%; justify-content:flex-end; }
+    }
+</style>
+
+<div class="uc-page">
+    @* Breadcrumb *@
+    <div class="uc-bc">
+        <a asp-controller="Home" asp-action="StudentDashboard"><i class="fa-solid fa-house"></i> Dashboard</a>
+        <span class="sep">/</span>
+        <a asp-controller="StudentCourseContent" asp-action="Index">My Courses</a>
+        <span class="sep">/</span>
+        <a asp-controller="Quadrant" asp-action="Index" asp-route-semesterId="@Model.SemesterId" asp-route-courseId="@Model.CourseId">@Model.CourseName</a>
+        <span class="sep">/</span>
+        <a asp-controller="Quadrant" asp-action="SubjectUnits" asp-route-semesterId="@Model.SemesterId" asp-route-courseId="@Model.CourseId" asp-route-subjectId="@Model.SubjectId">@Model.SubjectName</a>
+        <span class="sep">/</span>
+        <a asp-controller="Quadrant" asp-action="UnitQuadrants" asp-route-semesterId="@Model.SemesterId" asp-route-courseId="@Model.CourseId" asp-route-subjectId="@Model.SubjectId" asp-route-unitId="@Model.UnitId">@Model.UnitName</a>
+        <span class="sep">/</span>
+        <strong>@Model.QuadrantName</strong>
+    </div>
+
+    @* Header Info Bar *@
+    <div class="uc-header">
+        <div class="uc-q-icon" style="background:#eff6ff; color:#3b82f6;">
+            <i class="fa-solid @Model.QuadrantIcon"></i>
+        </div>
+        <div class="uc-q-text">
+            <h2>@Model.QuadrantName — Unit @Model.UnitName</h2>
+            <p>Accessing @Model.QuadrantName materials for @Model.SubjectName.</p>
+        </div>
+    </div>
+
+    @if (Model.Contents == null || !Model.Contents.Any())
+    {
+        <div class="empty-state">
+            <i class="fa-solid fa-folder-open"></i>
+            <p>@Model.EmptyMessage</p>
+        </div>
+    }
+    else
+    {
+        <div class="content-list">
+            @foreach (var content in Model.Contents)
+            {
+                bool isVideo = content.MaterialType == "Video" || content.MaterialType == "VideoURL";
+                bool isPdf = content.MaterialType == "Document" && content.FilePath?.ToLower().EndsWith(".pdf") == true;
+                
+                <div class="content-row">
+                    <div class="content-left">
+                        <div class="content-type-icon">
+                            @if (isVideo) { <i class="fa-solid fa-video" style="color:#3b82f6;"></i> }
+                            else if (isPdf) { <i class="fa-solid fa-file-pdf" style="color:#ef4444;"></i> }
+                            else { <i class="fa-solid fa-file-lines" style="color:#64748b;"></i> }
+                        </div>
+                        <div class="content-info">
+                            <h4>@content.Title</h4>
+                            <p>@content.MaterialType • @(string.IsNullOrEmpty(content.Description) ? "Learning material" : content.Description)</p>
+                        </div>
+                    </div>
+                    <div class="content-actions">
+                        <button class="btn-action btn-view view-file-link"
+                                data-filepath="@(isVideo && !string.IsNullOrEmpty(content.ContentPath) ? content.ContentPath : Url.Content(content.FilePath ?? ""))"
+                                data-title="@content.Title"
+                                data-material-id="@content.MaterialId"
+                                data-materialtype="@content.MaterialType">
+                            <i class="fa-solid @(isVideo ? "fa-play" : "fa-eye")"></i> 
+                            @(isVideo ? "Watch" : "View")
+                        </button>
+                        
+                        @if (!string.IsNullOrEmpty(content.FilePath) && content.MaterialType != "VideoURL")
+                        {
+                            <a href="@Url.Content(content.FilePath)" download class="btn-action btn-download">
+                                <i class="fa-solid fa-download"></i>
+                            </a>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@* Reuse the existing file preview modal *@
+<partial name="_FilePreviewModal" />
+
+@section Scripts {
+    <script>
+        $(document).on('click', '.view-file-link', function(e) {
+            e.preventDefault();
+            const btn = $(this);
+            if (window.openFilePreview) {
+                window.openFilePreview(btn.data('filepath'), btn.data('title'), btn.data('material-id'), btn.data('materialtype'));
+            }
+        });
+    </script>
+}

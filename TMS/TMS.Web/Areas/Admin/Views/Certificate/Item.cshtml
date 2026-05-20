@@ -1,0 +1,68 @@
+﻿@model TMS.ViewModels.Masters.CertificateMasterViewModel
+@{
+    var permissions = ViewContext.HttpContext.GetFormPermissions();
+}
+<form method="post" class="noclick" id="frmItem" disabled="@(!permissions.Add && !permissions.Edit)" enctype="multipart/form-data">
+    <div class="card glass">
+        <div class="card-body">
+            <input asp-for="Id" type="hidden" />
+            <input id="hdAddEditActionAllowed" type="hidden" value="@permissions.CanShowAddEditButton(Model!.Id).ToString().ToLower()" />
+            <div class="row mb-2">               
+                <div class="col-12 col-md-6">
+                    <div class="mb-1">
+                        <label asp-for="Name"></label>
+                        <input asp-for="Name" aria-required="true" placeholder="Enter Name" disabled="@(!permissions.Add && !permissions.Edit)" />
+                        <span asp-validation-for="Name" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="mb-1">
+                        <label asp-for="Description"></label>
+                        <textarea asp-for="Description" aria-required="true" placeholder="Enter Description" disabled="@(!permissions.Add && !permissions.Edit)" rows="4"></textarea>
+                        <span asp-validation-for="Description" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label asp-for="File">
+                        File
+                        @if (string.IsNullOrWhiteSpace(Model.FilePath))
+                        {
+                            <sup class="mandatory-label">*</sup>
+                        }
+                    </label>
+                    <div class="input-group">
+                        <input asp-for="File" id="FileName" type="file" class="form-control" accept=".pdf" />
+                    </div>
+                    <input asp-for="FilePath" type="hidden" />
+                    <input asp-for="FileName" type="hidden" />
+                    <span asp-validation-for="File" class="text-danger"></span>
+                  <button id="previewBtn" >View</button>
+                  @*   @if (string.IsNullOrWhiteSpace(Model.FilePath))
+                    {
+                        <img id="imgFile" class="my-1 d-none" src="" style="height:100px;" />
+                    }
+                    else
+                    {
+                        <img id="imgFile" class="my-1" src="@(ViewBag.PublicImageBaseUrl)/@(Model.FilePath)" style="height:100px;" />
+                    } *@
+
+                    <iframe id="pdfView" class="d-none" width="100%" height="500px" style="border:none;"></iframe>
+                </div>   
+               
+                @if (Model?.Id > 0)
+                {
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Status</label>
+                        <div class="d-flex">
+                            <label asp-for="IsActive" class="form-check-label nomandatory">Inactive</label>
+                            <div class="form-switch form-check ms-2">
+                                <input asp-for="IsActive" class="form-check-input">
+                            </div>
+                            <label asp-for="IsActive" class="form-check-label nomandatory">Active</label>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</form>

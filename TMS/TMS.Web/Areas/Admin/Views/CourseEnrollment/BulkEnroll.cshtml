@@ -1,0 +1,160 @@
+@{
+    ViewData["Title"] = "Mass Student Enrollment (Excel/CSV)";
+    var bulkResult = ViewBag.BulkResult as TMS.Repository.Managers.BulkEnrollmentResult;
+}
+
+<hr />
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-file-excel"></i> Mass Student Upload</h5>
+                <span class="badge bg-light text-primary">v2.0 - Multi-Course Support</span>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <strong>Excel Format Instructions:</strong>
+                    <ul class="mb-0 small">
+                        <li>Column 1: <strong>Full Name</strong></li>
+                        <li>Column 2: <strong>Email Address</strong> (Required)</li>
+                        <li>Column 3: <strong>Contact Number</strong> (Optional)</li>
+                        <li>Column 4: <strong>Course Code</strong> (Optional if course selected below)</li>
+                    </ul>
+                    <hr />
+                    <p class="mb-0 small text-dark">
+                        <i class="fas fa-magic"></i> <strong>Smart Feature:</strong> If a student doesn't exist, an account is created automatically (Password: <code>Welcome@123</code>).
+                    </p>
+                </div>
+
+                <form asp-action="BulkEnroll" asp-controller="CourseEnrollment" method="post" enctype="multipart/form-data">
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label fw-bold">1. Select Default Course (Optional)</label>
+                            <select name="courseId" class="form-select select2" asp-items="ViewBag.CourseList">
+                                <option value="">-- Auto-detect from Excel (using Course Code) --</option>
+                            </select>
+                            <div class="form-text text-muted">If you select a course here, it will be used for all rows. Otherwise, Column 4 in Excel will be used.</div>
+                        </div>
+
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label fw-bold">2. Upload Excel/CSV File</label>
+                            <input type="file" name="bulkFile" class="form-control" accept=".csv, .xlsx, .xls" required />
+                        </div>
+                    </div>
+
+                    <div class="text-end mt-3">
+                        <a asp-action="Index" class="btn btn-secondary me-2">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </a>
+                        <a asp-action="DownloadTemplate" class="btn btn-outline-secondary me-2">
+                           <i class="fas fa-download"></i> Download Template
+                        </a>
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="fas fa-upload"></i> Start Mass Upload
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        @* ─── Bulk Result Dashboard ─── *@
+        @if (bulkResult != null)
+        {
+            <div class="card shadow-sm mt-4 border-@(bulkResult.FailedCount == 0 ? "success" : "danger")">
+                <div class="card-header bg-@(bulkResult.FailedCount == 0 ? "success" : "danger") text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-@(bulkResult.FailedCount == 0 ? "check-circle" : "times-circle")"></i>
+                        Upload Results Summary
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-3 border-end">
+                            <h3 class="text-primary mb-0">@bulkResult.TotalProcessed</h3>
+                            <small class="text-muted text-uppercase fw-bold">Total</small>
+                        </div>
+                        <div class="col-3 border-end">
+                            <h3 class="text-success mb-0">@bulkResult.SuccessCount</h3>
+                            <small class="text-muted text-uppercase fw-bold">Successful</small>
+                        </div>
+                        <div class="col-3 border-end">
+                            <h3 class="text-danger mb-0">@bulkResult.FailedCount</h3>
+                            <small class="text-muted text-uppercase fw-bold">Failed</small>
+                        </div>
+                        <div class="col-3">
+                            <h3 class="text-info mb-0">@bulkResult.ReactivatedCount</h3>
+                            <small class="text-muted text-uppercase fw-bold">Re-activated</small>
+                        </div>
+                    </div>
+
+                    @if (bulkResult.Errors.Any())
+                    {
+                        <hr />
+                        <div class="alert alert-danger py-2">
+                            <h6 class="alert-heading mb-1"><i class="fas fa-exclamation-triangle"></i> Issues encountered:</h6>
+                            <ul class="mb-0 small">
+                                @foreach (var err in bulkResult.Errors.Take(15))
+                                {
+                                    <li>@err</li>
+                                }
+                                @if (bulkResult.Errors.Count > 15)
+                                {
+                                    <li>...and @(bulkResult.Errors.Count - 15) more errors.</li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                    
+                    <div class="text-center mt-3">
+                        <a asp-action="Index" class="btn btn-outline-primary btn-sm">Return to Management</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow-sm border-secondary mb-3">
+            <div class="card-header bg-secondary text-white">
+                <h6 class="mb-0"><i class="fas fa-info-circle"></i> Multi-Course Template</h6>
+            </div>
+            <div class="card-body">
+                <p class="small">Excel header mapping:</p>
+                <table class="table table-sm table-bordered mb-3 small">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>A</th>
+                            <th>B</th>
+                            <th>C</th>
+                            <th>D</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Name</td>
+                            <td>Email</td>
+                            <td>Phone</td>
+                            <td>CourseCode</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="alert alert-warning py-2 small mb-0">
+                    <i class="fas fa-lightbulb"></i> <strong>Pro Tip:</strong> Agar Column D mein <code>MBA-101</code> likha hai, toh student usi course mein jayega!
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            $('.select2').select2({
+                placeholder: "-- Auto-detect from Excel --",
+                allowClear: true,
+                width: '100%'
+            });
+        });
+    </script>
+}

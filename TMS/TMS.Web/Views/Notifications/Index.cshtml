@@ -1,0 +1,276 @@
+@model List<TMS.ViewModels.NotificationDto>
+@{
+    ViewBag.Title = "Notice Board";
+}
+
+<style>
+    :root {
+        --theme-primary: #ea580c; /* warm orange/amber */
+        --theme-bg-light: #fffbeb; 
+        --theme-text: #1e293b;
+        --theme-muted: #64748b;
+    }
+
+    .notice-board-wrapper {
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        padding: 0;
+        margin-top: 24px;
+        border: 1px solid #f1f5f9;
+        border-top: 3px solid var(--theme-primary);
+        overflow: hidden;
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+
+
+    /* ── Search Bar ────────────────────────────────────── */
+    .notice-search-wrapper {
+        padding: 24px 30px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border-bottom: 1px dashed #fbd38d; /* Dotted/dashed orange line */
+    }
+
+    .notice-search-icon {
+        color: #d97706;
+        font-size: 18px;
+    }
+
+    .notice-search-input {
+        border: none;
+        outline: none;
+        font-size: 16px;
+        color: var(--theme-text);
+        width: 100%;
+        font-weight: 500;
+        background: transparent;
+    }
+
+    .notice-search-input::placeholder {
+        color: #a1a1aa;
+    }
+
+    /* ── Notices List ──────────────────────────────────── */
+    .notice-list {
+        padding: 10px 30px;
+    }
+
+    .notice-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 0;
+        border-bottom: 1px solid #f8fafc;
+        transition: transform 0.2s ease;
+    }
+
+    .notice-item:last-child {
+        border-bottom: none;
+    }
+
+    .notice-item:hover {
+        background: #fdfdfd;
+    }
+
+    /* Left Icon */
+    .notice-left {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex: 1;
+    }
+
+    .notice-icon-circle {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: #fef3c7; /* Light amber */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        box-shadow: 0 2px 6px rgba(217, 119, 6, 0.1);
+    }
+
+    .notice-icon-circle i {
+        color: #d97706; /* Dark amber */
+        font-size: 18px;
+    }
+
+    /* Center Text */
+    .notice-content {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .notice-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #1e293b;
+        line-height: 1.5;
+        text-transform: uppercase; /* Matching the image's style */
+    }
+
+    .notice-time {
+        font-size: 12px;
+        color: var(--theme-muted);
+        font-weight: 500;
+    }
+
+    /* Right Badge */
+    .notice-badge {
+        font-size: 12px;
+        font-weight: 600;
+        color: #d97706;
+        background: #fef3c7;
+        padding: 6px 12px;
+        border-radius: 6px;
+        white-space: nowrap;
+    }
+
+    .notice-empty {
+        text-align: center;
+        padding: 60px 0;
+        color: var(--theme-muted);
+    }
+
+    .notice-empty i {
+        font-size: 40px;
+        color: #cbd5e1;
+        margin-bottom: 16px;
+    }
+
+    /* ── Footer / Actions ──────────────────────────────── */
+    .notice-footer {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 12px;
+        padding: 24px 30px;
+        background: #fafafa;
+        border-top: 1px solid #f1f5f9;
+    }
+
+    .btn-notice-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        font-size: 13.5px;
+        font-weight: 600;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .btn-archive {
+        background: #e2e8f0;
+        color: #475569;
+    }
+
+    .btn-archive:hover {
+        background: #cbd5e1;
+    }
+
+    .btn-hide {
+        background: #ef4444;
+        color: #ffffff;
+    }
+
+    .btn-hide:hover {
+        background: #dc2626;
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+    }
+</style>
+
+<div class="notice-board-wrapper">
+
+
+    <!-- Search notices -->
+    <div class="notice-search-wrapper">
+        <i class="fa-solid fa-magnifying-glass notice-search-icon"></i>
+        <input type="text" class="notice-search-input" id="noticeSearch" placeholder="Search Notices..." />
+    </div>
+
+    <!-- Notice list -->
+    <div class="notice-list">
+        @if (Model != null && Model.Any())
+        {
+            foreach (var notif in Model)
+            {
+                // Parse TimeAgo to decide the badge text
+                string badgeText = "Earlier";
+                string timeLower = notif.TimeAgo.ToLower();
+                
+                if (timeLower.Contains("minute") || timeLower.Contains("hour") || timeLower.Contains("today") || timeLower.Contains("just now"))
+                {
+                    badgeText = "Today";
+                }
+                else if (timeLower.Contains("yesterday") || timeLower.Contains("1 day"))
+                {
+                    badgeText = "Yesterday";
+                }
+                
+                <div class="notice-item">
+                    <div class="notice-left">
+                        <div class="notice-icon-circle">
+                            <i class="fa-solid fa-file-pdf"></i>
+                        </div>
+                        <div class="notice-content">
+                            <div class="notice-title">@notif.Title</div>
+                            <div class="notice-time">@notif.TimeAgo</div>
+                            @if (!string.IsNullOrWhiteSpace(notif.Message))
+                            {
+                                <div class="notice-message small text-muted" style="font-size:13px; margin-top:4px;">@notif.Message</div>
+                            }
+                        </div>
+                    </div>
+                    <div class="notice-badge">
+                        @badgeText
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="notice-empty">
+                <i class="fa-solid fa-bell-slash"></i>
+                <h5 style="margin-top: 10px;">No notices found at this time.</h5>
+            </div>
+        }
+    </div>
+
+    <!-- Footer actions -->
+    <div class="notice-footer">
+        <button class="btn-notice-action btn-archive"><i class="fa-solid fa-gear"></i> Archive</button>
+        <button class="btn-notice-action btn-hide">Hide</button>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const searchInput = document.getElementById('noticeSearch');
+        const items = document.querySelectorAll('.notice-item');
+
+        searchInput.addEventListener('input', function (e) {
+            const query = e.target.value.toLowerCase().trim();
+
+            items.forEach(item => {
+                const title = item.querySelector('.notice-title').textContent.toLowerCase();
+                const messageEl = item.querySelector('.notice-message');
+                const message = messageEl ? messageEl.textContent.toLowerCase() : '';
+
+                if (title.includes(query) || message.includes(query)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    });
+</script>

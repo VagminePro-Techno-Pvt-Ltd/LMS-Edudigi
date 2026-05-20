@@ -1,0 +1,253 @@
+@model TMS.ViewModels.Masters.CourseCategoryMasterViewModel
+@{
+    var permissions = ViewContext.HttpContext.GetFormPermissions();
+    var userRole = User.FindFirst("role")?.Value ?? "";
+    bool isAdmin = userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase)
+                || userRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase);
+}
+
+<style>
+    .pgm-card {
+        background: rgba(255, 255, 255, 0.96);
+        backdrop-filter: blur(16px);
+        border-radius: 24px;
+        border: 1px solid rgba(226, 232, 240, 0.6);
+        padding: 36px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.04);
+    }
+
+    .pgm-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 28px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #f1f5f9;
+    }
+
+    .pgm-icon {
+        width: 52px;
+        height: 52px;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
+        flex-shrink: 0;
+    }
+
+    .pgm-title {
+        margin: 0;
+        font-weight: 800;
+        color: #0f172a;
+        font-size: 1.25rem;
+        letter-spacing: -0.02em;
+    }
+
+    .pgm-subtitle {
+        margin: 0;
+        font-size: 0.85rem;
+        color: #64748b;
+    }
+
+    .pgm-label {
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+    }
+
+    .pgm-label .lbl-icon {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        color: white;
+    }
+
+    .pgm-input {
+        width: 100%;
+        padding: 13px 18px;
+        border-radius: 14px;
+        border: 1.5px solid #e2e8f0;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        background: #f8fafc;
+        font-size: 0.95rem;
+        color: #1e293b;
+    }
+
+    .pgm-input:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.08);
+        background: #fff;
+        outline: none;
+    }
+
+    .pgm-section-divider {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #94a3b8;
+        font-weight: 700;
+        margin: 24px 0 16px 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .pgm-section-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(90deg, #e2e8f0, transparent);
+    }
+
+    .pgm-status-card {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 16px 22px;
+        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .pgm-hint {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 24px;
+        padding: 14px 18px;
+        background: rgba(99, 102, 241, 0.04);
+        border: 1px dashed rgba(99, 102, 241, 0.2);
+        border-radius: 12px;
+        color: #6366f1;
+        font-size: 0.82rem;
+        font-weight: 600;
+    }
+
+    .pgm-hint i { font-size: 1rem; }
+
+    .sem-preview {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .sem-chip {
+        padding: 5px 14px;
+        border-radius: 8px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        background: linear-gradient(135deg, #ede9fe, #e0e7ff);
+        color: #4f46e5;
+        border: 1px solid rgba(99, 102, 241, 0.15);
+    }
+</style>
+
+<form method="post" class="noclick" id="frmItem" disabled="@(!isAdmin || (!permissions.Add && !permissions.Edit))">
+    <div class="pgm-card">
+        <div class="pgm-header">
+            <div class="pgm-icon">🎓</div>
+            <div>
+                <h3 class="pgm-title">
+                    @(Model!.Id > 0 ? "Edit Program" : "Create New Program")
+                </h3>
+                <p class="pgm-subtitle">Define an academic program with its semester structure.</p>
+            </div>
+        </div>
+
+        <input asp-for="Id" type="hidden" />
+        <input id="hdAddEditActionAllowed" type="hidden" value="@(isAdmin && permissions.CanShowAddEditButton(Model!.Id)).ToString().ToLower()" />
+
+        <!-- ═══════ PROGRAM IDENTITY ═══════ -->
+        <div class="pgm-section-divider">
+            <i class="fa fa-building-columns" style="color:#6366f1;"></i> Program Identity
+        </div>
+
+        <div class="row">
+            <div class="col-12 col-md-8 mb-4">
+                <label asp-for="Name" class="pgm-label">
+                    <span class="lbl-icon" style="background:#6366f1;">📛</span> Program Name
+                </label>
+                <input asp-for="Name" class="pgm-input" placeholder="e.g. Master of Business Administration" required />
+                <span asp-validation-for="Name" class="text-danger small"></span>
+            </div>
+
+            <div class="col-12 col-md-4 mb-4">
+                <label asp-for="NoOfSemester" class="pgm-label">
+                    <span class="lbl-icon" style="background:#8b5cf6;">📅</span> Total Semesters
+                </label>
+                <input asp-for="NoOfSemester" type="number" class="pgm-input" id="semesterCount" placeholder="e.g. 6" min="1" max="12" required />
+                <span asp-validation-for="NoOfSemester" class="text-danger small"></span>
+
+                <!-- Live semester preview -->
+                <div class="sem-preview" id="semesterPreview"></div>
+            </div>
+        </div>
+
+        <!-- ═══════ PROGRAM DETAILS ═══════ -->
+        <div class="pgm-section-divider">
+            <i class="fa fa-file-lines" style="color:#8b5cf6;"></i> Program Description
+        </div>
+
+        <div class="row">
+            <div class="col-12 mb-4">
+                <label asp-for="Description" class="pgm-label">
+                    <span class="lbl-icon" style="background:#10b981;">📋</span> Overview
+                </label>
+                <textarea asp-for="Description" class="pgm-input" rows="4" placeholder="Brief overview of the academic program, its goals, and career paths..."></textarea>
+                <span asp-validation-for="Description" class="text-danger small"></span>
+            </div>
+        </div>
+
+        @if (Model?.Id > 0 && isAdmin)
+        {
+            <div class="pgm-section-divider">
+                <i class="fa fa-toggle-on" style="color:#f59e0b;"></i> Status
+            </div>
+            <div class="pgm-status-card">
+                <span class="pgm-label" style="margin:0;">Program Visibility:</span>
+                <div class="form-check form-switch m-0">
+                    <input asp-for="IsActive" class="form-check-input" style="cursor:pointer; width: 44px; height: 22px;">
+                    <label class="form-check-label ms-2" style="font-weight:700; color: @(Model.IsActive ? "#10b981" : "#ef4444")">
+                        @(Model.IsActive ? "ACTIVE" : "INACTIVE")
+                    </label>
+                </div>
+            </div>
+        }
+
+        <div class="pgm-hint">
+            <i class="fa-solid fa-lightbulb"></i>
+            After creating a program, go to <strong>&nbsp;Courses&nbsp;</strong> to add individual courses under each semester.
+        </div>
+    </div>
+</form>
+
+<script>
+    // Live semester chip preview
+    $(document).ready(function () {
+        function updatePreview() {
+            var count = parseInt($('#semesterCount').val()) || 0;
+            var html = '';
+            for (var i = 1; i <= Math.min(count, 12); i++) {
+                html += '<span class="sem-chip">Semester ' + i + '</span>';
+            }
+            $('#semesterPreview').html(html);
+        }
+        updatePreview();
+        $('#semesterCount').on('input change', updatePreview);
+    });
+</script>

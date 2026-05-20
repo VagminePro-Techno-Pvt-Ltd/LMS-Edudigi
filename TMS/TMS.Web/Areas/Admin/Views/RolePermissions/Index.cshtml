@@ -1,0 +1,23 @@
+﻿@{
+    ViewData["Title"] = "Role Permissions";
+}
+<div class="card glass">
+    <div class="card-body">
+        <div class="row mb-2">
+            <div class="col-12 col-md-6 col-lg-4">
+                <div class="mb-1">
+                    <label class="form-label">Roles</label>
+                    <select asp-items="ViewBag.Roles" id="RoleId" aria-required="true" class="form-select"></select>
+                </div>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4">
+                <button type="button" id="btnSearchRolePremissions" class="btn btn-primary" data-toggle="tooltip" title="Search Permission"><i class="fas fa-search"></i></button>
+            </div>
+            <div class="col-12 mt-1" id="divPermissionsContainer"></div>
+        </div>
+    </div>
+</div>
+@section Scripts{
+    <script src="@Url.Action("AdminRolePermissions","LinkScript",new {area=""})" asp-append-version="true"></script>
+    <script src="~/js/Masters/RolesPermissions-Index.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,592 @@
+/* ═══════════════════════════════════════════════════
+   Course Structure Designer — Premium Light Theme
+   Matches Content Library design language
+   ═══════════════════════════════════════════════════ */
+
+/* ── Code badge in sidebar ── */
+.cs-code-badge {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 700;
+    background: rgba(37,99,235,0.07);
+    color: var(--cl-accent);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+.cl-course-item.active .cs-code-badge {
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+}
+
+/* ── Read-only badge ── */
+.cs-readonly-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #fef3c7;
+    color: #92400e;
+    margin-left: 8px;
+}
+
+/* ── Empty state hero ── */
+.cs-empty-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    text-align: center;
+}
+.cs-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+/* ═══════════ SEMESTER BLOCK ═══════════ */
+.cs-semester-block {
+    background: var(--cl-card);
+    border-radius: var(--cl-radius-md);
+    border: 1px solid var(--cl-border);
+    margin-bottom: 16px;
+    overflow: hidden;
+    transition: box-shadow 0.25s ease;
+}
+.cs-semester-block:hover {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+}
+
+/* Semester Header */
+.cs-semester-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    cursor: pointer;
+    border-bottom: 1px solid transparent;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+.cs-semester-block:not(.collapsed) .cs-semester-header {
+    border-bottom-color: var(--cl-border);
+}
+.cs-semester-header:hover {
+    background: rgba(148,163,184,0.04);
+}
+
+.cs-semester-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    transition: transform 0.3s ease;
+}
+.cs-semester-header:hover .cs-semester-icon {
+    transform: scale(1.08);
+}
+
+.cs-semester-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.cs-semester-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--cl-text);
+}
+.cs-semester-meta {
+    font-size: 11.5px;
+    color: var(--cl-muted);
+    font-weight: 500;
+}
+
+.cs-collapse-icon {
+    font-size: 12px;
+    color: var(--cl-muted);
+    transition: transform 0.25s ease;
+}
+.cs-semester-block.collapsed .cs-collapse-icon {
+    transform: rotate(-90deg);
+}
+
+/* Semester Body */
+.cs-semester-body {
+    padding: 16px 20px 20px;
+    animation: cs-slideDown 0.25s ease;
+}
+.cs-semester-block.collapsed .cs-semester-body {
+    display: none;
+}
+
+@keyframes cs-slideDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══════════ UNIT CARD ═══════════ */
+.cs-unit-card {
+    background: #fff;
+    border-radius: 10px;
+    border: 1px solid var(--cl-border);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.cs-unit-card:hover {
+    border-color: rgba(37,99,235,0.25);
+    box-shadow: 0 2px 12px rgba(37,99,235,0.08);
+}
+
+.cs-unit-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.cs-unit-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #eff6ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: #3b82f6;
+    flex-shrink: 0;
+}
+
+.cs-unit-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+.cs-unit-name {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--cl-text);
+}
+.cs-unit-desc {
+    font-size: 11.5px;
+    color: var(--cl-muted);
+    margin-top: 1px;
+}
+
+.cs-unit-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+.cs-unit-card:hover .cs-unit-actions {
+    opacity: 1;
+}
+
+/* ── Action buttons ── */
+.cs-action-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    border: 1px solid var(--cl-border);
+    background: #fff;
+    color: var(--cl-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.cs-action-btn:hover {
+    border-color: var(--cl-accent);
+    color: var(--cl-accent);
+    background: var(--cl-accent-soft);
+}
+.cs-action-btn.cs-delete-unit:hover {
+    border-color: #ef4444;
+    color: #ef4444;
+    background: #fef2f2;
+}
+
+.cs-action-btn-sm {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    border: none;
+    background: transparent;
+    color: #cbd5e1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    opacity: 0;
+    flex-shrink: 0;
+}
+.cs-subject-item:hover .cs-action-btn-sm {
+    opacity: 1;
+}
+.cs-action-btn-sm:hover {
+    color: #ef4444;
+    background: #fef2f2;
+}
+
+/* ═══════════ SUBJECTS LIST ═══════════ */
+.cs-subjects-list {
+    padding-left: 42px;
+    margin-top: 4px;
+}
+
+.cs-subject-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 0;
+    border-top: 1px solid rgba(148,163,184,0.10);
+    transition: background 0.12s ease;
+}
+.cs-subject-item:first-child {
+    border-top: none;
+}
+.cs-subject-item:hover {
+    background: rgba(148,163,184,0.03);
+    border-radius: 6px;
+    padding-left: 6px;
+    margin-left: -6px;
+}
+
+.cs-subject-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.cs-subject-info {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.cs-subject-name {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--cl-text);
+}
+.cs-subject-code {
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 9.5px;
+    font-weight: 600;
+    background: rgba(148,163,184,0.1);
+    color: var(--cl-muted);
+    letter-spacing: .04em;
+}
+
+.cs-content-badge {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+    background: var(--cl-accent-soft);
+    color: var(--cl-accent);
+}
+
+/* ── No subjects state ── */
+.cs-no-subjects {
+    padding: 8px 0 4px 42px;
+    font-size: 12px;
+    color: #cbd5e1;
+    font-style: italic;
+}
+.cs-no-subjects a {
+    color: var(--cl-accent);
+    font-style: normal;
+    font-weight: 600;
+    text-decoration: none;
+}
+.cs-no-subjects a:hover {
+    text-decoration: underline;
+}
+
+/* ═══════════ ADD UNIT BUTTON ═══════════ */
+.cs-add-unit-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    border: 2px dashed var(--cl-border);
+    background: transparent;
+    color: var(--cl-muted);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    justify-content: center;
+    transition: all 0.2s ease;
+    margin-top: 8px;
+}
+.cs-add-unit-btn:hover {
+    border-color: var(--cl-accent);
+    color: var(--cl-accent);
+    background: var(--cl-accent-soft);
+    transform: translateY(-1px);
+}
+.cs-add-unit-btn i {
+    font-size: 14px;
+}
+
+/* ═══════════ MODERN MODAL FORMS (IMAGE MATCH) ═══════════ */
+.cs-modal-form {
+    padding: 10px 5px;
+}
+
+.cs-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.cs-form-group {
+    margin-bottom: 20px;
+}
+
+.cs-modal-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 800;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+}
+
+.cs-modal-label span {
+    color: #ef4444;
+    margin-left: 2px;
+}
+
+.cs-modal-input {
+    width: 100%;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 14px;
+    color: #1e293b;
+    transition: all 0.2s ease;
+}
+
+.cs-modal-input:focus {
+    background: #fff;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+    outline: none;
+}
+
+.cs-modal-input::placeholder {
+    color: #94a3b8;
+}
+
+/* Modal Footer Buttons */
+.cs-modal-actions {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    padding-top: 25px;
+    margin-top: 10px;
+}
+
+.cs-btn-save {
+    background: linear-gradient(135deg, #0d9488, #0f766e); /* Deep Teal Gradient */
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 14px 45px;
+    font-weight: 700;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    min-width: 160px;
+    box-shadow: 0 4px 15px rgba(13, 148, 136, 0.25);
+}
+
+.cs-btn-save:hover {
+    background: linear-gradient(135deg, #14b8a6, #0d9488);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(13, 148, 136, 0.4);
+    color: #fff;
+}
+
+.cs-btn-close {
+    background: linear-gradient(135deg, #06b6d4, #0891b2); /* Deep Cyan Gradient */
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 14px 45px;
+    font-weight: 700;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    min-width: 160px;
+    box-shadow: 0 4px 15px rgba(6, 182, 212, 0.25);
+}
+
+.cs-btn-close:hover {
+    background: linear-gradient(135deg, #22d3ee, #06b6d4);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(6, 182, 212, 0.4);
+    color: #fff;
+}
+
+/* ═══════════ RESPONSIVE ═══════════ */
+@media (max-width: 900px) {
+    .cs-form-row {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+    .cs-subjects-list {
+        padding-left: 20px;
+    }
+    .cs-unit-actions {
+        opacity: 1;
+    }
+}
+
+/* ═══════════ MAPPING UI (THE PROJECTOR) ═══════════ */
+.cs-mapping-container {
+    display: flex;
+    flex-direction: column;
+    height: 500px;
+}
+.cs-mapping-search {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--cl-border);
+    background: #f8fafc;
+}
+.cs-mapping-main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+.cs-mapping-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--cl-border);
+}
+.cs-mapping-column:last-child {
+    border-right: none;
+    background: #fdfdfd;
+}
+.cs-column-header {
+    padding: 10px 16px;
+    background: #f1f5f9;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #64748b;
+    border-bottom: 1px solid var(--cl-border);
+}
+.cs-item-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+/* Mapping Item Card */
+.cs-mapping-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    margin-bottom: 8px;
+    border: 1px solid #f1f5f9;
+    background: #fff;
+    transition: all 0.2s ease;
+}
+.cs-mapping-item:hover {
+    border-color: #6366f1;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
+    transform: translateY(-1px);
+}
+.cs-mapping-item.mapped {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.cs-item-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+    color: #64748b;
+    border: 1px solid #f1f5f9;
+}
+.cs-mapping-item:hover .cs-item-icon {
+    background: #6366f1;
+    color: #fff;
+    border-color: #6366f1;
+}
+
+.cs-item-info {
+    flex: 1;
+    min-width: 0;
+}
+.cs-item-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cs-item-meta {
+    font-size: 10px;
+    color: #94a3b8;
+    margin-top: 1px;
+    font-weight: 500;
+}
+
+.cs-mapping-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+    color: #cbd5e1;
+    font-size: 20px;
+}
+
+/* Button overrides in modal */
+.cs-manage-content-btn:hover {
+    color: #10b981 !important;
+    background: rgba(16, 185, 129, 0.1) !important;
+    border-color: #10b981 !important;
+}

@@ -1,0 +1,146 @@
+@model IEnumerable<TMS.Models.Assessments.ExamMaster>
+
+@{
+    ViewData["Title"] = "My Assessments";
+}
+
+<div class="exam-page">
+    <!-- Page Header -->
+    <div class="exam-page-header">
+        <div>
+            <h1>
+                <span class="header-icon" style="background:#eff6ff; color:#3b82f6;">
+                    <i class="fa-solid fa-file-signature"></i>
+                </span>
+                My Assessments
+            </h1>
+            <p>View your assigned exams, check schedules, and begin your assessments.</p>
+        </div>
+    </div>
+
+    <!-- Stats Summary -->
+    <div class="exam-stats-row">
+        <div class="exam-stat-card blue">
+            <span class="stat-label">Total Assigned</span>
+            <span class="stat-value">@(Model?.Count() ?? 0)</span>
+            <span class="stat-sub">Assessments available</span>
+        </div>
+        <div class="exam-stat-card green">
+            <span class="stat-label">Active Now</span>
+            <span class="stat-value">@(Model?.Count(e => e.Status == "Active" && e.StartDate <= DateTime.Now && e.EndDate >= DateTime.Now) ?? 0)</span>
+            <span class="stat-sub">Ready to attempt</span>
+        </div>
+        <div class="exam-stat-card purple">
+            <span class="stat-label">Upcoming</span>
+            <span class="stat-value">@(Model?.Count(e => e.StartDate > DateTime.Now) ?? 0)</span>
+            <span class="stat-sub">Scheduled exams</span>
+        </div>
+        <div class="exam-stat-card orange">
+            <span class="stat-label">Completed</span>
+            <span class="stat-value">@(Model?.Count(e => e.EndDate < DateTime.Now) ?? 0)</span>
+            <span class="stat-sub">Past assessments</span>
+        </div>
+    </div>
+
+    <!-- Exam Cards Grid -->
+    <div class="exam-section-box" style="padding:0; border:none; background:transparent; box-shadow:none;">
+        <div class="exam-section-title" style="padding: 0 0 14px 0;">
+            <span class="title-icon" style="background:#f5f3ff; color:#7c3aed;">
+                <i class="fa-solid fa-layer-group"></i>
+            </span>
+            Available Assessments
+        </div>
+
+        @if (Model == null || !Model.Any())
+        {
+            <div class="exam-empty-state">
+                <div class="empty-icon"><i class="fa-solid fa-clipboard-check"></i></div>
+                <h3>No Active Assessments</h3>
+                <p>You have no pending assessments assigned to you at the moment. Check back later!</p>
+            </div>
+        }
+        else
+        {
+            <div class="exam-grid">
+                @foreach (var exam in Model)
+                {
+                    var isActive = exam.Status == "Active" && exam.StartDate <= DateTime.Now && exam.EndDate >= DateTime.Now;
+                    var isUpcoming = exam.StartDate > DateTime.Now;
+                    var isExpired = exam.EndDate < DateTime.Now;
+
+                    <div class="exam-card">
+                        <!-- Top Accent Bar -->
+                        <div style="height:4px; background: @(isActive ? "linear-gradient(90deg, #3b82f6, #8b5cf6)" : isUpcoming ? "linear-gradient(90deg, #f97316, #f59e0b)" : "#e2e8f0");"></div>
+                        <div class="exam-card-body">
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                                <span class="exam-course-tag">@exam.Course?.Name</span>
+                                @if (isActive)
+                                {
+                                    <span class="exam-badge active"><i class="fa-solid fa-circle" style="font-size:6px;"></i> Active</span>
+                                }
+                                else if (isUpcoming)
+                                {
+                                    <span class="exam-badge pending"><i class="fa-solid fa-clock"></i> Upcoming</span>
+                                }
+                                else
+                                {
+                                    <span class="exam-badge draft"><i class="fa-solid fa-check"></i> Closed</span>
+                                }
+                            </div>
+
+                            <h3 style="font-size:17px; font-weight:700; color:#1e293b; margin-bottom:8px;">@exam.Title</h3>
+                            <p style="font-size:13px; color:#64748b; line-height:1.5; margin-bottom:16px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">
+                                @exam.Description
+                            </p>
+
+                            <div class="exam-meta-row" style="margin-bottom:16px;">
+                                <div class="exam-meta-item">
+                                    <i class="fa-regular fa-clock" style="color:#3b82f6;"></i>
+                                    <strong>@exam.DurationMinutes min</strong>
+                                </div>
+                                <div class="exam-meta-item">
+                                    <i class="fa-solid fa-award" style="color:#7c3aed;"></i>
+                                    <strong>@exam.TotalMarks Marks</strong>
+                                </div>
+                                <div class="exam-meta-item">
+                                    <i class="fa-solid fa-rotate" style="color:#059669;"></i>
+                                    <strong>@exam.AllowedAttempts Attempts</strong>
+                                </div>
+                            </div>
+
+                            <div style="display:flex; flex-direction:column; gap:6px; font-size:12.5px; color:#64748b; margin-bottom:20px;">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <i class="fa-regular fa-calendar-check" style="color:#059669; width:16px;"></i>
+                                    <span>Starts: <strong style="color:#1e293b;">@exam.StartDate.ToString("dd MMM yyyy, hh:mm tt")</strong></span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <i class="fa-regular fa-calendar-xmark" style="color:#ef4444; width:16px;"></i>
+                                    <span>Ends: <strong style="color:#1e293b;">@exam.EndDate.ToString("dd MMM yyyy, hh:mm tt")</strong></span>
+                                </div>
+                            </div>
+
+                            @if (isActive)
+                            {
+                                <a asp-action="Instructions" asp-route-examId="@exam.Id" class="exam-btn exam-btn-primary exam-btn-block">
+                                    <i class="fa-solid fa-play"></i> Begin Assessment
+                                </a>
+                            }
+                            else if (isUpcoming)
+                            {
+                                <div class="exam-btn exam-btn-secondary exam-btn-block" style="cursor:default; justify-content:center; opacity:0.7;">
+                                    <i class="fa-solid fa-clock"></i> Not Yet Available
+                                </div>
+                            }
+                            else
+                            {
+                                <a asp-action="Instructions" asp-route-examId="@exam.Id" class="exam-btn exam-btn-secondary exam-btn-block" style="justify-content:center;">
+                                    <i class="fa-solid fa-eye"></i> View Details
+                                </a>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>

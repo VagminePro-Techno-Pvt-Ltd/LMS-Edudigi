@@ -1,0 +1,66 @@
+﻿@model List<TMS.ViewModels.UserViewModel>;
+@{
+    var iIndex = 0;
+    var formPermissions = ViewContext.HttpContext.GetFormPermissions();
+}
+<table class="table" id="tblNomination">
+    <thead>
+        <tr>
+            <th style="text-align:center;width:105px;">Sl. No.</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Select</th> <!-- Add column for checkboxes -->
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            iIndex += 1;
+            <tr data-id="@item.Id">
+                <td style="text-align:right;">@iIndex</td>
+                <td>@item.Name</td>
+                <td>@item.Email</td>
+                <td> <!-- Checkbox for selecting users -->
+                    <div class="form-check">
+                        <input type="checkbox" id="chk_@item.Id" class="form-check-input selectedchk mr-1" data-userid="@item.Id" />
+                    </div>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+<form id="NomRemarks">
+    <label for="remarks"><b>Remarks:</b></label>
+    <input id="remarks" class="form-control" />
+    <br>
+    <button type="button" id="SaveNomUserByAdmin" class="btn btn-primary ">Nominate</button>
+
+</form>
+
+
+@* @section scripts {
+    <script>
+        $(document).ready(function () {
+            $('#SaveNomUser').click(function () {
+                var selectedUsers = [];
+                $('.selectedchk:checked').each(function () {
+                    selectedUsers.push($(this).data('userid'));
+                });
+                var remarks = $('#remarks').val();
+
+            
+                $.ajax({
+                    url: '@Url.Action("SaveTrainingNomination", "TrainingNomination")',
+                    method: 'POST',
+                    data: { selectedUsers: selectedUsers, remarks: remarks },
+                    success: function (response) {
+                     
+                    },
+                    error: function () {
+                        
+                    }
+                });
+            });
+        });
+    </script>
+} *@

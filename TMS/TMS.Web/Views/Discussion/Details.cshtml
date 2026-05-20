@@ -1,0 +1,213 @@
+@model TMS.Models.Masters.DiscussionThread
+@{
+    ViewBag.Title = Model.Title;
+}
+
+<link rel="stylesheet" href="~/css/forum-premium.css" asp-append-version="true" />
+
+<style>
+    .details-page { background: #f8f9fc; min-height: 100vh; }
+    .main-post-card { border: none; border-radius: 15px; box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1); }
+    .reply-item { border-radius: 15px; border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); transition: transform 0.2s; }
+    .reply-item:hover { transform: translateX(5px); }
+    .accepted-indicator { border-left: 5px solid #1cc88a; }
+    .nested-container { margin-left: 60px; position: relative; }
+    .nested-container::before { content: ''; position: absolute; left: -30px; top: -20px; bottom: 40px; width: 2px; background: #e3e6f0; }
+    .nested-container::after { content: ''; position: absolute; left: -30px; top: 40px; width: 20px; height: 2px; background: #e3e6f0; }
+    .btn-back-forum { color: #858796; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+    .btn-back-forum:hover { color: #4e73df; }
+</style>
+
+<div class="details-page py-4">
+    <div class="container">
+        <a href="@Url.Action("Index", new { programId = Model.ProgramId })" class="btn-back-forum">
+            <i class="fas fa-arrow-left"></i> Back to Feed
+        </a>
+
+        <div class="row">
+            <div class="col-lg-9">
+                <!-- Main Thread Post -->
+                <div class="card main-post-card mb-4">
+                    <div class="post-header">
+                        <div class="post-user-info">
+                            <img src="/img/user-default.png" class="user-avatar" />
+                            <div class="user-details">
+                                <p class="name">@Model.CreatedByUser?.Name <span class="post-badge">OP</span></p>
+                                <p class="meta">@Model.CreatedOn.ToString("MMM dd, yyyy HH:mm") • <i class="fas fa-eye mr-1"></i> @Model.ViewCount views</p>
+                            </div>
+                        </div>
+                        @if (User.IsInRole("Admin") || User.IsInRole("Faculty"))
+                        {
+                            <div class="dropdown">
+                                <button class="btn btn-light btn-sm rounded-circle" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v"></i></button>
+                                <div class="dropdown-menu dropdown-menu-end shadow border-0">
+                                    <a class="dropdown-item" href="javascript:void(0)" onclick="toggleLock(@Model.Id)">
+                                        <i class="fas @(Model.IsLocked ? "fa-unlock" : "fa-lock") mr-2"></i> @(Model.IsLocked ? "Unlock" : "Lock") Thread
+                                    </a>
+                                    <a class="dropdown-item" href="javascript:void(0)" onclick="togglePin(@Model.Id)">
+                                        <i class="fas fa-thumbtack mr-2"></i> @(Model.IsPinned ? "Unpin" : "Pin") Thread
+                                    </a>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    <div class="card-body px-4 pb-4">
+                        <h2 class="font-weight-bold text-dark mb-3">@Model.Title</h2>
+                        <div class="post-text mb-4" style="font-size: 1.1rem; line-height: 1.7; color: #2d3748;">
+                            @Model.Replies?.FirstOrDefault(r => r.ParentReplyId == null)?.CommentText
+                        </div>
+
+                        @if (Model.Attachments != null && Model.Attachments.Any())
+                        {
+                            <div class="attachments py-3 border-top mt-4">
+                                <h6 class="font-weight-bold small text-uppercase text-muted mb-3"><i class="fas fa-paperclip mr-2"></i>Attached Files</h6>
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach (var file in Model.Attachments)
+                                    {
+                                        <a href="@file.FilePath" class="btn btn-light btn-sm border rounded-pill px-3" target="_blank">
+                                            @if (file.FileType.Contains("image")) { <i class="far fa-image mr-1"></i> }
+                                            else { <i class="far fa-file-alt mr-1"></i> }
+                                            @file.FileName
+                                        </a>
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        <div class="post-footer bg-transparent px-0 pt-3 border-top mt-4">
+                            <button class="btn btn-primary rounded-pill px-4" @(Model.IsLocked ? "disabled" : "") onclick="showReplyForm(null)">
+                                <i class="fas fa-reply mr-2"></i>Post an Answer
+                            </button>
+                            <button class="btn btn-light rounded-pill px-3 ml-2"><i class="far fa-thumbs-up mr-1"></i> Like</button>
+                            @if (Model.IsLocked)
+                            {
+                                <span class="ml-auto text-danger small"><i class="fas fa-lock mr-1"></i> This discussion is locked</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Replies Section -->
+                <div class="replies-container">
+                    <div class="d-flex align-items-center mb-4">
+                        <h4 class="font-weight-bold text-dark m-0">Answers (@(Model.Replies?.Count(r => r.ParentReplyId != null) ?? 0))</h4>
+                        <div class="flex-grow-1 border-top ml-4 opacity-25"></div>
+                    </div>
+
+                    @if (Model.Replies != null && Model.Replies.Any(r => r.ParentReplyId == null))
+                    {
+                        var rootReply = Model.Replies.First(r => r.ParentReplyId == null);
+                        if (rootReply.ChildReplies != null && rootReply.ChildReplies.Any())
+                        {
+                            @foreach (var reply in rootReply.ChildReplies.OrderByDescending(r => r.IsAccepted).ThenBy(r => r.CommentedOn))
+                            {
+                                @Html.Partial("_ThreadReply", reply)
+                            }
+                        }
+                        else
+                        {
+                            <div class="card border-0 bg-transparent text-center py-5">
+                                <div class="card-body">
+                                    <i class="far fa-comments fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">No answers yet. Share your knowledge with the community!</p>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+            <!-- Detail Sidebar -->
+            <div class="col-lg-3">
+                <div class="card premium-sidebar-card">
+                    <div class="sidebar-header">
+                        <h6>Stats</h6>
+                    </div>
+                    <div class="sidebar-body">
+                        <div class="d-flex justify-content-between mb-3">
+                            <span class="text-muted small">Replies</span>
+                            <span class="font-weight-bold small">@(Model.Replies?.Count(r => r.ParentReplyId != null) ?? 0)</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-3">
+                            <span class="text-muted small">Views</span>
+                            <span class="font-weight-bold small">@Model.ViewCount</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted small">Attachments</span>
+                            <span class="font-weight-bold small">@(Model.Attachments?.Count ?? 0)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card premium-sidebar-card bg-light border-0">
+                    <div class="card-body text-center p-4">
+                        <i class="fas fa-shield-alt fa-2x text-primary mb-3"></i>
+                        <h6 class="font-weight-bold text-dark">LMS Moderation</h6>
+                        <p class="small text-muted mb-0">Help keep our community safe by flagging inappropriate content.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reply Modal -->
+<div class="modal fade" id="replyModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
+            <form action="@Url.Action("Reply")" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="ThreadId" value="@Model.Id" />
+                <input type="hidden" name="ParentReplyId" id="modalParentId" value="" />
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title font-weight-bold text-dark"><i class="fas fa-reply mr-2 text-primary"></i>Post Your Answer</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="form-group mb-4">
+                        <textarea name="CommentText" class="form-control border-0 bg-light" style="border-radius: 10px;" rows="8" placeholder="Share your expertise with clear and helpful information..." required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="font-weight-bold text-muted small text-uppercase mb-2">Attachments</label>
+                        <input type="file" name="attachments" multiple class="form-control-file" />
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light px-4 font-weight-bold" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-premium-ask px-5">Submit Answer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function showReplyForm(parentId) {
+            document.getElementById('modalParentId').value = parentId || "";
+            var replyModal = new bootstrap.Modal(document.getElementById('replyModal'));
+            replyModal.show();
+        }
+
+        function markAccepted(replyId) {
+            if (confirm('Mark this as the accepted answer?')) {
+                $.post('@Url.Action("MarkAccepted")', { replyId: replyId, threadId: @Model.Id }, function(res) {
+                    if (res.success) location.reload();
+                    else alert('Operation failed.');
+                });
+            }
+        }
+
+        function toggleLock(id) {
+            $.post('@Url.Action("ToggleLock")', { id: id }, function(res) {
+                if (res.success) location.reload();
+            });
+        }
+
+        function togglePin(id) {
+            $.post('@Url.Action("TogglePin")', { id: id }, function(res) {
+                if (res.success) location.reload();
+            });
+        }
+    </script>
+}

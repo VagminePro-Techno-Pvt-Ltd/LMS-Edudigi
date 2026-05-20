@@ -1,0 +1,467 @@
+@model TMS.ViewModels.Academics.AnnouncementViewModel
+@{
+    ViewData["Title"] = Model.Id == 0 ? "Create Announcement" : "Edit Announcement";
+    bool isEdit = Model.Id > 0;
+}
+
+@section extracss {
+<style>
+    /* ════════════════════════════════════════════════════════
+       ANNOUNCEMENT FORM — Futuristic Light Theme
+       ════════════════════════════════════════════════════════ */
+    .ann-form-page {
+        max-width: 820px;
+        margin: 0 auto;
+    }
+
+    .ann-form-header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 28px;
+    }
+
+    .ann-form-header .back-btn {
+        width: 38px; height: 38px;
+        border-radius: 4px;
+        border: 1px solid #e8ecf0;
+        background: #fff;
+        display: flex; align-items: center; justify-content: center;
+        color: #64748b; text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .ann-form-header .back-btn:hover {
+        background: #eff6ff; color: #3b82f6; border-color: #bfdbfe;
+    }
+
+    .ann-form-header h1 {
+        font-family: 'Jost', sans-serif;
+        font-size: 24px; font-weight: 800;
+        color: #1e293b; margin: 0; letter-spacing: -0.3px;
+    }
+
+    .ann-form-card {
+        background: #fff;
+        border: 1px solid #e8ecf0;
+        border-radius: 4px;
+        padding: 32px;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+    }
+
+    .ann-form-section {
+        margin-bottom: 28px;
+    }
+
+    .ann-form-section-title {
+        font-family: 'Jost', sans-serif;
+        font-size: 14px; font-weight: 700;
+        color: #1e293b;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin-bottom: 18px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #f1f5f9;
+        display: flex; align-items: center; gap: 8px;
+    }
+
+    .ann-form-section-title i {
+        font-size: 14px; color: #6366f1;
+    }
+
+    .ann-form-group {
+        margin-bottom: 20px;
+    }
+
+    .ann-form-group label {
+        display: block;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+    }
+
+    .ann-form-group label .required {
+        color: #ef4444;
+    }
+
+    .ann-form-input,
+    .ann-form-select,
+    .ann-form-textarea {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        font-size: 14px;
+        color: #1e293b;
+        background: #fff;
+        transition: all 0.2s ease;
+        font-family: 'Jost', sans-serif;
+    }
+
+    .ann-form-input:focus,
+    .ann-form-select:focus,
+    .ann-form-textarea:focus {
+        outline: none;
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+    }
+
+    .ann-form-textarea {
+        min-height: 160px;
+        resize: vertical;
+    }
+
+    .ann-form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    /* ── Type Selector Pills ── */
+    .ann-type-pills {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .ann-type-pill {
+        padding: 10px 20px;
+        border: 2px solid #e2e8f0;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        display: flex; align-items: center; gap: 8px;
+        transition: all 0.2s ease;
+        background: #fff;
+    }
+
+    .ann-type-pill:hover { border-color: #94a3b8; }
+
+    .ann-type-pill.selected-general {
+        border-color: #3b82f6; background: #eff6ff; color: #3b82f6;
+    }
+    .ann-type-pill.selected-event {
+        border-color: #7c3aed; background: #f5f3ff; color: #7c3aed;
+    }
+    .ann-type-pill.selected-urgent {
+        border-color: #ef4444; background: #fef2f2; color: #ef4444;
+    }
+
+    .ann-type-pill input[type="radio"] { display: none; }
+
+    /* ── Target Type ── */
+    .ann-target-section {
+        padding: 16px;
+        background: #f8fafc;
+        border: 1px solid #e8ecf0;
+        border-radius: 4px;
+    }
+
+    #targetIdGroup {
+        margin-top: 14px;
+        display: none;
+    }
+
+    /* ── Toggle Switch ── */
+    .ann-toggle-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .ann-toggle {
+        position: relative;
+        width: 44px; height: 24px;
+    }
+
+    .ann-toggle input { opacity: 0; width: 0; height: 0; }
+
+    .ann-toggle-slider {
+        position: absolute; inset: 0;
+        background: #cbd5e1; border-radius: 4px;
+        cursor: pointer; transition: 0.3s;
+    }
+
+    .ann-toggle-slider::before {
+        content: '';
+        position: absolute;
+        width: 18px; height: 18px;
+        left: 3px; bottom: 3px;
+        background: #fff; border-radius: 3px;
+        transition: 0.3s;
+    }
+
+    .ann-toggle input:checked + .ann-toggle-slider {
+        background: #6366f1;
+    }
+
+    .ann-toggle input:checked + .ann-toggle-slider::before {
+        transform: translateX(20px);
+    }
+
+    .ann-toggle-label {
+        font-size: 13px; font-weight: 500; color: #475569;
+    }
+
+    /* ── Submit ── */
+    .ann-form-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 32px;
+        padding-top: 24px;
+        border-top: 1px solid #f1f5f9;
+    }
+
+    .ann-btn-cancel {
+        padding: 10px 24px;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        background: #fff;
+        color: #64748b;
+        font-size: 13.5px; font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+
+    .ann-btn-cancel:hover {
+        background: #f1f5f9; color: #1e293b;
+    }
+
+    .ann-btn-submit {
+        padding: 10px 28px;
+        border: none;
+        border-radius: 4px;
+        background: linear-gradient(135deg, #3b82f6, #6366f1);
+        color: #fff;
+        font-size: 13.5px; font-weight: 600;
+        cursor: pointer;
+        transition: all 0.22s ease;
+        box-shadow: 0 2px 8px rgba(99,102,241,0.25);
+    }
+
+    .ann-btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(99,102,241,0.35);
+    }
+
+    .field-validation-error {
+        color: #ef4444;
+        font-size: 11.5px;
+        margin-top: 4px;
+    }
+
+    @@media (max-width: 768px) {
+        .ann-form-row { grid-template-columns: 1fr; }
+        .ann-form-card { padding: 20px; }
+    }
+</style>
+}
+
+<div class="ann-form-page">
+    <div class="ann-form-header">
+        <a asp-action="Index" class="back-btn">
+            <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <h1>
+            <i class="@(isEdit ? "fa-solid fa-pen-to-square" : "fa-solid fa-plus")" style="color: #6366f1; margin-right: 8px;"></i>
+            @ViewData["Title"]
+        </h1>
+    </div>
+
+    <div class="ann-form-card">
+        <form asp-action="@(isEdit ? "Edit" : "Create")" method="post">
+            <input type="hidden" asp-for="Id" />
+            @Html.AntiForgeryToken()
+
+            <!-- ── Content Section ── -->
+            <div class="ann-form-section">
+                <div class="ann-form-section-title">
+                    <i class="fa-solid fa-file-lines"></i> Content
+                </div>
+
+                <div class="ann-form-group">
+                    <label>Title <span class="required">*</span></label>
+                    <input asp-for="Title" class="ann-form-input" placeholder="Enter announcement title..." />
+                    <span asp-validation-for="Title"></span>
+                </div>
+
+                <div class="ann-form-group">
+                    <label>Description <span class="required">*</span></label>
+                    <textarea asp-for="Description" class="ann-form-textarea" placeholder="Write the announcement details..." id="descriptionEditor"></textarea>
+                    <span asp-validation-for="Description"></span>
+                </div>
+            </div>
+
+            <!-- ── Type Section ── -->
+            <div class="ann-form-section">
+                <div class="ann-form-section-title">
+                    <i class="fa-solid fa-tag"></i> Type & Priority
+                </div>
+
+                <div class="ann-form-group">
+                    <label>Announcement Type <span class="required">*</span></label>
+                    <div class="ann-type-pills">
+                        <label class="ann-type-pill @(Model.AnnouncementType == 0 ? "selected-general" : "")" data-type="0">
+                            <input type="radio" name="AnnouncementType" value="0" @(Model.AnnouncementType == 0 ? "checked=\"checked\"" : "") />
+                            <i class="fa-solid fa-circle-info"></i> General
+                        </label>
+                        <label class="ann-type-pill @(Model.AnnouncementType == 1 ? "selected-event" : "")" data-type="1">
+                            <input type="radio" name="AnnouncementType" value="1" @(Model.AnnouncementType == 1 ? "checked=\"checked\"" : "") />
+                            <i class="fa-solid fa-calendar-days"></i> Event
+                        </label>
+                        <label class="ann-type-pill @(Model.AnnouncementType == 2 ? "selected-urgent" : "")" data-type="2">
+                            <input type="radio" name="AnnouncementType" value="2" @(Model.AnnouncementType == 2 ? "checked=\"checked\"" : "") />
+                            <i class="fa-solid fa-triangle-exclamation"></i> Urgent
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Audience Section ── -->
+            <div class="ann-form-section">
+                <div class="ann-form-section-title">
+                    <i class="fa-solid fa-users"></i> Target Audience
+                </div>
+
+                <div class="ann-target-section">
+                    <div class="ann-form-group" style="margin-bottom:0;">
+                        <label>Who should see this?</label>
+                        <select asp-for="TargetType" class="ann-form-select" id="targetTypeSelect">
+                            <option value="0">All Users</option>
+                            <option value="1">Specific Role</option>
+                            <option value="2">Specific Course</option>
+                            <option value="3">Specific Department</option>
+                        </select>
+                    </div>
+
+                    <div id="targetIdGroup" class="ann-form-group" style="margin-bottom:0;">
+                        <label id="targetIdLabel">Select Target</label>
+                        <select asp-for="TargetId" class="ann-form-select" id="targetIdSelect">
+                            <option value="">— Select —</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Scheduling Section ── -->
+            <div class="ann-form-section">
+                <div class="ann-form-section-title">
+                    <i class="fa-regular fa-clock"></i> Scheduling
+                </div>
+
+                <div class="ann-form-row">
+                    <div class="ann-form-group">
+                        <label>Publish Date <span class="required">*</span></label>
+                        <input asp-for="PublishDate" type="datetime-local" class="ann-form-input" />
+                        <span asp-validation-for="PublishDate"></span>
+                    </div>
+                    <div class="ann-form-group">
+                        <label>Expiry Date <small style="color:#94a3b8;">(optional)</small></label>
+                        <input asp-for="ExpiryDate" type="datetime-local" class="ann-form-input" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Options Section ── -->
+            <div class="ann-form-section">
+                <div class="ann-form-section-title">
+                    <i class="fa-solid fa-sliders"></i> Options
+                </div>
+
+                <div class="ann-form-row">
+                    <div class="ann-toggle-group">
+                        <label class="ann-toggle">
+                            <input type="checkbox" asp-for="IsPinned" />
+                            <span class="ann-toggle-slider"></span>
+                        </label>
+                        <span class="ann-toggle-label">
+                            <i class="fa-solid fa-thumbtack" style="color:#f59e0b;"></i>
+                            Pin to top of announcement board
+                        </span>
+                    </div>
+                    <div class="ann-toggle-group">
+                        <label class="ann-toggle">
+                            <input type="checkbox" asp-for="IsActive" />
+                            <span class="ann-toggle-slider"></span>
+                        </label>
+                        <span class="ann-toggle-label">
+                            <i class="fa-solid fa-eye" style="color:#10b981;"></i>
+                            Active (visible to audience)
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Footer ── -->
+            <div class="ann-form-footer">
+                <a asp-action="Index" class="ann-btn-cancel">Cancel</a>
+                <button type="submit" class="ann-btn-submit">
+                    <i class="fa-solid fa-paper-plane" style="margin-right:6px;"></i>
+                    @(isEdit ? "Update Announcement" : "Publish Announcement")
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // ── Type Pill Selection ──
+    document.querySelectorAll('.ann-type-pill').forEach(pill => {
+        pill.addEventListener('click', function () {
+            document.querySelectorAll('.ann-type-pill').forEach(p => {
+                p.classList.remove('selected-general', 'selected-event', 'selected-urgent');
+            });
+            const type = this.dataset.type;
+            const cls = type === '0' ? 'selected-general' : type === '1' ? 'selected-event' : 'selected-urgent';
+            this.classList.add(cls);
+        });
+    });
+
+    // ── Target Type Change ──
+    const targetTypeSelect = document.getElementById('targetTypeSelect');
+    const targetIdGroup = document.getElementById('targetIdGroup');
+    const targetIdSelect = document.getElementById('targetIdSelect');
+    const targetIdLabel = document.getElementById('targetIdLabel');
+
+    function updateTargetVisibility() {
+        const val = parseInt(targetTypeSelect.value);
+        if (val === 0) {
+            targetIdGroup.style.display = 'none';
+            targetIdSelect.value = '';
+        } else {
+            targetIdGroup.style.display = 'block';
+            const labels = { 1: 'Select Role', 2: 'Select Course', 3: 'Select Department' };
+            targetIdLabel.textContent = labels[val] || 'Select Target';
+            loadTargetItems(val);
+        }
+    }
+
+    function loadTargetItems(targetType) {
+        fetch('@Url.Action("GetTargetItems")?targetType=' + targetType)
+            .then(r => r.json())
+            .then(items => {
+                targetIdSelect.innerHTML = '<option value="">— Select —</option>';
+                items.forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item.value;
+                    opt.textContent = item.text;
+                    @if (isEdit)
+                    {
+                        @:if (item.value == '@Model.TargetId') opt.selected = true;
+                    }
+                    targetIdSelect.appendChild(opt);
+                });
+            });
+    }
+
+    targetTypeSelect.addEventListener('change', updateTargetVisibility);
+    updateTargetVisibility();
+</script>
+}

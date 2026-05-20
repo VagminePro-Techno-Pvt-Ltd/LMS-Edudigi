@@ -1,0 +1,376 @@
+@model IEnumerable<TMS.Models.Academics.AssignmentSubmission>
+@{
+    var assignment = ViewBag.Assignment as TMS.Models.Academics.AssignmentMaster;
+    var grades = ViewBag.Grades as IEnumerable<TMS.Models.Academics.AssignmentGrade> ?? Enumerable.Empty<TMS.Models.Academics.AssignmentGrade>();
+    ViewData["Title"] = $"Submissions - {assignment?.Title}";
+}
+
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #0f172a, #1e293b);
+        --accent-gradient: linear-gradient(135deg, #2563eb, #3b82f6);
+        --glass-bg: rgba(255, 255, 255, 0.95);
+        --premium-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        --card-border-radius: 20px;
+    }
+
+    .premium-wrapper {
+        padding: 30px;
+        background-color: #f1f5f9;
+        min-height: calc(100vh - 120px);
+        font-family: 'Outfit', sans-serif;
+    }
+
+    .page-title {
+        font-size: 26px;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 2px;
+    }
+
+    .premium-card {
+        background: var(--glass-bg);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        border-radius: var(--card-border-radius);
+        box-shadow: var(--premium-shadow);
+        overflow: hidden;
+    }
+
+    .table-premium {
+        border-collapse: separate;
+        border-spacing: 0 10px;
+    }
+
+    .table-premium th {
+        background: transparent;
+        border: none;
+        color: #64748b;
+        font-weight: 700;
+        font-size: 13px;
+        text-transform: uppercase;
+        padding: 15px 20px;
+    }
+
+    .table-premium tbody tr {
+        background: white;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+        border-radius: 12px;
+        transition: transform 0.2s;
+    }
+
+    .table-premium tbody tr:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    }
+
+    .table-premium td {
+        border: none;
+        padding: 18px 20px;
+        font-size: 14px;
+        color: #334155;
+    }
+
+    .table-premium td:first-child {
+        border-top-left-radius: 12px;
+        border-bottom-left-radius: 12px;
+    }
+
+    .table-premium td:last-child {
+        border-top-right-radius: 12px;
+        border-bottom-right-radius: 12px;
+    }
+
+    .avatar-circle {
+        width: 38px;
+        height: 38px;
+        background: rgba(37, 99, 235, 0.1);
+        color: #2563eb;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+    }
+
+    .status-pill {
+        font-size: 12px;
+        font-weight: 700;
+        padding: 6px 14px;
+        border-radius: 30px;
+    }
+    
+    .status-late { background: rgba(245, 158, 11, 0.1); color: #d97706; }
+    .status-graded { background: rgba(16, 185, 129, 0.1); color: #059669; }
+    .status-submitted { background: rgba(59, 130, 246, 0.1); color: #2563eb; }
+
+    .btn-evaluate {
+        background: #0f172a;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 13px;
+        padding: 8px 16px;
+        transition: all 0.2s;
+    }
+
+    .btn-evaluate:hover {
+        background: #1e293b;
+        color: white;
+    }
+
+    /* Modal Styling */
+    .premium-modal .modal-content {
+        border-radius: 20px;
+        border: none;
+        box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+    }
+
+    .premium-modal .modal-header {
+        background: var(--primary-gradient);
+        color: white;
+        border-top-left-radius: 20px;
+        border-top-right-radius: 20px;
+        padding: 24px;
+    }
+
+    .form-label-custom {
+        font-weight: 700;
+        color: #1e293b;
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+
+    .form-control-custom {
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-size: 15px;
+    }
+</style>
+
+<div class="premium-wrapper">
+    <div class="d-flex align-items-center mb-4 gap-3 flex-wrap">
+        <a href="@Url.Action("FacultyDashboard")" class="btn btn-light px-3 py-2" style="border-radius: 12px; font-weight:600; border:1px solid #e2e8f0;">
+            <i class="fa-solid fa-chevron-left"></i>
+        </a>
+        <div>
+            <h1 class="page-title">📝 Submissions</h1>
+            <p class="text-muted mb-0">Evaluating: <strong class="text-primary">@assignment?.Title</strong></p>
+        </div>
+    </div>
+
+    <div class="card premium-card mb-4">
+        <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <span class="text-muted me-4 font-9"><i class="fa-solid fa-graduation-cap me-1"></i> Program: <strong>@assignment?.Program?.Name</strong></span>
+                <span class="text-muted font-9"><i class="fa-solid fa-calendar me-1"></i> Deadline: <strong>@assignment?.DueDate.ToString("dd MMM yyyy")</strong></span>
+            </div>
+            <a href="@Url.Action("DownloadAllSubmissions", new { assignmentId = assignment?.Id })" class="btn btn-success px-4 py-2" style="border-radius:12px; font-weight:700;">
+                <i class="fa-solid fa-file-zipper me-1"></i> Bulk Download
+            </a>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-responsive">
+        <table class="table table-premium align-middle">
+            <thead>
+                <tr>
+                    <th>Student Name</th>
+                    <th>Submitted On</th>
+                    <th>Attempt</th>
+                    <th>Status</th>
+                    <th>Evaluation</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Any())
+                {
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted bg-white" style="border-radius:12px;">
+                            <i class="fa-regular fa-folder-open fa-2x mb-2 d-block"></i> No submissions received yet.
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    foreach (var item in Model)
+                    {
+                        var grade = grades.FirstOrDefault(g => g.SubmissionId == item.Id);
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="avatar-circle">
+                                        @(item.Student?.Name?.Substring(0, 1).ToUpper() ?? "S")
+                                    </div>
+                                    <span class="font-weight-bold text-dark">@item.Student?.Name</span>
+                                </div>
+                            </td>
+                            <td>@item.SubmittedOn.ToString("dd MMM yyyy hh:mm tt")</td>
+                            <td>
+                                <span class="badge bg-light text-secondary px-3 py-2 rounded-pill">Attempt #@item.AttemptNumber</span>
+                            </td>
+                            <td>
+                                @if (item.Status == "LateSubmitted")
+                                {
+                                    <span class="status-pill status-late">Late Submission</span>
+                                }
+                                else if (item.Status == "Graded")
+                                {
+                                    <span class="status-pill status-graded">Evaluated</span>
+                                }
+                                else
+                                {
+                                    <span class="status-pill status-submitted">Submitted</span>
+                                }
+                            </td>
+                            <td class="font-weight-bold text-dark">
+                                @(grade != null ? $"{grade.Marks} / {assignment?.MaxMarks}" : "Pending Evaluation")
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-evaluate me-2" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#gradeModal" 
+                                        data-id="@item.Id" 
+                                        data-marks="@(grade?.Marks ?? 0)" 
+                                        data-feedback="@(grade?.Feedback ?? "")"
+                                        data-text="@item.SubmissionText"
+                                        data-file="@item.AttachmentPath"
+                                        onclick="setupGradeModal(this)">
+                                    <i class="fa-solid fa-pen-to-square me-1"></i> Grade
+                                </button>
+                                @if (!string.IsNullOrEmpty(item.AttachmentPath))
+                                {
+                                    <a href="@item.AttachmentPath" target="_blank" class="btn btn-outline-secondary px-3 py-2" style="border-radius:10px;" title="Download Asset">
+                                        <i class="fa-solid fa-download"></i>
+                                    </a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Grade Modal -->
+<div class="modal fade premium-modal" id="gradeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title font-weight-bold"><i class="fa-solid fa-award me-2"></i> Evaluate Work</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="gradeForm">
+                <input type="hidden" name="SubmissionId" id="modalSubmissionId" />
+                <div class="modal-body p-4">
+                    
+                    <!-- Direct inspection of student work -->
+                    <div class="mb-4" style="display:none;" id="inspectionTextContainer">
+                        <label class="form-label-custom"><i class="fa-solid fa-align-left me-1"></i> Student Online Answer / Notes</label>
+                        <div id="modalStudentText" class="p-3 bg-light rounded text-dark" style="white-space: pre-wrap; font-size: 14px; border: 1px solid #e2e8f0; line-height: 1.6;"></div>
+                    </div>
+
+                    <div class="mb-4" style="display:none;" id="inspectionFileContainer">
+                        <label class="form-label-custom"><i class="fa-solid fa-paperclip me-1"></i> Student Attachment</label>
+                        <a href="#" id="modalStudentFile" target="_blank" class="btn btn-outline-primary d-block py-2 text-start font-weight-bold" style="border-radius: 12px; border-width: 2px;">
+                            <i class="fa-solid fa-cloud-arrow-down ms-2 me-2"></i> Click to Download Submitted File
+                        </a>
+                    </div>
+
+                    <hr class="my-4" style="border-color: #cbd5e1; border-width: 2px;" />
+
+                    <div class="mb-3">
+                        <label class="form-label-custom">Marks Awarded (Max: @assignment?.MaxMarks) <span class="text-danger">*</span></label>
+                        <input type="number" name="Marks" id="modalMarks" min="0" max="@assignment?.MaxMarks" step="0.01" class="form-control form-control-custom" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label-custom">Feedback / Instructor Notes</label>
+                        <textarea name="Feedback" id="modalFeedback" rows="4" class="form-control form-control-custom" placeholder="Draft feedback points..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer p-3 bg-light" style="border-bottom-left-radius: 20px; border-bottom-right-radius: 20px;">
+                    <button type="button" class="btn btn-light px-4 py-2" style="border-radius:12px; font-weight:600;" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-evaluate px-4 py-2 shadow-sm" id="btnSubmitGrade">Save Evaluation</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function setupGradeModal(btn, marksParam, feedbackParam) {
+            var id, marks, feedback, text, file;
+            
+            if (typeof btn === 'object') {
+                id = $(btn).data('id');
+                marks = $(btn).data('marks');
+                feedback = $(btn).data('feedback');
+                text = $(btn).data('text');
+                file = $(btn).data('file');
+            } else {
+                id = btn;
+                marks = marksParam;
+                feedback = feedbackParam;
+                text = "";
+                file = "";
+            }
+
+            $('#modalSubmissionId').val(id);
+            $('#modalMarks').val(marks > 0 ? marks : '');
+            $('#modalFeedback').val(feedback);
+
+            if (text && text.trim() !== '') {
+                $('#modalStudentText').text(text);
+                $('#inspectionTextContainer').show();
+            } else {
+                $('#inspectionTextContainer').hide();
+            }
+
+            if (file && file.trim() !== '') {
+                $('#modalStudentFile').attr('href', file);
+                $('#inspectionFileContainer').show();
+            } else {
+                $('#inspectionFileContainer').hide();
+            }
+        }
+
+        $(document).ready(function() {
+            $('#btnSubmitGrade').click(function(e) {
+                e.preventDefault();
+                
+                var form = $('#gradeForm');
+                
+                if (!form[0].checkValidity()) {
+                    form[0].reportValidity();
+                    return;
+                }
+                
+                $('#btnSubmitGrade').prop('disabled', true).text('Saving...');
+                
+                $.ajax({
+                    url: '@Url.Action("GradeSubmission")',
+                    type: 'POST',
+                    data: form.serialize(),
+                    success: function(response) {
+                        if (response.success) {
+                            alert(response.message);
+                            location.reload();
+                        } else {
+                            alert('Error: ' + response.message);
+                            $('#btnSubmitGrade').prop('disabled', false).text('Save Evaluation');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        alert('An unexpected server error occurred: ' + error);
+                        $('#btnSubmitGrade').prop('disabled', false).text('Save Evaluation');
+                    }
+                });
+            });
+        });
+    </script>
+}

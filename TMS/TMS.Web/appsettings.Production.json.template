@@ -1,0 +1,28 @@
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=YOUR_PROD_SERVER;Database=LMS-EduDigi;User Id=TMS_User;Password=YOUR_SECURE_PASSWORD;TrustServerCertificate=True;"
+  },
+  "Kestrel": {
+    "Limits": {
+      "MaxRequestBodySize": 209715200
+    }
+  },
+  "ZoomSettings": {
+    "AccountId": "YOUR_PROD_ACCOUNT_ID",
+    "ClientId": "YOUR_PROD_CLIENT_ID",
+    "ClientSecret": "YOUR_PROD_CLIENT_SECRET"
+  },
+  "StorageSettings": {
+    "StorageConnectionString": "YOUR_AZURE_CONNECTION_STRING",
+    "StorageUrl": "YOUR_AZURE_BLOB_URL",
+    "ContainerName": "uploads",
+    "PublicContainerName": "public"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Warning",
+      "Microsoft.AspNetCore": "Error"
+    }
+  },
+  "AllowedHosts": "yourdomain.com"
+}

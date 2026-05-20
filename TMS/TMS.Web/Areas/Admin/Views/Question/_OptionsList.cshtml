@@ -1,0 +1,28 @@
+﻿@model TMS.ViewModels.Masters.QuestionMasterViewModel
+@if (Model != null && Model.QuestionOptions != null && Model.QuestionOptions.Any())
+{
+    <div class="col-12">
+        <table class="table table-borderedless table-morecondensed">
+            <tbody>
+                @for (int i = 0; i < Model?.QuestionOptions.Count; i++)
+                {
+                    <tr>
+                        <td style="width:100px;" valign="top"><label asp-for="@Model.QuestionOptions[0].Option"></label> @(i + 1)</td>
+                        <td valign="top">
+                            <input asp-for="@Model.QuestionOptions[i].Id" type="hidden" />
+                            <textarea asp-for="@Model.QuestionOptions[i].Option"></textarea>
+                            <span asp-validation-for="@Model.QuestionOptions[i].Option" class="text-danger"></span>
+                        </td>
+                        <td style="width:140px;" valign="top" align="center">
+                            <div class="form-check form-switch">
+                                <input class="rdoAnswer form-check-input" asp-for="@Model.QuestionOptions[i].IsCorrectAnswer">
+                                <label class="form-check-label nomandatory" asp-for="@Model.QuestionOptions[i].IsCorrectAnswer"></label>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+

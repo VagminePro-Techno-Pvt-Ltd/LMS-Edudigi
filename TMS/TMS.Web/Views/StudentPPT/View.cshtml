@@ -1,0 +1,248 @@
+@model TMS.Web.Controllers.StudentPPTViewModel
+@{
+    ViewData["Title"] = "Interactive PPT Viewer";
+}
+
+<style>
+    .sppt-wrap { padding: 10px 6px 32px; font-family: 'Jost','Segoe UI',sans-serif; }
+    .sppt-card {
+        background:#fff; border:1px solid #eef2f6; border-radius:16px;
+        box-shadow:0 8px 24px rgba(15,23,42,.06);
+        overflow:hidden;
+    }
+    .sppt-head {
+        padding:18px 22px; background:linear-gradient(135deg,#6366f1,#7c3aed);
+        color:#fff; display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    }
+    .sppt-head h1 { margin:0; font-size:18px; font-weight:900; display:flex; align-items:center; gap:10px; }
+    .sppt-head p { margin:6px 0 0; font-size:12.5px; opacity:.9; max-width: 100%; }
+    .sppt-body { padding:18px 22px; }
+    .sppt-meta { display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 0; }
+    .pill { background:rgba(255,255,255,0.2); color:#fff; border-radius:999px; padding:4px 12px; font-size:12px; font-weight:700; backdrop-filter: blur(4px); }
+
+    .sppt-detail-row {
+        display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
+        margin-bottom: 14px; font-size: 13px; color: #475569;
+    }
+    .sppt-detail-row strong { color: #0f172a; font-weight: 800; }
+
+    .localhost-warning {
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        color: #9a3412;
+        padding: 12px 16px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+        font-size: 13px;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        line-height: 1.45;
+    }
+    .localhost-warning i { font-size: 16px; margin-top: 2px; flex-shrink: 0; }
+
+    .sppt-viewer-wrap {
+        position: relative;
+        width: 100%;
+        max-width: 100%;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        overflow: hidden;
+    }
+
+    .sppt-loader {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+        color: #475569;
+        font-size: 14px;
+        font-weight: 700;
+        transition: opacity .25s ease, visibility .25s ease;
+    }
+    .sppt-loader.sppt-loader--hide {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+    }
+    .sppt-loader .sppt-spinner {
+        width: 36px; height: 36px;
+        border: 3px solid #e2e8f0;
+        border-top-color: #6366f1;
+        border-radius: 50%;
+        animation: sppt-spin .8s linear infinite;
+    }
+    @@keyframes sppt-spin { to { transform: rotate(360deg); } }
+
+    .sppt-viewer-iframe {
+        width: 100%;
+        height: 750px !important;
+        min-height: 750px;
+        border: none;
+        border-radius: 12px;
+        display: block;
+        background: #fff;
+        vertical-align: top;
+    }
+
+    .sppt-fallback {
+        margin-top: 12px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        font-size: 13px;
+        color: #475569;
+        line-height: 1.5;
+    }
+    .sppt-fallback a { color: #4f46e5; font-weight: 800; text-decoration: none; }
+    .sppt-fallback a:hover { text-decoration: underline; }
+
+    .sppt-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+    .btnx {
+        display:inline-flex; align-items:center; gap:8px; border:none; cursor:pointer; text-decoration:none;
+        padding:10px 16px; border-radius:12px; font-weight:800; font-size:13px;
+        transition: all 0.2s;
+    }
+    .btn-back { background:#f1f5f9; color:#334155; }
+    .btn-back:hover { background:#e2e8f0; color:#0f172a; transform: translateY(-1px); }
+    .btn-open { background:#6366f1; color:#fff; }
+    .btn-open:hover { background:#4f46e5; color:#fff; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99,102,241,0.3); }
+    .btn-open-tab { background:#fff; color:#4f46e5; border: 1px solid #c7d2fe; }
+    .btn-open-tab:hover { background:#eef2ff; color:#4338ca; transform: translateY(-1px); }
+    .btn-fs { background:#0f172a; color:#fff; }
+    .btn-fs:hover { background:#1e293b; color:#fff; transform: translateY(-1px); }
+
+    #pptContainer:fullscreen,
+    #pptContainer:-webkit-full-screen {
+        background: #0f172a;
+        border-radius: 0;
+        display: flex;
+        flex-direction: column;
+        padding: 0;
+    }
+    #pptContainer:fullscreen .sppt-viewer-iframe,
+    #pptContainer:-webkit-full-screen .sppt-viewer-iframe {
+        flex: 1;
+        height: auto;
+        min-height: 0;
+        border-radius: 0;
+    }
+    #pptContainer:fullscreen .sppt-loader,
+    #pptContainer:-webkit-full-screen .sppt-loader {
+        border-radius: 0;
+    }
+
+    @@media(max-width:768px){
+        .sppt-viewer-iframe { height: min(70vh, 520px); }
+    }
+</style>
+
+<div class="sppt-wrap">
+    <div class="sppt-card">
+        <div class="sppt-head">
+            <div>
+                <h1><i class="fa-solid fa-file-powerpoint"></i> @Model.Title</h1>
+                <p>@(string.IsNullOrWhiteSpace(Model.Description) ? "Interactive presentation" : Model.Description)</p>
+            </div>
+            <div class="sppt-meta">
+                <span class="pill"><i class="fa-regular fa-calendar"></i> @Model.CreatedAt.ToString("MMM dd, yyyy")</span>
+            </div>
+        </div>
+        <div class="sppt-body">
+            <div class="sppt-detail-row">
+                <span><strong>Uploaded:</strong> @Model.CreatedAt.ToString("MMM dd, yyyy h:mm tt")</span>
+            </div>
+
+            @if (Model.IsLocalhost)
+            {
+                <div class="localhost-warning">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                    <span>Microsoft Viewer requires public URL. Use deployed domain or ngrok for preview.</span>
+                </div>
+            }
+
+            <!-- [TEMPORARY DEBUG CONSOLE] -->
+            <div class="mb-3" style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 12px; border-radius: 10px; font-family: monospace; font-size: 12px;">
+                <div class="fw-bold text-danger mb-1"><i class="fa-solid fa-bug"></i> Temporary Debug Tool</div>
+                <div style="word-break: break-all; margin-bottom: 4px;"><strong>Raw Public PPT URL:</strong> <a href="@Model.PublicPptUrl" target="_blank">@Model.PublicPptUrl</a></div>
+                <div style="word-break: break-all;"><strong>Office Apps Viewer URL:</strong> <a href="@Model.OfficeViewerUrl" target="_blank">@Model.OfficeViewerUrl</a></div>
+            </div>
+
+            <div class="sppt-viewer-wrap" id="pptContainer" style="overflow: visible !important;">
+                <div class="sppt-loader" id="pptLoader" aria-live="polite">
+                    <div class="sppt-spinner" aria-hidden="true"></div>
+                    <span>Loading presentation&hellip;</span>
+                </div>
+                <iframe id="pptOfficeFrame"
+                        src="@Model.OfficeViewerUrl"
+                        width="100%"
+                        height="750"
+                        frameborder="0"
+                        allowfullscreen
+                        class="sppt-viewer-iframe"
+                        style="border: none; overflow: visible;"
+                        onload="window.spptOnOfficeFrameLoad && window.spptOnOfficeFrameLoad()">
+                </iframe>
+            </div>
+
+            <div class="sppt-fallback">
+                If PPT preview is not loading,
+                <a href="@Model.OfficeViewerUrl" target="_blank" rel="noopener noreferrer">open the Office viewer in a new tab</a>
+                or
+                <a href="@Model.PublicPptUrl" target="_blank" rel="noopener noreferrer">open the PPT file in a new tab</a>.
+            </div>
+
+            <div class="sppt-actions">
+                <a class="btnx btn-back" asp-controller="StudentPPT" asp-action="Index">
+                    <i class="fa-solid fa-arrow-left"></i> Back
+                </a>
+                <button type="button" class="btnx btn-fs" onclick="toggleFullScreen()">
+                    <i class="fa-solid fa-expand"></i> Fullscreen
+                </button>
+                <a class="btnx btn-open" href="@Model.PublicPptUrl" target="_blank" rel="noopener noreferrer">
+                    <i class="fa-solid fa-file-powerpoint"></i> Open Raw PPT
+                </a>
+                <a class="btnx btn-open-tab" href="@Model.OfficeViewerUrl" target="_blank" rel="noopener noreferrer">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Office Viewer in New Tab
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    window.spptOnOfficeFrameLoad = function () {
+        var el = document.getElementById('pptLoader');
+        if (el) el.classList.add('sppt-loader--hide');
+    };
+    // Safety: hide loader after a long wait (e.g. blocked iframe) so UI is not stuck forever
+    setTimeout(function () {
+        window.spptOnOfficeFrameLoad();
+    }, 45000);
+
+    function toggleFullScreen() {
+        var elem = document.getElementById('pptContainer');
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen();
+            } else if (elem.webkitRequestFullscreen) {
+                elem.webkitRequestFullscreen();
+            } else if (elem.msRequestFullscreen) {
+                elem.msRequestFullscreen();
+            }
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            }
+        }
+    }
+</script>

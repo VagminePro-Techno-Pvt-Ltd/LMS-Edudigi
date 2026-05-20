@@ -1,0 +1,337 @@
+/* ================================================================
+   GLOBAL SEARCH — Edudigi LMS
+   Matches the topbar + sidebar design system (Jost font, CSS vars)
+   ================================================================ */
+ 
+/* ── Search Trigger Wrapper ───────────────────────────────── */
+.global-search-wrapper {
+    position: relative;
+}
+ 
+/* ── Collapsed: just the icon badge (default) ──────────────── */
+.global-search-wrapper .search-icon-badge {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: #eff6ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    flex-shrink: 0;
+}
+ 
+.global-search-wrapper .search-icon-badge i {
+    font-size: 15px;
+    color: #3b82f6;
+    transition: transform 0.2s ease;
+}
+ 
+.global-search-wrapper .search-icon-badge:hover {
+    background: #dbeafe;
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(59,130,246,0.15);
+}
+ 
+.global-search-wrapper .search-icon-badge:hover i {
+    transform: scale(1.08);
+}
+ 
+/* ── Expanded Search Bar ───────────────────────────────────── */
+.global-search-bar {
+    display: none;
+    align-items: center;
+    gap: 0;
+    background: #fff;
+    border: 1.5px solid #dbeafe;
+    border-radius: 10px;
+    padding: 0 8px 0 12px;
+    min-width: 260px;
+    max-width: 340px;
+    height: 40px;
+    box-shadow: 0 2px 12px rgba(59,130,246,0.10);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+ 
+.global-search-bar:focus-within {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+}
+ 
+.global-search-bar .search-bar-icon {
+    color: #94a3b8;
+    font-size: 14px;
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+ 
+.global-search-bar:focus-within .search-bar-icon {
+    color: #3b82f6;
+}
+ 
+#globalSearchInput {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: 'Jost', sans-serif;
+    font-size: 13.5px;
+    color: #0f172a;
+    font-weight: 400;
+    min-width: 0;
+    padding: 0;
+}
+ 
+#globalSearchInput::placeholder {
+    color: #94a3b8;
+    font-size: 13px;
+}
+ 
+.search-close-btn {
+    background: none;
+    border: none;
+    padding: 4px 6px;
+    cursor: pointer;
+    color: #94a3b8;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    transition: background 0.15s ease, color 0.15s ease;
+    margin-left: 2px;
+    flex-shrink: 0;
+}
+ 
+.search-close-btn:hover {
+    background: #fee2e2;
+    color: #ef4444;
+}
+ 
+.search-close-btn i {
+    font-size: 12px;
+}
+ 
+/* ── Active state (bar visible) ───────────────────────────── */
+.global-search-wrapper.search-active .search-icon-badge {
+    display: none;
+}
+ 
+.global-search-wrapper.search-active .global-search-bar {
+    display: flex;
+}
+ 
+/* ── Autocomplete Dropdown ─────────────────────────────────── */
+.search-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    min-width: 280px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 16px 48px rgba(15,23,42,0.12), 0 4px 12px rgba(59,130,246,0.08);
+    overflow: hidden;
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-6px);
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+}
+ 
+.search-dropdown.dropdown-visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+ 
+/* Header */
+.search-dropdown-header {
+    padding: 10px 14px 8px;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+ 
+.search-dropdown-header .sd-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #94a3b8;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    font-family: 'Jost', sans-serif;
+}
+ 
+.search-match-count {
+    font-size: 10px;
+    color: #3b82f6;
+    font-weight: 600;
+    background: #eff6ff;
+    padding: 2px 7px;
+    border-radius: 20px;
+    font-family: 'Jost', sans-serif;
+}
+ 
+/* Items list */
+.search-results-list {
+    list-style: none;
+    margin: 0;
+    padding: 6px 0;
+    max-height: 320px;
+    overflow-y: auto;
+}
+ 
+.search-results-list::-webkit-scrollbar {
+    width: 4px;
+}
+ 
+.search-results-list::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 2px;
+}
+ 
+/* Individual result item */
+.search-result-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: background 0.12s ease;
+    text-decoration: none;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    border-left: 3px solid transparent;
+}
+ 
+.search-result-item:hover,
+.search-result-item.item-focused {
+    background: #f8fafc;
+    border-left-color: #3b82f6;
+}
+ 
+.search-result-item.item-focused {
+    background: #eff6ff;
+}
+ 
+/* Icon */
+.sri-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 14px;
+}
+ 
+/* Text block */
+.sri-body {
+    flex: 1;
+    min-width: 0;
+}
+ 
+.sri-title {
+    font-family: 'Jost', sans-serif;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+ 
+.sri-subtitle {
+    font-family: 'Jost', sans-serif;
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 1px;
+}
+ 
+/* Highlight matched text */
+.sri-title mark {
+    background: #fef08a;
+    color: #1e293b;
+    border-radius: 2px;
+    padding: 0 1px;
+    font-weight: 700;
+}
+ 
+/* Arrow hint */
+.sri-arrow {
+    font-size: 11px;
+    color: #cbd5e1;
+    flex-shrink: 0;
+    transition: color 0.12s ease;
+}
+ 
+.search-result-item:hover .sri-arrow,
+.search-result-item.item-focused .sri-arrow {
+    color: #3b82f6;
+}
+ 
+/* Empty state */
+.search-no-results {
+    padding: 24px 14px;
+    text-align: center;
+}
+ 
+.search-no-results i {
+    font-size: 28px;
+    color: #cbd5e1;
+    display: block;
+    margin-bottom: 8px;
+}
+ 
+.search-no-results p {
+    font-family: 'Jost', sans-serif;
+    font-size: 13px;
+    color: #94a3b8;
+    margin: 0;
+}
+ 
+/* Footer hint */
+.search-dropdown-footer {
+    padding: 8px 14px;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+ 
+.search-key-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10.5px;
+    color: #94a3b8;
+    font-family: 'Jost', sans-serif;
+}
+ 
+.search-key-hint kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 18px;
+    padding: 0 4px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 700;
+    color: #64748b;
+    font-family: monospace;
+    line-height: 1;
+}
+ 
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .global-search-bar {
+        min-width: 200px;
+    }
+}

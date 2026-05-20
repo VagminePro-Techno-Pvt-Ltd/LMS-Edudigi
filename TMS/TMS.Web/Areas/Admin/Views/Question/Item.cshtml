@@ -1,0 +1,58 @@
+﻿@model TMS.ViewModels.Masters.QuestionMasterViewModel
+@{
+    ViewData["Title"] = "Question";
+    var controller = Convert.ToString(ViewContext.RouteData.Values["controller"]);
+    var permissions = ViewContext.HttpContext.GetFormPermissions();
+}
+<form method="post" id="frmItem" class="noclick" disabled="@(!permissions.Add && !permissions.Edit)">
+    <div class="card glass">
+        <div class="card-body">
+            <input asp-for="Id" type="hidden" />
+            <input id="hdAddEditActionAllowed" type="hidden" value="@permissions.CanShowAddEditButton(Model!.Id).ToString().ToLower()" />
+            <div class="row">
+                <div class="col-12 col-md-6">
+                    <label asp-for="QuestionType"></label>
+                    @if (Model.Id > 0)
+                    {
+                        <input asp-for="QuestionType" type="hidden" />
+                        <span class="form-control">Model.QuestionTypeStr</span>
+                    }
+                    else
+                    {
+                        <select asp-for="QuestionType" class="form-select">
+                            <option value="">--Select--</option>
+                            <option value="2">Question with two options</option>
+                            <option value="3">Question with three options</option>
+                            <option value="4">Question with four options</option>
+                            <option value="5">Question with five options</option>
+                        </select>
+                    }
+                    <span asp-validation-for="QuestionType" class="text-danger"></span>
+                </div>
+                @if (Model?.Id > 0)
+                {
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Status</label>
+                        <div class="d-flex">
+                            <label asp-for="IsActive" class="form-check-label nomandatory">Inactive</label>
+                            <div class="form-switch form-check ms-2">
+                                <input asp-for="IsActive" class="form-check-input">
+                            </div>
+                            <label asp-for="IsActive" class="form-check-label nomandatory">Active</label>
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <label asp-for="Question"></label>
+                    <textarea asp-for="Question" class=""></textarea>
+                    <span asp-validation-for="Question" class="text-danger"></span>
+                </div>
+            </div>
+            <div class="row" id="divQuestionOptions">
+                <partial name="_OptionsList.cshtml" model="Model" />
+            </div>
+        </div>
+    </div>
+</form>

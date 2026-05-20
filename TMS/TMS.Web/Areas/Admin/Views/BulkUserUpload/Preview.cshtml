@@ -1,0 +1,149 @@
+@{
+    ViewData["Title"] = "Bulk Upload — Preview";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var rows = ViewBag.PreviewRows as List<TMS.ViewModels.BulkUserUploadRow>;
+    int validCount = ViewBag.ValidCount ?? 0;
+    int errorCount = ViewBag.ErrorCount ?? 0;
+    int existsCount = ViewBag.ExistsCount ?? 0;
+    int total = rows?.Count ?? 0;
+}
+
+<style>
+    .preview-container { max-width: 1200px; margin: 0 auto; }
+    .preview-hero { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 20px; padding: 30px 40px; color: white; margin-bottom: 24px; }
+    .preview-hero h2 { font-weight: 800; margin-bottom: 4px; }
+    .preview-card { background: white; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 20px rgba(0,0,0,0.04); overflow: hidden; }
+    .preview-card .card-header-custom { background: #f8fafc; padding: 16px 24px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; }
+    .preview-card .card-body { padding: 0; }
+    .stat-pill { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 20px; font-weight: 700; font-size: 14px; }
+    .stat-pill.valid { background: #f0fdf4; color: #16a34a; }
+    .stat-pill.error { background: #fef2f2; color: #dc2626; }
+    .stat-pill.exists { background: #fff7ed; color: #d97706; }
+    .preview-table thead th { background: #f8fafc; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: 12px 16px; border: none; }
+    .preview-table tbody td { padding: 10px 16px; font-size: 13px; color: #1e293b; border-color: #f1f5f9; vertical-align: middle; }
+    .status-valid { color: #16a34a; font-weight: 700; }
+    .status-error { color: #dc2626; font-weight: 700; }
+    .status-exists { color: #d97706; font-weight: 700; }
+    .status-duplicate { color: #9333ea; font-weight: 700; }
+    .btn-confirm { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; border: none; padding: 12px 28px; border-radius: 12px; font-weight: 700; box-shadow: 0 4px 12px rgba(79,70,229,0.25); transition: all 0.3s; }
+    .btn-confirm:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(79,70,229,0.35); color: white; }
+    .mode-option { padding: 12px 20px; border-radius: 12px; border: 2px solid #e2e8f0; cursor: pointer; transition: all 0.2s; }
+    .mode-option:hover { border-color: #6366f1; background: #f5f3ff; }
+    .mode-option.selected { border-color: #6366f1; background: #eff6ff; }
+    .mode-option input[type="radio"] { margin-right: 8px; }
+</style>
+
+<div class="preview-container">
+    <div class="preview-hero">
+        <h2><i class="fas fa-eye me-2"></i>Preview Upload Data</h2>
+        <p class="mb-0" style="opacity:0.9;">Review the data below before confirming. Fix any errors in your file and re-upload if needed.</p>
+    </div>
+
+    @* ── Stats ── *@
+    <div class="d-flex gap-3 mb-4 flex-wrap">
+        <span class="stat-pill valid"><i class="fas fa-check-circle"></i> @validCount Ready</span>
+        <span class="stat-pill error"><i class="fas fa-times-circle"></i> @errorCount Errors</span>
+        <span class="stat-pill exists"><i class="fas fa-exclamation-triangle"></i> @existsCount Already Exist</span>
+        <span class="stat-pill" style="background:#f1f5f9; color:#475569;"><i class="fas fa-list"></i> @total Total</span>
+    </div>
+
+    @* ── Mode Selection + Confirm ── *@
+    <form asp-area="Admin" asp-controller="BulkUserUpload" asp-action="Confirm" method="post">
+        <div class="preview-card mb-4">
+            <div class="card-header-custom">
+                <h5 style="margin:0; font-weight:700; color:#1e293b;">Choose Upload Mode</h5>
+            </div>
+            <div style="padding: 20px 24px;">
+                <div class="d-flex gap-3 flex-wrap">
+                    <label class="mode-option selected" id="modeSkip">
+                        <input type="radio" name="uploadMode" value="SkipExisting" checked onchange="selectMode(this)">
+                        <strong>Skip Existing</strong>
+                        <div class="text-muted small">Create new users, skip if email exists</div>
+                    </label>
+                    <label class="mode-option" id="modeCreate">
+                        <input type="radio" name="uploadMode" value="CreateOnly" onchange="selectMode(this)">
+                        <strong>Create Only</strong>
+                        <div class="text-muted small">Fail if any email already exists</div>
+                    </label>
+                    <label class="mode-option" id="modeUpdate">
+                        <input type="radio" name="uploadMode" value="UpdateExisting" onchange="selectMode(this)">
+                        <strong>Update Existing</strong>
+                        <div class="text-muted small">Create new + update existing users</div>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        @* ── Preview Table ── *@
+        <div class="preview-card mb-4">
+            <div class="card-header-custom">
+                <h5 style="margin:0; font-weight:700; color:#1e293b;">Data Preview</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table preview-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Message</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (rows != null)
+                            {
+                                foreach (var row in rows)
+                                {
+                                    var statusClass = row.Status switch {
+                                        "Valid" => "status-valid",
+                                        "Error" => "status-error",
+                                        "Exists" => "status-exists",
+                                        "Duplicate" => "status-duplicate",
+                                        _ => ""
+                                    };
+                                    var icon = row.Status switch {
+                                        "Valid" => "fas fa-check-circle",
+                                        "Error" => "fas fa-times-circle",
+                                        "Exists" => "fas fa-exclamation-triangle",
+                                        "Duplicate" => "fas fa-copy",
+                                        _ => "fas fa-question-circle"
+                                    };
+                                    <tr>
+                                        <td>@row.RowNumber</td>
+                                        <td>@row.Name</td>
+                                        <td>@row.Email</td>
+                                        <td>@row.Phone</td>
+                                        <td><span class="badge" style="background:#f1f5f9; color:#475569;">@row.Role</span></td>
+                                        <td><span class="@statusClass"><i class="@icon"></i> @row.Status</span></td>
+                                        <td class="text-muted small">@row.Message</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        @* ── Actions ── *@
+        <div class="d-flex justify-content-between align-items-center mb-5">
+            <a asp-area="Admin" asp-controller="BulkUserUpload" asp-action="Index" class="btn btn-light fw-bold" style="border-radius:12px;">
+                <i class="fas fa-arrow-left"></i> Re-upload File
+            </a>
+            <button type="submit" class="btn-confirm" @(validCount == 0 ? "disabled" : "")>
+                <i class="fas fa-rocket"></i> Confirm & Process @validCount Users
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    function selectMode(el) {
+        document.querySelectorAll('.mode-option').forEach(o => o.classList.remove('selected'));
+        el.closest('.mode-option').classList.add('selected');
+    }
+</script>

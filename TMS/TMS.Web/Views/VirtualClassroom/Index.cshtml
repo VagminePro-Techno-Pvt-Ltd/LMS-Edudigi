@@ -1,0 +1,552 @@
+@model TMS.ViewModels.Academics.VirtualClassroomViewModel
+@{
+    ViewBag.Title = "Virtual Classroom";
+    Layout = "_Layout";
+}
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+    :root {
+        --primary: #6366f1;
+        --primary-dark: #4f46e5;
+        --secondary: #64748b;
+        --success: #10b981;
+        --danger: #ef4444;
+        --warning: #f59e0b;
+        --bg-main: #f8fafc;
+        --card-bg: #ffffff;
+        --text-main: #1e293b;
+        --text-muted: #64748b;
+    }
+
+    .vc-body {
+        font-family: 'Inter', sans-serif;
+        background-color: var(--bg-main);
+        color: var(--text-main);
+        min-height: 100vh;
+        padding: 2rem;
+    }
+
+    .vc-glass-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    /* Header Section */
+    .vc-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2.5rem;
+    }
+
+    .vc-title-group h1 {
+        font-size: 2.25rem;
+        font-weight: 800;
+        margin: 0;
+        background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .vc-title-group p {
+        color: var(--text-muted);
+        margin-top: 0.5rem;
+    }
+
+    /* Controls */
+    .vc-controls {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .vc-search-wrapper {
+        position: relative;
+        width: 300px;
+    }
+
+    .vc-search-input {
+        width: 100%;
+        padding: 0.75rem 1rem 0.75rem 2.5rem;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        outline: none;
+        transition: all 0.2s;
+    }
+
+    .vc-search-input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+    }
+
+    .vc-search-icon {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+    }
+
+    .btn-schedule {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 12px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+    }
+
+    .btn-schedule:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+    }
+
+    /* Tabs */
+    .vc-tabs {
+        display: flex;
+        gap: 1rem;
+        border-bottom: 2px solid #e2e8f0;
+        margin-bottom: 2rem;
+    }
+
+    .vc-tab {
+        padding: 1rem 1.5rem;
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--text-muted);
+        position: relative;
+        transition: color 0.2s;
+    }
+
+    .vc-tab.active {
+        color: var(--primary);
+    }
+
+    .vc-tab.active::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background-color: var(--primary);
+    }
+
+    /* Session Cards Grid */
+    .vc-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .session-card {
+        background: white;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+    }
+
+    .session-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
+        border-color: var(--primary);
+    }
+
+    .card-banner {
+        height: 120px;
+        background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+
+    .course-badge {
+        position: absolute;
+        top: 1rem;
+        left: 1rem;
+        background: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--primary);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .card-content {
+        padding: 1.5rem;
+    }
+
+    .session-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        margin-bottom: 0.75rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        min-height: 2.8rem;
+    }
+
+    .session-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: var(--text-muted);
+    }
+
+    .live-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--success);
+        font-weight: 700;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+    }
+
+    .pulse {
+        width: 8px;
+        height: 8px;
+        background-color: var(--success);
+        border-radius: 50%;
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+        animation: pulse 2s infinite;
+    }
+
+    @@keyframes pulse {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    .btn-join {
+        width: 100%;
+        padding: 0.875rem;
+        border-radius: 10px;
+        border: none;
+        background: #f1f5f9;
+        color: var(--text-main);
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: block;
+        text-align: center;
+    }
+
+    .btn-join.active {
+        background: var(--success);
+        color: white;
+    }
+
+    .btn-join.active:hover {
+        background: #059669;
+    }
+
+    /* Modal Styling */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.75);
+        backdrop-filter: blur(8px);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+    }
+
+    .modal-card {
+        background: white;
+        width: 100%;
+        max-width: 550px;
+        border-radius: 24px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        overflow: hidden;
+    }
+
+    .modal-header {
+        background: #f8fafc;
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-header h3 { margin: 0; font-weight: 700; }
+
+    .modal-body { padding: 2rem; }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+    }
+
+    .full-width { grid-column: span 2; }
+
+    .input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .input-group label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--secondary);
+    }
+
+    .vc-input, .vc-select {
+        padding: 0.75rem 1rem;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        outline: none;
+    }
+
+    .modal-footer {
+        padding: 1.5rem 2rem;
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+    }
+</style>
+
+<div class="vc-body">
+    <div class="vc-header">
+        <div class="vc-title-group">
+            <h1>Virtual Classroom</h1>
+            <p>Connect, Learn, and Grow together in real-time.</p>
+        </div>
+        
+        <div class="vc-controls">
+            <div class="vc-search-wrapper">
+                <span class="vc-search-icon">🔍</span>
+                <input type="text" id="vcSearch" class="vc-search-input" placeholder="Search sessions..." onkeyup="filterSessions()">
+            </div>
+            
+            @if (Model.IsFaculty)
+            {
+                <button class="btn-schedule" onclick="toggleModal(true)">
+                    <span>+</span> Schedule Session
+                </button>
+            }
+        </div>
+    </div>
+
+    @if (TempData["AppResult"] != null)
+    {
+        var result = (TMS.Web.Models.AppResultViewModel)TempData["AppResult"];
+        <div class="vc-glass-card" style="background: @(result.Status ? "#ecfdf5" : "#fef2f2"); color: @(result.Status ? "#065f46" : "#991b1b"); border: 1px solid @(result.Status ? "#10b981" : "#ef4444");">
+            <b>@(result.Status ? "Success!" : "Notice:")</b> @result.Message
+        </div>
+    }
+
+    <div class="vc-tabs">
+        <div id="tabUpcoming" class="vc-tab active" onclick="switchTab('upcoming')">Upcoming Sessions</div>
+        <div id="tabPast" class="vc-tab" onclick="switchTab('past')">Past Sessions</div>
+    </div>
+
+    <!-- Upcoming Sessions -->
+    <div id="upcomingSection">
+        @if (Model.UpcomingSessions != null && Model.UpcomingSessions.Any())
+        {
+            <div class="vc-grid">
+                @foreach (var session in Model.UpcomingSessions)
+                {
+                    var isLive = (DateTime.Now >= session.ScheduledAt.AddMinutes(-5) && DateTime.Now <= session.ScheduledAt.AddMinutes(session.Duration));
+                    bool isCalendar = session.Description == "Calendar";
+                    
+                    <div class="session-card" data-title="@session.MeetingTitle">
+                        <div class="card-banner">
+                            <span class="course-badge">@session.CourseName</span>
+                            @if (isCalendar)
+                            {
+                                <span class="badge bg-primary position-absolute" style="top:1rem; right:1rem; font-size: 0.65rem; border-radius: 10px; background-color: #6366f1 !important;">CALENDAR</span>
+                            }
+                            <span style="font-size: 3rem;">🎓</span>
+                        </div>
+                        <div class="card-content">
+                            @if (isLive)
+                            {
+                                <div class="live-indicator">
+                                    <div class="pulse"></div>
+                                    Live Now
+                                </div>
+                            }
+                            <h3 class="session-title">@session.MeetingTitle</h3>
+                            <div class="session-meta">
+                                <div class="meta-item"><span>📅</span> @session.ScheduledAt.ToString("ddd, MMM d yyyy")</div>
+                                <div class="meta-item"><span>⏰</span> @session.ScheduledAt.ToString("hh:mm tt") (@session.Duration mins)</div>
+                            </div>
+                            @if (isLive || DateTime.Now >= session.ScheduledAt.AddMinutes(-15))
+                            {
+                                <a href="@session.MeetingUrl" target="_blank" class="btn-join active">Join Session Now</a>
+                            }
+                            else
+                            {
+                                <button class="btn-join" disabled title="Button will activate 15 mins before start">Join in @((int)(session.ScheduledAt - DateTime.Now).TotalMinutes) mins</button>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="empty-state"><h3>No upcoming sessions</h3></div>
+        }
+    </div>
+
+    <!-- Past Sessions -->
+    <div id="pastSection" style="display: none;">
+        @if (Model.PastSessions != null && Model.PastSessions.Any())
+        {
+            <div class="vc-grid">
+                @foreach (var session in Model.PastSessions)
+                {
+                    <div class="session-card" style="opacity: 0.8;" data-title="@session.MeetingTitle">
+                        <div class="card-banner" style="filter: grayscale(0.5);">
+                            <span class="course-badge">@session.CourseName</span>
+                            <span style="font-size: 3rem;">📹</span>
+                        </div>
+                        <div class="card-content">
+                            <h3 class="session-title">@session.MeetingTitle</h3>
+                            <div class="session-meta">
+                                <div class="meta-item"><span>📅</span> @session.ScheduledAt.ToString("MMM d, yyyy")</div>
+                                <div class="meta-item"><span>⏰</span> Ended at @session.ScheduledAt.AddMinutes(session.Duration).ToString("hh:mm tt")</div>
+                            </div>
+                            <button class="btn-join" disabled>Session Ended</button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="empty-state"><h3>No past sessions found</h3></div>
+        }
+    </div>
+</div>
+
+<!-- Modal -->
+@if (Model.IsFaculty)
+{
+    <div id="vcModal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Schedule New Session</h3>
+                <button onclick="toggleModal(false)" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            <form asp-action="CreateMeeting" method="post">
+                <div class="modal-body">
+                    <div class="form-grid">
+                        <div class="input-group full-width">
+                            <label>Meeting Title</label>
+                            <input type="text" name="MeetingTitle" class="vc-input" placeholder="e.g. Weekly Review Session" required />
+                        </div>
+                        <div class="input-group">
+                            <label>Course</label>
+                            <select name="CourseId" class="vc-select" required>
+                                <option value="">-- Select Course --</option>
+                                @foreach (var c in Model.AvailableCourses) { <option value="@c.Id">@c.Name</option> }
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Meeting Provider</label>
+                            <select name="MeetingProvider" id="meetingProvider" class="vc-select" onchange="handleProviderChange()">
+                                <option value="Zoom">Zoom (Auto-Generate)</option>
+                                <option value="External">External Link (Manual)</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Start Time</label>
+                            <input type="datetime-local" name="ScheduledAt" class="vc-input" required />
+                        </div>
+                        <div class="input-group">
+                            <label>Duration (mins)</label>
+                            <input type="number" name="Duration" class="vc-input" value="60" required />
+                        </div>
+                        <div class="input-group full-width" id="urlGroup" style="display:none;">
+                            <label>External Meeting URL</label>
+                            <input type="url" name="MeetingUrl" class="vc-input" placeholder="https://..." />
+                        </div>
+                        <input type="hidden" name="CourseQuadrantId" value="1" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-schedule" style="background:#e2e8f0; color:#475569;" onclick="toggleModal(false)">Cancel</button>
+                    <button type="submit" class="btn-schedule">Create Session</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        function toggleModal(show) { document.getElementById('vcModal').style.display = show ? 'flex' : 'none'; }
+        function switchTab(type) {
+            document.getElementById('tabUpcoming').classList.toggle('active', type === 'upcoming');
+            document.getElementById('tabPast').classList.toggle('active', type === 'past');
+            document.getElementById('upcomingSection').style.display = type === 'upcoming' ? 'block' : 'none';
+            document.getElementById('pastSection').style.display = type === 'past' ? 'block' : 'none';
+        }
+        function filterSessions() {
+            const query = document.getElementById('vcSearch').value.toLowerCase();
+            const cards = document.querySelectorAll('.session-card');
+            cards.forEach(card => {
+                const title = card.getAttribute('data-title').toLowerCase();
+                card.style.display = title.includes(query) ? '' : 'none';
+            });
+        }
+        function handleProviderChange() {
+            const provider = document.getElementById('meetingProvider').value;
+            const urlGroup = document.getElementById('urlGroup');
+            const urlInput = urlGroup.querySelector('input');
+            
+            if (provider === 'Zoom') {
+                urlGroup.style.display = 'none';
+                urlInput.required = false;
+            } else {
+                urlGroup.style.display = 'flex';
+                urlInput.required = true;
+            }
+        }
+        document.addEventListener('DOMContentLoaded', handleProviderChange);
+    </script>
+}

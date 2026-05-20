@@ -1,0 +1,385 @@
+@{
+    ViewData["Title"] = "Manage Interactions — " + ViewBag.PPTTitle;
+    int pptId = (int)ViewBag.PPTId;
+    int slideCount = (int)ViewBag.SlideCount;
+    string pptTitle = ViewBag.PPTTitle ?? "PPT";
+    string courseName = ViewBag.CourseName ?? "";
+
+    var interactions = ViewBag.Interactions as List<TMS.Models.Academics.PPTSlideInteraction>
+                       ?? new List<TMS.Models.Academics.PPTSlideInteraction>();
+    var quizzes     = (ViewBag.Quizzes     as IEnumerable<dynamic>) ?? Enumerable.Empty<dynamic>();
+    var assignments = (ViewBag.Assignments as IEnumerable<dynamic>) ?? Enumerable.Empty<dynamic>();
+    var documents   = (ViewBag.Documents   as IEnumerable<dynamic>) ?? Enumerable.Empty<dynamic>();
+    var videos      = (ViewBag.Videos      as IEnumerable<dynamic>) ?? Enumerable.Empty<dynamic>();
+}
+
+<style>
+    .mi-page { font-family:'Jost','Segoe UI',sans-serif; padding:20px 0 48px; }
+    .mi-bc { font-size:13px;color:#94a3b8;margin-bottom:16px;display:flex;align-items:center;gap:6px; }
+    .mi-bc a { color:#64748b;text-decoration:none; }
+    .mi-bc a:hover { color:#6366f1; }
+    .mi-bc .sep { color:#cbd5e1; }
+
+    .mi-hero {
+        background:linear-gradient(135deg,#6366f1,#4f46e5);
+        border-radius:14px;padding:22px 28px;color:#fff;margin-bottom:28px;
+        display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+    }
+    .mi-hero h1 { font-size:18px;font-weight:800;margin:0 0 4px; }
+    .mi-hero p  { font-size:12px;opacity:.8;margin:0; }
+    .mi-badge { background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.25);border-radius:20px;padding:4px 14px;font-size:12px;font-weight:600; }
+
+    .mi-grid { display:grid;grid-template-columns:1fr 2fr;gap:24px; }
+    @@media(max-width:900px){ .mi-grid { grid-template-columns:1fr; } }
+
+    .mi-card { background:#fff;border-radius:14px;border:1px solid #eef2f6;box-shadow:0 2px 12px rgba(0,0,0,.05);overflow:hidden; }
+    .mi-card-header { padding:16px 20px;background:#f8fafc;border-bottom:1px solid #eef2f6;display:flex;align-items:center;gap:8px; }
+    .mi-card-header h3 { font-size:14px;font-weight:800;color:#1e293b;margin:0; }
+    .mi-card-header i { color:#6366f1; }
+    .mi-card-body { padding:20px; }
+
+    .mi-form-row { margin-bottom:14px; }
+    .mi-label { font-size:12px;font-weight:700;color:#475569;margin-bottom:5px;display:block; }
+    .mi-input,.mi-select {
+        width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;
+        font-size:13px;color:#1e293b;outline:none;transition:border-color .18s;
+        background:#fff;
+    }
+    .mi-input:focus,.mi-select:focus { border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.12); }
+    .mi-item-select { display:none; }
+    .mi-item-select.active { display:block; }
+
+    .mi-btn-save {
+        width:100%;padding:11px;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;
+        border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;
+        transition:opacity .18s;display:flex;align-items:center;justify-content:center;gap:8px;
+    }
+    .mi-btn-save:hover { opacity:.88; }
+
+    /* ── Interaction list ── */
+    .mi-list-empty { text-align:center;padding:32px;color:#94a3b8;font-size:13px; }
+    .mi-int-item {
+        display:flex;align-items:center;justify-content:space-between;
+        padding:12px 20px;border-bottom:1px solid #f1f5f9;gap:12px;
+        transition:background .14s;
+    }
+    .mi-int-item:last-child { border-bottom:none; }
+    .mi-int-item:hover { background:#fafbff; }
+    .mi-int-left { display:flex;align-items:center;gap:12px;flex:1; }
+    .mi-slide-badge {
+        background:#eff6ff;color:#3b82f6;font-size:11px;font-weight:700;
+        padding:3px 10px;border-radius:20px;flex-shrink:0;white-space:nowrap;
+    }
+    .mi-int-type { font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px; }
+    .mi-int-text { font-size:13px;font-weight:600;color:#1e293b; }
+    .mi-del-btn {
+        background:#fef2f2;border:1px solid #fecaca;border-radius:7px;color:#ef4444;
+        width:30px;height:30px;display:flex;align-items:center;justify-content:center;
+        cursor:pointer;transition:all .18s;font-size:12px;
+    }
+    .mi-del-btn:hover { background:#ef4444;color:#fff; }
+
+    .mi-type-icon { font-size:16px;width:20px;text-align:center; }
+
+    /* ── Preview ── */
+    .mi-preview-wrap {
+        background:#0f172a;border-radius:12px;overflow:hidden;
+        aspect-ratio:16/9;margin-bottom:16px;display:flex;align-items:center;justify-content:center;
+    }
+    .mi-preview-img { width:100%;height:100%;object-fit:contain;display:block; }
+    .mi-preview-empty { color:#475569;font-size:13px;text-align:center; }
+    .mi-slide-nav { display:flex;align-items:center;justify-content:center;gap:12px; }
+    .mi-slide-nav button {
+        background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;
+        width:36px;height:36px;cursor:pointer;color:#475569;font-size:13px;
+        display:flex;align-items:center;justify-content:center;transition:all .18s;
+    }
+    .mi-slide-nav button:hover { background:#e2e8f0; }
+    .mi-slide-nav span { font-size:13px;font-weight:700;color:#1e293b; }
+</style>
+
+<div class="mi-page">
+    <div class="mi-bc">
+        <a asp-controller="Home" asp-action="StudentDashboard"><i class="fa-solid fa-house"></i> Dashboard</a>
+        <span class="sep">/</span>
+        <a asp-controller="FacultyPPT" asp-action="Index">My PPTs</a>
+        <span class="sep">/</span>
+        <strong>Manage Interactions</strong>
+    </div>
+
+    <div class="mi-hero">
+        <div>
+            <h1><i class="fa-solid fa-puzzle-piece" style="margin-right:8px;"></i>Manage Slide Interactions</h1>
+            <p>@pptTitle &nbsp;&middot;&nbsp; @courseName</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <span class="mi-badge"><i class="fa-solid fa-layer-group"></i> @slideCount Slides</span>
+            <a href="@Url.Action("View","InteractivePPT", new { pptId })"
+               style="background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.25);border-radius:9px;padding:7px 16px;color:#fff;font-size:12px;font-weight:700;text-decoration:none;">
+                <i class="fa-solid fa-eye"></i> Preview PPT
+            </a>
+        </div>
+    </div>
+
+    <div class="mi-grid">
+
+        <!-- ── Left: Preview + Add form ── -->
+        <div>
+            <!-- Slide Preview -->
+            <div class="mi-card" style="margin-bottom:20px;">
+                <div class="mi-card-header">
+                    <i class="fa-solid fa-image"></i>
+                    <h3>Slide Preview</h3>
+                </div>
+                <div class="mi-card-body">
+                    @if (slideCount == 0)
+                    {
+                        <div class="mi-preview-empty" style="padding:40px;">
+                            <i class="fa-solid fa-file-powerpoint" style="font-size:36px;color:#cbd5e1;margin-bottom:10px;display:block;"></i>
+                            <p>Slides not yet converted. Open the <a href="@Url.Action("View","InteractivePPT", new { pptId })">PPT viewer</a> first to trigger conversion.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="mi-preview-wrap">
+                            <img id="miPreviewImg" class="mi-preview-img"
+                                 src="/InteractivePPT/Slide/@pptId/1" alt="Slide preview"
+                                 onerror="this.style.display='none'" />
+                        </div>
+                        <div class="mi-slide-nav">
+                            <button type="button" id="miPrevBtn" onclick="miChangeSlide(-1)" title="Previous">
+                                <i class="fa-solid fa-chevron-left"></i>
+                            </button>
+                            <span>Slide <span id="miSlideNum">1</span> / @slideCount</span>
+                            <button type="button" id="miNextBtn" onclick="miChangeSlide(1)" title="Next">
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Add Interaction form -->
+            <div class="mi-card">
+                <div class="mi-card-header">
+                    <i class="fa-solid fa-plus-circle"></i>
+                    <h3>Add Interaction to Slide</h3>
+                </div>
+                <div class="mi-card-body">
+                    <form id="miAddForm">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="pptId" value="@pptId" />
+
+                        <div class="mi-form-row">
+                            <label class="mi-label">Slide Number</label>
+                            <input type="number" name="slideNumber" id="miSlideInput" min="1" max="@slideCount"
+                                   value="1" class="mi-input" />
+                        </div>
+
+                        <div class="mi-form-row">
+                            <label class="mi-label">Item Type</label>
+                            <select name="itemType" id="miItemType" class="mi-select" onchange="onTypeChange()">
+                                <option value="">-- Select Type --</option>
+                                <option value="Quiz">📝 Quiz</option>
+                                <option value="Video">🎬 Video</option>
+                                <option value="Document">📄 Document</option>
+                                <option value="Assignment">📋 Assignment</option>
+                            </select>
+                        </div>
+
+                        <!-- Dynamic item selects -->
+                        <div class="mi-form-row">
+                            <label class="mi-label" id="miItemLabel">Select Item</label>
+
+                            <select name="itemId" id="miQuizSel" class="mi-select mi-item-select">
+                                <option value="">-- Select Quiz --</option>
+                                @foreach (var q in quizzes) { <option value="@q.Id">@q.Name</option> }
+                            </select>
+                            <select name="itemId" id="miVideoSel" class="mi-select mi-item-select">
+                                <option value="">-- Select Video --</option>
+                                @foreach (var v in videos) { <option value="@v.Id">@v.Name</option> }
+                            </select>
+                            <select name="itemId" id="miDocSel" class="mi-select mi-item-select">
+                                <option value="">-- Select Document --</option>
+                                @foreach (var d in documents) { <option value="@d.Id">@d.Name</option> }
+                            </select>
+                            <select name="itemId" id="miAsnSel" class="mi-select mi-item-select">
+                                <option value="">-- Select Assignment --</option>
+                                @foreach (var a in assignments) { <option value="@a.Id">@a.Name</option> }
+                            </select>
+                        </div>
+
+                        <div class="mi-form-row">
+                            <label class="mi-label">Button Label (shown to students)</label>
+                            <input type="text" name="buttonText" id="miButtonText" class="mi-input"
+                                   placeholder='e.g. "Take Quiz 1" or "Watch Introduction"' maxlength="150" />
+                        </div>
+
+                        <div class="mi-form-row">
+                            <label class="mi-label">Display Order</label>
+                            <input type="number" name="displayOrder" value="0" min="0" class="mi-input" style="width:100px;" />
+                        </div>
+
+                        <button type="submit" class="mi-btn-save">
+                            <i class="fa-solid fa-plus"></i> Add Interaction
+                        </button>
+                        <div id="miAddMsg" style="margin-top:10px;font-size:13px;"></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Right: Existing interactions list ── -->
+        <div class="mi-card">
+            <div class="mi-card-header">
+                <i class="fa-solid fa-list-check"></i>
+                <h3>Existing Interactions (@interactions.Count)</h3>
+            </div>
+            <div id="miInteractionList">
+                @if (!interactions.Any())
+                {
+                    <div class="mi-list-empty">
+                        <i class="fa-solid fa-inbox" style="font-size:32px;margin-bottom:10px;display:block;"></i>
+                        No interactions yet. Add one using the form.
+                    </div>
+                }
+                else
+                {
+                    @foreach (var inter in interactions)
+                    {
+                        string typeIcon = inter.ItemType switch {
+                            "Quiz"       => "fa-circle-question",
+                            "Video"      => "fa-play",
+                            "Document"   => "fa-file-pdf",
+                            "Assignment" => "fa-clipboard-list",
+                            _            => "fa-link"
+                        };
+                        string typeColor = inter.ItemType switch {
+                            "Quiz"       => "#6366f1",
+                            "Video"      => "#3b82f6",
+                            "Document"   => "#ef4444",
+                            "Assignment" => "#16a34a",
+                            _            => "#64748b"
+                        };
+                        <div class="mi-int-item" id="miRow_@inter.Id">
+                            <div class="mi-int-left">
+                                <span class="mi-slide-badge">Slide @inter.SlideNumber</span>
+                                <i class="fa-solid @typeIcon mi-type-icon" style="color:@typeColor;"></i>
+                                <div>
+                                    <div class="mi-int-type" style="color:@typeColor;">@inter.ItemType</div>
+                                    <div class="mi-int-text">@inter.ButtonText</div>
+                                </div>
+                            </div>
+                            <button class="mi-del-btn" title="Delete" onclick="deleteInteraction(@inter.Id)">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+
+    </div><!-- /mi-grid -->
+</div>
+
+@section Scripts {
+<script>
+    var miCurrentSlide = 1;
+    var miTotalSlides  = @slideCount;
+    var miPptId        = @pptId;
+
+    // ── Preview nav ──────────────────────────────────────────────────
+    function miChangeSlide(delta) {
+        miCurrentSlide = Math.max(1, Math.min(miTotalSlides, miCurrentSlide + delta));
+        document.getElementById('miPreviewImg').src = '/InteractivePPT/Slide/' + miPptId + '/' + miCurrentSlide;
+        document.getElementById('miSlideNum').textContent = miCurrentSlide;
+        document.getElementById('miSlideInput').value = miCurrentSlide;
+        document.getElementById('miPrevBtn').disabled = miCurrentSlide <= 1;
+        document.getElementById('miNextBtn').disabled = miCurrentSlide >= miTotalSlides;
+    }
+
+    // ── Item type dropdown ───────────────────────────────────────────
+    function onTypeChange() {
+        var t = document.getElementById('miItemType').value;
+        document.querySelectorAll('.mi-item-select').forEach(function(s){ s.classList.remove('active'); s.disabled = true; });
+        var selMap = { 'Quiz':'miQuizSel','Video':'miVideoSel','Document':'miDocSel','Assignment':'miAsnSel' };
+        if (selMap[t]) {
+            var el = document.getElementById(selMap[t]);
+            el.classList.add('active');
+            el.disabled = false;
+        }
+        // Auto-fill button text
+        var labelMap = { 'Quiz':'Take Quiz','Video':'Watch Video','Document':'View Document','Assignment':'Open Assignment' };
+        if (!document.getElementById('miButtonText').value && labelMap[t])
+            document.getElementById('miButtonText').value = labelMap[t];
+    }
+
+    // ── Submit form ──────────────────────────────────────────────────
+    document.getElementById('miAddForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        var form = e.target;
+        var type = document.getElementById('miItemType').value;
+        var selMap = { 'Quiz':'miQuizSel','Video':'miVideoSel','Document':'miDocSel','Assignment':'miAsnSel' };
+        var activeSelId = selMap[type];
+        if (!activeSelId) { showMsg('Please select an item type.', 'error'); return; }
+        var itemSel = document.getElementById(activeSelId);
+        if (!itemSel || !itemSel.value) { showMsg('Please select an item.', 'error'); return; }
+
+        var data = new URLSearchParams();
+        data.append('pptId', miPptId);
+        data.append('slideNumber', document.getElementById('miSlideInput').value);
+        data.append('itemType', type);
+        data.append('itemId', itemSel.value);
+        data.append('buttonText', document.getElementById('miButtonText').value);
+        data.append('displayOrder', form.querySelector('[name="displayOrder"]').value || 0);
+
+        var csrf = form.querySelector('input[name="__RequestVerificationToken"]');
+        fetch('/InteractivePPT/AddInteraction', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'RequestVerificationToken': csrf ? csrf.value : ''
+            },
+            body: data.toString()
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(res) {
+            if (res.success) {
+                showMsg('Interaction added!', 'success');
+                setTimeout(function(){ location.reload(); }, 800);
+            } else {
+                showMsg(res.message || 'Error saving.', 'error');
+            }
+        })
+        .catch(function(){ showMsg('Network error.', 'error'); });
+    });
+
+    function showMsg(msg, type) {
+        var el = document.getElementById('miAddMsg');
+        el.style.color = type === 'success' ? '#16a34a' : '#ef4444';
+        el.innerHTML = '<i class="fa-solid fa-' + (type==='success'?'check-circle':'triangle-exclamation') + '"></i> ' + msg;
+    }
+
+    // ── Delete ───────────────────────────────────────────────────────
+    function deleteInteraction(id) {
+        if (!confirm('Remove this interaction?')) return;
+        var csrf = document.querySelector('input[name="__RequestVerificationToken"]');
+        fetch('/InteractivePPT/DeleteInteraction/' + id, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'RequestVerificationToken': csrf ? csrf.value : ''
+            }
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(res) {
+            if (res.success) {
+                var row = document.getElementById('miRow_' + id);
+                if (row) row.remove();
+            } else {
+                alert(res.message || 'Error deleting.');
+            }
+        });
+    }
+</script>
+}

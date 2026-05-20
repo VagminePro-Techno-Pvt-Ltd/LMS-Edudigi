@@ -1,0 +1,543 @@
+@using TMS
+@model TMS.ViewModels.Academics.ContentLibraryPageViewModel
+
+@{
+    ViewData["Title"] = "Content Library";
+    var permissions = ViewContext.HttpContext.GetFormPermissions();
+    var controller = Convert.ToString(ViewContext.RouteData.Values["controller"]);
+}
+
+<link rel="stylesheet" href="~/css/content-library.css" />
+
+<div class="cl-shell">
+    <!-- HEADER -->
+    <div class="cl-header">
+        <div class="cl-title-block">
+            <h1>
+                Content Library
+                <span class="cl-pill">Global Content Center</span>
+            </h1>
+            <p class="cl-subtitle">
+                A centralized repository to manage all course materials. Upload once, assign anywhere.
+            </p>
+        </div>
+        <a class="cl-upload-btn" href="@Url.Action("Item")">
+            <i class="fa fa-plus"></i>
+            Upload Content
+        </a>
+    </div>
+
+    <!-- FILTER BAR -->
+    <div class="cl-filters">
+        <div class="cl-chip-group" id="categoryChips">
+            <span class="cl-chip @(Model.SelectedCategoryId == 0 && !Model.ShowGlobalLibrary ? "active" : "")" data-category="0">All Programs</span>
+            @foreach (var cat in Model.Categories)
+            {
+                <span class="cl-chip @(Model.SelectedCategoryId == cat.Id ? "active" : "")" data-category="@cat.Id">@cat.Name</span>
+            }
+        </div>
+        <div class="cl-search-wrap">
+            <span class="search-icon"><i class="fa fa-search"></i></span>
+            <input type="text" id="boardSearch" placeholder="Search by title, file name..." />
+        </div>
+    </div>
+
+    <!-- MAIN GRID -->
+    <div class="cl-main-grid">
+        <!-- LEFT SIDEBAR -->
+        <aside class="cl-sidebar" id="courseSidebar">
+            <!-- ★ GLOBAL LIBRARY - Top Item -->
+            <div class="cl-global-library-item @(Model.ShowGlobalLibrary ? "active" : "")" id="globalLibraryBtn">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="cl-global-icon">
+                        <i class="fa fa-layer-group"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight:700;font-size:13px;">Central Library</div>
+                        <div style="font-size:10px;color:var(--cl-muted);">All uploaded content</div>
+                    </div>
+                </div>
+                <span class="cl-global-count">@Model.GlobalLibraryCount</span>
+            </div>
+
+            <div class="cl-sidebar-divider"></div>
+
+            <div class="cl-sidebar-header">
+                <span style="font-weight:700; color:var(--cl-muted); font-size:11px; text-transform:uppercase;">Courses</span>
+                <span class="badge bg-light text-muted" style="font-size:10px;">@Model.CourseGroups.Count items</span>
+            </div>
+
+            <ul class="cl-course-list">
+                @foreach (var group in Model.CourseGroups)
+                {
+                    <li class="cl-course-item @(group.CourseIds.Contains(Model.SelectedCourseId ?? 0) && !Model.ShowGlobalLibrary ? "active" : "")"
+                        data-course-id="@group.CourseIds.First()"
+                        data-category-id="@group.CategoryId">
+                        <span title="@group.CourseCode — @group.CourseName" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;">
+                            @group.CourseName
+                        </span>
+                        <span class="item-count">@group.TotalMaterials</span>
+                    </li>
+                }
+            </ul>
+        </aside>
+
+        <!-- RIGHT: BOARD -->
+        <section class="cl-board" id="courseBoard">
+            @if (Model.ShowGlobalLibrary)
+            {
+                <div class="cl-loading"><p>Loading Global Library...</p></div>
+            }
+            else if (Model.SelectedCourse != null)
+            {
+                <partial name="_CourseBoard" model="Model.SelectedCourse" />
+            }
+            else
+            {
+                <div class="cl-loading">
+                    <p>Select a course from the sidebar to view its content.</p>
+                </div>
+            }
+        </section>
+    </div>
+</div>
+
+<!-- 📄 File Preview Modal -->
+<div class="modal fade" id="filePreviewModal" tabindex="-1" aria-labelledby="filePreviewLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content" style="border-radius:4px; border:none; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,0.15);">
+            <div class="modal-header px-4 py-3" style="background:#fff; border-bottom:1px solid #f1f5f9;">
+                <h5 class="modal-title fw-bold" id="filePreviewLabel" style="color:#1e293b; font-size:16px;">File Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0" id="filePreviewBody" style="background:#f8fafc; min-height:400px;"></div>
+            <div class="modal-footer px-4 py-3" style="background:#fff; border-top:1px solid #f1f5f9;">
+                <button type="button" class="btn btn-secondary px-4 py-2" data-bs-dismiss="modal" style="border-radius:4px;">Close Preview</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 📌 Quick Assign Modal -->
+<div class="modal fade" id="quickAssignModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius:4px; border:none; box-shadow:0 15px 40px rgba(0,0,0,0.2);">
+            <div class="modal-header px-4 py-3" style="background:#2563eb; color:#fff; border:none; border-radius:4px 4px 0 0;">
+                <div>
+                    <h6 class="modal-title fw-bold mb-0"><i class="fa fa-link"></i> Assign to Course</h6>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" style="filter:brightness(0) invert(1);"></button>
+            </div>
+            <div class="modal-body px-4 py-4">
+                <input type="hidden" id="assignMaterialId" />
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-dark small uppercase" style="letter-spacing:0.02em;">Select Destination Course</label>
+                    <div class="input-group" style="border:1px solid #e2e8f0; border-radius:4px; overflow:hidden;">
+                        <span class="input-group-text border-0 bg-light"><i class="fa fa-book text-primary"></i></span>
+                        <select id="assignCourseId" class="form-select border-0 py-2" style="font-size:13px;"></select>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-dark small uppercase" style="letter-spacing:0.02em;">Assign to Quadrant</label>
+                    <div class="input-group" style="border:1px solid #e2e8f0; border-radius:4px; overflow:hidden;">
+                        <span class="input-group-text border-0 bg-light"><i class="fa fa-th-large text-primary"></i></span>
+                        <select id="assignQuadrantId" class="form-select border-0 py-2" style="font-size:13px;">
+                            <option value="0">-- No Quadrant --</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="assignFeedback" class="text-center p-2 rounded" style="display:none;font-size:12px;font-weight:600;"></div>
+            </div>
+            <div class="modal-footer px-4 py-3 border-0 bg-light">
+                <button type="button" class="btn btn-outline-secondary px-3 py-2 fw-semibold" data-bs-dismiss="modal" style="border-radius:4px; font-size:13px;">Cancel</button>
+                <button type="button" class="btn btn-primary px-3 py-2 fw-bold" id="confirmAssignBtn" style="border-radius:4px; background:#2563eb; border:none; font-size:13px;">
+                    <i class="fa fa-check-circle me-1"></i> Assign Now
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 📋 Content Assignments Modal -->
+<div class="modal fade" id="assignmentsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="border-radius:4px; border:none; box-shadow:0 15px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header px-4 py-3" style="background:#fff; border-bottom:1px solid #f1f5f9; border-radius:4px 4px 0 0;">
+                <div>
+                    <h6 class="modal-title fw-bold" style="color:#1e293b; margin-bottom:0;"><i class="fa fa-map-marked-alt text-primary me-2"></i> Content Assignments</h6>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="assignmentsLoading" class="text-center p-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-3 text-muted">Scanning assignments...</p>
+                </div>
+                <div id="assignmentsContent" style="display:none;">
+                    <div class="table-responsive">
+                        <table class="table mb-0 align-middle">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4 py-3 text-muted small uppercase">Course Details</th>
+                                    <th class="py-3 text-muted small uppercase text-center">Semester</th>
+                                    <th class="py-3 text-muted small uppercase">Subject</th>
+                                    <th class="pe-4 py-3 text-end text-muted small uppercase">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="assignmentsList"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="noAssignments" class="text-center p-5" style="display:none;">
+                    <div style="font-size:50px; margin-bottom:15px; opacity:0.3;">📂</div>
+                    <h6 class="fw-bold text-dark">Not Assigned Yet</h6>
+                    <p class="text-muted small">This content is currently waiting in the library to be used.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="~/js/app.util.js"></script>
+    <!-- Document Viewers -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <script>
+        $(document).ready(function () {
+
+            // ═══════ GLOBAL LIBRARY CLICK ═══════
+            $('#globalLibraryBtn').on('click', function () {
+                $('.cl-course-item').removeClass('active');
+                $(this).addClass('active');
+
+                $('#courseBoard').html('<div class="cl-loading"><p>Loading Central Library...</p></div>');
+
+                $.get('@Url.Action("GetGlobalLibraryBoard")', {}, function (html) {
+                    $('#courseBoard').html(html);
+                }).fail(function () {
+                    $('#courseBoard').html('<div class="cl-loading"><p class="text-danger">Failed to load library.</p></div>');
+                });
+            });
+
+            // Auto-load global library if flag is set
+            @if (Model.ShowGlobalLibrary)
+            {
+                <text>$('#globalLibraryBtn').click();</text>
+            }
+
+            // ═══════ COURSE SELECTION (AJAX) ═══════
+            $(document).on('click', '.cl-course-item', function () {
+                var courseId = $(this).data('course-id');
+                $('.cl-course-item').removeClass('active');
+                $('#globalLibraryBtn').removeClass('active');
+                $(this).addClass('active');
+
+                $('#courseBoard').html('<div class="cl-loading"><p>Loading...</p></div>');
+
+                $.get('@Url.Action("GetCourseBoard")', { courseId: courseId }, function (html) {
+                    $('#courseBoard').html(html);
+                }).fail(function () {
+                    $('#courseBoard').html('<div class="cl-loading"><p class="text-danger">Failed to load course board.</p></div>');
+                });
+            });
+
+            // ═══════ CATEGORY CHIP FILTER ═══════
+            $(document).on('click', '.cl-chip', function () {
+                $('.cl-chip').removeClass('active');
+                $(this).addClass('active');
+                var catId = parseInt($(this).data('category'));
+
+                if (catId === 0) {
+                    $('.cl-course-item').show();
+                } else {
+                    $('.cl-course-item').hide();
+                    $(`.cl-course-item[data-category-id="${catId}"]`).show();
+                }
+
+                if (!$('.cl-course-item.active').is(':visible')) {
+                    $('.cl-course-item:visible').first().click();
+                }
+            });
+
+            // ═══════ SEARCH FILTER ═══════
+            $('#boardSearch').on('input', function () {
+                var query = $(this).val().toLowerCase();
+                if (query.length === 0) {
+                    $('.cl-file-item, .gl-item').show();
+                    return;
+                }
+                // Search in course board
+                $('.cl-file-item').each(function () {
+                    var title = $(this).data('title') || '';
+                    $(this).toggle(title.includes(query));
+                });
+                // Search in global library
+                $('.gl-item').each(function () {
+                    var title = $(this).data('title') || '';
+                    $(this).toggle(title.includes(query));
+                });
+            });
+
+            // ═══════ GLOBAL LIBRARY FILTERS ═══════
+            $(document).on('change', '#glSourceFilter, #glTypeFilter', function () {
+                var source = $('#glSourceFilter').val();
+                var type = $('#glTypeFilter').val();
+                var search = $('#boardSearch').val();
+
+                $.get('@Url.Action("GetGlobalLibraryBoard")', { search: search, sourceFilter: source, typeFilter: type }, function (html) {
+                    $('#courseBoard').html(html);
+                });
+            });
+
+            // ═══════ FILE PREVIEW MODAL ═══════
+            $(document).on('click', '.view-file-link', function () {
+                const filePath = $(this).data('filepath');
+                const title = $(this).data('title') || 'Preview';
+                const ext = filePath.split('.').pop().toLowerCase();
+
+                $('#filePreviewLabel').text(title);
+                let content = '';
+
+                if (filePath.includes("youtu.be") || filePath.includes("youtube.com")) {
+                    const videoIdMatch = filePath.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
+                    const videoId = videoIdMatch ? videoIdMatch[1] : null;
+                    if (videoId) {
+                        content = `<div id="youtube-player-container" class="ratio ratio-16x9"></div>`;
+                        $('#filePreviewBody').html(content);
+                        ytPlayer = new YT.Player('youtube-player-container', { videoId: videoId, width: '100%', height: '500', playerVars: { autoplay: 1, rel: 0 } });
+                    }
+                } else if (['mp4', 'webm', 'ogg'].includes(ext)) {
+                    content = `<video width="100%" height="500" controls autoplay><source src="${filePath}" type="video/${ext}"></video>`;
+                    $('#filePreviewBody').html(content);
+                } else if (ext === 'pdf') {
+                    content = `<iframe src="${filePath}" width="100%" height="600px" style="border:none;"></iframe>`;
+                    $('#filePreviewBody').html(content);
+                } else if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) {
+                    content = `<img src="${filePath}" class="img-fluid" style="border-radius:4px;" alt="Preview"/>`;
+                    $('#filePreviewBody').html(content);
+                } else if (['docx'].includes(ext)) {
+                    // ─── DOCX VIEWER (mammoth.js) ───
+                    content = `<div id="docxRendered" style="text-align:left;padding:20px;max-height:600px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:4px;background:#fff;">
+                        <div style="text-align:center;padding:40px;color:#64748b;"><i class="fa fa-spinner fa-spin"></i> Rendering document...</div>
+                    </div>`;
+                    $('#filePreviewBody').html(content);
+                    
+                    fetch(filePath)
+                        .then(response => response.arrayBuffer())
+                        .then(arrayBuffer => {
+                            mammoth.convertToHtml({ arrayBuffer: arrayBuffer })
+                                .then(result => {
+                                    var html = result.value;
+                                    if (!html || html.trim().length === 0) {
+                                        html = '<p style="text-align:center;color:#64748b;padding:40px;">Document is empty or could not be rendered.</p>';
+                                    }
+                                    document.getElementById('docxRendered').innerHTML = '<div style="font-family:Georgia,serif;line-height:1.8;font-size:14px;">' + html + '</div>';
+                                })
+                                .catch(err => {
+                                    document.getElementById('docxRendered').innerHTML = '<div style="text-align:center;padding:40px;"><p style="color:#dc2626;">Could not render document.</p><a href="' + filePath + '" download class="btn btn-primary mt-2"><i class="fa fa-download"></i> Download Instead</a></div>';
+                                });
+                        })
+                        .catch(err => {
+                            document.getElementById('docxRendered').innerHTML = '<div style="text-align:center;padding:40px;"><p style="color:#dc2626;">Failed to load file.</p></div>';
+                        });
+
+                } else if (['xlsx', 'xls'].includes(ext)) {
+                    // ─── EXCEL VIEWER (SheetJS) ───
+                    content = `<div id="xlsRendered" style="max-height:600px;overflow:auto;border:1px solid #e2e8f0;border-radius:4px;background:#fff;">
+                        <div style="text-align:center;padding:40px;color:#64748b;"><i class="fa fa-spinner fa-spin"></i> Loading spreadsheet...</div>
+                    </div>`;
+                    $('#filePreviewBody').html(content);
+
+                    fetch(filePath)
+                        .then(response => response.arrayBuffer())
+                        .then(data => {
+                            var workbook = XLSX.read(data, { type: 'array' });
+                            var firstSheet = workbook.SheetNames[0];
+                            var htmlStr = XLSX.utils.sheet_to_html(workbook.Sheets[firstSheet], { editable: false });
+                            document.getElementById('xlsRendered').innerHTML = '<div style="padding:12px;">' + htmlStr + '</div>';
+                            // Style the rendered table
+                            var tbl = document.querySelector('#xlsRendered table');
+                            if (tbl) {
+                                tbl.className = 'table table-bordered table-striped table-sm';
+                                tbl.style.fontSize = '12px';
+                            }
+                        })
+                        .catch(err => {
+                            document.getElementById('xlsRendered').innerHTML = '<div style="text-align:center;padding:40px;"><p style="color:#dc2626;">Could not load spreadsheet.</p><a href="' + filePath + '" download class="btn btn-primary mt-2"><i class="fa fa-download"></i> Download</a></div>';
+                        });
+
+                } else if (['doc', 'ppt', 'pptx'].includes(ext)) {
+                    // ─── Non-renderable Office files → Download Card ───
+                    var fileIcon = {'doc':'📝','ppt':'📊','pptx':'📊'}[ext] || '📄';
+                    content = `<div style="text-align:center;padding:60px 20px;">
+                        <div style="font-size:64px;margin-bottom:16px;">${fileIcon}</div>
+                        <h4 style="font-weight:700;margin-bottom:8px;">${title}</h4>
+                        <p style="color:#64748b;font-size:13px;margin-bottom:24px;">
+                            ${ext.toUpperCase()} file — Download to view in your application
+                        </p>
+                        <a href="${filePath}" download class="btn btn-primary btn-lg" style="border-radius:12px;padding:12px 32px;background:linear-gradient(135deg,#2563eb,#1d4ed8);border:none;">
+                            <i class="fa fa-download"></i> Download File
+                        </a>
+                    </div>`;
+                    $('#filePreviewBody').html(content);
+                } else {
+                    content = `<p class="text-muted">Preview not available.</p><a href="${filePath}" target="_blank" class="btn btn-primary">Download</a>`;
+                    $('#filePreviewBody').html(content);
+                }
+
+                new bootstrap.Modal(document.getElementById('filePreviewModal')).show();
+            });
+
+            $('#filePreviewModal').on('hidden.bs.modal', function () { $('#filePreviewBody').html(''); });
+
+            // ═══════ QUICK ASSIGN MODAL ═══════
+            $(document).on('click', '.quick-assign-btn', function () {
+                var materialId = $(this).data('material-id');
+                $('#assignMaterialId').val(materialId);
+                $('#assignFeedback').hide();
+
+                // Load courses and quadrants
+                $.get('@Url.Action("GetAssignableCourses")', function (data) {
+                    var courseSelect = $('#assignCourseId');
+                    courseSelect.html('');
+                    $.each(data.courses, function (_, c) {
+                        courseSelect.append(`<option value="${c.id}">${c.name} (${c.semester})</option>`);
+                    });
+
+                    var quadSelect = $('#assignQuadrantId');
+                    quadSelect.html('<option value="0">-- No Quadrant --</option>');
+                    $.each(data.quadrants, function (_, q) {
+                        quadSelect.append(`<option value="${q.id}">${q.name}</option>`);
+                    });
+
+                    new bootstrap.Modal(document.getElementById('quickAssignModal')).show();
+                });
+            });
+
+            $('#confirmAssignBtn').on('click', function () {
+                var materialId = $('#assignMaterialId').val();
+                var courseId = $('#assignCourseId').val();
+                var quadrantId = $('#assignQuadrantId').val();
+
+                $(this).prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Assigning...');
+
+                $.post('@Url.Action("QuickAssign")', {
+                    materialId: materialId,
+                    courseId: courseId,
+                    quadrantId: quadrantId
+                }, function (res) {
+                    $('#confirmAssignBtn').prop('disabled', false).html('<i class="fa fa-check"></i> Assign');
+                    if (res.success) {
+                        $('#assignFeedback').html('<span class="text-success"><i class="fa fa-check-circle"></i> ' + res.message + '</span>').show();
+                        setTimeout(function () {
+                            bootstrap.Modal.getInstance(document.getElementById('quickAssignModal')).hide();
+                            // Refresh global library view
+                            $('#globalLibraryBtn').click();
+                        }, 1200);
+                    } else {
+                        $('#assignFeedback').html('<span class="text-danger"><i class="fa fa-exclamation-circle"></i> ' + res.message + '</span>').show();
+                    }
+                }).fail(function () {
+                    $('#confirmAssignBtn').prop('disabled', false).html('<i class="fa fa-check"></i> Assign');
+                    $('#assignFeedback').html('<span class="text-danger">Network error.</span>').show();
+                });
+            });
+
+            // ═══════ VIEW ASSIGNMENTS MODAL ═══════
+            $(document).on('click', '.view-assignments-link', function () {
+                var materialId = $(this).data('id');
+                var $modal = new bootstrap.Modal(document.getElementById('assignmentsModal'));
+                $modal.show();
+                
+                $('#assignmentsLoading').show();
+                $('#assignmentsContent, #noAssignments').hide();
+
+                $.get('@Url.Action("GetAssignments")', { materialId: materialId }, function (data) {
+                    $('#assignmentsLoading').hide();
+                    if (data && data.length > 0) {
+                        var html = '';
+                        $.each(data, function (_, item) {
+                            var dateStr = new Date(item.assignedDate).toLocaleDateString();
+                            html += `
+                                <tr class="assignment-row" id="mappingRow_${item.mappingId}">
+                                    <td>
+                                        <div style="font-weight:600;color:var(--cl-text);">${item.courseName}</div>
+                                        <div style="font-size:11px;color:var(--cl-muted);">${item.courseCode}</div>
+                                    </td>
+                                    <td><span class="badge bg-light text-dark" style="font-size:10px;padding:4px 8px;">${item.semesterName}</span></td>
+                                    <td>${item.subjectName}</td>
+                                    <td>${dateStr}</td>
+                                    <td class="text-end">
+                                        <button class="btn-remove-mapping" data-id="${item.mappingId}" title="Remove Assignment">
+                                            <i class="fa fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>`;
+                        });
+                        $('#assignmentsList').html(html);
+                        $('#assignmentsContent').show();
+                    } else {
+                        $('#noAssignments').show();
+                    }
+                });
+            });
+
+            // ═══════ REMOVE ASSIGNMENT ═══════
+            $(document).on('click', '.btn-remove-mapping', function () {
+                var mappingId = $(this).data('id');
+                var $row = $('#mappingRow_' + mappingId);
+
+                if (confirm('Are you sure you want to remove this content from this course?')) {
+                    $.post('@Url.Action("RemoveAssignment")', { mappingId: mappingId }, function (res) {
+                        if (res.success) {
+                            $row.fadeOut(300, function() { 
+                                $(this).remove(); 
+                                if ($('#assignmentsList tr').length === 0) {
+                                    $('#assignmentsContent').hide();
+                                    $('#noAssignments').show();
+                                }
+                            });
+                            // Refresh library counts if needed
+                            $('#globalLibraryBtn').click();
+                        } else {
+                            alert(res.message);
+                        }
+                    });
+                }
+            });
+
+            // ═══════ LEARNING QUADRANTS FILTER ═══════
+            $(document).on('click', '.cl-quad-chip', function () {
+                $('.cl-quad-chip').removeClass('active');
+                $(this).addClass('active');
+                
+                var selectedQuadrant = parseInt($(this).data('quadrant'));
+                
+                if (selectedQuadrant === 0) {
+                    // Show all quadrants
+                    $('.cl-quadrant-card').removeClass('hidden').show();
+                    $('.cl-semester-group').show();
+                } else {
+                    // Hide all quadrants first
+                    $('.cl-quadrant-card').addClass('hidden').hide();
+                    
+                    // Show only selected quadrant
+                    $(`.cl-quadrant-card[data-quadrant-id="${selectedQuadrant}"]`).removeClass('hidden').show();
+                    
+                    // Hide semester groups that have no visible quadrants
+                    $('.cl-semester-group').each(function() {
+                        var visibleQuadrants = $(this).find('.cl-quadrant-card:visible').length;
+                        if (visibleQuadrants > 0) {
+                            $(this).show();
+                        } else {
+                            $(this).hide();
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+}

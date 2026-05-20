@@ -1,0 +1,127 @@
+﻿
+@using TMS;
+
+@model IEnumerable<TMS.ViewModels.Training.TrainingScheduleApprovalHistoryViewModel>
+
+@*  @model IEnumerable<TMS.ViewModels.Training.TrainingScheduleViewModel>
+
+*@<div class="content-body">
+
+	<div class="row">
+
+		<div class="col-12 col-lg-12">
+
+			<div class="card glass">
+
+				<div class="card-body">
+
+					<div class="table-responsive">
+
+						<table id="tblapprovalhistory" class="table table-sm table-hover table-striped mb-0 custom-table datatable" style="width:100%;">
+
+							<thead>
+
+								<tr>
+
+									<th>Action by</th>
+
+									<th>Status </th>
+
+									<th>Remarks</th>
+
+									<th>Created On</th>
+
+
+								</tr>
+
+							</thead>
+
+							<tbody>
+
+								@if (Model != null && Model.Count() > 0)
+
+								{
+
+									foreach (var item in Model)
+
+									{
+
+										<tr>
+
+
+											<td style="font-size:14px;">@item.CreatedByUser.Email</td>
+
+											<td style="font-size:14px">
+												@switch (@item.StatusId)
+
+												{
+
+													case 1:
+
+														@Html.Raw("Planned")
+
+														break;
+
+													case 2:
+
+														@Html.Raw("Scheduled")
+
+														break;
+
+													case 3:
+
+														@Html.Raw("Rejected")
+
+														break;
+
+													case 4:
+
+														@Html.Raw("Completed")
+
+														break;
+
+													case 5:
+
+														@Html.Raw("Pending for Approval")
+
+														break;
+
+													case 6:
+
+														@Html.Raw("Approved")
+
+														break;
+
+													default:
+
+														break;
+
+												}
+
+											</td>
+
+											<td style="font-size:14px;">@item.Remarks</td>
+
+											<td style="font-size:14px;">@item.CreatedOn</td>
+
+										</tr>
+
+									}
+
+								}
+
+							</tbody>
+
+						</table>
+
+					</div>
+
+				</div>
+
+			</div>
+
+		</div>
+
+	</div>
+
+</div>

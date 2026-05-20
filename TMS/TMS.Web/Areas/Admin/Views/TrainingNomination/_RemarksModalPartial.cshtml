@@ -1,0 +1,16 @@
+﻿@model TMS.ViewModels.Masters.NominationRequestViewModel
+@{
+
+    var controller = Convert.ToString(ViewContext.RouteData.Values["controller"]);
+}
+<label asp-for="NominationRemarks"><b>Remarks:</b></label>
+				<input asp-for="NominationRemarks" id="AdminNominationRemarks" />
+                <span asp-validation-for="NominationRemarks"></span>
+<input type="hidden" id="hdn_Id">
+				
+@section scripts{
+    <script src="@Url.Action("AdminNominationRequest","LinkScript",new {area="",c=controller})" asp-append-version="true"></script>
+    <partial name="~/Views/Shared/_ValidationScriptsPartial.cshtml" />
+    <script src="~/js/app.util.addedit.js"></script>
+    <script src="~/js/masters/@(controller)-index.js" asp-append-version="true"></script>
+    }

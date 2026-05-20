@@ -1,0 +1,45 @@
+﻿@model List<TMS.ViewModels.Account.RolePermissionsViewModel>
+@{
+    var iIndex = 0;
+    var formPermissions = ViewContext.HttpContext.GetFormPermissions();
+}
+<table class="table" id="tblRolePermissions">
+    <thead>
+        <tr>
+            <th style="text-align:center;width:105px;">Sl. No.</th>
+            <th style="text-align:left;">Page Name</th>
+            <th style="width:10%;text-align:center;">View</th>
+            <th style="width:10%;text-align:center;">Add</th>
+            <th style="width:10%;text-align:center;">Edit</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            iIndex += 1;
+            <tr data-fromid="@item.FormId" data-roleid="@item.RoleId">
+                <td style="text-align:right;">@iIndex</td>
+                <td>@item.FormName</td>
+                <td style="text-align:center">
+                    <input asp-for="@item.View" id="chkView@(item.FormId)" datatype="View" class="form-check-input chkView" aria-label="..." />
+                </td>
+                <td style="text-align:center">
+                    <input asp-for="@item.Add" id="chkAdd@(item.FormId)" datatype="Add" class="form-check-input chkAdd" aria-label="..." />
+                </td>
+                <td style="text-align:center">
+                    <input asp-for="@item.Edit" id="chkEdit@(item.FormId)" datatype="Edit" class="form-check-input chkEdit" aria-label="..." />
+                </td>
+            </tr>
+        }
+    </tbody>
+    @if (Model != null && Model.Count > 0 && formPermissions.Edit)
+    {
+        <tfoot>
+            <tr>
+                <td colspan="5" style="text-align:center">
+                    <button type="button" id="btnUpdateRolePermission" class="btn btn-primary rounded-10 font-weight-600 px-4 mt-1 waves-effect waves-float waves-light">Update</button>
+                </td>
+            </tr>
+        </tfoot>
+    }
+</table>

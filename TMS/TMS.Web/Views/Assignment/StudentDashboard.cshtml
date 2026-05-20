@@ -1,0 +1,369 @@
+@model IEnumerable<TMS.Models.Academics.AssignmentMaster>
+@{
+    ViewData["Title"] = "My Assignments";
+    var submissions = ViewBag.Submissions as IEnumerable<TMS.Models.Academics.AssignmentSubmission> ?? Enumerable.Empty<TMS.Models.Academics.AssignmentSubmission>();
+    var grades = ViewBag.Grades as IEnumerable<TMS.Models.Academics.AssignmentGrade> ?? Enumerable.Empty<TMS.Models.Academics.AssignmentGrade>();
+}
+
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #1e3a8a, #3b82f6);
+        --accent-gradient: linear-gradient(135deg, #3b82f6, #60a5fa);
+        --glass-bg: rgba(255, 255, 255, 0.95);
+        --premium-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        --card-border-radius: 20px;
+    }
+
+    .premium-wrapper {
+        padding: 30px;
+        background-color: #f1f5f9;
+        min-height: calc(100vh - 120px);
+        font-family: 'Outfit', sans-serif;
+    }
+
+    .page-title {
+        font-size: 28px;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 5px;
+    }
+
+    .page-subtitle {
+        font-size: 15px;
+        color: #64748b;
+        margin-bottom: 30px;
+    }
+
+    .premium-card {
+        background: var(--glass-bg);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        border-radius: var(--card-border-radius);
+        box-shadow: var(--premium-shadow);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+        overflow: hidden;
+    }
+
+    .premium-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+        border-color: #3b82f6;
+    }
+
+    .badge-program {
+        background: rgba(59, 130, 246, 0.1);
+        color: #2563eb;
+        font-weight: 700;
+        border-radius: 30px;
+        font-size: 13px;
+        padding: 8px 16px;
+    }
+
+    .status-badge {
+        font-size: 12px;
+        font-weight: 700;
+        padding: 6px 14px;
+        border-radius: 30px;
+    }
+
+    .status-pending { background: rgba(245, 158, 11, 0.1); color: #d97706; }
+    .status-missing { background: rgba(239, 68, 68, 0.1); color: #dc2626; }
+    .status-submitted { background: rgba(16, 185, 129, 0.1); color: #059669; }
+    .status-graded { background: rgba(124, 58, 237, 0.1); color: #7c3aed; }
+
+    .assignment-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #0f172a;
+        margin-top: 20px;
+        margin-bottom: 12px;
+    }
+
+    .assignment-desc {
+        color: #64748b;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .info-strip {
+        background: #f8fafc;
+        border-radius: 12px;
+        padding: 15px;
+        margin-top: 20px;
+        margin-bottom: 25px;
+    }
+
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+    
+    .info-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .info-label { color: #64748b; }
+    .info-value { color: #0f172a; font-weight: 600; }
+
+    .btn-submit {
+        background: var(--primary-gradient);
+        color: white;
+        border: none;
+        font-weight: 700;
+        border-radius: 12px;
+        padding: 12px;
+        width: 100%;
+        transition: opacity 0.2s;
+    }
+
+    .btn-submit:hover {
+        opacity: 0.9;
+        color: white;
+    }
+
+    .btn-outline-custom {
+        border: 2px solid #e2e8f0;
+        color: #64748b;
+        font-weight: 600;
+        border-radius: 12px;
+        padding: 8px;
+        font-size: 13px;
+        width: 100%;
+        margin-top: 10px;
+        transition: all 0.2s;
+    }
+
+    .btn-outline-custom:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        color: #0f172a;
+    }
+
+    /* Modal Premium Styling */
+    .premium-modal .modal-content {
+        border-radius: 20px;
+        border: none;
+        box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+    }
+
+    .premium-modal .modal-header {
+        background: var(--primary-gradient);
+        color: white;
+        border-top-left-radius: 20px;
+        border-top-right-radius: 20px;
+        padding: 24px;
+    }
+
+    .premium-modal .modal-body {
+        padding: 30px;
+    }
+
+    .form-label-custom {
+        font-weight: 700;
+        color: #1e293b;
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+
+    .form-control-custom {
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-size: 15px;
+        transition: border-color 0.2s;
+    }
+
+    .form-control-custom:focus {
+        border-color: #3b82f6;
+        box-shadow: none;
+    }
+</style>
+
+<div class="premium-wrapper">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">🚀 My Assignments</h1>
+            <p class="page-subtitle">Track, complete, and submit your program assessments effortlessly.</p>
+        </div>
+    </div>
+
+    <div class="row">
+        @if (!Model.Any())
+        {
+            <div class="col-12 text-center py-5">
+                <img src="/uploads/system/empty-state.png" style="width: 150px; opacity: 0.6; margin-bottom: 20px;" alt="Empty State" onerror="this.src='https://cdn-icons-png.flaticon.com/512/7486/7486744.png'" />
+                <h4 class="font-weight-bold" style="color: #64748b;">All caught up!</h4>
+                <p class="text-muted">You are not mapped to any programs with active assignments.</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var item in Model)
+            {
+                var submission = submissions.Where(s => s.AssignmentId == item.Id).OrderByDescending(s => s.AttemptNumber).FirstOrDefault();
+                var grade = submission != null ? grades.FirstOrDefault(g => g.SubmissionId == submission.Id) : null;
+
+                <div class="col-xl-4 col-md-6 mb-4">
+                    <div class="card h-100 premium-card">
+                        <div class="card-body p-4 d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="badge-program">
+                                    <i class="fa-solid fa-graduation-cap me-1"></i> @(item.Program?.Name ?? "General")
+                                </span>
+
+                                @if (submission == null)
+                                {
+                                    @if (DateTime.UtcNow > item.DueDate)
+                                    {
+                                        <span class="status-badge status-missing">Missing</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="status-badge status-pending">Pending</span>
+                                    }
+                                }
+                                else
+                                {
+                                    @if (submission.Status == "Graded")
+                                    {
+                                        <span class="status-badge status-graded">Graded</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="status-badge status-submitted">Submitted</span>
+                                    }
+                                }
+                            </div>
+
+                            <h5 class="assignment-title">@item.Title</h5>
+                            <p class="assignment-desc flex-grow-1">@item.Description</p>
+
+                            <div class="info-strip">
+                                <div class="info-item">
+                                    <span class="info-label"><i class="fa-solid fa-calendar-day me-1"></i> Due Date:</span>
+                                    <span class="info-value">@item.DueDate.ToString("dd MMM yyyy")</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label"><i class="fa-solid fa-star me-1"></i> Marks:</span>
+                                    <span class="info-value">@item.PassMarks / @item.MaxMarks</span>
+                                </div>
+                            </div>
+
+                            @if (grade != null)
+                            {
+                                <div style="background: rgba(16, 185, 129, 0.08); border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span style="color: #059669; font-weight: 700; font-size: 14px;"><i class="fa-solid fa-circle-check me-1"></i> Evaluated</span>
+                                        <span style="color: #059669; font-weight: 800; font-size: 16px;">@grade.Marks / @item.MaxMarks</span>
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(grade.Feedback))
+                                    {
+                                        <p style="color: #334155; font-size: 13px; margin-bottom: 0; padding-top: 8px; border-top: 1px solid rgba(16, 185, 129, 0.2);"><strong>Feedback:</strong> @grade.Feedback</p>
+                                    }
+                                </div>
+                            }
+
+                            <div class="mt-auto">
+                                @if (submission == null || item.AllowLateSubmission || DateTime.UtcNow <= item.DueDate)
+                                {
+                                    <button class="btn btn-submit" data-bs-toggle="modal" data-bs-target="#submitModal" onclick="setupSubmitModal(@item.Id, '@item.Title')">
+                                        @(submission == null ? "Submit Assignment" : "Resubmit Work")
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-secondary w-100 py-3" style="border-radius: 12px; font-weight: 700;" disabled>Submission Closed</button>
+                                }
+
+                                @if (submission != null)
+                                {
+                                    <button class="btn btn-outline-custom" data-bs-toggle="modal" data-bs-target="#historyModal" onclick="loadSubmissionHistory(@item.Id)">
+                                        <i class="fa-solid fa-clock-rotate-left me-1"></i> View Attempt History
+                                    </button>
+                                }
+                                
+                                @if (!string.IsNullOrEmpty(item.AttachmentPath))
+                                {
+                                    <a href="@item.AttachmentPath" target="_blank" class="btn btn-outline-custom mt-2">
+                                        <i class="fa-solid fa-download me-1"></i> Download Attachments
+                                    </a>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+<!-- Submit Assignment Modal -->
+<div class="modal fade premium-modal" id="submitModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fa-solid fa-file-arrow-up me-2"></i> Submit Assignment</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="@Url.Action("SubmitAssignment")" enctype="multipart/form-data">
+                <input type="hidden" name="AssignmentId" id="modalAssignmentId" />
+                <div class="modal-body">
+                    <h5 id="modalAssignmentTitle" class="text-primary font-weight-bold mb-4"></h5>
+
+                    <div class="mb-3">
+                        <label class="form-label-custom">Submission Text / Notes</label>
+                        <textarea name="SubmissionText" rows="4" class="form-control form-control-custom" placeholder="Provide online answers or attachment notes..."></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label-custom">Upload Supporting File (Optional)</label>
+                        <input type="file" name="attachment" class="form-control form-control-custom" />
+                        <small class="text-muted mt-2 d-block">Allowed extensions: .pdf, .docx, .zip</small>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn btn-light px-4 py-2" style="border-radius: 12px; font-weight:600;" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-submit px-4 py-2" style="width: auto;">Upload & Submit</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- History Modal -->
+<div class="modal fade premium-modal" id="historyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #475569, #64748b);">
+                <h5 class="modal-title"><i class="fa-solid fa-clock-rotate-left me-2"></i> Submission Log</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="historyModalBody">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function setupSubmitModal(assignmentId, title) {
+            $('#modalAssignmentId').val(assignmentId);
+            $('#modalAssignmentTitle').text(title);
+        }
+
+        function loadSubmissionHistory(assignmentId) {
+            $('#historyModalBody').html('<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>');
+            $.get('@Url.Action("GetSubmissionHistory")?assignmentId=' + assignmentId, function(data) {
+                $('#historyModalBody').html(data);
+            }).fail(function() {
+                $('#historyModalBody').html('<p class="text-danger text-center">Failed to load history.</p>');
+            });
+        }
+    </script>
+}
+

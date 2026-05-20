@@ -1,0 +1,90 @@
+﻿@model TMS.ViewModels.Masters.CompanyMasterViewModel
+@{
+    var permissions = ViewContext.HttpContext.GetFormPermissions();
+}
+<form method="post" class="noclick" id="frmItem" disabled="@(!permissions.Add && !permissions.Edit)">
+    <div class="card glass">
+        <div class="card-body">
+            <input asp-for="Id" type="hidden" />
+            <input id="hdAddEditActionAllowed" type="hidden" value="@permissions.CanShowAddEditButton(Model!.Id).ToString().ToLower()" />
+            <div class="row mb-2">
+                <div class="col-12 col-md-6">
+                    <div class="mb-1">
+                        <label asp-for="Name"></label>
+                        <input asp-for="Name" aria-required="true" placeholder="Enter NoName" disabled="@(!permissions.Add && !permissions.Edit)" />
+                        <span asp-validation-for="Name" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="mb-1">
+                        <label asp-for="Initial"></label>
+                        <input asp-for="Initial" aria-required="true" placeholder="Enter Initial" disabled="@(!permissions.Add && !permissions.Edit)" />
+                        <span asp-validation-for="Initial" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="mb-1">
+                        <label asp-for="Phone"></label>
+                        <input asp-for="Phone" aria-required="true" placeholder="Enter Phone" disabled="@(!permissions.Add && !permissions.Edit)" />
+                        <span asp-validation-for="Phone" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="mb-1">
+                        <label asp-for="Fax"></label>
+                        <input asp-for="Fax" aria-required="true" placeholder="Enter Fax" disabled="@(!permissions.Add && !permissions.Edit)" />
+                        <span asp-validation-for="Fax" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="mb-1">
+                        <label asp-for="Email"></label>
+                        <input asp-for="Email" aria-required="true" placeholder="Enter Email" disabled="@(!permissions.Add && !permissions.Edit)" />
+                        <span asp-validation-for="Email" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="mb-1">
+                        <label asp-for="Address1"></label>
+                        <textarea asp-for="Address1" aria-required="true" placeholder="Enter Address 1" disabled="@(!permissions.Add && !permissions.Edit)" rows="4"></textarea>
+                        <span asp-validation-for="Address1" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="mb-1">
+                        <label asp-for="Address2"></label>
+                        <textarea asp-for="Address2" aria-required="true" placeholder="Enter Address 2" disabled="@(!permissions.Add && !permissions.Edit)" rows="4"></textarea>
+                        <span asp-validation-for="Address2" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="mb-1">
+                        <label asp-for="Address3"></label>
+                        <textarea asp-for="Address3" aria-required="true" placeholder="Enter Address 3" disabled="@(!permissions.Add && !permissions.Edit)" rows="4"></textarea>
+                        <span asp-validation-for="Address3" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="mb-1">
+                        <label asp-for="Address4"></label>
+                        <textarea asp-for="Address4" aria-required="true" placeholder="Enter Address 4" disabled="@(!permissions.Add && !permissions.Edit)" rows="4"></textarea>
+                        <span asp-validation-for="Address4" class="text-danger"></span>
+                    </div>
+                </div>
+                @if (Model?.Id > 0)
+                {
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Status</label>
+                        <div class="d-flex">
+                            <label asp-for="IsActive" class="form-check-label nomandatory">Inactive</label>
+                            <div class="form-switch form-check ms-2">
+                                <input asp-for="IsActive" class="form-check-input">
+                            </div>
+                            <label asp-for="IsActive" class="form-check-label nomandatory">Active</label>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</form>

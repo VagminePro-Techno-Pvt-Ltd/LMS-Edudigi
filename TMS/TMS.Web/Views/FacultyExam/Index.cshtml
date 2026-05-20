@@ -1,0 +1,152 @@
+@model IEnumerable<TMS.Models.Assessments.ExamMaster>
+
+@{
+    ViewData["Title"] = "Faculty Assessment Dashboard";
+}
+
+<div class="exam-page">
+    <!-- Page Header -->
+    <div class="exam-page-header">
+        <div>
+            <h1>
+                <span class="header-icon" style="background:#f5f3ff; color:#7c3aed;">
+                    <i class="fa-solid fa-cubes"></i>
+                </span>
+                Assessment Control Center
+            </h1>
+            <p>Create, configure, schedule, and grade academic examinations.</p>
+        </div>
+        <div class="header-actions">
+            <a asp-action="QuestionBank" class="exam-btn exam-btn-secondary">
+                <i class="fa-solid fa-building-columns"></i> Question Bank
+            </a>
+            <a asp-action="EvaluateList" class="exam-btn exam-btn-outline">
+                <i class="fa-solid fa-check-double"></i> Evaluate
+            </a>
+            <a asp-action="Create" class="exam-btn exam-btn-primary">
+                <i class="fa-solid fa-plus"></i> Create Assessment
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="exam-stats-row">
+        <div class="exam-stat-card purple">
+            <span class="stat-label">Total Exams</span>
+            <span class="stat-value">@(Model?.Count() ?? 0)</span>
+            <span class="stat-sub">Assessments created</span>
+        </div>
+        <div class="exam-stat-card green">
+            <span class="stat-label">Active</span>
+            <span class="stat-value">@(Model?.Count(e => e.Status == "Active") ?? 0)</span>
+            <span class="stat-sub">Currently live</span>
+        </div>
+        <div class="exam-stat-card orange">
+            <span class="stat-label">Drafts</span>
+            <span class="stat-value">@(Model?.Count(e => e.Status == "Draft") ?? 0)</span>
+            <span class="stat-sub">In progress</span>
+        </div>
+        <div class="exam-stat-card blue">
+            <span class="stat-label">Archived</span>
+            <span class="stat-value">@(Model?.Count(e => e.Status == "Archived") ?? 0)</span>
+            <span class="stat-sub">Completed exams</span>
+        </div>
+    </div>
+
+    <!-- Exam Table -->
+    <div class="exam-section-box" style="padding:0; overflow:hidden;">
+        <div style="padding:20px 24px; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between;">
+            <h3 style="font-size:16px; font-weight:700; color:#1e293b; margin:0; display:flex; align-items:center; gap:10px;">
+                <span class="title-icon" style="background:#eff6ff; color:#3b82f6; width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px;">
+                    <i class="fa-solid fa-table-list"></i>
+                </span>
+                Your Assessments
+            </h3>
+        </div>
+        <div style="padding:0;">
+            <table class="exam-table">
+                <thead>
+                    <tr>
+                        <th>Assessment Title</th>
+                        <th>Course</th>
+                        <th>Duration</th>
+                        <th>Status</th>
+                        <th>Timeline</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model == null || !Model.Any())
+                    {
+                        <tr>
+                            <td colspan="6">
+                                <div class="exam-empty-state" style="border:none;">
+                                    <div class="empty-icon"><i class="fa-solid fa-folder-open"></i></div>
+                                    <h3>No Assessments Yet</h3>
+                                    <p>Click "Create Assessment" to build your first exam.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var exam in Model)
+                        {
+                            <tr>
+                                <td>
+                                    <div>
+                                        <strong style="color:#1e293b;">@exam.Title</strong>
+                                        <div style="font-size:11.5px; color:#64748b; margin-top:2px;">
+                                            Marks: @exam.TotalMarks | Passing: @exam.PassingMarks%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span style="background:#f5f3ff; color:#7c3aed; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700;">
+                                        @exam.Course?.Name
+                                    </span>
+                                </td>
+                                <td>
+                                    <strong>@exam.DurationMinutes min</strong>
+                                </td>
+                                <td>
+                                    @if (exam.Status == "Active")
+                                    {
+                                        <span class="exam-badge active"><i class="fa-solid fa-circle" style="font-size:6px;"></i> Active</span>
+                                    }
+                                    else if (exam.Status == "Draft")
+                                    {
+                                        <span class="exam-badge draft"><i class="fa-solid fa-pen"></i> Draft</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="exam-badge archived"><i class="fa-solid fa-box-archive"></i> Archived</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div style="font-size:12px; line-height:1.8;">
+                                        <div><span style="color:#059669; font-weight:600;">In:</span> @exam.StartDate.ToString("dd MMM, hh:mm tt")</div>
+                                        <div><span style="color:#ef4444; font-weight:600;">Out:</span> @exam.EndDate.ToString("dd MMM, hh:mm tt")</div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                        <a asp-action="Edit" asp-route-id="@exam.Id" class="exam-btn exam-btn-secondary exam-btn-sm" title="Configure">
+                                            <i class="fa-solid fa-gear"></i> Configure
+                                        </a>
+                                        <a asp-action="Assign" asp-route-examId="@exam.Id" class="exam-btn exam-btn-sm" style="background:#ecfdf5; color:#059669 !important; border:1px solid #a7f3d0;" title="Assign">
+                                            <i class="fa-solid fa-user-plus"></i> Assign
+                                        </a>
+                                        <a asp-action="Analytics" asp-route-examId="@exam.Id" class="exam-btn exam-btn-sm" style="background:#fff7ed; color:#ea580c !important; border:1px solid #fed7aa;" title="Analytics">
+                                            <i class="fa-solid fa-chart-bar"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,395 @@
+@model TMS.Web.Models.LoginViewModel
+@{
+    Layout = "_LayoutEmpty";
+    ViewData["Title"] = "Login";
+}
+
+<style>
+    @@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+    body {
+        font-family: 'Poppins', sans-serif;
+        background-color: #f0f4ff;
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+    }
+
+    .login-wrapper {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        position: relative;
+    }
+
+    /* Decorative background shapes */
+    .bg-shape {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(50px);
+        z-index: 0;
+    }
+    .shape-1 {
+        width: 300px;
+        height: 300px;
+        background: rgba(37, 117, 252, 0.2);
+        top: -50px;
+        left: -50px;
+    }
+    .shape-2 {
+        width: 400px;
+        height: 400px;
+        background: rgba(106, 17, 203, 0.15);
+        bottom: -100px;
+        right: -50px;
+    }
+
+    .login-container {
+        width: 100%;
+        max-width: 1000px;
+        background: #fff;
+        border-radius: 20px;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+        display: flex;
+        overflow: hidden;
+        z-index: 1;
+        min-height: 600px;
+    }
+
+    /* Left Pane - Branding */
+    .login-branding {
+        flex: 1;
+        background-image: url('@Url.Content("~/images/premium_campus_bg.png")');
+        background-size: cover;
+        background-position: center;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 40px;
+        color: #fff;
+    }
+
+    .login-branding::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(37, 117, 252, 0.85), rgba(106, 17, 203, 0.85));
+        z-index: 1;
+    }
+
+    .branding-content {
+        position: relative;
+        z-index: 2;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+    }
+
+    .branding-logo {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: #fff;
+        padding: 5px;
+        margin-bottom: 20px;
+        border: 3px solid rgba(255,255,255,0.5);
+        object-fit: contain;
+    }
+
+
+    .branding-title {
+        font-size: 26px;
+        font-weight: 700;
+        margin-bottom: 10px;
+        letter-spacing: 0.5px;
+    }
+
+    .branding-subtitle {
+        font-size: 16px;
+        color: rgba(255,255,255,0.9);
+        font-weight: 400;
+    }
+
+    .branding-footer {
+        position: relative;
+        z-index: 2;
+        text-align: left;
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        border-left: 3px solid #fff;
+        padding-left: 15px;
+        margin-top: auto;
+    }
+
+    /* Right Pane - Form */
+    .login-form-pane {
+        flex: 1;
+        padding: 50px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .form-header {
+        margin-bottom: 30px;
+    }
+
+    .form-title {
+        font-size: 28px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 10px;
+    }
+
+    .form-subtitle {
+        font-size: 14px;
+        color: #777;
+    }
+
+    .login-tabs {
+        display: flex;
+        background: #f0f4ff;
+        border-radius: 30px;
+        padding: 5px;
+        margin-bottom: 30px;
+    }
+
+    .login-tab {
+        flex: 1;
+        text-align: center;
+        padding: 10px 15px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #555;
+        border-radius: 25px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .login-tab.active {
+        background: #2575fc;
+        color: #fff;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        font-size: 14px;
+        font-weight: 500;
+        color: #444;
+        margin-bottom: 8px;
+        display: block;
+    }
+
+    .form-control {
+        border: 2px solid #eef2f7;
+        border-radius: 10px;
+        padding: 12px 15px;
+        font-size: 15px;
+        transition: all 0.3s ease;
+        background: #fcfdfe;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .form-control:focus {
+        border-color: #2575fc;
+        box-shadow: 0 0 0 4px rgba(37, 117, 252, 0.1);
+        background: #fff;
+        outline: none;
+    }
+
+    .password-wrapper {
+        position: relative;
+    }
+
+    .password-toggle {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: #aaa;
+        transition: color 0.3s;
+        z-index: 10;
+    }
+
+    .password-toggle:hover {
+        color: #2575fc;
+    }
+
+    .login-options {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        font-size: 14px;
+    }
+
+    .remember-me {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .remember-me input {
+        width: 16px;
+        height: 16px;
+        accent-color: #2575fc;
+    }
+
+    .forgot-password {
+        color: #2575fc;
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .forgot-password:hover {
+        text-decoration: underline;
+    }
+
+    .btn-login {
+        background: linear-gradient(135deg, #2575fc 0%, #6a11cb 100%);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        padding: 14px;
+        font-size: 16px;
+        font-weight: 600;
+        width: 100%;
+        cursor: pointer;
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .btn-login:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(37, 117, 252, 0.3);
+    }
+
+    .register-text {
+        text-align: center;
+        margin-top: 25px;
+        font-size: 14px;
+        color: #666;
+    }
+
+    .register-link {
+        color: #2575fc;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .register-link:hover {
+        text-decoration: underline;
+    }
+
+    /* Responsive */
+    @@media (max-width: 768px) {
+        .login-container {
+            flex-direction: column;
+        }
+        .login-branding {
+            padding: 30px;
+            min-height: 200px;
+            justify-content: center;
+        }
+        .branding-footer {
+            display: none;
+        }
+        .login-form-pane {
+            padding: 30px;
+        }
+    }
+</style>
+
+<div class="login-wrapper">
+    <div class="bg-shape shape-1"></div>
+    <div class="bg-shape shape-2"></div>
+
+    <div class="login-container">
+        <!-- Left Pane - Branding -->
+        <div class="login-branding">
+            <div class="branding-content">
+                <img src="@Url.Content("~/images/logo.jpg")" alt="Logo" class="branding-logo" />
+                <div class="branding-title">EduDigiClass</div>
+                <div class="branding-subtitle">Online Learning Platform</div>
+            </div>
+            <div class="branding-footer">
+                ONLINE PROGRAMS
+            </div>
+        </div>
+
+        <!-- Right Pane - Form -->
+        <div class="login-form-pane">
+            <div class="form-header">
+                <h2 class="form-title">Login to your Account</h2>
+                <p class="form-subtitle">Welcome back! Please enter your details.</p>
+            </div>
+
+            <div class="login-tabs">
+                <div class="login-tab active" id="tab-username">Login with Username</div>
+                <div class="login-tab" id="tab-mobile" onclick="alert('Mobile login coming soon!')">Login with Mobile Number</div>
+            </div>
+
+            <form class="form theme-form" asp-action="Login" asp-controller="Auth" asp-area="" method="post">
+                <div class="form-group">
+                    <label asp-for="Email" class="form-label">Enter your Username / Email</label>
+                    <input asp-for="Email" class="form-control" placeholder="username or email" required>
+                    <span asp-validation-for="Email" class="text-danger"></span>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="Password" class="form-label">Enter your Password</label>
+                    <div class="password-wrapper">
+                        <input asp-for="Password" class="form-control" type="password" placeholder="••••••••" id="passwordInput" required>
+                        <i id="eyeIcon" class="fa fa-eye password-toggle" onclick="togglePassword()"></i>
+                    </div>
+                    <span asp-validation-for="Password" class="text-danger"></span>
+                </div>
+
+                <div class="login-options">
+                    <div class="remember-me">
+                        <input asp-for="RememberMe" class="form-check-input">
+                        <label asp-for="RememberMe" class="form-check-label nomandatory">Remember Me</label>
+                    </div>
+                    <a href="@Url.Action("ForgotPasswordFlow","Auth")" class="forgot-password">Forgot Password?</a>
+                </div>
+
+                <button type="submit" class="btn-login">Login</button>
+
+
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts{
+    <partial name="~/Views/Shared/_ValidationScriptsPartial.cshtml" />
+    <script>
+        function togglePassword() {
+            const passInput = document.getElementById("passwordInput");
+            const eyeIcon = document.getElementById("eyeIcon");
+
+            if (passInput.type === "password") {
+                passInput.type = "text";
+                eyeIcon.classList.remove("fa-eye");
+                eyeIcon.classList.add("fa-eye-slash");
+            } else {
+                passInput.type = "password";
+                eyeIcon.classList.remove("fa-eye-slash");
+                eyeIcon.classList.add("fa-eye");
+            }
+        }
+    </script>
+}
+

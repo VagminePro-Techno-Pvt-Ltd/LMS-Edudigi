@@ -1,0 +1,194 @@
+@model TMS.ViewModels.Academics.QuadrantMaterialListViewModel
+@{
+    ViewData["Title"] = Model.QuadrantName + " — " + Model.UnitName;
+}
+
+<style>
+    .qc-page { padding: 8px 4px 40px; font-family: 'Jost','Segoe UI',sans-serif; }
+    .qc-bc { font-size: 13px; color: #94a3b8; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .qc-bc a { color: #64748b; text-decoration: none; transition: color .15s; }
+    .qc-bc a:hover { color: #6366f1; }
+    .qc-bc .sep { color: #cbd5e1; }
+    .qc-bc strong { color: #1e293b; }
+    
+    .qc-back { display: inline-flex; align-items: center; gap: 7px; color: #6366f1; font-size: 13px; font-weight: 700; text-decoration: none; margin-bottom: 20px; transition: opacity .15s; }
+    .qc-back:hover { opacity: .75; color: #6366f1; }
+
+    .qc-hero {
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 60%, #7c3aed 100%);
+        border-radius: 16px; padding: 26px 30px; color: #fff; margin-bottom: 28px;
+        display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+        box-shadow: 0 8px 32px rgba(99,102,241,.28); position: relative; overflow: hidden;
+    }
+    .qc-hero::before { content: ''; position: absolute; right: -40px; top: -40px; width: 200px; height: 200px; border-radius: 50%; background: rgba(255,255,255,.07); }
+    .qc-hero-left { display: flex; align-items: center; gap: 18px; }
+    .qc-hero-icon { width: 56px; height: 56px; border-radius: 14px; background: rgba(255,255,255,0.18); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+    .qc-hero-text h2 { font-size: 20px; font-weight: 800; margin: 0 0 4px; }
+    .qc-hero-text p { font-size: 13px; opacity: .82; margin: 0; }
+    
+    .qc-stat { text-align: center; min-width: 72px; }
+    .qc-stat .sn { font-size: 30px; font-weight: 800; line-height: 1; }
+    .qc-stat .sl { font-size: 11px; opacity: .7; text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
+
+    .qc-list-card {
+        background: #fff; border-radius: 16px; border: 1.5px solid #eef2f6;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.03); overflow: hidden; margin-bottom: 24px;
+    }
+
+    .qc-row { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid #f1f5f9; gap: 12px; transition: background .15s; }
+    .qc-row:last-child { border-bottom: none; }
+    .qc-row:hover { background: #fafbff; }
+    .qc-row-left { display: flex; align-items: center; gap: 16px; flex: 1; }
+    .qc-type-icon { font-size: 20px; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    
+    .qc-info h4 { font-size: 14.5px; font-weight: 700; color: #1e293b; margin: 0 0 3px; }
+    .qc-info p { font-size: 12px; color: #94a3b8; margin: 0; }
+
+    .qc-actions { display: flex; align-items: center; gap: 10px; }
+    .btn-qc { padding: 8px 16px; border-radius: 8px; font-size: 12.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; border: none; cursor: pointer; transition: all .2s; }
+    .btn-qc-view { background: #eff6ff; color: #3b82f6; }
+    .btn-qc-view:hover { background: #3b82f6; color: #fff; }
+    .btn-qc-dl { background: #f1f5f9; color: #475569; padding: 8px 12px; }
+    .btn-qc-dl:hover { background: #e2e8f0; color: #475569; }
+
+    .qc-empty { text-align: center; padding: 60px 24px; background: #fff; border-radius: 16px; border: 1.5px dashed #cbd5e1; }
+    .qc-empty i { font-size: 42px; color: #cbd5e1; margin-bottom: 14px; display: block; }
+    .qc-empty p { color: #94a3b8; font-size: 14px; margin: 4px 0 0; }
+
+    .quiz-attempt-card {
+        background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 16px;
+        padding: 28px; text-align: center; max-width: 500px; margin: 0 auto 28px;
+        box-shadow: 0 4px 15px rgba(22, 163, 74, 0.05);
+    }
+    .quiz-attempt-card i { font-size: 48px; color: #16a34a; margin-bottom: 16px; }
+    .quiz-attempt-card h3 { font-size: 18px; font-weight: 800; color: #14532d; margin-bottom: 8px; }
+    .quiz-attempt-card p { font-size: 13.5px; color: #15803d; margin-bottom: 20px; }
+    .btn-quiz-start {
+        background: #16a34a; color: #fff; border-radius: 10px; padding: 10px 24px;
+        font-size: 14px; font-weight: 800; text-decoration: none; display: inline-flex;
+        align-items: center; gap: 8px; transition: background 0.2s;
+    }
+    .btn-quiz-start:hover { background: #15803d; color: #fff; }
+
+    @@media(max-width:600px) {
+        .qc-hero { padding: 18px; }
+        .qc-row { flex-direction: column; align-items: flex-start; }
+        .qc-actions { margin-top: 8px; width: 100%; justify-content: flex-end; }
+    }
+</style>
+
+<div class="qc-page">
+    <div class="qc-bc">
+        <a asp-controller="Home" asp-action="StudentDashboard"><i class="fa-solid fa-house"></i> Dashboard</a><span class="sep">/</span>
+        <a asp-controller="StudentCourse" asp-action="Index">My Courses</a><span class="sep">/</span>
+        <a href="@Url.Action("Details", "StudentCourse", new { courseId = Model.CourseId })">@Model.CourseName</a><span class="sep">/</span>
+        <a href="@Url.Action("Details", "StudentUnit", new { courseId = Model.CourseId, unitId = Model.UnitId })">@Model.UnitName</a><span class="sep">/</span>
+        <strong>@Model.QuadrantName</strong>
+    </div>
+
+    <a href="@Url.Action("Details", "StudentUnit", new { courseId = Model.CourseId, unitId = Model.UnitId })" class="qc-back">
+        <i class="fa-solid fa-arrow-left"></i> Back to @Model.UnitName
+    </a>
+
+    <div class="qc-hero" style="background: linear-gradient(135deg, @Model.QuadrantColor 0%, #312e81 100%);">
+        <div class="qc-hero-left">
+            <div class="qc-hero-icon" style="background: rgba(255,255,255,0.15);"><i class="fa-solid @Model.QuadrantIcon"></i></div>
+            <div class="qc-hero-text">
+                <h2>@Model.QuadrantName</h2>
+                <p>@Model.UnitName &nbsp;&middot;&nbsp; @Model.QuadrantDescription</p>
+            </div>
+        </div>
+        <div class="qc-stat">
+            <div class="sn">@Model.TotalItems</div>
+            <div class="sl">Items</div>
+        </div>
+    </div>
+
+    @if (Model.QuadrantNumber == 3)
+    {
+        <div class="quiz-attempt-card">
+            <i class="fa-solid fa-circle-question"></i>
+            <h3>Unit Assessment Quiz</h3>
+            <p>Test your knowledge of @Model.UnitName with this interactive quadrant assessment.</p>
+            <a href="@Url.Action("Attempt", "StudentQuiz", new { courseId = Model.CourseId, quadrantId = Model.QuadrantId })"
+               class="btn-quiz-start">
+                <i class="fa-solid fa-play"></i> Start Quiz Attempt
+            </a>
+        </div>
+    }
+
+    @if (!Model.Materials.Any())
+    {
+        @if (Model.QuadrantNumber != 3)
+        {
+            <div class="qc-empty">
+                <i class="fa-solid fa-folder-open"></i>
+                <h5 style="color:#1e293b;font-weight:700;margin:0 0 6px;">No Content Available</h5>
+                <p>No @Model.QuadrantName materials have been uploaded for @Model.UnitName yet.</p>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="qc-list-card">
+            @for (int i = 0; i < Model.Materials.Count; i++)
+            {
+                var mat = Model.Materials[i];
+                string previewUrl = mat.IsVideo && !string.IsNullOrEmpty(mat.ContentPath) ? mat.ContentPath : Url.Content(mat.FilePath ?? "");
+                
+                <div class="qc-row">
+                    <div class="qc-row-left">
+                        <div class="qc-type-icon" style="background: @Model.QuadrantBgColor; color: @Model.QuadrantColor;">
+                            @if (mat.IsVideo)
+                            {
+                                <i class="fa-solid fa-video"></i>
+                            }
+                            else if (mat.IsDocument)
+                            {
+                                <i class="fa-solid fa-file-pdf"></i>
+                            }
+                            else
+                            {
+                                <i class="fa-solid fa-file-lines"></i>
+                            }
+                        </div>
+                        <div class="qc-info">
+                            <h4>@(i + 1). @mat.Title</h4>
+                            <p>@(mat.MaterialType) · @(mat.UploadedOn.ToString("MMM dd, yyyy"))</p>
+                        </div>
+                    </div>
+                    <div class="qc-actions">
+                        @if (mat.IsVideo)
+                        {
+                            <button class="btn-qc btn-qc-view view-file-link"
+                                    data-filepath="@previewUrl"
+                                    data-filepath-fallback="@Url.Content(mat.FilePath ?? "")"
+                                    data-title="@mat.Title"
+                                    data-material-id="@mat.MaterialId"
+                                    data-materialtype="@mat.MaterialType">
+                                <i class="fa-solid fa-play"></i> Watch
+                            </button>
+                        }
+                        else
+                        {
+                            <a href="@Url.Action("View", "DocumentViewer", new { id = mat.MaterialId })" class="btn-qc btn-qc-view">
+                                <i class="fa-solid fa-eye"></i> View
+                            </a>
+                        }
+
+                        @if (!string.IsNullOrEmpty(mat.FilePath) && mat.MaterialType != "VideoURL")
+                        {
+                            <a href="@Url.Action("DownloadFile", "StudentCourseContent", new { id = mat.MaterialId })" 
+                               class="btn-qc btn-qc-dl" title="Download">
+                                <i class="fa-solid fa-download"></i>
+                            </a>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@* Fullscreen telemetry/playback modal *@
+<partial name="_FilePreviewModal" />

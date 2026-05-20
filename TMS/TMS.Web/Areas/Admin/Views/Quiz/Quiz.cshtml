@@ -1,0 +1,40 @@
+﻿@model TMS.ViewModels.Masters.QuizMasterViewModel
+@{
+    ViewData["Title"] = "Quiz";
+    var controller = Convert.ToString(ViewContext.RouteData.Values["controller"]);
+    var controlPermissions = ViewContext.GetControlPermissions();
+}
+<div class="card glass">
+    @if (controlPermissions.IsVisible((int)TMS.Common.FormControls.Quiz.AddQuestion))
+    {
+        <div class="card-header text-end">
+            <a asp-action="Index" asp-controller="Question" asp-area="Admin" class="btn btn-primary btn-sm"><i class="fas fa-list mr-1"></i> Question List</a>
+        </div>
+    }
+    <div class="card-body">
+        <div class="row mb-2">
+            <div class="col-12">
+                <div class="mb-1">
+                    <label asp-for="CourseId"></label>
+                    @* <select asp-for="CourseId" asp-items="ViewBag.Courselist" class="form-select"></select>*@
+                    <input id="CourseId" type="search" class="form-control" list="listCourse" placeholder="Type to search..." />
+                    <datalist id="listCourse">
+                        @foreach (var item in ViewBag.Courselist as List<SelectListItem>)
+                        {
+                            <option value="@item.Text" data-id="@item.Value" />
+                        }
+                    </datalist>
+                    <span asp-validation-for="CourseId" class="text-danger"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-body" id="divtblQuizMapping">
+    </div>
+</div>
+@section scripts{
+    <script src="@Url.Action("AdminQuizMaster","LinkScript",new {area=""})" asp-append-version="true"></script>
+    <partial name="~/Views/Shared/_ValidationScriptsPartial.cshtml" />
+    <script src="~/js/app.util.forms.js" asp-append-version="true"></script>
+    <script src="~/js/masters/QuizMaster-Quiz.js" asp-append-version="true"></script>
+}

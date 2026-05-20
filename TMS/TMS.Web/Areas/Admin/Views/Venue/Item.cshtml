@@ -1,0 +1,55 @@
+﻿@model TMS.ViewModels.Masters.VenueMasterViewModel
+@{
+    var permissions = ViewContext.HttpContext.GetFormPermissions();
+}
+<form method="post" class="noclick" id="frmItem" disabled="@(!permissions.Add && !permissions.Edit)">
+    <div class="card glass">
+        <div class="card-body">
+            <input asp-for="Id" type="hidden" />
+            <input id="hdAddEditActionAllowed" type="hidden" value="@permissions.CanShowAddEditButton(Model!.Id).ToString().ToLower()" />
+            <div class="row mb-2">
+                <div class="col-12 col-md-6">
+                    <div class="mb-1">
+                        <label asp-for="VenueId">Venue Code</label>
+                        <input asp-for="VenueId" aria-required="true" placeholder="Enter Venue Code" disabled="@(!permissions.Add && !permissions.Edit)" />
+                        <span asp-validation-for="VenueId" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="mb-1">
+                        <label asp-for="Name"></label>
+                        <input asp-for="Name" aria-required="true" placeholder="Enter Name" disabled="@(!permissions.Add && !permissions.Edit)" />
+                        <span asp-validation-for="Name" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="mb-1">
+                        <label asp-for="Description"></label>
+                        <textarea asp-for="Description" aria-required="true" placeholder="Enter Description" disabled="@(!permissions.Add && !permissions.Edit)" rows="4"></textarea>
+                        <span asp-validation-for="Description" class="text-danger"></span>
+                    </div>
+                </div>
+                  <div class="col-12 col-md-6">
+                    <div class="mb-1">
+                        <label asp-for="VenueSeat"></label>
+                        <input asp-for="VenueSeat" aria-required="true" placeholder="Enter Number Of Seats" disabled="@(!permissions.Add && !permissions.Edit)" />
+                        <span asp-validation-for="VenueSeat" class="text-danger"></span>
+                    </div>
+                </div>
+                @if (Model?.Id > 0)
+                {
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Status</label>
+                        <div class="d-flex">
+                            <label asp-for="IsActive" class="form-check-label nomandatory">Inactive</label>
+                            <div class="form-switch form-check ms-2">
+                                <input asp-for="IsActive" class="form-check-input">
+                            </div>
+                            <label asp-for="IsActive" class="form-check-label nomandatory">Active</label>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</form>

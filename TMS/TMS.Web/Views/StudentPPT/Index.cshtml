@@ -1,0 +1,85 @@
+@model List<TMS.Web.Controllers.StudentPPTViewModel>
+@{
+    ViewData["Title"] = "Interactive PPT";
+}
+
+<style>
+    .sppti-wrap { padding: 10px 6px 32px; font-family: 'Jost','Segoe UI',sans-serif; }
+    .sppti-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:18px; }
+    .sppti-title { font-size:20px; font-weight:900; color:#1e293b; display:flex; align-items:center; gap:10px; margin:0; }
+    .sppti-title i { color:#7c3aed; }
+    .sppti-sub { margin:0; font-size:13px; color:#64748b; }
+
+    .sppti-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; }
+    .sppti-card {
+        background:#fff; border:1px solid #eef2f6; border-radius:14px;
+        box-shadow:0 2px 12px rgba(0,0,0,.05);
+        overflow:hidden; transition:transform .18s, box-shadow .18s, border-color .18s;
+    }
+    .sppti-card:hover { transform:translateY(-2px); box-shadow:0 10px 28px rgba(99,102,241,.12); border-color:#c7d2fe; }
+    .sppti-card-h { padding:14px 16px; border-bottom:1px solid #f1f5f9; display:flex; align-items:flex-start; gap:10px; }
+    .sppti-ic { width:36px; height:36px; border-radius:10px; background:#fdf4ff; color:#7c3aed; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .sppti-card-h h4 { margin:0; font-size:14px; font-weight:900; color:#1e293b; line-height:1.2; }
+    .sppti-card-b { padding:14px 16px; }
+    .sppti-desc { font-size:12.5px; color:#64748b; margin:0 0 10px; min-height:34px; }
+    .sppti-meta { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+    .sppti-date { font-size:11.5px; font-weight:700; color:#94a3b8; display:inline-flex; align-items:center; gap:6px; }
+    .sppti-btn {
+        background:#6366f1; color:#fff; text-decoration:none; border-radius:10px;
+        padding:8px 12px; font-size:12px; font-weight:900; display:inline-flex; align-items:center; gap:8px;
+        transition:background .15s;
+    }
+    .sppti-btn:hover { background:#4f46e5; color:#fff; }
+
+    .sppti-empty { background:#fff; border:1px dashed #cbd5e1; border-radius:14px; padding:36px 18px; text-align:center; color:#94a3b8; }
+    .sppti-empty i { font-size:42px; display:block; margin-bottom:10px; color:#cbd5e1; }
+</style>
+
+<div class="sppti-wrap">
+    <div class="sppti-head">
+        <div>
+            <h1 class="sppti-title"><i class="fa-solid fa-file-powerpoint"></i> Interactive PPT</h1>
+            <p class="sppti-sub">Your available presentations across enrolled courses.</p>
+        </div>
+    </div>
+
+    @if (Model == null || !Model.Any())
+    {
+        <div class="sppti-empty">
+            <i class="fa-solid fa-file-powerpoint"></i>
+            <div style="font-weight:800;">No Interactive PPT available.</div>
+        </div>
+    }
+    else
+    {
+        <div class="sppti-grid">
+            @foreach (var ppt in Model)
+            {
+                <div class="sppti-card">
+                    <div class="sppti-card-h">
+                        <div class="sppti-ic"><i class="fa-solid fa-file-powerpoint"></i></div>
+                        <div>
+                            <h4>@ppt.Title</h4>
+                        </div>
+                    </div>
+                    <div class="sppti-card-b">
+                        <p class="sppti-desc">@(!string.IsNullOrWhiteSpace(ppt.Description) ? ppt.Description : "Interactive presentation.")</p>
+                        <div class="sppti-meta">
+                            <span class="sppti-date"><i class="fa-regular fa-calendar"></i> @ppt.CreatedAt.ToString("MMM dd, yyyy")</span>
+                            <button type="button" class="sppti-btn view-file-link" style="border:none; cursor:pointer;"
+                                    data-filepath="/InteractivePPT/View/@ppt.Id"
+                                    data-title="@ppt.Title"
+                                    data-material-id="@ppt.Id"
+                                    data-materialtype="interactiveppt">
+                                <i class="fa-solid fa-eye"></i> View
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<partial name="_FilePreviewModal" />
+

@@ -1,0 +1,67 @@
+﻿@model TMS.ViewModels.Masters.TrainingMatrixViewModel
+@{
+
+    var controller = Convert.ToString(ViewContext.RouteData.Values["controller"]);
+    var permissions = ViewContext.HttpContext.GetFormPermissions();
+
+}
+
+<div class="card glass">
+    <div class="card-body">
+        <div class="row mb-2">
+            <div class="col-12 col-md-3">
+                <div class="mb-1">
+                    <label asp-for="LocationId"></label>
+                    <select asp-for="LocationId" asp-items="ViewBag.LocationId" class="form-select"></select>
+                    <span asp-validation-for="LocationId" class="text-danger"></span>
+                </div>
+            </div>
+            <div class="col-12 col-md-3">
+                <div class="mb-1">
+                    <label asp-for="DepartmentId"></label>
+                    <select asp-for="DepartmentId" class="form-select"></select>
+                    <span asp-validation-for="DepartmentId" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="col-12 col-md-3">
+                <div class="mb-1">
+                    <label asp-for="DivisionId"></label>
+                    <select asp-for="DivisionId" class="form-select"></select>
+                    <span asp-validation-for="DivisionId" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="col-12 col-md-3">
+                <div class="mb-1">
+                    <label asp-for="DesignationId"></label>
+                    <select asp-for="DesignationId" class="form-select"></select>
+                    <span asp-validation-for="DesignationId" class="text-danger"></span>
+                </div>
+            </div>
+           
+        </div>
+        <div class="row d-none" id="divFilterContainer">
+            <div class="col-12 col-md-3">
+                <div class="mb-1">
+                    <label asp-for="CourseCategoryId"></label>
+                    <select asp-for="CourseCategoryId" asp-items="ViewBag.CourseCategoryId" class="form-select"></select>
+                    <span asp-validation-for="CourseCategoryId" class="text-danger"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+   
+    @*<form method="post" class="noclick" id="" disabled="@(!permissions.Add && !permissions.Edit)">*@
+    <div class="card-body" id="divtblMatrices">
+    </div>
+    @*</form>*@
+</div>
+
+
+@section scripts{
+    <script src="@Url.Action("AdminTrainingMatrixMaster","LinkScript",new {area=""})" asp-append-version="true"></script>
+    <partial name="~/Views/Shared/_ValidationScriptsPartial.cshtml" />
+    <script src="~/js/app.util.addedit.js"></script>
+    <script src="~/js/masters/TrainingMatrix-Index.js" asp-append-version="true"></script>
+}

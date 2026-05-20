@@ -1,0 +1,50 @@
+﻿@*@model IEnumerable<TMS.ViewModels.UserNotificationViewModel>*@
+@*@if (Model != null && Model.Any())
+{
+    <a class="nav-link avatar-content" href="#" data-toggle="dropdown">
+        <i class="ficon fas fa-bell"></i>
+        <span class="badge badge-pill badge-danger badge-up noti">@Model.Count()</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-media dropdown-menu-right">
+        <li class="dropdown-menu-header">
+            <div class="dropdown-header d-flex">
+                <h4 class="notification-title mb-0 mr-auto">Notifications</h4>
+                <div class="badge badge-pill badge-light-primary">@Model.Count() New</div>
+            </div>
+        </li>
+        <li class="scrollable-container media-list">
+            @foreach (var item in Model)
+            {
+                var href = "#";
+                if (!string.IsNullOrWhiteSpace(item.Action))
+                {
+                    href = Url.Action(item.Action, item.Controller, new { Area = item.Area });
+                }
+                <a class="d-flex" href="@href">
+                    <div class="media d-flex align-items-start">
+                        <div class="media-body">
+                            <small class="notification-text">
+                                @item.NotificationText
+                            </small>
+                        </div>
+                    </div>
+                </a>
+            }
+        </li>
+    </ul>
+}
+else*@
+@{
+    <a class="nav-link avatar-content" href="#" data-toggle="dropdown">
+        <i class="ficon fas fa-bell"></i>
+        <span class="badge badge-pill badge-info badge-up noti">0</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-media dropdown-menu-right">
+        <li class="dropdown-menu-header">
+            <div class="dropdown-header d-flex">
+                <h4 class="notification-title mb-0 mr-auto">Notifications</h4>
+                <div class="badge badge-pill badge-light-primary">No notifications</div>
+            </div>
+        </li>
+    </ul>
+}

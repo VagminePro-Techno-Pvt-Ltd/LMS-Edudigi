@@ -1,0 +1,294 @@
+/* help-panel.css — Edudigi LMS Help & Support Panel */
+
+/* Container & Trigger Button */
+.help-nav-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+ 
+.help-trigger {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: #f0fdf4;
+    color: #16a34a;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+ 
+.help-trigger i {
+    font-size: 17px;
+    transition: transform 0.2s ease;
+}
+ 
+.help-trigger:hover, .help-trigger.help-open {
+    background: #dcfce7;
+    transform: scale(1.06);
+    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.15);
+}
+ 
+/* Dropdown Panel */
+.help-panel {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: -10px;
+    width: 290px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.10);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.22s ease;
+    z-index: 9999;
+    border: 1px solid #e8ecf0;
+}
+ 
+.help-panel.panel-visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+ 
+/* Highlighted Item (Raise Ticket) */
+.help-menu-item.hm-highlight a {
+    background: #fff7ed;
+    border-left-color: #f97316;
+    margin: 4px 8px;
+    border-radius: 10px;
+    border-left-width: 0;
+    padding-left: 12px;
+    box-shadow: 0 2px 8px rgba(249,115,22,0.10);
+    border: 1.5px solid #fed7aa;
+}
+ 
+.help-menu-item.hm-highlight a:hover {
+    background: #ffedd5;
+    border-color: #f97316;
+    box-shadow: 0 4px 14px rgba(249,115,22,0.18);
+}
+
+/* Header */
+.help-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border-bottom: 1px solid #e8ecf0;
+    background: linear-gradient(135deg, #f0fdf4 0%, #eff6ff 100%);
+    border-radius: 12px 12px 0 0;
+}
+.hp-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #16a34a;
+    font-size: 16px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+.hp-text h6 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e293b;
+}
+.hp-text p {
+    margin: 2px 0 0 0;
+    font-size: 11px;
+    color: #64748b;
+}
+
+/* Menu */
+.help-menu {
+    list-style: none;
+    padding: 8px 0;
+    margin: 0;
+}
+.help-menu-item a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    text-decoration: none;
+    transition: background 0.15s ease;
+}
+.help-menu-item a:hover {
+    background: #f8fafc;
+}
+.hm-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+.hm-body {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+.hm-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+}
+.hm-desc {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 2px;
+}
+.hm-arrow {
+    font-size: 11px;
+    color: #94a3b8;
+    transition: transform 0.2s ease;
+}
+.help-menu-item a:hover .hm-arrow {
+    transform: translateX(3px);
+    color: #64748b;
+}
+.help-menu-divider {
+    height: 1px;
+    background: #e8ecf0;
+    margin: 6px 0;
+}
+
+/* Footer */
+.help-panel-footer {
+    padding: 12px 16px;
+    border-top: 1px solid #e8ecf0;
+    text-align: center;
+    background: #f8fafc;
+    border-radius: 0 0 12px 12px;
+}
+.help-quick-guide-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #2563eb;
+    text-decoration: none !important;
+    transition: color 0.15s ease;
+}
+.help-quick-guide-btn:hover {
+    color: #1d4ed8;
+}
+
+/* Quick Guide Modal */
+.help-guide-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+.help-guide-overlay.guide-visible {
+    opacity: 1;
+    visibility: visible;
+}
+.help-guide-content {
+    background: #fff;
+    width: 100%;
+    max-width: 480px;
+    padding: 30px;
+    border-radius: 16px;
+    position: relative;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+    transform: scale(0.9);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.help-guide-overlay.guide-visible .help-guide-content {
+    transform: scale(1);
+}
+.help-guide-close-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+.help-guide-close-btn:hover {
+    color: #1e293b;
+}
+.help-guide-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+.help-guide-header i {
+    font-size: 24px;
+    color: #2563eb;
+}
+.help-guide-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+}
+.help-guide-body > p {
+    font-size: 14px;
+    color: #64748b;
+    line-height: 1.6;
+    margin-bottom: 24px;
+}
+.guide-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.guide-step {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+.step-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #eff6ff;
+    color: #2563eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.step-text h5 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
+}
+.step-text p {
+    margin: 4px 0 0 0;
+    font-size: 12.5px;
+    color: #64748b;
+    line-height: 1.5;
+}

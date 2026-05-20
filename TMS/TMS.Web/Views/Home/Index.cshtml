@@ -1,0 +1,28 @@
+@model dynamic
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+<style>
+    @@keyframes dash-float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+    /* These will apply to AJAX loaded cards with these classes */
+    .summary-card, .dashboard-card, .chart-card {
+        animation: dash-float 3.5s ease-in-out infinite;
+    }
+</style>
+<div id="divDashboardData">
+    <div class="text-center p-5" style="background: white; border-radius: 15px; margin: 20px;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <h4 class="mt-3" style="font-family: 'Outfit', sans-serif; color: #1e293b;">Loading Dashboard Insights...</h4>
+    </div>
+</div>
+
+@section Scripts{
+    <script src="@Url.Action("HomeIndex","LinkScript",new {area=""})" asp-append-version="true"></script>
+    <script src="~/js/Home-Index.js" asp-append-version="true"></script>
+}

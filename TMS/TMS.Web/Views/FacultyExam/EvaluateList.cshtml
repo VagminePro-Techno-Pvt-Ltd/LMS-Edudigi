@@ -1,0 +1,110 @@
+@model IEnumerable<TMS.Models.Assessments.StudentExamAttempt>
+
+@{
+    ViewData["Title"] = "Evaluation Desk";
+}
+
+<div class="exam-page">
+    <!-- Page Header -->
+    <div class="exam-page-header">
+        <div>
+            <h1>
+                <span class="header-icon" style="background:#fff7ed; color:#ea580c;">
+                    <i class="fa-solid fa-check-double"></i>
+                </span>
+                Evaluation Desk
+            </h1>
+            <p>Grade student responses, allocate marks, and publish feedback reports.</p>
+        </div>
+        <div class="header-actions">
+            <a asp-action="Index" class="exam-btn exam-btn-secondary">
+                <i class="fa-solid fa-cubes"></i> Exam Console
+            </a>
+        </div>
+    </div>
+
+    <!-- Evaluation Table -->
+    <div class="exam-section-box" style="padding:0; overflow:hidden;">
+        <div style="padding:20px 24px; border-bottom:1px solid #f1f5f9;">
+            <h3 style="font-size:16px; font-weight:700; color:#1e293b; margin:0; display:flex; align-items:center; gap:10px;">
+                <span class="title-icon" style="background:#fef9c3; color:#ca8a04; width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px;">
+                    <i class="fa-solid fa-clipboard-check"></i>
+                </span>
+                Awaiting Evaluations
+            </h3>
+        </div>
+        <table class="exam-table">
+            <thead>
+                <tr>
+                    <th>Candidate</th>
+                    <th>Assessment</th>
+                    <th>Status</th>
+                    <th>Submitted On</th>
+                    <th>Score Progress</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model == null || !Model.Any())
+                {
+                    <tr>
+                        <td colspan="6">
+                            <div class="exam-empty-state" style="border:none;">
+                                <div class="empty-icon"><i class="fa-solid fa-clipboard-check"></i></div>
+                                <h3>All Caught Up!</h3>
+                                <p>No student attempts are awaiting evaluation at the moment.</p>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var attempt in Model)
+                    {
+                        <tr>
+                            <td>
+                                <strong style="color:#1e293b;">@attempt.Student?.Name</strong>
+                                <div style="font-size:11px; color:#64748b;">@attempt.Student?.Email</div>
+                            </td>
+                            <td>
+                                <strong style="color:#1e293b;">@attempt.Exam?.Title</strong>
+                                <div style="font-size:11px; color:#64748b;">Course: @attempt.Exam?.Course?.Name</div>
+                            </td>
+                            <td>
+                                @if (attempt.ResultStatus == "Pending")
+                                {
+                                    <span class="exam-badge pending"><i class="fa-solid fa-clock"></i> Pending</span>
+                                }
+                                else if (attempt.ResultStatus == "Pass" || attempt.ResultStatus == "Passed")
+                                {
+                                    <span class="exam-badge passed"><i class="fa-solid fa-check"></i> Pass</span>
+                                }
+                                else
+                                {
+                                    <span class="exam-badge failed"><i class="fa-solid fa-xmark"></i> Fail</span>
+                                }
+                            </td>
+                            <td style="font-size:12.5px;">
+                                <strong>@attempt.SubmittedAt?.ToString("dd MMM yyyy, hh:mm tt")</strong>
+                            </td>
+                            <td>
+                                <div>
+                                    <strong style="color:#1e293b;">@(attempt.Score ?? 0)</strong>
+                                    <span style="color:#64748b; font-size:12px;">/ @attempt.Exam?.TotalMarks</span>
+                                </div>
+                                <div class="exam-progress" style="margin-top:6px;">
+                                    <div class="exam-progress-bar @(attempt.Percentage >= 60 ? "green" : attempt.Percentage >= 40 ? "blue" : "red")" style="width:@(attempt.Percentage ?? 0)%;"></div>
+                                </div>
+                            </td>
+                            <td>
+                                <a asp-action="EvaluateAttempt" asp-route-attemptId="@attempt.Id" class="exam-btn exam-btn-primary exam-btn-sm">
+                                    <i class="fa-solid fa-pen-to-square"></i> Grade
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

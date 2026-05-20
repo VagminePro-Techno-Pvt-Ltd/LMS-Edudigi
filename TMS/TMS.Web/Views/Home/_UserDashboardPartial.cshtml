@@ -1,0 +1,541 @@
+@model TMS.Web.Models.ViewModels.DashboardViewModel
+
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #2563eb, #3b82f6);
+        --success-gradient: linear-gradient(135deg, #059669, #10b981);
+        --purple-gradient: linear-gradient(135deg, #7c3aed, #8b5cf6);
+        --orange-gradient: linear-gradient(135deg, #ea580c, #f97316);
+        --card-bg: #ffffff;
+        --border-color: #e2e8f0;
+        --text-primary: #1e293b;
+        --text-muted: #64748b;
+    }
+
+    .premium-dashboard {
+        padding: 32px 24px;
+        background-color: #f8fafc;
+        min-height: calc(100vh - 110px);
+        font-family: 'Outfit', sans-serif;
+    }
+
+    .welcome-section {
+        margin-bottom: 32px;
+    }
+
+    .welcome-title {
+        font-size: 28px;
+        font-weight: 800;
+        color: var(--text-primary);
+        letter-spacing: -0.5px;
+    }
+
+    .welcome-sub {
+        font-size: 15px;
+        color: var(--text-muted);
+        margin-top: 4px;
+    }
+
+    /* Today's Highlights */
+    .highlights-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 24px;
+        margin-bottom: 32px;
+    }
+
+    .highlight-card {
+        background: var(--card-bg);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+        border: 1px solid var(--border-color);
+        border-top: 5px solid;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .highlight-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.06);
+    }
+
+    .highlight-card.exams { border-top-color: #2563eb; }
+    .highlight-card.classes { border-top-color: #059669; }
+
+    .card-header-custom {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .card-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+    }
+
+    .exams .card-icon { background: #eff6ff; color: #2563eb; }
+    .classes .card-icon { background: #ecfdf5; color: #059669; }
+
+    .card-title-text {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .card-date {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-left: auto;
+    }
+
+    .card-body-text {
+        font-size: 14px;
+        color: var(--text-muted);
+        line-height: 1.5;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 24px;
+        margin-bottom: 40px;
+    }
+
+    .stat-card {
+        border-radius: 16px;
+        padding: 24px;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 140px;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::after {
+        content: '';
+        position: absolute;
+        width: 100px;
+        height: 100px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        bottom: -20px;
+        right: -20px;
+    }
+
+    .stat-card.blue { background: var(--primary-gradient); }
+    .stat-card.green { background: var(--success-gradient); }
+    .stat-card.purple { background: var(--purple-gradient); }
+    .stat-card.orange { background: var(--orange-gradient); }
+
+    .stat-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .stat-title {
+        font-size: 14px;
+        font-weight: 600;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+        font-size: 36px;
+        font-weight: 800;
+        margin-top: 10px;
+    }
+
+    .stat-footer {
+        font-size: 13px;
+        opacity: 0.8;
+        margin-top: auto;
+    }
+
+    /* Section Links Grid */
+    .section-box {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(12px);
+        border-radius: 20px;
+        padding: 30px;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        margin-bottom: 32px;
+        box-shadow: 0 12px 30px rgba(31, 38, 135, 0.04);
+    }
+
+    .section-title {
+        font-size: 20px;
+        font-weight: 800;
+        color: var(--text-primary);
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid rgba(241, 245, 249, 0.8);
+        letter-spacing: -0.5px;
+    }
+
+    .action-links-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 20px;
+    }
+
+    .action-link-card {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 18px 20px;
+        border-radius: 14px;
+        background: #ffffff;
+        border: 1px solid rgba(226, 232, 240, 0.6);
+        text-decoration: none !important;
+        color: var(--text-primary);
+        font-weight: 700;
+        font-size: 15px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
+    }
+
+    .action-link-card:hover {
+        background: #ffffff;
+        transform: translateY(-5px);
+        box-shadow: 0 12px 25px rgba(0, 0, 0, 0.08);
+        border-color: #3b82f6;
+        color: #2563eb;
+    }
+
+    .action-link-card i {
+        font-size: 20px;
+    }
+</style>
+
+<div class="premium-dashboard">
+
+    <!-- ── Welcome Section ── -->
+    <div class="welcome-section" style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 15px;">
+        <div>
+            <h1 class="welcome-title">👋 Welcome back, @Model.FacultyName!</h1>
+            <div class="welcome-sub" style="margin-bottom: 0;">
+                @if (Model.IsFaculty)
+                {
+                    @:Here's an overview of your teaching journey.
+                }
+                else
+                {
+                    @:Here's an overview of your administrative platform management.
+                }
+            </div>
+        </div>
+        <div>
+            <span style="background: rgba(37, 99, 235, 0.08); color: #2563eb; font-weight: 700; padding: 8px 14px; border-radius: 30px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-clock-rotate-left"></i> Last Login: @Model.LastLoginString
+            </span>
+        </div>
+    </div>
+
+    <!-- ── Highlights Row ── -->
+    <div class="highlights-grid">
+        @if (Model.IsFaculty)
+        {
+            <div class="highlight-card exams">
+                <div class="card-header-custom">
+                    <div class="card-icon">
+                        <i class="fa-solid fa-clipboard-check"></i>
+                    </div>
+                    <div class="card-title-text">Assessments Pending</div>
+                    <div class="card-date">Grading Feed</div>
+                </div>
+                <div class="card-body-text">
+                    @if (Model.PendingAssessments > 0)
+                    {
+                        @:You have <strong>@Model.PendingAssessments</strong> pending quiz evaluations awaiting feedback.
+                    }
+                    else
+                    {
+                        @:No evaluations pending. Your grading pipeline is clear!
+                    }
+                </div>
+            </div>
+            <div class="highlight-card classes">
+                <div class="card-header-custom">
+                    <div class="card-icon">
+                        <i class="fa-solid fa-chalkboard-user"></i>
+                    </div>
+                    <div class="card-title-text">Today's Virtual Classes</div>
+                    <div class="card-date">@DateTime.Now.ToString("dd MMM yyyy")</div>
+                </div>
+                <div class="card-body-text">No classes scheduled for today. Take time to prepare resources.</div>
+            </div>
+        }
+        else
+        {
+            <div class="highlight-card exams">
+                <div class="card-header-custom">
+                    <div class="card-icon">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div class="card-title-text">Platform Maintenance</div>
+                    <div class="card-date">System Status</div>
+                </div>
+                <div class="card-body-text">No active threats or outages. Background operations are proceeding within bounds.</div>
+            </div>
+            <div class="highlight-card classes">
+                <div class="card-header-custom">
+                    <div class="card-icon">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </div>
+                    <div class="card-title-text">Institution Overview</div>
+                    <div class="card-date">@DateTime.Now.ToString("dd MMM yyyy")</div>
+                </div>
+                <div class="card-body-text">Manage users, program definitions, and academic catalogs via shortcuts.</div>
+            </div>
+        }
+    </div>
+
+    <!-- ── Stats Grid ── -->
+    <div class="stats-grid">
+        @if (Model.IsFaculty)
+        {
+            <div class="stat-card blue">
+                <div class="stat-header">
+                    <div class="stat-title">My Courses</div>
+                    <i class="fa-solid fa-book-open"></i>
+                </div>
+                <div class="stat-value">@Model.MyCourses</div>
+                <div class="stat-footer">Assigned Programs</div>
+            </div>
+            <div class="stat-card green">
+                <div class="stat-header">
+                    <div class="stat-title">My Students</div>
+                    <i class="fa-solid fa-users"></i>
+                </div>
+                <div class="stat-value">@Model.MyStudents</div>
+                <div class="stat-footer">Active Enrollments</div>
+            </div>
+            <div class="stat-card purple">
+                <div class="stat-header">
+                    <div class="stat-title">Pending Grading</div>
+                    <i class="fa-solid fa-clipboard-list"></i>
+                </div>
+                <div class="stat-value">@Model.PendingAssessments</div>
+                <div class="stat-footer">Items for Evaluation</div>
+            </div>
+            <div class="stat-card orange">
+                <div class="stat-header">
+                    <div class="stat-title">Live Classes</div>
+                    <i class="fa-solid fa-chalkboard-user"></i>
+                </div>
+                <div class="stat-value">0</div>
+                <div class="stat-footer">Today's Sessions</div>
+            </div>
+        }
+        else
+        {
+            <div class="stat-card blue">
+                <div class="stat-header">
+                    <div class="stat-title">Total Students</div>
+                    <i class="fa-solid fa-user-graduate"></i>
+                </div>
+                <div class="stat-value">@Model.TotalStudents</div>
+                <div class="stat-footer">Registered Learners</div>
+            </div>
+            <div class="stat-card green">
+                <div class="stat-header">
+                    <div class="stat-title">Total Faculty</div>
+                    <i class="fa-solid fa-person-chalkboard"></i>
+                </div>
+                <div class="stat-value">@Model.TotalFaculty</div>
+                <div class="stat-footer">Active Educators</div>
+            </div>
+            <div class="stat-card purple">
+                <div class="stat-header">
+                    <div class="stat-title">Total Courses</div>
+                    <i class="fa-solid fa-layer-group"></i>
+                </div>
+                <div class="stat-value">@Model.TotalCourses</div>
+                <div class="stat-footer">Instituted Degrees</div>
+            </div>
+            <div class="stat-card orange">
+                <div class="stat-header">
+                    <div class="stat-title">Library Assets</div>
+                    <i class="fa-solid fa-file-lines"></i>
+                </div>
+                <div class="stat-value">@Model.TotalMaterials</div>
+                <div class="stat-footer">Resource Mappings</div>
+            </div>
+        }
+    </div>
+
+    @if (Model.IsFaculty)
+    {
+        <div class="section-box">
+            <div class="section-title">
+                <i class="fa-solid fa-graduation-cap" style="color: #2563eb;"></i> Learn & Teach
+            </div>
+            <div class="action-links-grid">
+                <a asp-controller="FacultyCourse" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-layer-group" style="color:#2563eb;"></i> My Courses
+                </a>
+                <a asp-controller="LectureMaterial" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-file-lines" style="color:#10b981;"></i> Content Library
+                </a>
+                <a asp-controller="Calendar" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-calendar-days" style="color:#7c3aed;"></i> Class Calendar
+                </a>
+                <a asp-controller="VirtualClassroom" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-chalkboard-user" style="color:#ea580c;"></i> Virtual Classroom
+                </a>
+            </div>
+        </div>
+
+        <div class="section-box">
+            <div class="section-title">
+                <i class="fa-solid fa-users" style="color: #059669;"></i> My Students
+            </div>
+            <div class="action-links-grid">
+                <a asp-controller="FacultyStudents" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-user-graduate" style="color:#2563eb;"></i> View Students
+                </a>
+                <a asp-controller="Enrollment" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-list-check" style="color:#10b981;"></i> Enrollments
+                </a>
+                <a asp-controller="Attendance" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-user-check" style="color:#7c3aed;"></i> Attendance
+                </a>
+            </div>
+        </div>
+
+        <div class="section-box">
+            <div class="section-title">
+                <i class="fa-solid fa-clipboard-check" style="color: #7c3aed;"></i> Assessments &amp; Exams
+            </div>
+            <div class="action-links-grid">
+                <a asp-controller="FacultyExam" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-graduation-cap" style="color:#2563eb;"></i> Enterprise Exams
+                </a>
+                <a asp-controller="Assignment" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-pen-to-square" style="color:#10b981;"></i> Assignments
+                </a>
+                <a asp-controller="Quiz" asp-action="PendingGrading" class="action-link-card">
+                    <i class="fa-solid fa-hourglass-half" style="color:#7c3aed;"></i> Pending Grading
+                </a>
+                <a asp-controller="Result" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-chart-bar" style="color:#ea580c;"></i> Results
+                </a>
+            </div>
+        </div>
+
+        <div class="section-box">
+            <div class="section-title">
+                <i class="fa-solid fa-comments" style="color: #ea580c;"></i> Collaborate & Communicate
+            </div>
+            <div class="action-links-grid">
+                <a asp-controller="Notifications" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-bell" style="color:#2563eb;"></i> Notifications
+                </a>
+                <a asp-controller="Discussion" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-comments" style="color:#10b981;"></i> Discussion Forum
+                </a>
+                <a asp-controller="Chat" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-message" style="color:#7c3aed;"></i> Chat & Meetings
+                </a>
+                <a asp-controller="Announcement" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-bullhorn" style="color:#ea580c;"></i> Announcements
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="section-box">
+            <div class="section-title">
+                <i class="fa-solid fa-users-gear" style="color: #2563eb;"></i> User Management
+            </div>
+            <div class="action-links-grid">
+                <a asp-area="Admin" asp-controller="User" asp-action="Faculty" class="action-link-card">
+                    <i class="fa-solid fa-person-chalkboard" style="color:#2563eb;"></i> Faculty Directory
+                </a>
+                <a asp-area="Admin" asp-controller="User" asp-action="Students" class="action-link-card">
+                    <i class="fa-solid fa-user-graduate" style="color:#10b981;"></i> Student Directory
+                </a>
+                <a asp-area="Admin" asp-controller="User" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-users" style="color:#7c3aed;"></i> All Users
+                </a>
+                <a asp-area="Admin" asp-controller="Role" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-shield-halved" style="color:#ea580c;"></i> Roles & Permissions
+                </a>
+            </div>
+        </div>
+
+        <div class="section-box">
+            <div class="section-title">
+                <i class="fa-solid fa-book" style="color: #059669;"></i> Course Management
+            </div>
+            <div class="action-links-grid">
+                <a asp-area="Admin" asp-controller="CourseCategory" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-tags" style="color:#2563eb;"></i> Program Categories
+                </a>
+                <a asp-area="Admin" asp-controller="Course" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-layer-group" style="color:#10b981;"></i> Courses
+                </a>
+                <a asp-area="Admin" asp-controller="CourseStructure" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-sitemap" style="color:#7c3aed;"></i> Course Structure
+                </a>
+                <a asp-area="Admin" asp-controller="CourseFacultyMap" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-link" style="color:#ea580c;"></i> Faculty Mapping
+                </a>
+            </div>
+        </div>
+
+        <div class="section-box">
+            <div class="section-title">
+                <i class="fa-solid fa-clipboard-check" style="color: #7c3aed;"></i> Assessments &amp; Exams
+            </div>
+            <div class="action-links-grid">
+                <a asp-area="Admin" asp-controller="AdminExam" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-user-shield" style="color:#2563eb;"></i> Exam Supervisor
+                </a>
+                <a asp-controller="Assignment" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-pen-to-square" style="color:#10b981;"></i> Assignments
+                </a>
+                <a asp-controller="Result" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-chart-bar" style="color:#7c3aed;"></i> Results & Reports
+                </a>
+            </div>
+        </div>
+
+        <div class="section-box">
+            <div class="section-title">
+                <i class="fa-solid fa-gears" style="color: #ea580c;"></i> System & Configuration
+            </div>
+            <div class="action-links-grid">
+                <a asp-controller="Home" asp-action="GetAllMasters" class="action-link-card">
+                    <i class="fa-solid fa-database" style="color:#2563eb;"></i> Master Data
+                </a>
+                <a asp-controller="Department" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-building" style="color:#10b981;"></i> Departments
+                </a>
+                <a asp-controller="Venue" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-location-dot" style="color:#7c3aed;"></i> Venues
+                </a>
+                <a asp-controller="Badge" asp-action="Index" class="action-link-card">
+                    <i class="fa-solid fa-medal" style="color:#ea580c;"></i> Badges & Certs
+                </a>
+            </div>
+        </div>
+    }
+
+</div>

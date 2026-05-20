@@ -1,0 +1,393 @@
+@model TMS.ViewModels.Academics.InteractivePPTEditViewModel
+@{
+    ViewData["Title"] = "Edit Interactive PPT";
+}
+
+@section extracss {
+<style>
+    /* ════════════════════════════════════════════════════════
+       EDIT PPT — Modern Form Styling
+       ════════════════════════════════════════════════════════ */
+    .edit-ppt-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .edit-ppt-header {
+        margin-bottom: 30px;
+    }
+
+    .edit-ppt-header h1 {
+        font-family: 'Jost', sans-serif;
+        font-size: 26px;
+        font-weight: 800;
+        color: #1e293b;
+        margin: 0 0 8px;
+        letter-spacing: -0.5px;
+    }
+
+    .edit-ppt-header p {
+        font-size: 13px;
+        color: #64748b;
+        margin: 0;
+    }
+
+    .edit-ppt-card {
+        background: #ffffff;
+        border: 1px solid #e8ecf0;
+        border-radius: 4px;
+        padding: 30px;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+    }
+
+    .form-section {
+        margin-bottom: 30px;
+    }
+
+    .form-section-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #e8ecf0;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 6px;
+    }
+
+    .form-group label .required {
+        color: #ef4444;
+        margin-left: 2px;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        font-size: 13px;
+        transition: all 0.2s;
+        background: #ffffff;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+    }
+
+    .form-control:disabled {
+        background: #f1f5f9;
+        color: #94a3b8;
+        cursor: not-allowed;
+    }
+
+    textarea.form-control {
+        resize: vertical;
+        min-height: 100px;
+    }
+
+    .text-danger {
+        color: #ef4444;
+        font-size: 11.5px;
+        margin-top: 4px;
+        display: block;
+    }
+
+    .file-info-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        padding: 12px;
+        margin-top: 8px;
+        font-size: 12px;
+        color: #64748b;
+    }
+
+    .file-info-box i {
+        color: #3b82f6;
+        margin-right: 6px;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #e8ecf0;
+    }
+
+    .btn {
+        padding: 10px 24px;
+        border-radius: 4px;
+        font-size: 13.5px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.22s;
+        border: none;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #3b82f6, #6366f1);
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(99,102,241,0.25);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(99,102,241,0.35);
+    }
+
+    .btn-secondary {
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .btn-secondary:hover {
+        background: #e2e8f0;
+    }
+
+    .alert {
+        padding: 12px 16px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        font-size: 13px;
+    }
+
+    .alert-success {
+        background: #ecfdf5;
+        color: #059669;
+        border: 1px solid #bbf7d0;
+    }
+
+    .alert-danger {
+        background: #fef2f2;
+        color: #dc2626;
+        border: 1px solid #fecaca;
+    }
+</style>
+}
+
+<div class="edit-ppt-container">
+    <div class="edit-ppt-header">
+        <h1><i class="fa-solid fa-pen-to-square" style="color: #6366f1; margin-right: 10px;"></i>Edit Interactive PPT</h1>
+        <p>Update PPT details and optionally replace the file</p>
+    </div>
+
+    @if (TempData["AppResult"] != null)
+    {
+        var result = TempData.Get<TMS.Web.Models.AppResultViewModel>("AppResult");
+        <div class="alert @(result.Status ? "alert-success" : "alert-danger")">
+            <i class="fa-solid @(result.Status ? "fa-circle-check" : "fa-circle-xmark")"></i>
+            @result.Message
+        </div>
+    }
+
+    <div class="edit-ppt-card">
+        <form asp-action="Edit" method="post" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" asp-for="ExistingFilePath" />
+            <input type="hidden" asp-for="ExistingFileName" />
+
+            <!-- Course Mapping Section -->
+            <div class="form-section">
+                <div class="form-section-title">
+                    <i class="fa-solid fa-sitemap"></i> Course Mapping
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="ProgramId">Program <span class="required">*</span></label>
+                    <select asp-for="ProgramId" class="form-control" id="programSelect">
+                        <option value="">-- Select Program --</option>
+                        @if (ViewBag.Programs != null)
+                        {
+                            @foreach (var item in (List<SelectListItem>)ViewBag.Programs)
+                            {
+                                <option value="@item.Value" selected="@item.Selected">@item.Text</option>
+                            }
+                        }
+                    </select>
+                    <span asp-validation-for="ProgramId" class="text-danger"></span>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="CourseId">Course <span class="required">*</span></label>
+                    <select asp-for="CourseId" class="form-control" id="courseSelect">
+                        <option value="">-- Select Course --</option>
+                        @if (ViewBag.Courses != null)
+                        {
+                            @foreach (var item in (List<SelectListItem>)ViewBag.Courses)
+                            {
+                                <option value="@item.Value" selected="@item.Selected">@item.Text</option>
+                            }
+                        }
+                    </select>
+                    <span asp-validation-for="CourseId" class="text-danger"></span>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="UnitId">Unit <span class="required">*</span></label>
+                    <select asp-for="UnitId" class="form-control" id="unitSelect">
+                        <option value="">-- Select Unit --</option>
+                        @if (ViewBag.Units != null)
+                        {
+                            @foreach (var item in (List<SelectListItem>)ViewBag.Units)
+                            {
+                                <option value="@item.Value" selected="@item.Selected">@item.Text</option>
+                            }
+                        }
+                    </select>
+                    <span asp-validation-for="UnitId" class="text-danger"></span>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="TopicId">Topic <span class="required">*</span></label>
+                    <select asp-for="TopicId" class="form-control" id="topicSelect">
+                        <option value="">-- Select Topic --</option>
+                        @if (ViewBag.Topics != null)
+                        {
+                            @foreach (var item in (List<SelectListItem>)ViewBag.Topics)
+                            {
+                                <option value="@item.Value" selected="@item.Selected">@item.Text</option>
+                            }
+                        }
+                    </select>
+                    <span asp-validation-for="TopicId" class="text-danger"></span>
+                </div>
+            </div>
+
+            <!-- PPT Details Section -->
+            <div class="form-section">
+                <div class="form-section-title">
+                    <i class="fa-solid fa-file-powerpoint"></i> PPT Details
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="Title">PPT Title <span class="required">*</span></label>
+                    <input asp-for="Title" class="form-control" placeholder="Enter PPT title" />
+                    <span asp-validation-for="Title" class="text-danger"></span>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="Description">Description</label>
+                    <textarea asp-for="Description" class="form-control" placeholder="Enter PPT description (optional)"></textarea>
+                    <span asp-validation-for="Description" class="text-danger"></span>
+                </div>
+            </div>
+
+            <!-- File Section -->
+            <div class="form-section">
+                <div class="form-section-title">
+                    <i class="fa-solid fa-upload"></i> PPT File
+                </div>
+
+                @if (!string.IsNullOrEmpty(Model.ExistingFileName))
+                {
+                    <div class="file-info-box">
+                        <i class="fa-solid fa-file-powerpoint"></i>
+                        <strong>Current File:</strong> @Model.ExistingFileName
+                    </div>
+                }
+
+                <div class="form-group">
+                    <label asp-for="PPTFile">Replace PPT File (Optional)</label>
+                    <input asp-for="PPTFile" type="file" class="form-control" accept=".ppt,.pptx" />
+                    <span asp-validation-for="PPTFile" class="text-danger"></span>
+                    <small style="display: block; margin-top: 6px; color: #64748b; font-size: 11.5px;">
+                        <i class="fa-solid fa-info-circle"></i> Leave empty to keep existing file. Only .ppt and .pptx files allowed (Max 50MB)
+                    </small>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fa-solid fa-save"></i>
+                    Save Changes
+                </button>
+                <a asp-action="Index" class="btn btn-secondary">
+                    <i class="fa-solid fa-times"></i>
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        $(document).ready(function () {
+            // ── Cascade: Program → Course ──
+            $('#programSelect').change(function () {
+                const programId = $(this).val();
+                $('#courseSelect').html('<option value="">-- Loading... --</option>').prop('disabled', true);
+                $('#unitSelect').html('<option value="">-- Select Unit --</option>').prop('disabled', true);
+                $('#topicSelect').html('<option value="">-- Select Topic --</option>').prop('disabled', true);
+
+                if (!programId) {
+                    $('#courseSelect').html('<option value="">-- Select Course --</option>').prop('disabled', false);
+                    return;
+                }
+
+                $.get('@Url.Action("GetCoursesByProgram")', { programId: programId }, function (data) {
+                    let options = '<option value="">-- Select Course --</option>';
+                    data.forEach(c => options += `<option value="${c.id}">${c.name}</option>`);
+                    $('#courseSelect').html(options).prop('disabled', false);
+                });
+            });
+
+            // ── Cascade: Course → Unit ──
+            $('#courseSelect').change(function () {
+                const courseId = $(this).val();
+                $('#unitSelect').html('<option value="">-- Loading... --</option>').prop('disabled', true);
+                $('#topicSelect').html('<option value="">-- Select Topic --</option>').prop('disabled', true);
+
+                if (!courseId) {
+                    $('#unitSelect').html('<option value="">-- Select Unit --</option>').prop('disabled', false);
+                    return;
+                }
+
+                $.get('@Url.Action("GetUnitsByCourse")', { courseId: courseId }, function (data) {
+                    let options = '<option value="">-- Select Unit --</option>';
+                    data.forEach(u => options += `<option value="${u.id}">${u.name}</option>`);
+                    $('#unitSelect').html(options).prop('disabled', false);
+                });
+            });
+
+            // ── Cascade: Unit → Topic ──
+            $('#topicSelect').change(function () {
+                const unitId = $(this).val();
+                $('#topicSelect').html('<option value="">-- Loading... --</option>').prop('disabled', true);
+
+                if (!unitId) {
+                    $('#topicSelect').html('<option value="">-- Select Topic --</option>').prop('disabled', false);
+                    return;
+                }
+
+                $.get('@Url.Action("GetTopicsByUnit")', { unitId: unitId }, function (data) {
+                    let options = '<option value="">-- Select Topic --</option>';
+                    data.forEach(t => options += `<option value="${t.id}">${t.name}</option>`);
+                    $('#topicSelect').html(options).prop('disabled', false);
+                });
+            });
+        });
+    </script>
+}

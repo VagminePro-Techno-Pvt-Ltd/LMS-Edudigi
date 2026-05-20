@@ -1,0 +1,222 @@
+[
+  {
+    "id": 1,
+    "columnName": "Image",
+    "displayName": "Image"
+  },
+  {
+    "id": 2,
+    "columnName": "AmbientImage",
+    "displayName": "Ambient Image"
+  },
+  {
+    "id": 3,
+    "columnName": "ProductCode",
+    "displayName": "Product Code"
+  },
+  {
+    "id": 4,
+    "columnName": "FCMLERPCode",
+    "displayName": "FCML ERP Code"
+  },
+  {
+    "id": 5,
+    "columnName": "Brand",
+    "displayName": "Brand"
+  },
+  {
+    "id": 6,
+    "columnName": "Series",
+    "displayName": "Series"
+  },
+  {
+    "id": 7,
+    "columnName": "Description",
+    "displayName": "Description"
+  },
+  {
+    "id": 8,
+    "columnName": "Dimension",
+    "displayName": "Dimension (LBH)"
+  },
+  {
+    "id": 9,
+    "columnName": "Diameter",
+    "displayName": "Dia."
+  },
+  {
+    "id": 10,
+    "columnName": "Length",
+    "displayName": "Length"
+  },
+  {
+    "id": 11,
+    "columnName": "Width",
+    "displayName": "Width"
+  },
+  {
+    "id": 12,
+    "columnName": "Height",
+    "displayName": "Height"
+  },
+  {
+    "id": 13,
+    "columnName": "HSNCode",
+    "displayName": "HSN Code"
+  },
+  {
+    "id": 14,
+    "columnName": "TypeOfItem",
+    "displayName": "Type of Item"
+  },
+  {
+    "id": 15,
+    "columnName": "FlowRate",
+    "displayName": "Flow Rate"
+  },
+  {
+    "id": 16,
+    "columnName": "Finish",
+    "displayName": "Finish"
+  },
+  {
+    "id": 17,
+    "columnName": "ListINR",
+    "displayName": "List INR"
+  },
+  {
+    "id": 18,
+    "columnName": "MRP",
+    "displayName": "MRP"
+  },
+  {
+    "id": 19,
+    "columnName": "NetPrice",
+    "displayName": "Net Price"
+  },
+  {
+    "id": 20,
+    "columnName": "ExportListPrice",
+    "displayName": "Export List Price"
+  },
+  {
+    "id": 21,
+    "columnName": "ExWorkCost",
+    "displayName": "Ex Work Cost"
+  },
+  {
+    "id": 22,
+    "columnName": "LandedINRCost",
+    "displayName": "Landed INR Cost"
+  },
+  {
+    "id": 23,
+    "columnName": "LocalBillingCost",
+    "displayName": "Local Billing Cost"
+  },
+  {
+    "id": 24,
+    "columnName": "DealerDiscount",
+    "displayName": "Dealer Discount"
+  },
+  {
+    "id": 25,
+    "columnName": "AdditionalDealerDiscount",
+    "displayName": "Additional Dealer Discount"
+  },
+  {
+    "id": 26,
+    "columnName": "DealerPrice",
+    "displayName": "Dealer Price"
+  },
+  {
+    "id": 27,
+    "columnName": "TransferPrice",
+    "displayName": "Transfer Price"
+  },
+  {
+    "id": 28,
+    "columnName": "ShairingPercentage",
+    "displayName": "Shairing%"
+  },
+  {
+    "id": 29,
+    "columnName": "TransferBillingPrice",
+    "displayName": "Transfer Billing Price"
+  },
+  {
+    "id": 30,
+    "columnName": "PercentageStore",
+    "displayName": "%Store Item?"
+  },
+  {
+    "id": 31,
+    "columnName": "PercentageStoreQuantity",
+    "displayName": "%Store Quantity"
+  },
+  {
+    "id": 32,
+    "columnName": "PercentageStoreMaxDiscount",
+    "displayName": "%Store Max Discount"
+  },
+  {
+    "id": 33,
+    "columnName": "Discount",
+    "displayName": "Discount%"
+  },
+  {
+    "id": 34,
+    "columnName": "DiscountedPrice",
+    "displayName": "Discounted Price"
+  },
+  {
+    "id": 35,
+    "columnName": "Quantity",
+    "displayName": "Quantity"
+  },
+  {
+    "id": 36,
+    "columnName": "TotalPrice",
+    "displayName": "Amount"
+  },
+  {
+    "id": 37,
+    "columnName": "AvailabilityDate",
+    "displayName": "Availability"
+  },
+  {
+    "id": 38,
+    "columnName": "Stock",
+    "displayName": "Stock"
+  },
+  {
+    "id": 39,
+    "columnName": "FreeForSale",
+    "displayName": "Free For Sale"
+  },
+  {
+    "id": 40,
+    "columnName": "SO",
+    "displayName": "SO"
+  },
+  {
+    "id": 41,
+    "columnName": "PO",
+    "displayName": "PO"
+  },
+  {
+    "id": 42,
+    "columnName": "Bonded",
+    "displayName": "Bonded"
+  },
+  {
+    "id": 43,
+    "columnName": "InTransit",
+    "displayName": "In-Transit"
+  },
+  {
+    "id": 44,
+    "columnName": "Display",
+    "displayName": "Display"
+  }
+]

@@ -1,0 +1,65 @@
+﻿@model TMS.ViewModels.Account.RoleMasterViewModel
+@{
+    var controller = Convert.ToString(ViewContext.RouteData.Values["controller"]);
+    var permissions = ViewContext.HttpContext.GetFormPermissions();
+    var _masterType = ViewData["Title"];
+    ViewData["Title"] = (Model?.Id == 0 ? $"Add New {_masterType}" : $"{permissions.EditViewText} {_masterType}");
+}
+
+<form asp-area="Admin" asp-controller="@controller" asp-action="Item" method="post">
+    <div class="card glass">
+        <div class="card-header">
+            <a asp-area="Admin" asp-controller="@controller" asp-action="Index"><i class="fas fa-arrow-left"></i> @(_masterType) List</a>
+        </div>
+        <div class="card-body">
+
+            <input asp-for="Id" type="hidden" />
+            <div class="row mb-2">
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="mb-1">
+                        <label asp-for="UserTypeId"></label>
+                        <select asp-for="UserTypeId" asp-items="ViewBag.UserTypeId" aria-required="true" class="form-select"></select>
+                    </div>
+                    <span asp-validation-for="UserTypeId" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="mb-1">
+                        <label asp-for="Name"></label>
+                        <input asp-for="Name" aria-required="true" class="active" placeholder="Enter Name" />
+                        <span asp-validation-for="Name" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="mb-1">
+                        <label asp-for="Description"></label>
+                        <input asp-for="Description" aria-required="true" class="active" placeholder="Enter Description" />
+                        <span asp-validation-for="Description" class="text-danger"></span>
+                    </div>
+                </div>
+                @if (Model?.Id > 0)
+                {
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <div class="mb-1">
+                            <div class="form-check checkbox checkbox-primary">
+                                <input asp-for="IsActive" class="form-check-input" />
+                                <label asp-for="IsActive" class="form-check-label nomandatory"></label>
+                                <span asp-validation-for="IsActive" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+        @if (permissions.CanShowAddEditButton(Model!.Id))
+        {
+            <div class="card-footer">
+                <div class="col-12 text-center">
+                    <button type="submit" class="btn btn-primary">@(Model!.Id == 0 ? "Save" : "Update")</button>
+                </div>
+            </div>
+        }
+    </div>
+</form>
+@section scripts{
+    <partial name="~/Views/Shared/_ValidationScriptsPartial.cshtml" />
+}

@@ -1,0 +1,87 @@
+@model TMS.ViewModels.Academics.StudentQuizAttemptViewModel
+@{
+    ViewData["Title"] = "Attempt Quiz";
+}
+
+<div class="exam-page" style="max-width: 800px; margin: 40px auto; padding: 0 20px;">
+    <!-- Head Card -->
+    <div class="exam-page-header" style="background: #ffffff; border-radius: 12px; padding: 24px 32px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); border: 1px solid #f1f5f9; margin-bottom: 24px; display: flex; align-items: center; gap: 20px;">
+        <div style="background: #ecfdf5; color: #10b981; width: 56px; height: 56px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+            <i class="fa-solid fa-file-circle-question"></i>
+        </div>
+        <div>
+            <h1 style="font-size: 22px; font-weight: 800; color: #1e293b; margin: 0 0 4px 0; font-family: 'Jost', sans-serif;">Learning Checkpoint</h1>
+            <p style="font-size: 13px; color: #64748b; margin: 0; font-family: 'Jost', sans-serif;">Please answer all the questions below to test your understanding of this module.</p>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <form asp-action="Submit" method="post">
+        <input type="hidden" name="QuizId" value="@Model.QuizId" />
+        <input type="hidden" name="StudentId" value="@Model.StudentId" />
+        <input type="hidden" name="CourseId" value="@Model.CourseId" />
+        <input type="hidden" name="CourseQuadrantId" value="@Model.CourseQuadrantId" />
+
+        @for (int i = 0; i < Model.Answers.Count; i++)
+        {
+            var q = Model.Answers[i];
+            <div class="exam-section-box" style="background: #ffffff; border-radius: 12px; padding: 24px 32px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); border: 1px solid #f1f5f9; margin-bottom: 20px; font-family: 'Jost', sans-serif;">
+                <div style="font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 16px; display: flex; gap: 10px;">
+                    <span style="color: #6366f1; font-weight: 800;">Q@(i + 1).</span>
+                    <span>@q.QuestionText</span>
+                </div>
+                
+                <div class="options-container" style="display: flex; flex-direction: column; gap: 12px;">
+                    @if (q.QuestionType == TMS.Models.Masters.QuestionType.Objective.ToString())
+                    {
+                        @for (int j = 0; j < q.Options.Count; j++)
+                        {
+                            var opt = q.Options[j];
+                            <label class="option-card" for="q@i-opt@j" style="display: flex; align-items: center; gap: 12px; padding: 14px 18px; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
+                                <input class="form-check-input"
+                                       type="radio"
+                                       name="Answers[@i].SelectedOptionId"
+                                       value="@opt.Id"
+                                       id="q@i-opt@j"
+                                       style="width: 18px; height: 18px; border-color: #cbd5e1; cursor: pointer;" />
+                                <span style="font-size: 13px; color: #334155; font-weight: 500;">@opt.OptionText</span>
+                            </label>
+                        }
+                    }
+                    else 
+                    {
+                        <textarea class="form-control"
+                                  name="Answers[@i].WrittenAnswer"
+                                  rows="4"
+                                  placeholder="Write your detailed explanation here..."
+                                  style="font-size: 13px; border-radius: 8px; border-color: #e2e8f0; padding: 14px 18px; font-family: 'Jost', sans-serif; resize: vertical;"></textarea>
+                    }
+                </div>
+
+                <input type="hidden" name="Answers[@i].QuizQuestionId" value="@q.QuizQuestionId" />
+            </div>
+        }
+
+        <!-- Actions -->
+        <div style="display: flex; justify-content: flex-end; margin-top: 24px;">
+            <button type="submit" class="exam-btn exam-btn-primary" style="padding: 12px 32px; border-radius: 8px; font-weight: 700; font-size: 14px; font-family: 'Jost', sans-serif; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);">
+                <i class="fa-solid fa-circle-check"></i> Submit Quiz
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+    .option-card:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+    }
+    .option-card input:checked + span {
+        color: #6366f1;
+        font-weight: 700;
+    }
+    .option-card input:checked {
+        border-color: #6366f1;
+        background-color: #6366f1;
+    }
+</style>

@@ -1,0 +1,413 @@
+﻿@model TMS.ViewModels.Training.TrainingScheduleViewModel;
+@{
+	var controller = Convert.ToString(ViewContext.RouteData.Values["controller"]);
+}
+
+@* <form method="post" id="RemarkPartial" disabled>
+
+    <div class="card glass">
+        <div class="card-body">
+
+            <input asp-for="Id" id="getId" type="hidden" />
+
+            <input asp-for="IsActive" type="hidden" />
+
+            <div class="mb-1">
+
+                <input asp-items="ViewBag.submitBtn" type="hidden" />
+
+            </div>
+
+            <input id="hdAddEditActionAllowed" type="hidden" value="''" />
+
+            <div class="row mb-2">
+
+        <div class="card-body">
+
+            @*             <input asp-for="Id" id="getId" type="hidden" />
+
+            *@
+
+        @*   <input asp-for="IsActive" type="hidden" />
+
+            <div class="mb-1">
+
+                <input asp-items="ViewBag.submitBtn" type="hidden">
+
+            </div>
+
+            <input id="hdAddEditActionAllowed" type="hidden" value="''" />
+
+            <div class="row mb-2">
+
+                <h5>Course & Training Details</h5>
+
+                <div class="col-12 col-md-3">
+
+                    <div class="mb-1">
+
+                        <label asp-for="Course.CourseName"></label>
+
+                        <input asp-for="Course.CourseName" aria-required="true" disabled />
+
+                        <span asp-validation-for="Course.CourseName" class="text-danger"></span>
+                    </div>
+
+                </div>
+
+
+
+
+                <div class="col-12 col-md-3">
+
+                    <div class="mb-1">
+
+                        <label asp-for="TrainingTitle"></label>
+
+                        <input asp-for="TrainingTitle" aria-required="true" placeholder="Enter Training Title" disabled />
+
+                        <span asp-validation-for="TrainingTitle" class="text-danger"></span>
+
+                    </div>
+
+                </div>
+            
+                <h5>Schedule Details</h5>
+
+                <div class="col-12 col-md-3">
+
+                    <div class="mb-1">
+
+                        <label asp-for="FromDate"></label>
+
+                        <input asp-for="FromDate" aria-required="true" disabled />
+
+                        <span asp-validation-for="FromDate" class="text-danger"></span>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-3">
+
+                    <div class="mb-1">
+
+                        <label asp-for="ToDate"></label>
+
+                        <input asp-for="ToDate" aria-required="true" disabled />
+
+                        <span asp-validation-Training.ToDate" class="text-danger"></span>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-3">
+
+                    <div class="mb-1">
+
+                        <label asp-for="FromTime"></label>
+
+                        <input asp-for="FromTime" aria-required="true" disabled />
+
+                        <span asp-validation-for="FromTime" class="text-danger"></span>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-3">
+
+                    <div class="mb-1">
+
+                        <label asp-for="ToTime"></label>
+
+                        <input asp-for="ToTime" aria-required="true" disabled />
+
+                        <span asp-validation-for="ToTime" class="text-danger"></span>
+
+                    </div>
+
+                </div>
+
+
+
+
+                <h5> Venue & Details</h5>
+
+
+                <div class="col-12 col-md-3">
+
+                    <div class="mb-1">
+
+                        <label asp-for="Venue"></label>
+
+                        <input asp-for="Venue.Name" aria-required="true" disabled />
+
+                        <span asp-validation-for="Venue.Name" class="text-danger"></span>
+
+                    </div>
+
+                </div>
+                <div class="col-12 col-md-3">
+
+                    <div class="mb-1">
+
+                        <label asp-for="MinNumberOfSeats"></label>
+
+                        <input asp-for="MinNumberOfSeats" aria-required="true" disabled />
+                        <span asp-validation-for="MinNumberOfSeats" class="text-danger"></span>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-3">
+
+                    <div class="mb-1">
+
+                        <label asp-for="MaxNumberOfSeats"></label>
+
+                        <input asp-for="MaxNumberOfSeats" aria-required="true" disabled />
+                        <span asp-validation-for="MaxNumberOfSeats" class="text-danger"></span>
+
+                    </div>
+
+                </div>
+
+
+                <div class="col-12 col-md-3">
+
+                    <div class="mb-1">
+
+                        <label asp-for="Instructor"></label>
+
+                        <input asp-for="Instructor.Name" aria-required="true" disabled />
+
+                        <span asp-validation-for="Instructor.Name" class="text-danger"></span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</form>
+ *@ 
+ <form method="post" id="RemarkPartial" disabled>
+
+    <div class="card glass">
+
+        <div class="card-body">
+
+            <input asp-for="Id" id="getId" type="hidden" />
+
+            <input asp-for="IsActive" type="hidden" />
+
+            <div class="mb-1">
+
+                <input asp-items="ViewBag.submitBtn" type="hidden" />
+
+            </div>
+
+            <input id="hdAddEditActionAllowed" type="hidden" value="''" />
+
+            <div class="row mb-2">
+
+                <h5>Course & Training Details</h5>
+
+                <br />
+
+                <div class="col-12 col-md-4">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">Course Name:-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Course.NameStatus</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-4">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">Training Title:-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.TrainingTitle</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-4">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">Conducted By Division:-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.ConductedByDivision.Name</label>
+
+                    </div>
+
+                </div>
+
+                <br />
+
+                <h5>Schedule Details</h5>
+
+                <br />
+
+                <div class="col-12 col-md-4">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">FromDate:-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.FromDate</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-4">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">ToDate:-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.ToDate</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-4">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">FromTime:-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.FromTime</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-4">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">ToTime:-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.ToTime</label>
+
+                    </div>
+
+                </div>
+
+                <br />
+
+                <h5>Instructor & Venue Details</h5>
+
+                <br />
+
+                <div class="col-12 col-md-6">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">Venue Name:-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.VenueName</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-6">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">Minimum Seats:-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.MinNumberOfSeats</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-6">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">Maximum Seats:-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.MaxNumberOfSeats</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-6">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">Instructor:-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Instructor.CourseName</label>
+
+                    </div>
+
+                </div>
+
+               
+
+            </div>
+
+        </div>
+
+    </div>
+
+</form>
+
+
+
+
+
+<div class="card glass">
+	<div class="card-body">
+		<div class="row mb-2">
+		 
+
+		</div>
+	</div>
+</div>
+@*<form method="post" class="noclick" id="" disabled="@(!permissions.Add && !permissions.Edit)">*@
+<div class="card-body" id="divtblNomination">
+</div>
+@*</form>*@
+
+
+@section scripts{
+   <script src="@Url.Action("AdminNominationRequest","LinkScript",new {area="",c=controller})" asp-append-version="true"></script>
+    <script src="@Url.Action("AdminGlobalMaster","LinkScript",new {area="",c=controller})" asp-append-version="true"></script>
+
+    <script src="@Url.Action("AdminSchedule","LinkScript",new {area="",c=controller})" asp-append-version="true"></script>
+
+    <script src="@Url.Action("AdminReject","LinkScript",new {area="",c=controller})" asp-append-version="true"></script>
+
+    <script src="@Url.Action("AdminNominationRequest","LinkScript",new {area="",c=controller})" asp-append-version="true"></script>
+
+	<partial name="~/Views/Shared/_ValidationScriptsPartial.cshtml" />
+	<script src="~/js/app.util.addedit.js"></script>
+	<script src="~/js/masters/TrainingSchedule-Index.js" asp-append-version="true"></script>
+    <script src="~/js/masters/@(controller)-index.js" asp-append-version="true"></script>
+
+}
+

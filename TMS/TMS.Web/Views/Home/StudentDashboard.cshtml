@@ -1,0 +1,920 @@
+@model TMS.ViewModels.StudentDashboardViewModel
+@{
+    ViewData["Title"] = "Student Dashboard";
+}
+
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #2563eb, #3b82f6);
+        --success-gradient: linear-gradient(135deg, #059669, #10b981);
+        --purple-gradient: linear-gradient(135deg, #7c3aed, #8b5cf6);
+        --orange-gradient: linear-gradient(135deg, #ea580c, #f97316);
+        --card-bg: #ffffff;
+        --border-color: #e2e8f0;
+        --text-primary: #1e293b;
+        --text-muted: #64748b;
+    }
+
+    .premium-dashboard {
+        padding: 0;
+        background-color: #f8fafc;
+        min-height: calc(100vh - 64px - 48px);
+    }
+
+    .welcome-section {
+        margin-bottom: 32px;
+    }
+
+    .welcome-title {
+        font-size: 28px;
+        font-weight: 800;
+        color: var(--text-primary);
+        letter-spacing: -0.5px;
+    }
+
+    /* Today's Highlights */
+    .highlights-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 24px;
+        margin-bottom: 32px;
+    }
+
+    .highlight-card {
+        background: var(--card-bg);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+        border: 1px solid var(--border-color);
+        border-top: 5px solid;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .highlight-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.06);
+    }
+
+    .highlight-card.exams { border-top-color: #2563eb; }
+    .highlight-card.classes { border-top-color: #059669; }
+
+    .card-header-custom {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .card-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+    }
+
+    .exams .card-icon { background: #eff6ff; color: #2563eb; }
+    .classes .card-icon { background: #ecfdf5; color: #059669; }
+
+    .card-title-text {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .card-date {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-left: auto;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 24px;
+        margin-bottom: 40px;
+    }
+
+    .stat-card {
+        border-radius: 16px;
+        padding: 24px;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 140px;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::after {
+        content: '';
+        position: absolute;
+        width: 100px;
+        height: 100px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        bottom: -20px;
+        right: -20px;
+    }
+
+    .stat-card.blue { background: var(--primary-gradient); }
+    .stat-card.green { background: var(--success-gradient); }
+    .stat-card.purple { background: var(--purple-gradient); }
+    .stat-card.orange { background: var(--orange-gradient); }
+
+    .stat-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .stat-title {
+        font-size: 14px;
+        font-weight: 600;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+        font-size: 36px;
+        font-weight: 800;
+        margin-top: 10px;
+    }
+
+    .stat-footer {
+        font-size: 12px;
+        opacity: 0.8;
+        margin-top: auto;
+    }
+
+    /* Section Links Grid */
+    .section-box {
+        background: white;
+        border-radius: 16px;
+        padding: 30px;
+        border: 1px solid var(--border-color);
+        margin-bottom: 32px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+    }
+
+    .section-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-bottom: 2px solid #f1f5f9;
+        padding-bottom: 15px;
+    }
+
+    .action-links-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 20px;
+    }
+
+    .action-link-card {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 16px;
+        border-radius: 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        text-decoration: none !important;
+        color: var(--text-primary);
+        font-weight: 600;
+        font-size: 14px;
+        transition: all 0.2s ease;
+    }
+
+    .action-link-card:hover {
+        background: #ffffff;
+        border-color: #3b82f6;
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(59, 130, 246, 0.08);
+        color: #2563eb;
+    }
+
+    .action-icon-wrap {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+    }
+
+    /* Enrolled Courses */
+    .courses-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 24px;
+    }
+
+    .course-premium-card {
+        background: white;
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+        transition: all 0.3s ease;
+    }
+
+    .course-premium-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+    }
+
+    .course-banner {
+        height: 120px;
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+    }
+
+    .course-body {
+        padding: 20px;
+    }
+
+    .course-tag {
+        font-size: 11px;
+        font-weight: 700;
+        color: #2563eb;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+    }
+
+    .course-name {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 12px;
+        line-height: 1.4;
+    }
+
+    .course-meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-bottom: 20px;
+        padding-top: 12px;
+        border-top: 1px solid #f1f5f9;
+    }
+
+    /* Student Profile Section Styles */
+    .profile-tabs {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .profile-tab-btn {
+        background: white;
+        border: 1px solid var(--border-color);
+        padding: 10px 20px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+    }
+
+    .profile-tab-btn:hover {
+        background: #f1f5f9;
+        color: #2563eb;
+        border-color: #cbd5e1;
+    }
+
+    .profile-tab-btn.active {
+        background: #eff6ff;
+        color: #2563eb;
+        border-color: #3b82f6;
+    }
+
+    .summary-card {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+    }
+
+    .summary-card .card-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+    }
+
+    .summary-card .card-icon.blue { background: #eff6ff; color: #2563eb; }
+    .summary-card .card-icon.purple { background: #f5f3ff; color: #7c3aed; }
+    .summary-card .card-icon.orange { background: #fff7ed; color: #ea580c; }
+
+    .summary-card .card-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1.2;
+    }
+
+    .summary-card .card-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-muted);
+    }
+
+    .summary-card .card-subtext {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-top: 4px;
+    }
+
+    .profile-main-card {
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+    }
+
+    .profile-avatar-wrap {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 15px;
+        border: 2px solid #e2e8f0;
+    }
+
+    .profile-avatar {
+        width: 60px;
+        height: 60px;
+        object-fit: contain;
+    }
+
+    .student-name {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+
+    .student-class {
+        font-size: 13px;
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+
+    .mission-quote {
+        background: #f8fafc;
+        border-radius: 12px;
+        padding: 20px;
+        position: relative;
+        border-left: 4px solid #3b82f6;
+    }
+
+    .quote-icon {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        font-size: 24px;
+        color: #e2e8f0;
+        z-index: 1;
+    }
+
+    .mission-text {
+        font-size: 14.5px;
+        color: var(--text-primary);
+        line-height: 1.6;
+        position: relative;
+        z-index: 2;
+        margin: 0;
+        padding-left: 20px;
+    }
+
+    .details-card {
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+    }
+
+    .detail-item {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 12px;
+        background: #f8fafc;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .detail-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #3b82f6;
+        font-size: 16px;
+    }
+
+    .detail-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .detail-value {
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+</style>
+
+
+<div class="premium-dashboard">
+    <!-- Welcome Header -->
+    <div class="welcome-section" style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 15px;">
+        <div>
+            <h1 class="welcome-title">👋 Welcome back, @Model.StudentName!</h1>
+            <p style="color: var(--text-muted); margin-top: 4px; margin-bottom: 0;">Here's an overview of your learning journey.</p>
+        </div>
+        <div>
+            <span style="background: rgba(37, 99, 235, 0.08); color: #2563eb; font-weight: 700; padding: 8px 14px; border-radius: 30px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-clock-rotate-left"></i> Last Login: @Model.LastLoginString
+            </span>
+        </div>
+    </div>
+
+    <!-- Student Details Section (Premium) -->
+    <div class="student-profile-section mb-5">
+        <!-- Top Tabs -->
+        <div class="profile-tabs mb-4">
+            <button class="profile-tab-btn active"><i class="fa-solid fa-file-invoice"></i> CV Format</button>
+            <button class="profile-tab-btn"><i class="fa-solid fa-list-check"></i> Activity Wall</button>
+            <button class="profile-tab-btn"><i class="fa-solid fa-eye"></i> Vision & Mission</button>
+            <button class="profile-tab-btn"><i class="fa-solid fa-book-bookmark"></i> Fine (Click)/My Library</button>
+            <button class="profile-tab-btn"><i class="fa-solid fa-comments"></i> My Comments</button>
+        </div>
+
+        <!-- Summary Row -->
+        <div class="row g-3 mb-4">
+            <!-- My Attendance -->
+            <div class="col-md-4">
+                <a asp-controller="Attendance" asp-action="MyAttendance" class="summary-card text-decoration-none" style="cursor: pointer;">
+                    <div class="card-icon blue"><i class="fa-solid fa-scale-balanced"></i></div>
+                    <div class="card-info">
+                        <div class="card-value">86.00%</div>
+                        <div class="card-label">My Attendance</div>
+                        <div class="card-subtext">TL-350 | P-301 | PF-0 | Ab-49</div>
+                    </div>
+                </a>
+            </div>
+            <!-- My Documents -->
+            <div class="col-md-4">
+                <a asp-controller="StudentCourse" asp-action="Index" class="summary-card text-decoration-none" style="cursor: pointer;">
+                    <div class="card-icon purple"><i class="fa-solid fa-folder-open"></i></div>
+                    <div class="card-info">
+                        <div class="card-value">@(Model.RecentDocuments?.Count ?? 0)</div>
+                        <div class="card-label">My Documents</div>
+                        <div class="card-subtext">View your enrolled courses and study materials</div>
+                    </div>
+                </a>
+            </div>
+            <!-- Job Inbox -->
+            <div class="col-md-4">
+                <div class="summary-card">
+                    <div class="card-icon orange"><i class="fa-solid fa-briefcase"></i></div>
+                    <div class="card-info">
+                        <div class="card-value">Job Inbox</div>
+                        <div class="card-label">Placement Cell</div>
+                        <div class="card-subtext">Check latest job openings</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile & Quote Card -->
+        <div class="profile-main-card mb-4">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-3 text-center border-end">
+                    <div class="profile-avatar-wrap">
+                        <img src="https://img.icons8.com/color/96/student-male.png" alt="Student Photo" class="profile-avatar" />
+                    </div>
+                    <h5 class="student-name">@Model.StudentName</h5>
+                    <span class="student-class">EduDigi-STUDENT-IV-A</span>
+                </div>
+                <div class="col-md-9">
+                    <div class="mission-quote">
+                        <i class="fa-solid fa-quote-left quote-icon"></i>
+                        <p class="mission-text">
+                            <strong>Mission:</strong> To provide an effective environment for teaching-learning and innovation in order to transform our students into dynamic, professionally sound and socially responsible citizens with ability to adapt to the changing needs of the industry and society.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details Grid -->
+        <div class="details-card">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="detail-item">
+                        <div class="detail-icon"><i class="fa-solid fa-id-card"></i></div>
+                        <div class="detail-info">
+                            <div class="detail-label">University Roll No.</div>
+                            <div class="detail-value">2201640130001</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="detail-item">
+                        <div class="detail-icon"><i class="fa-solid fa-users"></i></div>
+                        <div class="detail-info">
+                            <div class="detail-label">Section</div>
+                            <div class="detail-value">LMS-SEC-A</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="detail-item">
+                        <div class="detail-icon"><i class="fa-solid fa-barcode"></i></div>
+                        <div class="detail-info">
+                            <div class="detail-label">Library Code</div>
+                            <div class="detail-value">2211072</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="detail-item">
+                        <div class="detail-icon"><i class="fa-solid fa-phone"></i></div>
+                        <div class="detail-info">
+                            <div class="detail-label">Mobile No.</div>
+                            <div class="detail-value">8604538435</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="detail-item">
+                        <div class="detail-icon"><i class="fa-solid fa-envelope"></i></div>
+                        <div class="detail-info">
+                            <div class="detail-label">Email</div>
+                            <div class="detail-value">@(User?.Claims?.FirstOrDefault(c => c.Type == "user")?.Value ?? "student@edudigiclass.com")</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="detail-item">
+                        <div class="detail-icon"><i class="fa-solid fa-cake-candles"></i></div>
+                        <div class="detail-info">
+                            <div class="detail-label">Birth Date</div>
+                            <div class="detail-value">21-07-2005</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="detail-item">
+                        <div class="detail-icon"><i class="fa-solid fa-location-dot"></i></div>
+                        <div class="detail-info">
+                            <div class="detail-label">Address</div>
+                            <div class="detail-value">80/A BARRA-6 KANPUR-208027</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Today's Highlights -->
+
+    <div class="highlights-grid">
+        <!-- Exams -->
+        <div class="highlight-card exams">
+            <div class="card-header-custom">
+                <div class="card-icon">
+                    <i class="fa-solid fa-file-invoice"></i>
+                </div>
+                <div class="card-title-text">Today's Exams</div>
+                <div class="card-date">@DateTime.Now.ToString("15 Apr")</div>
+            </div>
+            <div class="card-body-custom">
+                @if (Model.TodayExams != null && Model.TodayExams.Any())
+                {
+                    <ul class="list-unstyled">
+                        @foreach (var exam in Model.TodayExams)
+                        {
+                            <li class="mb-2"><i class="fa-solid fa-circle-check text-primary me-2"></i> @exam</li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p class="font-weight-600 mb-1" style="color: var(--text-primary);">No exams scheduled.</p>
+                    <p style="font-size: 13px; color: var(--text-muted); margin: 0;">Utilize your free time wisely — a perfect opportunity to prepare for your upcoming exams.</p>
+                }
+            </div>
+        </div>
+
+        <!-- Virtual Classes -->
+        <div class="highlight-card classes" onclick="location.href='@Url.Action("Index", "VirtualClassroom")'" style="cursor:pointer;">
+            <div class="card-header-custom">
+                <div class="card-icon">
+                    <i class="fa-solid fa-video"></i>
+                </div>
+                <div class="card-title-text">Today's Virtual Classes</div>
+                <div class="card-date">@DateTime.Now.ToString("dd MMM yyyy")</div>
+            </div>
+            <div class="card-body-custom">
+                @if (Model.TodayVirtualClasses != null && Model.TodayVirtualClasses.Any())
+                {
+                    <ul class="list-unstyled">
+                        @foreach (var cls in Model.TodayVirtualClasses)
+                        {
+                            <li class="mb-2"><i class="fa-solid fa-video text-success me-2"></i> @cls</li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p class="font-weight-600 mb-1" style="color: var(--text-primary);">No Virtual Classes Today</p>
+                }
+            </div>
+        </div>
+
+        <!-- Recent Announcements -->
+        <div class="highlight-card" style="border-top-color: #7c3aed; cursor:pointer;" onclick="location.href='@Url.Action("Board", "Announcement")'">
+            <div class="card-header-custom">
+                <div class="card-icon" style="background: #f5f3ff; color: #7c3aed;">
+                    <i class="fa-solid fa-bullhorn"></i>
+                </div>
+                <div class="card-title-text">Recent Announcements</div>
+                <div class="card-date"><a asp-controller="Announcement" asp-action="Board" style="text-decoration:none; color:#7c3aed; font-weight:600;">View All</a></div>
+            </div>
+            <div class="card-body-custom">
+                @if (Model.RecentAnnouncements != null && Model.RecentAnnouncements.Any())
+                {
+                    <ul class="list-unstyled" style="margin:0; padding:0;">
+                        @foreach (var ann in Model.RecentAnnouncements)
+                        {
+                            <li style="margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px;">
+                                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 4px;">
+                                    <strong style="color:var(--text-primary); font-size:13.5px;">@ann.Title</strong>
+                                    <span style="font-size:11px; color:var(--text-muted);">@ann.TimeAgo</span>
+                                </div>
+                                <div style="font-size:12.5px; color:#475569; margin:0; line-height:1.4;">
+                                    @Html.Raw(ann.Description)
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p class="font-weight-600 mb-1" style="color: var(--text-primary);">No announcements.</p>
+                    <p style="font-size: 13px; color: var(--text-muted); margin: 0;">Stay tuned for any updates from your admin or faculty.</p>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+        <!-- Total Courses -->
+        <a asp-controller="StudentCourse" asp-action="Index" class="stat-card blue text-decoration-none" style="cursor: pointer;">
+            <div class="stat-header">
+                <span class="stat-title">Total Courses</span>
+                <i class="fa-solid fa-book-open"></i>
+            </div>
+            <div class="stat-value" style="color:white;">@Model.TotalCourses</div>
+            <div class="stat-footer">Enrolled Courses</div>
+        </a>
+
+        <!-- Exams -->
+        <a asp-controller="StudentExam" asp-action="Index" class="stat-card green text-decoration-none" style="cursor: pointer;">
+            <div class="stat-header">
+                <span class="stat-title">Exams</span>
+                <i class="fa-solid fa-feather-pointed"></i>
+            </div>
+            <div class="stat-value" style="color:white;">@Model.TotalExams</div>
+            <div class="stat-footer">Assessments & Exams</div>
+        </a>
+
+        <!-- Results -->
+        <a asp-controller="StudentExam" asp-action="Index" class="stat-card purple text-decoration-none" style="cursor: pointer;">
+            <div class="stat-header">
+                <span class="stat-title">Results</span>
+                <i class="fa-solid fa-award"></i>
+            </div>
+            <div class="stat-value" style="color:white;">@Model.TotalResults</div>
+            <div class="stat-footer">View score reports</div>
+        </a>
+
+        <!-- Passing Rate -->
+        <div class="stat-card orange">
+            <div class="stat-header">
+                <span class="stat-title">Passing Rate</span>
+                <i class="fa-solid fa-chart-line"></i>
+            </div>
+            <div class="stat-value">@Model.PassingRate%</div>
+            <div class="stat-footer">Based on all exams attempted</div>
+        </div>
+    </div>
+
+
+
+    <!-- Learn Section -->
+    <div class="section-box">
+        <div class="section-title">
+            <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#3b82f6;"><i class="fa-solid fa-graduation-cap"></i></span>
+            <span>Learn</span>
+        </div>
+        <div class="action-links-grid">
+            <a asp-controller="StudentCourse" asp-action="Index" class="action-link-card">
+                <span class="action-icon-wrap" style="background: #eff6ff; color: #3b82f6;"><i class="fa-solid fa-layer-group"></i></span>
+                <span>Courses</span>
+            </a>
+            <a asp-controller="Calendar" asp-action="Index" class="action-link-card">
+                <span class="action-icon-wrap" style="background: #ecfdf5; color: #10b981;"><i class="fa-solid fa-calendar-days"></i></span>
+                <span>Class Calendar</span>
+            </a>
+            <a asp-controller="VirtualClassroom" asp-action="Index" class="action-link-card">
+                <span class="action-icon-wrap" style="background: #fff1f2; color: #f43f5e;"><i class="fa-solid fa-chalkboard-user"></i></span>
+                <span>Virtual Classroom</span>
+            </a>
+            <a asp-controller="Assignment" asp-action="Index" class="action-link-card">
+                <span class="action-icon-wrap" style="background: #fff7ed; color: #ea580c;"><i class="fa-solid fa-pen-to-square"></i></span>
+                <span>Assignments</span>
+            </a>
+            <a asp-controller="StudentExam" asp-action="Index" class="action-link-card">
+                <span class="action-icon-wrap" style="background: #fdf4ff; color: #a855f7;"><i class="fa-solid fa-file-signature"></i></span>
+                <span>Assessments & Exams</span>
+            </a>
+        </div>
+    </div>
+
+
+    <!-- Collaborate & Communication Section -->
+    <div class="section-box">
+        <div class="section-title">
+            <span class="icon-badge" style="--ibg:#fef3c7; --iclr:#d97706;"><i class="fa-solid fa-comments"></i></span>
+            <span>Collaborate &amp; Communication</span>
+        </div>
+        <div class="action-links-grid">
+            <a asp-controller="Notifications" asp-action="Index" class="action-link-card">
+                <span class="action-icon-wrap" style="background: #fef9c3; color: #ca8a04;"><i class="fa-solid fa-bell"></i></span>
+                <span>Notification &amp; Inbox</span>
+            </a>
+            <a asp-controller="Discussion" asp-action="Index" class="action-link-card">
+                <span class="action-icon-wrap" style="background: #eff6ff; color: #2563eb;"><i class="fa-solid fa-comments"></i></span>
+                <span>Discussion Forum</span>
+            </a>
+            <a href="https://en.wikipedia-on-ipfs.org/wiki/Jagan_Nath_University%2C_Jaipur" target="_blank" class="action-link-card">
+                <span class="action-icon-wrap" style="background: #f0fdf4; color: #16a34a;"><i class="fa-solid fa-book"></i></span>
+                <span>Wiki</span>
+            </a>
+            <a href="https://swayam.gov.in/" target="_blank" class="action-link-card">
+                <span class="action-icon-wrap" style="background: #fff7ed; color: #ea580c;"><i class="fa-solid fa-graduation-cap"></i></span>
+                <span>Swayam</span>
+            </a>
+            <a href="https://books.google.com/" target="_blank" class="action-link-card">
+                <span class="action-icon-wrap" style="background: #fef2f2; color: #ef4444;"><i class="fa-brands fa-google"></i></span>
+                <span>Google</span>
+            </a>
+            <a href="https://www.microsoft.com/en-in/" target="_blank" class="action-link-card">
+                <span class="action-icon-wrap" style="background: #e0f2fe; color: #0284c7;"><i class="fa-brands fa-microsoft"></i></span>
+                <span>Microsoft</span>
+            </a>
+            <a asp-controller="Chat" asp-action="Index" class="action-link-card">
+                <span class="action-icon-wrap" style="background: #fdf4ff; color: #a855f7;"><i class="fa-solid fa-user-group"></i></span>
+                <span>Chat &amp; Meeting</span>
+            </a>
+            <a asp-controller="Discussion" asp-action="Index" class="action-link-card">
+                <span class="action-icon-wrap" style="background: #f0fdfa; color: #0d9488;"><i class="fa-solid fa-pen-nib"></i></span>
+                <span>Blog</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- My Enrolled Courses Section -->
+    <div style="margin-top: 40px;">
+        <h5 style="font-weight: 700; color: var(--text-primary); margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+            <i class="fa-solid fa-book-bookmark text-primary"></i> My Enrolled Courses
+        </h5>
+        <div class="courses-grid">
+            @if (Model.EnrolledCourses != null && Model.EnrolledCourses.Any())
+            {
+                foreach (var course in Model.EnrolledCourses)
+                {
+                    <div class="course-premium-card">
+                        <div class="course-banner">
+                            <i class="fa-solid fa-graduation-cap" style="font-size: 50px; opacity: 0.8;"></i>
+                        </div>
+                        <div class="course-body">
+                            <div class="course-tag">@course.CourseCategory?.Name</div>
+                            <h6 class="course-name">@course.Name</h6>
+                            <div class="course-meta">
+                                <span><i class="fa-solid fa-clock me-1"></i> @course.CourseDurationMonths Months</span>
+                                <span><i class="fa-solid fa-barcode me-1"></i> @course.CourseCode</span>
+                            </div>
+                            <a asp-controller="StudentCourseContent" asp-action="Index" asp-route-id="@course.Id" class="btn btn-primary w-100" style="border-radius: 10px; font-weight: 600; padding: 10px;">
+                                View Content <i class="fa-solid fa-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div style="grid-column: 1 / -1; padding: 40px; text-align: center; background: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 16px;">
+                    <i class="fa-solid fa-face-smile text-muted" style="font-size: 40px;"></i>
+                    <h6 class="mt-3 text-muted">You are not enrolled in any courses yet.</h6>
+                    <p class="small text-muted mb-0">Contact your admin to get started with your learning journey.</p>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Instruction & Support Section (Matches Image) -->
+    <div class="section-box" style="margin-top: 30px;">
+        <div class="section-title" style="border-bottom: 2px solid; border-image: linear-gradient(to right, #7c3aed, #10b981) 1;">
+            <span class="icon-badge" style="--ibg:#f5f3ff; --iclr:#7c3aed;"><i class="fa-solid fa-screwdriver-wrench"></i></span>
+            <span style="font-weight: 700; color: var(--text-primary);">Instruction & Support</span>
+        </div>
+        <div class="action-links-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
+            <a href="/Support/ContactMentor" class="action-link-card" style="background: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+                <span class="action-icon-wrap" style="background: #eff6ff; color: #3b82f6; width: 40px; height: 40px; border-radius: 50%;"><i class="fa-solid fa-circle-question" style="font-size: 18px;"></i></span>
+                <span>Contact Mentor</span>
+            </a>
+            <a href="/Support/FAQ" class="action-link-card" style="background: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+                <span class="action-icon-wrap" style="background: #f0fdf4; color: #16a34a; width: 40px; height: 40px; border-radius: 12px;"><i class="fa-solid fa-headset" style="font-size: 18px;"></i></span>
+                <span>Frequently Asked Questions</span>
+            </a>
+            <a href="/Support/RaiseTicket" class="action-link-card" style="background: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+                <span class="action-icon-wrap" style="background: #fff7ed; color: #f97316; width: 40px; height: 40px; border-radius: 12px;"><i class="fa-solid fa-life-ring" style="font-size: 18px;"></i></span>
+                <span>Raise a Ticket</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Progress Report Section -->
+    <div class="section-box" style="margin-top: 30px;">
+        <div class="section-title" style="cursor: pointer;" onclick="location.href='@Url.Action("Index", "ProgressReport")'">
+            <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#3b82f6;"><i class="fa-solid fa-chart-line"></i></span>
+            <span style="font-weight: 700; color: var(--text-primary);">Progress Report</span>
+            <span style="margin-left: auto; font-size: 12px; color: #3b82f6; font-weight: 600;">View Full Report <i class="fa-solid fa-arrow-right"></i></span>
+        </div>
+        <div class="action-links-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
+            <a href="@Url.Action("Index", "ProgressReport", new { type = "quiz" })" class="action-link-card" style="background: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+                <span class="action-icon-wrap" style="background: #eff6ff; color: #3b82f6; width: 40px; height: 40px; border-radius: 12px;"><i class="fa-solid fa-clipboard-question" style="font-size: 18px;"></i></span>
+                <span>Quiz</span>
+            </a>
+            <a href="@Url.Action("Index", "ProgressReport", new { type = "assignment" })" class="action-link-card" style="background: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+                <span class="action-icon-wrap" style="background: #ecfdf5; color: #10b981; width: 40px; height: 40px; border-radius: 12px;"><i class="fa-solid fa-pen-to-square" style="font-size: 18px;"></i></span>
+                <span>Assignment</span>
+            </a>
+            <a href="@Url.Action("Index", "ProgressReport", new { type = "study-material" })" class="action-link-card" style="background: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+                <span class="action-icon-wrap" style="background: #f5f3ff; color: #8b5cf6; width: 40px; height: 40px; border-radius: 12px;"><i class="fa-solid fa-book-open" style="font-size: 18px;"></i></span>
+                <span>Study Material</span>
+            </a>
+            <a href="@Url.Action("Index", "ProgressReport", new { type = "e-content" })" class="action-link-card" style="background: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+                <span class="action-icon-wrap" style="background: #fff7ed; color: #f97316; width: 40px; height: 40px; border-radius: 12px;"><i class="fa-solid fa-video" style="font-size: 18px;"></i></span>
+                <span>E-Content</span>
+            </a>
+        </div>
+    </div>
+</div>

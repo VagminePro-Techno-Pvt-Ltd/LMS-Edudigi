@@ -1,0 +1,3 @@
+Converted PDF documents are cached here by DocumentViewerController.
+This directory is auto-created by the server on first conversion.
+Do NOT commit actual PDF files — add *.pdf to .gitignore for this folder.

@@ -1,0 +1,391 @@
+﻿
+@using TMS;
+@model TMS.ViewModels.Masters.NominationRequestViewModel
+@{
+    var controller = Convert.ToString(ViewContext.RouteData.Values["controller"]);
+}
+
+@* <form method="post" id="RemarkPartial" disabled>
+
+    <div class="card glass">
+
+        <div class="card-body">
+
+            <input asp-for="Id" id="getId" type="hidden" />
+
+            <input asp-for="IsActive" type="hidden" />
+
+            <div class="mb-1">
+
+                <input asp-items="ViewBag.submitBtn" type="hidden" />
+
+            </div>
+
+            <input id="hdAddEditActionAllowed" type="hidden" value="''" />
+
+            <div class="row mb-2">
+
+                <h5>Course & Training Details</h5>
+
+                <br />
+
+                <div class="col-12 col-md-4">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">CourseName</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Training.Course.NameStatus</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-4">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">TrainingTitle-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Training.TrainingTitle</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-6">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 14px;">ConductedByDivisionI-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Training.ConductedByDivision.Name</label>
+
+                    </div>
+
+                </div>
+
+                <br />
+
+                <h5>Schedule Details</h5>
+
+                <br />
+
+                <div class="col-12 col-md-6">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 14px;">FromDate-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Training.FromDate</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-6">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 14px;">ToDate-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Training.ToDate</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-6">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 14px;">FromTime-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Training.FromTime</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-6">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 14px;">ToTime-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Training.ToTime</label>
+
+                    </div>
+
+                </div>
+
+                <br />
+
+                <h5>Instructor & Venue Details</h5>
+
+                <br />
+
+                <div class="col-12 col-md-6">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 14px;">VenueName-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Training.VenueName</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-6">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 14px;">MinNumberOfSeats-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Training.MinNumberOfSeats</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-6">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 14px;">MaxNumberOfSeats-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Training.MaxNumberOfSeats</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-6">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 14px;">Instructor-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Training.Instructor.CourseName</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <div class="mb-1">
+                        <h5>Remarks</h5>
+                        <input class="form-control" type="Text" for="NominationRemarks" id="AdminNominationRemarks" />
+                        <span asp-validation-for="NominationRemarks"></span>
+                        <input type="hidden" id="hdn_Id">
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</form>
+ *@<form method="post" id="RemarkPartial" disabled>
+
+    <div class="card glass">
+
+        <div class="card-body">
+
+            <input asp-for="Id" id="getId" type="hidden" />
+
+            <input asp-for="IsActive" type="hidden" />
+
+            <div class="mb-1">
+
+                <input asp-items="ViewBag.submitBtn" type="hidden" />
+
+            </div>
+
+            <input id="hdAddEditActionAllowed" type="hidden" value="''" />
+
+            <div class="row mb-2">
+
+                <h5>Course & Training Details</h5>
+
+                <br />
+
+                <div class="col-12 col-md-4">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">Course Name:-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Training.Course.NameStatus</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-4">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">Training Title:-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Training.TrainingTitle</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-4">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">Conducted By Division:-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Training.ConductedByDivision.Name</label>
+
+                    </div>
+
+                </div>
+
+                <br />
+
+                <h5>Schedule Details</h5>
+
+                <br />
+
+                <div class="col-12 col-md-4">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">FromDate:-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Training.FromDate</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-4">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">ToDate:-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Training.ToDate</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-4">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">FromTime:-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Training.FromTime</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-4">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">ToTime:-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Training.ToTime</label>
+
+                    </div>
+
+                </div>
+
+                <br />
+
+                <h5>Instructor & Venue Details</h5>
+
+                <br />
+
+                <div class="col-12 col-md-6">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">Venue Name:-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Training.VenueName</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-6">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">Minimum Seats:-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Training.MinNumberOfSeats</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-6">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">Maximum Seats:-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Training.MaxNumberOfSeats</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-6">
+
+                    <div class="mb-1">
+
+                        <label style="font-size: 16px;">Instructor:-</label>
+
+                        <label class="text-md" style="font-size: 15px;">@Model.Training.Instructor.CourseName</label>
+
+                    </div>
+
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <div class="mb-1">
+                        <h5>Remarks</h5>
+                        <input class="form-control" type="Text" for="NominationRemarks" id="AdminNominationRemarks" />
+                        <span asp-validation-for="NominationRemarks"></span>
+                        <input type="hidden" id="hdn_Id">
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</form>
+
+@section scripts{
+
+    <script src="@Url.Action("AdminGlobalMaster", "LinkScript", new { area = "", c = controller })" asp-append-version="true"></script>
+
+    <script src="@Url.Action("AdminSchedule", "LinkScript", new { area = "", c = controller })" asp-append-version="true"></script>
+
+    <script src="@Url.Action("AdminReject", "LinkScript", new { area = "", c = controller })" asp-append-version="true"></script>
+
+    <partial name="~/Views/Shared/_ValidationScriptsPartial.cshtml" />
+
+    <partial name="~/Views/Shared/_IndexCommonScriptsPartial.cshtml" />
+
+    <script src="~/js/masters/@(controller)-index.js" asp-append-version="true"></script>
+
+}

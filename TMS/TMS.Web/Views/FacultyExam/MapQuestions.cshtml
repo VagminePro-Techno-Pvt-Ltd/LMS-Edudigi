@@ -1,0 +1,148 @@
+@model IEnumerable<TMS.Models.Assessments.QuestionBank>
+
+@{
+    ViewData["Title"] = "Map Questions";
+    var exam = ViewBag.Exam as TMS.Models.Assessments.ExamMaster;
+    var sec = ViewBag.Section as TMS.Models.Assessments.ExamSection;
+    var mappedIds = ViewBag.MappedIds as List<int> ?? new List<int>();
+}
+
+<div class="exam-page">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+
+            <!-- Page Header -->
+            <div class="exam-page-header" style="margin-bottom:24px;">
+                <div>
+                    <h1>
+                        <span class="header-icon" style="background:#eff6ff; color:#3b82f6;">
+                            <i class="fa-solid fa-link"></i>
+                        </span>
+                        Map Questions
+                    </h1>
+                    <p>
+                        Exam: <strong style="color:#7c3aed;">@exam?.Title</strong> ·
+                        Section: <strong style="color:#ea580c;">@sec?.SectionName</strong>
+                    </p>
+                    <div class="exam-meta-row" style="margin-top:8px;">
+                        <div class="exam-meta-item">
+                            <i class="fa-solid fa-list-ol" style="color:#3b82f6;"></i>
+                            Budget: <strong>@sec?.TotalQuestions Questions</strong>
+                        </div>
+                        <div class="exam-meta-item">
+                            <i class="fa-solid fa-award" style="color:#7c3aed;"></i>
+                            Marks: <strong>@sec?.TotalMarks</strong>
+                        </div>
+                        <div class="exam-meta-item">
+                            <i class="fa-solid fa-check-double" style="color:#059669;"></i>
+                            Selected: <strong id="selected-count">@mappedIds.Count</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <a asp-action="Edit" asp-route-id="@exam?.Id" class="exam-btn exam-btn-secondary">
+                        <i class="fa-solid fa-arrow-left"></i> Back to Config
+                    </a>
+                </div>
+            </div>
+
+            <form asp-action="MapQuestions" method="post" id="map-form">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="examId" value="@exam?.Id" />
+                <input type="hidden" name="sectionId" value="@sec?.Id" />
+
+                <!-- Questions Table -->
+                <div class="exam-section-box" style="padding:0; overflow:hidden;">
+                    <div style="padding:20px 24px; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between;">
+                        <h3 style="font-size:16px; font-weight:700; color:#1e293b; margin:0;">
+                            <i class="fa-solid fa-database" style="color:#3b82f6; margin-right:8px;"></i>
+                            Available Questions Pool
+                        </h3>
+                    </div>
+                    <table class="exam-table">
+                        <thead>
+                            <tr>
+                                <th style="width:60px;">Select</th>
+                                <th>Question</th>
+                                <th>Type</th>
+                                <th>Difficulty</th>
+                                <th>Marks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model == null || !Model.Any())
+                            {
+                                <tr>
+                                    <td colspan="5">
+                                        <div class="exam-empty-state" style="border:none;">
+                                            <div class="empty-icon"><i class="fa-solid fa-clipboard-list"></i></div>
+                                            <h3>No Questions Available</h3>
+                                            <p>Create questions in your Question Bank first.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var q in Model)
+                                {
+                                    var isChecked = mappedIds.Contains(q.Id);
+                                    <tr style="@(isChecked ? "background:#f0fdf4;" : "")">
+                                        <td class="text-center">
+                                            <input type="checkbox" name="questionIds" value="@q.Id" @(isChecked ? "checked" : "") class="question-checkbox"
+                                                   onclick="updateSelectionsCount()" style="width:18px; height:18px; accent-color:#3b82f6; cursor:pointer;" />
+                                        </td>
+                                        <td style="max-width:350px;">
+                                            <strong style="color:#1e293b; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">
+                                                @q.QuestionText
+                                            </strong>
+                                        </td>
+                                        <td>
+                                            <span style="background:#eff6ff; color:#3b82f6; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700;">
+                                                @q.QuestionType
+                                            </span>
+                                        </td>
+                                        <td>
+                                            @if (q.DifficultyLevel == "Easy")
+                                            {
+                                                <span class="exam-badge active">Easy</span>
+                                            }
+                                            else if (q.DifficultyLevel == "Medium")
+                                            {
+                                                <span class="exam-badge pending">Medium</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="exam-badge failed">Hard</span>
+                                            }
+                                        </td>
+                                        <td><strong style="color:#059669;">+@q.Marks</strong></td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Actions -->
+                <div style="display:flex; justify-content:space-between; margin-top:20px;">
+                    <a asp-action="Edit" asp-route-id="@exam?.Id" class="exam-btn exam-btn-secondary">
+                        <i class="fa-solid fa-arrow-left"></i> Cancel
+                    </a>
+                    <button type="submit" class="exam-btn exam-btn-primary" style="padding:12px 32px;">
+                        <i class="fa-solid fa-link"></i> Save Mapping
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function updateSelectionsCount() {
+        let count = document.querySelectorAll('.question-checkbox:checked').length;
+        document.getElementById('selected-count').textContent = count;
+    }
+</script>
+}

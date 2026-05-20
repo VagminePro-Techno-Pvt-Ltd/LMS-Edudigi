@@ -1,0 +1,205 @@
+@model IEnumerable<TMS.Models.Assessments.ExamMaster>
+
+@{
+    ViewData["Title"] = "Assessment Supervisor Dashboard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="exam-page">
+    <!-- Page Header -->
+    <div class="exam-page-header">
+        <div>
+            <h1>
+                <span class="header-icon" style="background:#eff6ff; color:#3b82f6;">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </span>
+                Assessment Supervisor
+            </h1>
+            <p>System-wide monitoring, analytics, and administrative controls for all platform assessments.</p>
+        </div>
+        <div class="header-actions">
+            <a asp-action="Attempts" class="exam-btn exam-btn-secondary">
+                <i class="fa-solid fa-history"></i> Attempt Logs
+            </a>
+        </div>
+    </div>
+
+    <!-- Global Stats -->
+    <div class="exam-stats-row" style="grid-template-columns: repeat(5, 1fr);">
+        <div class="exam-stat-card blue">
+            <span class="stat-label">Total Exams</span>
+            <span class="stat-value">@ViewBag.TotalExams</span>
+            <span class="stat-sub">Platform-wide</span>
+        </div>
+        <div class="exam-stat-card green">
+            <span class="stat-label">Active Exams</span>
+            <span class="stat-value">@ViewBag.ActiveExams</span>
+            <span class="stat-sub">Currently live</span>
+        </div>
+        <div class="exam-stat-card purple">
+            <span class="stat-label">Total Attempts</span>
+            <span class="stat-value">@ViewBag.TotalAttempts</span>
+            <span class="stat-sub">All students</span>
+        </div>
+        <div class="exam-stat-card orange">
+            <span class="stat-label">Pending Eval</span>
+            <span class="stat-value">@ViewBag.PendingEvaluations</span>
+            <span class="stat-sub">Awaiting review</span>
+        </div>
+        <div class="exam-stat-card indigo">
+            <span class="stat-label">Pass Rate</span>
+            <span class="stat-value">@ViewBag.PassPercentage%</span>
+            <span class="stat-sub">Overall success</span>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Exam List Table -->
+        <div class="col-lg-8">
+            <div class="exam-section-box" style="padding:0; overflow:hidden;">
+                <div style="padding:20px 24px; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between;">
+                    <h3 style="font-size:16px; font-weight:700; color:#1e293b; margin:0; display:flex; align-items:center; gap:10px;">
+                        <span class="title-icon" style="background:#f5f3ff; color:#7c3aed; width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px;">
+                            <i class="fa-solid fa-list-check"></i>
+                        </span>
+                        All Assessments
+                    </h3>
+                </div>
+                <table class="exam-table">
+                    <thead>
+                        <tr>
+                            <th>Assessment</th>
+                            <th>Course</th>
+                            <th>Faculty</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model == null || !Model.Any())
+                        {
+                            <tr>
+                                <td colspan="5">
+                                    <div class="exam-empty-state" style="border:none;">
+                                        <div class="empty-icon"><i class="fa-solid fa-folder-open"></i></div>
+                                        <h3>No Assessments Found</h3>
+                                        <p>No exams have been created on the platform yet.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var exam in Model)
+                            {
+                                <tr>
+                                    <td>
+                                        <strong style="color:#1e293b;">@exam.Title</strong>
+                                        <div style="font-size:11px; color:#64748b; margin-top:2px;">
+                                            @exam.TotalMarks Marks · @exam.DurationMinutes min
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span style="background:#f5f3ff; color:#7c3aed; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700;">
+                                            @exam.Course?.Name
+                                        </span>
+                                    </td>
+                                    <td style="font-size:13px;">@exam.Faculty?.Name</td>
+                                    <td>
+                                        @if (exam.Status == "Active")
+                                        {
+                                            <span class="exam-badge active"><i class="fa-solid fa-circle" style="font-size:6px;"></i> Active</span>
+                                        }
+                                        else if (exam.Status == "Draft")
+                                        {
+                                            <span class="exam-badge draft">Draft</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="exam-badge archived">Archived</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div style="display:flex; gap:6px;">
+                                            <a asp-action="LiveMonitor" asp-route-examId="@exam.Id" class="exam-btn exam-btn-sm" style="background:#ecfdf5; color:#059669 !important; border:1px solid #a7f3d0;">
+                                                <i class="fa-solid fa-satellite-dish"></i> Live
+                                            </a>
+                                            <a asp-action="Analytics" asp-route-examId="@exam.Id" class="exam-btn exam-btn-sm" style="background:#fff7ed; color:#ea580c !important; border:1px solid #fed7aa;">
+                                                <i class="fa-solid fa-chart-pie"></i>
+                                            </a>
+                                            <button class="exam-btn exam-btn-sm exam-btn-secondary btn-toggle-status" data-exam-id="@exam.Id" data-current-status="@exam.Status">
+                                                <i class="fa-solid fa-power-off"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Top Performers Sidebar -->
+        <div class="col-lg-4">
+            <div class="exam-section-box">
+                <div class="exam-section-title">
+                    <span class="title-icon" style="background:#fef9c3; color:#ca8a04;">
+                        <i class="fa-solid fa-trophy"></i>
+                    </span>
+                    Top Performers
+                </div>
+
+                @{
+                    var topPerformers = ViewBag.TopPerformers as List<TMS.Repository.Managers.StudentAttemptSummary>;
+                }
+
+                @if (topPerformers != null && topPerformers.Any())
+                {
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+                        @{ var rank = 1; }
+                        @foreach (var performer in topPerformers)
+                        {
+                            <div style="display:flex; align-items:center; gap:12px; padding:12px; background:#f8fafc; border-radius:10px; border:1px solid #f1f5f9;">
+                                <div style="width:32px; height:32px; border-radius:8px; background:@(rank == 1 ? "#fef9c3" : rank == 2 ? "#f1f5f9" : "#fff7ed"); color:@(rank == 1 ? "#ca8a04" : rank == 2 ? "#64748b" : "#ea580c"); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; flex-shrink:0;">
+                                    #@rank
+                                </div>
+                                <div style="flex:1; min-width:0;">
+                                    <div style="font-size:13px; font-weight:700; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@performer.StudentName</div>
+                                    <div style="font-size:11px; color:#64748b;">@performer.Email</div>
+                                </div>
+                                <div style="text-align:right;">
+                                    <div style="font-size:15px; font-weight:800; color:#059669;">@performer.Percentage%</div>
+                                    <div style="font-size:10px; color:#64748b;">Score: @performer.Score</div>
+                                </div>
+                            </div>
+                            rank++;
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div style="text-align:center; padding:30px; color:#94a3b8; font-size:13px;">
+                        <i class="fa-solid fa-medal" style="font-size:32px; display:block; margin-bottom:10px; opacity:0.3;"></i>
+                        No performance data available yet.
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.querySelectorAll('.btn-toggle-status').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const examId = this.dataset.examId;
+            const current = this.dataset.currentStatus;
+            const newStatus = current === 'Active' ? 'Draft' : 'Active';
+            fetch(`@Url.Action("ToggleStatus")`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `examId=${examId}&status=${newStatus}`
+            }).then(r => r.json()).then(d => { if (d.success) location.reload(); });
+        });
+    });
+</script>

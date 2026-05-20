@@ -1,0 +1,1187 @@
+@*
+    SHARED FILE PREVIEW & IN-VIDEO QUIZ MODAL  (PDF · Office · Image · Video · Fallback)
+    Include this partial once per page. Handles all clicks on .view-file-link automatically.
+*@
+
+<!-- ── File Preview Modal (centered “lightbox” — PDF / Office / media in-browser) ── -->
+<div class="modal fade" id="filePreviewModal" tabindex="-1"
+     aria-labelledby="filePreviewLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl fpm-dialog">
+        <div class="modal-content border-0 shadow-lg fpm-shell">
+
+            <!-- Header -->
+            <div class="modal-header border-0 px-4 py-3 fpm-header">
+                <div class="d-flex align-items-center gap-2 flex-grow-1 min-w-0">
+                    <i id="filePreviewIcon" class="fa-solid fa-file-lines text-white me-2 flex-shrink-0"></i>
+                    <h5 class="modal-title text-white fw-bold mb-0 text-truncate"
+                        id="filePreviewLabel">Preview</h5>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                    <a id="fpm-download-btn" href="#" download
+                       class="btn btn-sm btn-light fw-bold d-none fpm-dl-btn">
+                        <i class="fa-solid fa-download me-1"></i>Download
+                    </a>
+                    <button type="button" class="btn-close btn-close-white"
+                            data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+
+            <!-- Body -->
+            <div class="modal-body p-0 d-flex flex-column align-items-stretch fpm-body"
+                 id="filePreviewBody">
+                <div class="text-muted p-4 text-center fpm-loading">
+                    <i class="fa-solid fa-spinner fa-spin fa-2x text-primary mb-3 d-block"></i>
+                    Loading preview…
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- ── In-Video Quiz Overlay ── -->
+<div id="quizOverlayModal" role="dialog" aria-modal="true" style="
+    display:none; position:fixed; inset:0; z-index:10050;
+    background:rgba(15,23,42,0.82); backdrop-filter:blur(6px);
+    align-items:center; justify-content:center; padding:16px;
+">
+    <div id="quizCard" style="
+        background:#fff; border-radius:20px; width:100%; max-width:540px;
+        box-shadow:0 24px 80px rgba(0,0,0,.45);
+        animation:quizSlideIn .32s cubic-bezier(.34,1.56,.64,1);
+        position:relative; max-height:92vh; overflow-y:auto;
+    ">
+        <!-- Header -->
+        <div class="qz-header">
+            <div class="qz-header-left">
+                <span class="qz-chip"><i class="fa-solid fa-circle-question"></i> Quiz</span>
+                <span class="qz-progress" id="quizProgress"></span>
+            </div>
+            <button class="qz-close-btn" onclick="dismissQuizPopup()" title="Close (video stays paused)">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div class="qz-body">
+            <!-- Loading -->
+            <div id="quizLoadingState" class="qz-loading" style="display:none;">
+                <i class="fa-solid fa-spinner fa-spin"></i>
+                <p>Loading question&hellip;</p>
+            </div>
+
+            <!-- Quiz content -->
+            <div id="quizQuizContent">
+                <div class="qz-qtext" id="quizQuestionText"></div>
+                <div class="qz-options" id="quizOptions"></div>
+                <div class="qz-feedback" id="quizFeedback" style="display:none;"></div>
+                <div class="qz-actions">
+                    <button class="qz-submit" id="quizSubmitBtn" disabled onclick="submitQuizAnswer()">
+                        <i class="fa-solid fa-paper-plane"></i> Submit Answer
+                    </button>
+                    <button class="qz-continue" id="quizContinueBtn" style="display:none;" onclick="continueVideo()">
+                        <i class="fa-solid fa-play"></i> Continue Video
+                    </button>
+                    <button class="qz-skip" id="quizSkipBtn" onclick="dismissQuizPopup()" title="Close popup (quiz will reappear)">
+                        <i class="fa-solid fa-clock-rotate-left"></i> Answer Later
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pending Quiz Warning Banner -->
+<div id="quizPendingBanner" onclick="reopenQuizPopup()" style="display:none;">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    Quiz pending &mdash; tap to answer and continue
+</div>
+
+<!-- Toast Container -->
+<div id="quizToastContainer"></div>
+
+<!-- Anti-Skip Protection Status Indicator -->
+<div id="protectionStatus" class="protection-status">
+    <span class="status-dot"></span>
+    <span id="protectionText">Anti-Skip Protection Active</span>
+</div>
+
+<style>
+    /* === FILE PREVIEW MODAL STYLES === */
+    .fpm-dialog { max-width: min(1120px, 96vw) !important; margin: 1.25rem auto; }
+    .fpm-shell { border-radius: 16px; overflow: hidden; background: #0f172a; }
+    .fpm-header { background: linear-gradient(135deg,#6366f1,#4f46e5); }
+    .fpm-body {
+        min-height: 55vh;
+        max-height: calc(100vh - 130px);
+        background: #fff;
+        overflow: auto;
+        position: relative;
+    }
+    .fpm-loading { width: 100%; align-self: center; }
+    .fpm-dl-btn { font-size: 12px; }
+    #filePreviewModal .modal-backdrop.show { opacity: 0.72; }
+
+    /* === QUIZ OVERLAY STYLES === */
+    @@keyframes quizSlideIn { from{opacity:0;transform:scale(.88) translateY(20px)} to{opacity:1;transform:scale(1) translateY(0)} }
+    /* Header */
+    .qz-header { background:linear-gradient(135deg,#6366f1,#4f46e5); border-radius:20px 20px 0 0; padding:18px 22px 16px; display:flex; align-items:center; justify-content:space-between; }
+    .qz-header-left { display:flex; align-items:center; gap:10px; }
+    .qz-chip { background:rgba(255,255,255,.18); color:#fff; border-radius:20px; padding:4px 12px; font-size:11px; font-weight:700; display:inline-flex; align-items:center; gap:5px; }
+    .qz-progress { font-size:11px; color:rgba(255,255,255,.7); font-weight:700; }
+    .qz-close-btn { background:rgba(255,255,255,.15); border:none; color:#fff; border-radius:8px; width:30px; height:30px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .15s; flex-shrink:0; }
+    .qz-close-btn:hover { background:rgba(255,255,255,.3); }
+    /* Body */
+    .qz-body { padding:24px 22px 22px; }
+    .qz-qtext { font-size:16px; font-weight:800; color:#1e293b; margin-bottom:18px; line-height:1.5; }
+    .qz-options { display:flex; flex-direction:column; gap:9px; }
+    .qz-opt { text-align:left; border:2px solid #e2e8f0; border-radius:12px; background:#f8fafc; padding:11px 15px; font-size:14px; font-weight:600; color:#1e293b; cursor:pointer; display:flex; align-items:center; gap:12px; transition:all .18s; width:100%; }
+    .qz-opt:hover:not([disabled]) { border-color:#6366f1; background:#eff6ff; color:#4f46e5; }
+    .qz-opt .ok { width:28px; height:28px; border-radius:8px; background:#e2e8f0; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; flex-shrink:0; transition:all .18s; }
+    .qz-opt:hover:not([disabled]) .ok { background:#6366f1; color:#fff; }
+    .qz-opt.sel-correct { border-color:#16a34a; background:#f0fdf4; color:#16a34a; }
+    .qz-opt.sel-correct .ok { background:#16a34a; color:#fff; }
+    .qz-opt.sel-wrong { border-color:#ef4444; background:#fef2f2; color:#ef4444; }
+    .qz-opt.sel-wrong .ok { background:#ef4444; color:#fff; }
+    .qz-opt.rev-correct { border-color:#16a34a; background:#f0fdf4; }
+    .qz-opt.rev-correct .ok { background:#16a34a; color:#fff; }
+    .qz-feedback { margin-top:16px; padding:13px 16px; border-radius:12px; font-size:14px; font-weight:700; display:flex; align-items:center; gap:10px; }
+    .qz-feedback.correct { background:#f0fdf4; color:#16a34a; }
+    .qz-feedback.wrong { background:#fef2f2; color:#ef4444; }
+    .qz-feedback.already { background:#eff6ff; color:#3b82f6; }
+    .qz-actions { margin-top:18px; display:flex; flex-direction:column; gap:8px; }
+    .qz-submit { background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; border:none; border-radius:12px; padding:13px 20px; font-size:15px; font-weight:700; width:100%; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:opacity .18s; }
+    .qz-submit:hover:not(:disabled) { opacity:.88; }
+    .qz-submit:disabled { opacity:.5; cursor:not-allowed; }
+    .qz-continue { background:#f0fdf4; color:#16a34a; border:2px solid #16a34a; border-radius:12px; padding:11px 20px; font-size:14px; font-weight:700; width:100%; cursor:pointer; transition:background .15s; display:flex; align-items:center; justify-content:center; gap:8px; }
+    .qz-continue:hover { background:#dcfce7; }
+    .qz-skip { background:#f8fafc; color:#94a3b8; border:none; border-radius:12px; padding:9px 20px; font-size:13px; font-weight:600; width:100%; cursor:pointer; transition:background .15s; }
+    .qz-skip:hover { background:#f1f5f9; color:#64748b; }
+    /* Loading */
+    .qz-loading { text-align:center; padding:40px 20px; }
+    .qz-loading i { font-size:32px; color:#6366f1; margin-bottom:12px; display:block; }
+    .qz-loading p { color:#64748b; font-size:14px; margin:0; }
+    /* Pending warning banner */
+    #quizPendingBanner { display:none; position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:#d97706; color:#fff; padding:10px 22px; border-radius:30px; font-size:13px; font-weight:700; z-index:10040; box-shadow:0 8px 24px rgba(0,0,0,.25); display:flex; align-items:center; gap:8px; white-space:nowrap; cursor:pointer; }
+    /* Toast */
+    #quizToastContainer { position:fixed; top:80px; right:20px; z-index:10200; display:flex; flex-direction:column; gap:8px; pointer-events:none; }
+    .quiz-toast { background:#1e293b; color:#fff; padding:12px 18px; border-radius:10px; font-size:13px; font-weight:600; display:flex; align-items:center; gap:8px; box-shadow:0 8px 24px rgba(0,0,0,.25); opacity:0; transform:translateX(30px); transition:all .3s ease; pointer-events:none; min-width:240px; max-width:320px; }
+    .quiz-toast.show { opacity:1; transform:translateX(0); }
+    .quiz-toast.t-success { background:#16a34a; }
+    .quiz-toast.t-warning { background:#d97706; }
+    .quiz-toast.t-error   { background:#dc2626; }
+    .quiz-toast.t-info    { background:#3b82f6; }
+    
+    /* === ENHANCED VIDEO PROGRESS BAR WITH QUIZ MARKERS === */
+    .video-progress-container { position:relative; width:100%; height:6px; background:#e2e8f0; border-radius:3px; margin:8px 0; }
+    .video-progress-bar { height:100%; background:linear-gradient(90deg,#6366f1,#4f46e5); border-radius:3px; transition:width 0.3s ease; }
+    .video-progress-locked { background:#ef4444; }
+    .quiz-marker { position:absolute; top:-2px; width:10px; height:10px; background:#f59e0b; border:2px solid #fff; border-radius:50%; transform:translateX(-50%); cursor:pointer; }
+    .quiz-marker.completed { background:#16a34a; }
+    .quiz-marker.current { background:#ef4444; animation:pulse 2s infinite; }
+    @@keyframes pulse { 0%,100%{transform:translateX(-50%) scale(1)} 50%{transform:translateX(-50%) scale(1.2)} }
+    
+    /* === ANTI-SKIP PROTECTION INDICATORS === */
+    .protection-status { position:fixed; top:10px; right:10px; background:rgba(0,0,0,0.8); color:#fff; padding:6px 12px; border-radius:20px; font-size:11px; z-index:10100; display:none; }
+    .protection-status.active { display:block; }
+    .protection-status .status-dot { width:8px; height:8px; border-radius:50%; background:#16a34a; display:inline-block; margin-right:6px; animation:blink 2s infinite; }
+    @@keyframes blink { 0%,50%{opacity:1} 51%,100%{opacity:0.3} }
+
+    @@media(max-width:600px){
+        #quizCard { border-radius:14px; }
+        .qz-body { padding:18px 14px 16px; }
+        .qz-qtext { font-size:14px; }
+        .qz-opt { padding:9px 12px; font-size:13px; }
+        .qz-submit { padding:11px 16px; font-size:14px; }
+        #quizToastContainer { right:10px; top:60px; }
+        #quizPendingBanner { font-size:12px; padding:8px 16px; bottom:60px; }
+    }
+</style>
+
+<script>
+// PathBase from server (e.g. /MyVirtualDir) so absolute URLs match Microsoft Office Online Viewer requirements
+window.__appPathBase = '@(Context.Request.PathBase.Value?.TrimEnd('/') ?? "")';
+
+// ── File-type helpers (aligned with Notes/Docs popup viewer) ───────────
+var FPM_IMAGES  = ['jpg','jpeg','png','gif','bmp','webp','svg','ico','tiff','tif'];
+var FPM_VIDEOS  = ['mp4','webm','ogg','mov','avi'];
+var FPM_OFFICE  = ['doc','docx','xls','xlsx','ppt','pptx'];
+var FPM_TEXT    = ['txt','csv','xml','json','html','htm','log','md'];
+
+/** Build a browser-absolute URL for the file (Office Viewer needs a public absolute HTTPS URL). */
+function fpmAbsoluteFileUrl(filePath) {
+    if (!filePath) return '';
+    var fp = filePath.trim().split('#')[0];
+    if (/^https?:\/\//i.test(fp)) return fp;
+    var origin = window.location.origin;
+    var pb = (typeof window.__appPathBase === 'string' ? window.__appPathBase : '').replace(/\/$/, '');
+    var path = fp.replace(/^\~\//, '/');
+    if (!path.startsWith('/')) path = '/' + path;
+    if (pb && path.toLowerCase().indexOf((pb + '/').toLowerCase()) !== 0 && path.toLowerCase() !== pb.toLowerCase())
+        path = pb + path;
+    return origin + path.replace(/\/{2,}/g, '/');
+}
+
+function fpmIsLocalDevHost() {
+    var h = (window.location.hostname || '').toLowerCase();
+    return h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h === '::1';
+}
+
+window.openFilePreview = function(filePath, title, materialId, matType) {
+    if (!filePath) return;
+
+    materialId = parseInt(materialId) || 0;
+    matType    = (matType || '').toLowerCase();
+
+    // update header
+    var label = document.getElementById('filePreviewLabel');
+    if (label) label.textContent = title || 'Preview';
+
+    // extension (strip query string)
+    var ext = filePath.split('?')[0].split('.').pop().toLowerCase();
+
+    // icon + download button
+    var icon    = document.getElementById('filePreviewIcon');
+    var dlBtn   = document.getElementById('fpm-download-btn');
+    if (dlBtn) { dlBtn.href = filePath; dlBtn.classList.add('d-none'); }
+
+    var html = '';
+    var viewH = 'min(75vh, 680px)';
+
+    // Reset Type State
+    _isVideoTypeYT = false;
+    _ytVideoId = "";
+    if (_ytPlayer) { try { _ytPlayer.destroy(); } catch(e){} _ytPlayer = null; }
+
+    // ── YouTube
+    if (filePath.indexOf('youtu') >= 0) {
+        var m = filePath.match(/(?:v=|youtu\.be\/)([0-9A-Za-z_-]{11})/);
+        if (m) {
+            _isVideoTypeYT = true;
+            _ytVideoId = m[1];
+            ensureYouTubeAPI();
+            html = '<div id="ytPlayerWrapper" style="width:100%;height:' + viewH + ';background:#000;"><div id="ytPlayerContainer"></div></div>';
+            if (icon) icon.className = 'fa-brands fa-youtube text-white me-2';
+        } else {
+            html = '<p class="text-danger p-4">Invalid YouTube link.</p>';
+            materialId = 0;
+        }
+
+    // ── Vimeo
+    } else if (filePath.indexOf('vimeo') >= 0) {
+        var v = filePath.match(/vimeo\.com\/(\d+)/);
+        html = v ? '<iframe style="width:100%;height:' + viewH + ';border:none;display:block;" src="https://player.vimeo.com/video/' + v[1] + '?autoplay=1" frameborder="0" allow="autoplay;fullscreen" allowfullscreen></iframe>'
+                 : '<p class="text-danger p-4">Invalid Vimeo link.</p>';
+        if (icon) icon.className = 'fa-solid fa-video text-white me-2';
+        materialId = 0; // Currently bypassing telemetry for Vimeo
+
+    // ── Image
+    } else if (FPM_IMAGES.indexOf(ext) !== -1) {
+        html = '<div style="display:flex;align-items:center;justify-content:center;min-height:' + viewH + ';padding:20px;">'
+             + '<img src="' + filePath + '" style="max-width:100%;max-height:' + viewH + ';border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.15);" alt="' + (title||'Image') + '" /></div>';
+        if (icon) icon.className = 'fa-solid fa-image text-white me-2';
+        if (dlBtn) { dlBtn.classList.remove('d-none'); }
+        materialId = 0;
+
+    // ── Video (local)
+    } else if (FPM_VIDEOS.indexOf(ext) !== -1 || matType === 'video' || matType === 'videourl') {
+        // Double check if it got missed by youtu/vimeo but is still actually an external URL
+        if (filePath.indexOf('http') === 0 && (filePath.indexOf('youtu') >= 0 || filePath.indexOf('vimeo') >= 0)) {
+            // safety fallback if matched incorrectly
+            materialId = 0;
+            html = '<iframe style="width:100%;height:' + viewH + ';border:none;" src="' + filePath + '"></iframe>';
+        } else {
+            var mime = ext === 'webm' ? 'video/webm' : ext === 'ogg' ? 'video/ogg' : (ext === 'mov' ? 'video/quicktime' : 'video/mp4');
+            html = '<video id="quizVideo" width="100%" height="100%" controls autoplay '
+                 + 'style="background:#000;max-height:' + viewH + ';display:block;">'
+                 + '<source src="' + filePath + '" type="' + mime + '">'
+                 + 'Your browser does not support video.</video>';
+            if (icon) icon.className = 'fa-solid fa-video text-white me-2';
+        }
+
+    // ── Interactive PPT Custom Image Viewer
+    } else if (matType === 'interactiveppt') {
+        html = '<iframe src="/InteractivePPT/View/' + materialId + '" '
+             + 'style="width:100%;height:calc(100vh - 180px);min-height:620px;border:none;display:block;"></iframe>';
+        if (icon) icon.className = 'fa-solid fa-file-powerpoint text-white me-2';
+        materialId = 0; // Custom tracking already managed by the PPT player inside the iframe
+
+    // ── PDF (only real PDFs)
+    } else if (ext === 'pdf') {
+        html = '<iframe src="' + filePath + '#toolbar=0&navpanes=0&scrollbar=1" '
+             + 'style="width:100%;height:' + viewH + ';border:none;display:block;"></iframe>';
+        if (icon) icon.className = 'fa-solid fa-file-pdf text-white me-2';
+        if (dlBtn) { dlBtn.classList.remove('d-none'); }
+        materialId = 0;
+
+    // ── Office (Word / Excel / PowerPoint)
+    } else if (FPM_OFFICE.indexOf(ext) !== -1) {
+        if (fpmIsLocalDevHost()) {
+            html = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:14px;color:#94a3b8;text-align:center;padding:40px;">'
+                 + '<i class="fa-solid fa-file-word" style="font-size:48px;color:#3b82f6;"></i>'
+                 + '<div style="font-size:15px;font-weight:700;color:#fff;">' + (title||'Document') + '</div>'
+                 + '<div style="font-size:13px;">Microsoft Office Online Viewer requires a public HTTPS URL to the file.<br>On localhost, use <strong style="color:#fff;">Download</strong> or an ngrok / deployed URL.</div>'
+                 + '<a href="' + filePath + '" target="_blank" rel="noopener" class="btn btn-primary mt-2"><i class="fa-solid fa-download me-1"></i>Open / Download</a></div>';
+        } else {
+            var absOffice = fpmAbsoluteFileUrl(filePath);
+            html = '<iframe src="https://view.officeapps.live.com/op/embed.aspx?src=' + encodeURIComponent(absOffice) + '" '
+                 + 'style="width:100%;height:' + viewH + ';border:none;display:block;"></iframe>';
+        }
+        if (icon) icon.className = 'fa-solid fa-file-powerpoint text-white me-2';
+        if (dlBtn) { dlBtn.classList.remove('d-none'); }
+        materialId = 0;
+
+    // ── Plain text / code
+    } else if (FPM_TEXT.indexOf(ext) !== -1) {
+        html = '<iframe src="' + filePath + '" style="width:100%;height:' + viewH + ';border:none;display:block;background:#fff;"></iframe>';
+        if (icon) icon.className = 'fa-solid fa-file-lines text-white me-2';
+        if (dlBtn) { dlBtn.classList.remove('d-none'); }
+        materialId = 0;
+
+    // ── Unsupported
+    } else {
+        html = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:14px;color:#94a3b8;text-align:center;padding:40px;">'
+             + '<i class="fa-solid fa-file-circle-question" style="font-size:56px;color:#94a3b8;"></i>'
+             + '<div style="font-size:15px;font-weight:700;color:#fff;">' + (title||'File') + '</div>'
+             + '<div style="font-size:13px;">Preview is not available for this file type.<br>Use the <strong style="color:#fff;">Download</strong> button to access this file.</div>'
+             + '<a href="' + filePath + '" download class="btn btn-primary mt-2"><i class="fa-solid fa-download me-1"></i>Download File</a></div>';
+        if (icon) icon.className = 'fa-solid fa-file-circle-question text-white me-2';
+        materialId = 0;
+    }
+
+    var body = document.getElementById('filePreviewBody');
+    if (body) body.innerHTML = html;
+
+    if (typeof bootstrap !== 'undefined') {
+        var modal = new bootstrap.Modal(document.getElementById('filePreviewModal'));
+        modal.show();
+    }
+
+    if (materialId > 0 && typeof initVideoQuiz === 'function') {
+        setTimeout(function() { initVideoQuiz(materialId); }, 400);
+    }
+};
+
+// ── Telemetry & Anti-Skip State ──────────────────────────────────────
+var _isVideoTypeYT        = false;
+var _ytPlayer             = null;
+var _ytVideoId            = "";
+var _trackingInterval     = null;
+
+var _quizQuestions        = [];    
+var _answeredIds          = {};    
+var _currentQuestion      = null;  
+var _selectedOption       = null;  
+var _currentMaterialId    = 0;     
+var _checkInterval        = null;  
+var _quizOpen             = false; 
+var _maxWatchedSeconds    = 0;     
+var _dismissedQuizIds     = {};    
+var _triggeredQuizIds     = {};    
+var _lastPlaybackTime     = 0;     
+var _COOLDOWN_SECONDS     = 15;    
+var _lockedUntilSeconds   = Infinity;  
+var _strictLockEnabled    = true;       
+var _quizSystemReady      = false;      
+
+var _lastValidTime        = 0;          
+var _progressSaveInterval = null;     
+var _skipViolations       = 0;          
+var _sessionStartTime     = Date.now(); 
+var _totalWatchTime       = 0;          
+var _refreshBypassCheck   = true;       
+
+// ── Dynamic YouTube API Loader ──────────────────────────────────────────
+function ensureYouTubeAPI() {
+    if (!window.YT) {
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        if (firstScriptTag && firstScriptTag.parentNode) {
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        } else {
+            document.head.appendChild(tag);
+        }
+    }
+}
+
+// ── Unified Player Wrappers (HTML5 + YouTube) ───────────────────────────
+function getVideoCurrentTime() {
+    if (_isVideoTypeYT && _ytPlayer && typeof _ytPlayer.getCurrentTime === 'function') {
+        try { return _ytPlayer.getCurrentTime(); } catch(e){ return 0; }
+    }
+    var v = document.getElementById('quizVideo');
+    return v ? v.currentTime : 0;
+}
+function setVideoCurrentTime(sec) {
+    if (_isVideoTypeYT && _ytPlayer && typeof _ytPlayer.seekTo === 'function') {
+        try { _ytPlayer.seekTo(sec, true); } catch(e){}
+        return;
+    }
+    var v = document.getElementById('quizVideo');
+    if (v) v.currentTime = sec;
+}
+function getVideoDuration() {
+    if (_isVideoTypeYT && _ytPlayer && typeof _ytPlayer.getDuration === 'function') {
+        try { return _ytPlayer.getDuration(); } catch(e){ return 0; }
+    }
+    var v = document.getElementById('quizVideo');
+    return v ? v.duration : 0;
+}
+function pauseVideoElement() {
+    if (_isVideoTypeYT && _ytPlayer && typeof _ytPlayer.pauseVideo === 'function') {
+        try { _ytPlayer.pauseVideo(); } catch(e){}
+        return;
+    }
+    var v = document.getElementById('quizVideo');
+    if (v) v.pause();
+}
+function playVideoElement() {
+    if (_isVideoTypeYT && _ytPlayer && typeof _ytPlayer.playVideo === 'function') {
+        try { _ytPlayer.playVideo(); } catch(e){}
+        return;
+    }
+    var v = document.getElementById('quizVideo');
+    if (v) v.play();
+}
+function getPlayerContainer() {
+    if (_isVideoTypeYT) return document.getElementById('ytPlayerWrapper');
+    return document.getElementById('quizVideo');
+}
+function isVideoPaused() {
+    if (_isVideoTypeYT && _ytPlayer && typeof _ytPlayer.getPlayerState === 'function') {
+        try { return _ytPlayer.getPlayerState() !== 1; } catch(e){ return true; }
+    }
+    var v = document.getElementById('quizVideo');
+    return v ? v.paused : true;
+}
+
+// ── Utility & Visual Functions ──────────────────────────────────────────
+function showProtectionStatus(message) {
+    var status = document.getElementById('protectionStatus');
+    var text = document.getElementById('protectionText');
+    if (status && text) {
+        text.textContent = message || 'Anti-Skip Protection Active';
+        status.classList.add('active');
+        setTimeout(function() { status.classList.remove('active'); }, 5000);
+    }
+}
+
+function createProgressVisualization() {
+    var player = getPlayerContainer();
+    if (!player || !player.parentElement) return;
+
+    var existingBar = player.parentElement.querySelector('.video-progress-container');
+    if (existingBar) existingBar.remove();
+
+    var container = document.createElement('div');
+    container.className = 'video-progress-container';
+    container.innerHTML = '<div class="video-progress-bar" id="videoProgressBar"></div>';
+
+    var dur = getVideoDuration();
+
+    if (_quizQuestions && _quizQuestions.length > 0 && dur > 0) {
+        _quizQuestions.forEach(function(q) {
+            var percent = (q.showAtSeconds / dur) * 100;
+            var marker = document.createElement('div');
+            marker.className = 'quiz-marker';
+            marker.style.left = percent + '%';
+            marker.title = 'Quiz at ' + Math.floor(q.showAtSeconds / 60) + ':' + String(Math.floor(q.showAtSeconds % 60)).padStart(2, '0');
+            
+            if (_answeredIds[q.id]) { marker.classList.add('completed'); } 
+            else if (q.showAtSeconds === _lockedUntilSeconds) { marker.classList.add('current'); }
+            
+            container.appendChild(marker);
+        });
+    }
+
+    player.parentElement.insertBefore(container, player.nextSibling);
+    updateProgressVisualization();
+    quizLog('progress-visualization-created', { quizMarkers: _quizQuestions ? _quizQuestions.length : 0 });
+}
+
+function updateProgressVisualization() {
+    var progressBar = document.getElementById('videoProgressBar');
+    var dur = getVideoDuration();
+    var current = getVideoCurrentTime();
+    if (!progressBar || dur <= 0) return;
+
+    var currentPercent = (current / dur) * 100;
+    var maxPercent = (_maxWatchedSeconds / dur) * 100;
+    var lockPercent = _lockedUntilSeconds < Infinity ? (_lockedUntilSeconds / dur) * 100 : 100;
+
+    progressBar.style.width = Math.min(currentPercent, maxPercent) + '%';
+    
+    if (_lockedUntilSeconds < Infinity && currentPercent >= lockPercent) {
+        progressBar.classList.add('video-progress-locked');
+    } else {
+        progressBar.classList.remove('video-progress-locked');
+    }
+
+    var markers = document.querySelectorAll('.quiz-marker');
+    markers.forEach(function(marker) { marker.classList.remove('current'); });
+
+    if (_lockedUntilSeconds < Infinity && _quizQuestions) {
+        var currentQuiz = _quizQuestions.find(function(q) { return q.showAtSeconds === _lockedUntilSeconds && !_answeredIds[q.id]; });
+        if (currentQuiz) {
+            var currentPercentVal = (_lockedUntilSeconds / dur) * 100;
+            var currentMarker = Array.from(markers).find(function(m) {
+                return Math.abs(parseFloat(m.style.left) - currentPercentVal) < 1;
+            });
+            if (currentMarker) currentMarker.classList.add('current');
+        }
+    }
+}
+
+function showToast(msg, type, duration) {
+    var c = document.getElementById('quizToastContainer');
+    if (!c) return;
+
+    // Prevent duplicate toasts: suppress if same message is currently active
+    var activeToasts = c.querySelectorAll('.quiz-toast');
+    for (var i = 0; i < activeToasts.length; i++) {
+        if (activeToasts[i].getAttribute('data-msg') === msg) {
+            return;
+        }
+    }
+
+    var t = document.createElement('div');
+    t.className = 'quiz-toast t-' + (type || 'info');
+    t.setAttribute('data-msg', msg);
+    
+    var icon = { success:'fa-circle-check', warning:'fa-triangle-exclamation', error:'fa-circle-xmark', info:'fa-circle-info' }[type] || 'fa-circle-info';
+    t.innerHTML = '<i class="fa-solid ' + icon + '"></i> ' + msg;
+    c.appendChild(t);
+    
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ t.classList.add('show'); }); });
+    
+    setTimeout(function() {
+        t.classList.remove('show');
+        setTimeout(function(){ if (t.parentNode) t.parentNode.removeChild(t); }, 350);
+    }, duration || 3500);
+}
+
+function quizLog(event, data) {
+    if (typeof console !== 'undefined') {
+        console.log('[Telemetry]', event, data || {});
+    }
+}
+
+// ── Pre-Playback Overlay Helpers ──────────────────────────────────────────
+function disableVideoUntilReady(video) {
+    if (!video) return;
+    video.pause();
+    video.controls = false;
+    
+    var overlay = document.createElement('div');
+    overlay.id = 'quizLoadingOverlay';
+    overlay.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;';
+    overlay.innerHTML = '<div style="text-align:center;color:white;"><div class="spinner-border text-light mb-3" role="status"></div><p>Preparing interactive sequence...</p></div>';
+    
+    var container = video.parentElement;
+    if (container) {
+        container.style.position = 'relative';
+        container.appendChild(overlay);
+    }
+}
+
+function enableVideoAfterReady(video) {
+    if (!video) return;
+    video.controls = true;
+    var overlay = document.getElementById('quizLoadingOverlay');
+    if (overlay && overlay.parentNode) { overlay.parentNode.removeChild(overlay); }
+    _quizSystemReady = true;
+}
+
+// ── Main Initialization ──────────────────────────────────────────────────
+function initVideoQuiz(materialId) {
+    clearInterval(_checkInterval);
+    clearInterval(_trackingInterval);
+    stopProgressTracking();
+
+    _currentMaterialId = materialId;
+    _quizQuestions     = [];
+    _currentQuestion   = null;
+    _quizOpen          = false;
+    _maxWatchedSeconds = 0;
+    _dismissedQuizIds  = {};
+    _triggeredQuizIds  = {};
+    _lastPlaybackTime  = 0;
+    _lockedUntilSeconds = Infinity;
+    _quizSystemReady   = false;
+    
+    _lastValidTime      = 0;
+    _skipViolations     = 0;
+    _sessionStartTime   = Date.now();
+    _totalWatchTime     = 0;
+    _refreshBypassCheck = true;
+
+    var storageKey = 'quiz_answered_' + materialId;
+    try { _answeredIds = JSON.parse(sessionStorage.getItem(storageKey) || '{}'); }
+    catch(e) { _answeredIds = {}; }
+
+    quizLog('init-start', { materialId: materialId, typeYT: _isVideoTypeYT });
+
+    var video = document.getElementById('quizVideo');
+    if (video && !_isVideoTypeYT) { disableVideoUntilReady(video); }
+
+    document.getElementById('quizLoadingState').style.display = 'block';
+    document.getElementById('quizQuizContent').style.display  = 'none';
+
+    // 1. Load Progress from DB
+    fetch('/VideoProgress/GetProgress?materialId=' + materialId)
+        .then(function(r) { return r.json(); })
+        .then(function(progRes) {
+            var savedPos = 0;
+            if (progRes.success && progRes.data) {
+                _maxWatchedSeconds = progRes.data.watchedSeconds || 0;
+                _lastValidTime = _maxWatchedSeconds;
+                savedPos = progRes.data.lastPositionSeconds || 0;
+                quizLog('progress-loaded', { max: _maxWatchedSeconds, resume: savedPos });
+            }
+
+            if (!_isVideoTypeYT && video && savedPos > 0) {
+                var resumeVideo = function() {
+                    if (video.currentTime < savedPos) { video.currentTime = savedPos; }
+                    video.removeEventListener('loadedmetadata', resumeVideo);
+                    video.removeEventListener('canplay', resumeVideo);
+                };
+                video.addEventListener('loadedmetadata', resumeVideo);
+                video.addEventListener('canplay', resumeVideo);
+            }
+
+            // 2. Fetch Quizzes
+            return fetch('/api/lecture-quiz/questions/' + materialId + '?t=' + Date.now())
+                .then(function(r) {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.json();
+                })
+                .then(function(data) {
+                    // Success callback inside chain
+                    document.getElementById('quizLoadingState').style.display = 'none';
+                    document.getElementById('quizQuizContent').style.display  = 'block';
+
+                    if (data.success && data.questions && data.questions.length > 0) {
+                        data.questions.forEach(function(q) { if (q.alreadyAnswered) _answeredIds[q.id] = true; });
+                        sessionStorage.setItem(storageKey, JSON.stringify(_answeredIds));
+                        _quizQuestions = data.questions.filter(function(q) { return !_answeredIds[q.id]; });
+                    }
+
+                    calculateLockPoint();
+
+                    if (_isVideoTypeYT) {
+                        initYTPlayer(_ytVideoId, savedPos);
+                    } else {
+                        if (video) {
+                            enableVideoAfterReady(video);
+                            var handleMeta = function() {
+                                createProgressVisualization();
+                                showProtectionStatus('Comprehensive Anti-Skip Active');
+                            };
+                            if (video.readyState >= 1) {
+                                handleMeta();
+                            } else {
+                                video.addEventListener('loadedmetadata', handleMeta);
+                            }
+                        }
+                        
+                        // Start standard tracking engines
+                        startUnifiedTracking();
+                        startProgressTracking();
+                        startQuizWatcher();
+                    }
+                });
+        })
+        .catch(function(e) {
+            quizLog('init-error', { error: e.message });
+            document.getElementById('quizLoadingState').style.display = 'none';
+            document.getElementById('quizQuizContent').style.display  = 'block';
+            showToast('Telemetry synchronization offline.', 'error');
+            if (!_isVideoTypeYT && video) enableVideoAfterReady(video);
+            
+            // Even on fail, still start basic tracking
+            if (_isVideoTypeYT) {
+                initYTPlayer(_ytVideoId, 0);
+            } else {
+                startUnifiedTracking();
+                startProgressTracking();
+            }
+        });
+}
+
+// ── Dynamic YouTube Instance Initializer ─────────────────────────────────
+function initYTPlayer(videoId, savedPos) {
+    var checkCount = 0;
+    var checkYT = setInterval(function() {
+        if (window.YT && window.YT.Player) {
+            clearInterval(checkYT);
+            
+            _ytPlayer = new YT.Player('ytPlayerContainer', {
+                height: '100%',
+                width: '100%',
+                videoId: videoId,
+                playerVars: {
+                    'autoplay': 1,
+                    'controls': 1,
+                    'modestbranding': 1,
+                    'rel': 0,
+                    'showinfo': 0
+                },
+                events: {
+                    'onReady': function(event) {
+                        _quizSystemReady = true;
+                        
+                        if (savedPos > 0) {
+                            event.target.seekTo(savedPos, true);
+                        }
+                        
+                        setTimeout(function() {
+                            createProgressVisualization();
+                            showProtectionStatus('Anti-Skip Active (YouTube Stream)');
+                            
+                            startUnifiedTracking();
+                            startProgressTracking();
+                            startQuizWatcher();
+                        }, 1000); // Give YouTube player time to buffer metadata
+                    }
+                }
+            });
+        }
+        
+        checkCount++;
+        if (checkCount > 100) { // 10 second timeout
+            clearInterval(checkYT);
+            showToast('YouTube API Connection Timeout', 'error');
+        }
+    }, 100);
+}
+
+function calculateLockPoint() {
+    var lockAt = Infinity;
+    _quizQuestions.forEach(function(q) {
+        if (!_answeredIds[q.id] && q.showAtSeconds < lockAt) { lockAt = q.showAtSeconds; }
+    });
+    _lockedUntilSeconds = lockAt;
+    return lockAt;
+}
+
+// ── UNIFIED HIGH-FREQUENCY VIDEO TRACKER (350ms POLLING) ──────────────────
+function startUnifiedTracking() {
+    if (_trackingInterval) clearInterval(_trackingInterval);
+    
+    _trackingInterval = setInterval(function() {
+        var current = getVideoCurrentTime();
+        var dur     = getVideoDuration();
+        
+        if (dur <= 0) return; // Wait for load
+        
+        var timeDiff = current - _lastValidTime;
+        
+        // 1. Forward Seek Block
+        // Only block if skipping ahead PAST the maximum watched sequential point
+        if (timeDiff > 2.5) {
+            if (current > _maxWatchedSeconds + 2.0) {
+                pauseVideoElement();
+                setVideoCurrentTime(_maxWatchedSeconds);
+                _skipViolations++;
+                showToast('Please watch the video completely to unlock further progress.', 'warning', 5000);
+                showProtectionStatus('Forward Seek Blocked - Sequential Mode Active');
+                return;
+            }
+        }
+        
+        // 2. Quiz Lock Point Enforcement
+        if (_lockedUntilSeconds < Infinity && current >= _lockedUntilSeconds) {
+            pauseVideoElement();
+            setVideoCurrentTime(_lockedUntilSeconds - 0.5);
+            
+            if (!_quizOpen) {
+                for (var i = 0; i < _quizQuestions.length; i++) {
+                    var q = _quizQuestions[i];
+                    if (!_answeredIds[q.id] && q.showAtSeconds === _lockedUntilSeconds) {
+                        _triggeredQuizIds[q.id] = true;
+                        showQuizPopup(q, i + 1, _quizQuestions.length);
+                        break;
+                    }
+                }
+            }
+            showToast('Complete the quiz to continue watching.', 'warning', 3000);
+            return;
+        }
+        
+        // 3. Expand Seqential Progress
+        if (!_quizOpen && current > _maxWatchedSeconds && timeDiff > 0 && timeDiff <= 2.5) {
+            _maxWatchedSeconds = current;
+        }
+        
+        // 4. Tracking baseline baseline (follows valid plays/rewinds)
+        if (timeDiff <= 2.5) {
+            _lastValidTime = current;
+        }
+        
+        // 5. Visual state updates
+        updateProgressVisualization();
+        
+    }, 350);
+}
+
+function startQuizWatcher() {
+    clearInterval(_checkInterval);
+    _checkInterval = setInterval(function() {
+        if (_quizOpen) return;
+        
+        var t = Math.floor(getVideoCurrentTime());
+        if (Math.abs(t - _lastPlaybackTime) > 1) { _lastPlaybackTime = t; }
+
+        for (var i = 0; i < _quizQuestions.length; i++) {
+            var q = _quizQuestions[i];
+            if (_answeredIds[q.id]) continue;
+            
+            if (t >= q.showAtSeconds) {
+                if (_dismissedQuizIds[q.id]) {
+                    var playbackSinceDismiss = t - _dismissedQuizIds[q.id];
+                    if (playbackSinceDismiss < _COOLDOWN_SECONDS) { continue; } 
+                    else { delete _dismissedQuizIds[q.id]; }
+                }
+                
+                if (_triggeredQuizIds[q.id] && !_dismissedQuizIds[q.id]) { continue; }
+
+                pauseVideoElement();
+                _triggeredQuizIds[q.id] = true;
+                showQuizPopup(q, i + 1, _quizQuestions.length);
+                break;
+            }
+        }
+    }, 1000);
+}
+
+// ── Quiz Interactive Popup Operations ──────────────────────────────────────
+function showQuizPopup(question, idx, total) {
+    _currentQuestion = question;
+    _selectedOption  = null;
+    _quizOpen        = true;
+
+    var overlay = document.getElementById('quizOverlayModal');
+    if (!overlay) return;
+
+    var banner = document.getElementById('quizPendingBanner');
+    if (banner) banner.style.display = 'none';
+
+    document.getElementById('quizProgress').textContent = 'Q' + idx + ' of ' + total;
+    document.getElementById('quizQuestionText').textContent = question.questionText;
+    document.getElementById('quizFeedback').style.display = 'none';
+
+    var submitBtn = document.getElementById('quizSubmitBtn');
+    submitBtn.style.display = 'flex';
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Answer';
+
+    document.getElementById('quizContinueBtn').style.display = 'none';
+    var skipBtn = document.getElementById('quizSkipBtn');
+    if (skipBtn) skipBtn.style.display = 'block';
+
+    var opts = [
+        { key:'A', text: question.optionA },
+        { key:'B', text: question.optionB },
+        { key:'C', text: question.optionC },
+        { key:'D', text: question.optionD }
+    ].filter(function(o){ return o.text; });
+
+    var container = document.getElementById('quizOptions');
+    container.innerHTML = '';
+    opts.forEach(function(opt) {
+        var btn = document.createElement('button');
+        btn.className   = 'qz-opt';
+        btn.dataset.key = opt.key;
+        btn.type        = 'button';
+        btn.innerHTML   = '<div class="ok">' + opt.key + '</div><span>' + escHtml(opt.text) + '</span>';
+        btn.addEventListener('click', function() {
+            container.querySelectorAll('.qz-opt').forEach(function(b){
+                b.style.borderColor = ''; b.style.background  = ''; b.style.color = '';
+            });
+            btn.style.borderColor = '#6366f1';
+            btn.style.background  = '#eff6ff';
+            btn.style.color       = '#4f46e5';
+            _selectedOption = opt.key;
+            document.getElementById('quizSubmitBtn').disabled = false;
+        });
+        container.appendChild(btn);
+    });
+
+    overlay.style.display = 'flex';
+}
+
+function dismissQuizPopup() {
+    var overlay = document.getElementById('quizOverlayModal');
+    if (overlay) overlay.style.display = 'none';
+    _quizOpen = false;
+
+    _dismissedQuizIds[_currentQuestion.id] = Math.floor(getVideoCurrentTime());
+    
+    var banner = document.getElementById('quizPendingBanner');
+    if (banner) banner.style.display = 'flex';
+    showToast('Quiz skipped temporarily. Rewatch to answer later.', 'info', 4000);
+}
+
+function reopenQuizPopup() {
+    if (!_currentQuestion) return;
+    if (_currentQuestion && _dismissedQuizIds[_currentQuestion.id]) { delete _dismissedQuizIds[_currentQuestion.id]; }
+    var idx = _quizQuestions.indexOf(_currentQuestion);
+    if (idx < 0) idx = 0;
+    showQuizPopup(_currentQuestion, idx + 1, _quizQuestions.length);
+}
+
+function submitQuizAnswer() {
+    if (!_selectedOption || !_currentQuestion) {
+        showToast('Please select an option.', 'warning');
+        return;
+    }
+
+    var btn = document.getElementById('quizSubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting…';
+
+    var skipBtn = document.getElementById('quizSkipBtn');
+    if (skipBtn) skipBtn.disabled = true;
+
+    fetch('/api/lecture-quiz/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify({ questionId: _currentQuestion.id, selectedOption: _selectedOption }),
+        credentials: 'same-origin'
+    })
+    .then(function(r) {
+        if (!r.ok) throw new Error('HTTP_' + r.status);
+        return r.json();
+    })
+    .then(function(data) {
+        if (!data.success) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Answer';
+            if (skipBtn) skipBtn.disabled = false;
+            showToast(data.message || 'Submission failed.', 'error');
+            return;
+        }
+
+        _answeredIds[_currentQuestion.id] = true;
+        sessionStorage.setItem('quiz_answered_' + _currentMaterialId, JSON.stringify(_answeredIds));
+        _quizQuestions = _quizQuestions.filter(function(q){ return q.id !== _currentQuestion.id; });
+
+        var container = document.getElementById('quizOptions');
+        container.querySelectorAll('.qz-opt').forEach(function(b) {
+            b.disabled = true;
+            var k = b.dataset.key;
+            if (k === data.correctOption)                      b.classList.add('rev-correct');
+            if (k === _selectedOption && data.isCorrect)       b.classList.add('sel-correct');
+            if (k === _selectedOption && !data.isCorrect)      b.classList.add('sel-wrong');
+        });
+
+        var fb = document.getElementById('quizFeedback');
+        fb.className = 'qz-feedback ' + (data.alreadyDone ? 'already' : (data.isCorrect ? 'correct' : 'wrong'));
+        fb.innerHTML = data.isCorrect
+            ? '<i class="fa-solid fa-circle-check"></i> Correct! Well done.'
+            : '<i class="fa-solid fa-circle-xmark"></i> Incorrect. Correct answer: <strong>' + data.correctOption + '</strong>.';
+        fb.style.display = 'flex';
+
+        btn.style.display = 'none';
+        if (skipBtn) skipBtn.style.display = 'none';
+        document.getElementById('quizContinueBtn').style.display = 'flex';
+
+        showToast(data.isCorrect ? 'Correct!' : 'Incorrect.', data.isCorrect ? 'success' : 'warning');
+    })
+    .catch(function(e) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Answer';
+        if (skipBtn) skipBtn.disabled = false;
+        showToast('Network synchronization failure.', 'error');
+    });
+}
+
+function continueVideo() {
+    var overlay = document.getElementById('quizOverlayModal');
+    if (overlay) {
+        overlay.style.display = 'none';
+        if (overlay.parentNode !== document.body) { document.body.appendChild(overlay); }
+    }
+
+    var banner = document.getElementById('quizPendingBanner');
+    if (banner) banner.style.display = 'none';
+    _quizOpen = false;
+
+    calculateLockPoint();
+    playVideoElement();
+}
+
+// ── Server-Side Telemetry Sync ────────────────────────────────────────────
+function saveProgress(materialId, currentSec, maxSec) {
+    if (!materialId || materialId <= 0) return;
+
+    var duration = getVideoDuration();
+    if (duration <= 0) return;
+
+    var progressData = {
+        materialId: parseInt(materialId),
+        watchedSeconds: Math.floor(maxSec),
+        durationSeconds: Math.floor(duration),
+        lastPositionSeconds: Math.floor(currentSec)
+    };
+
+    sessionStorage.setItem('quiz_progress_' + materialId, JSON.stringify({
+        lastWatched: currentSec,
+        maxReached:  maxSec,
+        savedAt:     Date.now()
+    }));
+
+    fetch('/VideoProgress/UpdateProgress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify(progressData),
+        credentials: 'same-origin'
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+        if (res.success && res.data) {
+            quizLog('telemetry-saved', { pct: res.data.progressPercentage });
+        }
+    })
+    .catch(function(){});
+}
+
+function startProgressTracking() {
+    if (_progressSaveInterval) { clearInterval(_progressSaveInterval); }
+    _progressSaveInterval = setInterval(function() {
+        if (_currentMaterialId > 0) {
+            saveProgress(_currentMaterialId, getVideoCurrentTime(), _maxWatchedSeconds);
+        }
+    }, 10000);
+}
+
+function stopProgressTracking() {
+    if (_progressSaveInterval) { clearInterval(_progressSaveInterval); _progressSaveInterval = null; }
+}
+
+// ── GLOBAL EVENT DELEGATIONS ──────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Listen to any media clicks
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.view-file-link');
+        if (!btn) return;
+        e.preventDefault();
+
+        var filePath   = btn.getAttribute('data-filepath') || btn.getAttribute('data-filepath-fallback') || '';
+        var title      = btn.getAttribute('data-title') || 'Preview';
+        var materialId = parseInt(btn.getAttribute('data-material-id')) || 0;
+        var matType    = (btn.getAttribute('data-materialtype') || '').toLowerCase();
+        
+        if (window.openFilePreview) {
+            window.openFilePreview(filePath, title, materialId, matType);
+        }
+    });
+
+    // 2. Modal teardown & state cleanup
+    var previewModal = document.getElementById('filePreviewModal');
+    if (previewModal) {
+        previewModal.addEventListener('hidden.bs.modal', function () {
+            clearInterval(_checkInterval);
+            clearInterval(_trackingInterval);
+            stopProgressTracking();
+            _quizOpen = false;
+
+            var overlay = document.getElementById('quizOverlayModal');
+            if (overlay) {
+                overlay.style.display = 'none';
+                if (overlay.parentNode !== document.body) { document.body.appendChild(overlay); }
+            }
+
+            var banner = document.getElementById('quizPendingBanner');
+            if (banner) banner.style.display = 'none';
+
+            // Save final exit state
+            if (_currentMaterialId > 0) {
+                saveProgress(_currentMaterialId, Math.floor(getVideoCurrentTime()), Math.floor(_maxWatchedSeconds));
+            }
+
+            var body  = document.getElementById('filePreviewBody');
+            var video = body ? body.querySelector('video') : null;
+            if (video)  { video.pause(); }
+
+            // Clean up YouTube player memory completely
+            if (_ytPlayer) {
+                try { _ytPlayer.destroy(); } catch(err){}
+                _ytPlayer = null;
+            }
+
+            if (body) { body.innerHTML = ''; }
+
+            _isVideoTypeYT      = false;
+            _ytVideoId          = "";
+            _currentMaterialId  = 0;
+            _maxWatchedSeconds  = 0;
+        });
+    }
+
+    // 3. Intercept intentional close btn clicks
+    var _modalCloseIntentional = false;
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('#filePreviewModal .btn-close') || e.target.closest('[data-bs-dismiss="modal"]')) {
+            _modalCloseIntentional = true;
+            _quizOpen = false;
+            clearInterval(_checkInterval);
+            clearInterval(_trackingInterval);
+            var overlay = document.getElementById('quizOverlayModal');
+            if (overlay) overlay.style.display = 'none';
+            var banner = document.getElementById('quizPendingBanner');
+            if (banner) banner.style.display = 'none';
+        }
+    });
+
+    // 4. Disallow modal dismiss if interactive sequence is locked (e.g., active quiz)
+    if (previewModal) {
+        previewModal.addEventListener('hide.bs.modal', function(e) {
+            if (_quizOpen && !_modalCloseIntentional) {
+                e.preventDefault();
+                showToast('Please answer the sequence question before continuing.', 'warning', 3000);
+            }
+            _modalCloseIntentional = false;
+        });
+    }
+
+    // 5. Pause sequence on window focus loss
+    window.addEventListener('blur', function() {
+        if (!isVideoPaused()) {
+            pauseVideoElement();
+            showToast('Playback paused - window focus lost.', 'info', 2000);
+        }
+    });
+
+    // 6. Pause sequence on active tab change
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden && !isVideoPaused()) {
+            pauseVideoElement();
+            showToast('Playback paused - tab switched.', 'info', 3000);
+        }
+    });
+
+    // 7. Strict keyboard blocking for playback integrity
+    document.addEventListener('keydown', function(e) {
+        var modal = document.getElementById('filePreviewModal');
+        if (!modal || !modal.classList.contains('show') || isVideoPaused()) return;
+
+        if (_quizOpen) {
+            var blocked = ['Space','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','KeyJ','KeyL','KeyK','KeyM','KeyF'];
+            if (blocked.indexOf(e.code) >= 0) { e.preventDefault(); return; }
+        }
+
+        var forward = ['KeyJ', 'KeyL', 'ArrowRight'];
+        if (forward.indexOf(e.code) >= 0) {
+            e.preventDefault();
+            showToast('Forward skipping gestures are disabled.', 'warning', 2000);
+        }
+    });
+});
+
+function escHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>

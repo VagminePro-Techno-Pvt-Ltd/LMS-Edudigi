@@ -1,0 +1,180 @@
+@* Student Sidebar Menu — Enhanced Colored Icons *@
+
+<div class="enhanced-menu-container">
+    <nav class="enhanced-sidebar">
+        <ul>
+
+            <!-- Brand Title -->
+            <li class="main-title">
+                <span class="brand-icon-wrap">
+                    <i class="fa-solid fa-display"></i>
+                </span>
+                <span class="brand-text">Online Learning<br><strong>Platform</strong></span>
+            </li>
+
+            <!-- Dashboard -->
+            <li>
+                <a asp-controller="Home" asp-action="StudentDashboard">
+                    <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#3b82f6;">
+                        <i class="fa-solid fa-gauge-high"></i>
+                    </span>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+
+            <!-- ── LEARN ── -->
+            <li class="menu-section-header">
+                <span class="section-dot" style="background:#3b82f6;"></span>
+                <span class="section-label">Learn</span>
+            </li>
+
+            <li>
+                <a href="https://www.jagannathuniversity.org/blogs/mba-finance-syllabus-subjects-guide" target="_blank">
+                    <span class="icon-badge" style="--ibg:#fef3c7; --iclr:#d97706;">
+                        <i class="fa-solid fa-book-open-reader"></i>
+                    </span>
+                    <span>Syllabus</span>
+                </a>
+            </li>
+            <li>
+                <a asp-controller="Calendar" asp-action="Index">
+                    <span class="icon-badge" style="--ibg:#ecfdf5; --iclr:#10b981;">
+                        <i class="fa-solid fa-calendar-days"></i>
+                    </span>
+                    <span>Class Calendar</span>
+                </a>
+            </li>
+            <li>
+                <a asp-controller="StudentCourse" asp-action="Index">
+                    <span class="icon-badge" style="--ibg:#f5f3ff; --iclr:#8b5cf6;">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </span>
+                    <span>Courses</span>
+                </a>
+            </li>
+            <li>
+                <a asp-controller="Assignment" asp-action="Index">
+                    <span class="icon-badge" style="--ibg:#fff7ed; --iclr:#ea580c;">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </span>
+                    <span>Assignments</span>
+                </a>
+            </li>
+            <li>
+                <a asp-controller="StudentExam" asp-action="Index">
+                    <span class="icon-badge" style="--ibg:#fdf4ff; --iclr:#a855f7;">
+                        <i class="fa-solid fa-file-signature"></i>
+                    </span>
+                    <span>Assessments & Exams</span>
+                </a>
+            </li>
+
+            <li>
+                <a asp-controller="VirtualClassroom" asp-action="Index">
+                    <span class="icon-badge" style="--ibg:#fff1f2; --iclr:#f43f5e;">
+                        <i class="fa-solid fa-chalkboard-user"></i>
+                    </span>
+                    <span>Virtual Classroom</span>
+                </a>
+            </li>
+            <li>
+                <a asp-controller="Attendance" asp-action="MyAttendance">
+                    <span class="icon-badge" style="--ibg:#ecfdf5; --iclr:#059669;">
+                        <i class="fa-solid fa-calendar-check"></i>
+                    </span>
+                    <span>My Attendance</span>
+                </a>
+            </li>
+
+
+            <!-- ── COLLABORATE ── -->
+            <li class="menu-section-header">
+                <span class="section-dot" style="background:#f59e0b;"></span>
+                <span class="section-label">Collaborate &amp; Communication</span>
+            </li>
+
+            <li>
+                <a asp-controller="Notifications" asp-action="Index">
+                    <span class="icon-badge" style="--ibg:#fef9c3; --iclr:#ca8a04;">
+                        <i class="fa-solid fa-bell"></i>
+                    </span>
+                    <span>Notification &amp; Inbox</span>
+                </a>
+            </li>
+            <li>
+                <a asp-controller="Discussion" asp-action="Index">
+                    <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#2563eb;">
+                        <i class="fa-solid fa-comments"></i>
+                    </span>
+                    <span>Discussion Forum</span>
+                </a>
+            </li>
+            <li>
+                <a asp-controller="Announcement" asp-action="Board">
+                    <span class="icon-badge" style="--ibg:#fff7ed; --iclr:#ea580c;">
+                        <i class="fa-solid fa-bullhorn"></i>
+                    </span>
+                    <span>Announcements</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://en.wikipedia-on-ipfs.org/wiki/Jagan_Nath_University%2C_Jaipur" target="_blank">
+                    <span class="icon-badge" style="--ibg:#f0fdf4; --iclr:#16a34a;">
+                        <i class="fa-solid fa-book"></i>
+                    </span>
+                    <span>Wiki</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://swayam.gov.in/" target="_blank">
+                    <span class="icon-badge" style="--ibg:#fff7ed; --iclr:#ea580c;">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                    </span>
+                    <span>Swayam</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://books.google.com/" target="_blank">
+                    <span class="icon-badge" style="--ibg:#fef2f2; --iclr:#ef4444;">
+                        <i class="fa-brands fa-google"></i>
+                    </span>
+                    <span>Google</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://www.microsoft.com/en-in/" target="_blank">
+                    <span class="icon-badge" style="--ibg:#e0f2fe; --iclr:#0284c7;">
+                        <i class="fa-brands fa-microsoft"></i>
+                    </span>
+                    <span>Microsoft</span>
+                </a>
+            </li>
+            <li>
+                <a asp-controller="Chat" asp-action="Index">
+                    <span class="icon-badge" style="--ibg:#fdf4ff; --iclr:#a855f7;">
+                        <i class="fa-solid fa-user-group"></i>
+                    </span>
+                    <span>Chat &amp; Meeting</span>
+                </a>
+            </li>
+            <li>
+                <a asp-controller="Discussion" asp-action="Index">
+                    <span class="icon-badge" style="--ibg:#f0fdfa; --iclr:#0d9488;">
+                        <i class="fa-solid fa-pen-nib"></i>
+                    </span>
+                    <span>Blog</span>
+                </a>
+            </li>
+            <li>
+                <a asp-controller="StudentPPT" asp-action="Index">
+                    <span class="icon-badge" style="--ibg:#fdf4ff; --iclr:#7c3aed;">
+                        <i class="fa-solid fa-file-powerpoint"></i>
+                    </span>
+                    <span>Interactive PPT</span>
+                </a>
+            </li>
+
+        </ul>
+    </nav>
+</div>
+

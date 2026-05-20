@@ -1,0 +1,48 @@
+@model IEnumerable<TMS.Models.Masters.CourseCategoryMaster>
+@{
+    ViewBag.Title = "Select Program Forum";
+}
+
+<style>
+    .program-card { transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); cursor: pointer; border-radius: 15px; overflow: hidden; }
+    .program-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important; }
+    .program-icon { width: 60px; height: 60px; background: #eef2ff; color: #4e73df; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-size: 24px; margin-bottom: 20px; }
+</style>
+
+<div class="container py-5">
+    <div class="text-center mb-5">
+        <h2 class="font-weight-bold text-dark">Discussion Forums</h2>
+        <p class="text-muted">Select a program to view its discussion forum</p>
+    </div>
+
+    <div class="row">
+        @if (!Model.Any())
+        {
+            <div class="col-12 text-center py-5">
+                <div class="alert alert-info border-0 shadow-sm rounded-pill d-inline-block px-5">
+                    <i class="fas fa-info-circle mr-2"></i> You are not currently enrolled in any programs with active forums.
+                </div>
+            </div>
+        }
+        else
+        {
+            @foreach (var program in Model)
+            {
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 shadow-sm border-0 program-card" onclick="location.href='@Url.Action("Index", new { programId = program.Id })'">
+                        <div class="card-body p-4">
+                            <div class="program-icon">
+                                <i class="fas fa-graduation-cap"></i>
+                            </div>
+                            <h5 class="card-title font-weight-bold text-dark mb-2">@program.Name</h5>
+                            <p class="card-text text-muted small mb-4">Join the conversation with peers and faculty for this program.</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-primary font-weight-bold small">Enter Forum <i class="fas fa-arrow-right ml-1"></i></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>

@@ -1,0 +1,531 @@
+@model TMS.ViewModels.Academics.ClassroomCalendarViewModel
+
+@{
+    ViewData["Title"] = "Classroom Calendar";
+    Layout = "_Layout";
+}
+
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/main.min.css" rel="stylesheet" />
+
+<style>
+    :root {
+        --cal-bg: #f8fafc;
+        --cal-card: #ffffff;
+        --cal-border: #e2e8f0;
+        --cal-accent: #6366f1;
+        --cal-accent-light: #eef2ff;
+        --cal-accent-glow: rgba(99,102,241,0.15);
+        --cal-live: #ef4444;
+        --cal-text: #1e293b;
+        --cal-muted: #64748b;
+        --cal-success: #22c55e;
+        --cal-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+    }
+
+    body { background-color: var(--cal-bg); color: var(--cal-text); }
+
+    .cal-page { display:flex; gap:1.25rem; min-height:82vh; font-family:'Inter',sans-serif; padding: 1.5rem; }
+    .cal-sidebar { flex:0 0 340px; display:flex; flex-direction:column; gap:1.25rem; }
+    .cal-main { flex:1; display:flex; flex-direction:column; gap:1.25rem; }
+
+    .cal-card {
+        background: var(--cal-card);
+        border: 1px solid var(--cal-border);
+        border-radius: 8px;
+        padding: 1.5rem;
+        color: var(--cal-text);
+        box-shadow: var(--cal-shadow);
+    }
+
+    .cal-card h5 { 
+        font-size:.85rem; font-weight:700; text-transform:uppercase; 
+        letter-spacing:.1em; color:var(--cal-muted); margin-bottom:1.25rem; 
+        display: flex; align-items: center; gap: 8px;
+    }
+
+    /* Stats Row */
+    .stats-row { display:flex; gap:1rem; flex-wrap:wrap; }
+    .stat-chip {
+        flex:1; min-width:100px; text-align:center; padding:1rem .5rem;
+        background: #fff;
+        border:1px solid var(--cal-border); border-radius:8px;
+        transition: transform 0.2s;
+    }
+    .stat-chip:hover { transform: translateY(-2px); border-color: var(--cal-accent); }
+    .stat-chip .val { font-size:1.75rem; font-weight:800; color:var(--cal-accent); line-height: 1; }
+    .stat-chip .lbl { font-size:.65rem; color:var(--cal-muted); text-transform:uppercase; letter-spacing:.05em; margin-top: 4px; }
+
+    /* Session List */
+    .session-list { max-height:450px; overflow-y:auto; display:flex; flex-direction:column; gap:1rem; padding-right: 4px; }
+    .session-list::-webkit-scrollbar { width: 4px; }
+    .session-list::-webkit-scrollbar-track { background: transparent; }
+    .session-list::-webkit-scrollbar-thumb { background: var(--cal-border); border-radius: 10px; }
+
+    .session-item {
+        display:flex; align-items:flex-start; gap:1rem; padding:1rem;
+        border: 1px solid var(--cal-border); background: #fff; border-radius:8px;
+        transition: all .2s ease;
+    }
+    .session-item:hover { border-color: var(--cal-accent); box-shadow: var(--cal-shadow); }
+    .session-item.live { border-color: var(--cal-live); background:rgba(239,68,68,.02); }
+    
+    .session-item .time { 
+        font-size:.75rem; color:var(--cal-text); font-weight: 700;
+        white-space:nowrap; min-width:80px; display: flex; flex-direction: column; align-items: center;
+        background: var(--cal-bg); padding: 8px; border-radius: 6px;
+    }
+    .session-item .time small { color: var(--cal-muted); font-weight: 500; }
+    
+    .session-item .info { flex:1; }
+    .session-item .info .title { font-weight:700; font-size:.9rem; color: var(--cal-text); margin-bottom: 2px; }
+    .session-item .info .meta { font-size:.75rem; color:var(--cal-muted); }
+
+    .badge-live {
+        display:inline-flex; align-items:center; gap:4px; font-size:.65rem; font-weight:800;
+        color:#fff; background:var(--cal-live); padding:3px 10px; border-radius:4px;
+        animation: pulse-live 1.5s infinite; text-transform: uppercase;
+    }
+    @@keyframes pulse-live { 0%,100%{transform: scale(1);} 50%{transform: scale(0.95); opacity:.8;} }
+
+    .btn-join {
+        display:inline-block; padding:6px 16px; font-size:.75rem; font-weight:700;
+        background:var(--cal-accent); color:#fff; border:none; border-radius:6px; text-decoration:none;
+        cursor:pointer; transition: all .2s; text-transform: uppercase; letter-spacing: .05em;
+    }
+    .btn-join:hover { background: #4f46e5; transform: translateY(-1px); box-shadow: 0 4px 12px var(--cal-accent-glow); color:#fff; }
+
+    /* Create Class Form */
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; }
+    .form-grid .full { grid-column:1/-1; }
+    .form-grid label { font-size:.75rem; font-weight: 600; color:var(--cal-text); margin-bottom:6px; display:block; }
+    .form-grid input, .form-grid select {
+        width:100%; padding:10px 12px; background: #fff; border:1px solid var(--cal-border);
+        border-radius:6px; color:var(--cal-text); font-size:.85rem; transition: border-color 0.2s;
+    }
+    .form-grid input:focus, .form-grid select:focus { outline:none; border-color:var(--cal-accent); background: #fff; }
+
+    .day-selector { display:flex; gap:.75rem; flex-wrap:wrap; margin-top: 8px; }
+    .day-btn {
+        width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+        font-size:.75rem; font-weight:700; border:1px solid var(--cal-border);
+        background:#fff; color:var(--cal-muted); border-radius:8px; cursor:pointer; transition:.2s;
+    }
+    .day-btn.active { background:var(--cal-accent); color:#fff; border-color:var(--cal-accent); box-shadow: 0 4px 8px var(--cal-accent-glow); }
+
+    .btn-primary-cal {
+        width:100%; padding:12px; font-size:.85rem; font-weight:800; border:none; border-radius:8px;
+        background: linear-gradient(135deg, #6366f1, #4f46e5); color:#fff; cursor:pointer;
+        margin-top:1.5rem; transition: all .3s; text-transform: uppercase; letter-spacing: .1em;
+    }
+    .btn-primary-cal:hover { transform: translateY(-2px); box-shadow: 0 10px 25px var(--cal-accent-glow); }
+
+    /* Calendar Overrides */
+    #calendarBox { padding: 10px; }
+    #calendarBox .fc { color:var(--cal-text); font-size: 0.9rem; }
+    #calendarBox .fc-toolbar-title { font-size:1.25rem; font-weight:800; color: var(--cal-text); }
+    #calendarBox .fc-button { 
+        background: #fff!important; color: var(--cal-text)!important; 
+        border: 1px solid var(--cal-border)!important; font-size:.75rem; font-weight: 700;
+        text-transform: capitalize; padding: 8px 16px;
+    }
+    #calendarBox .fc-button-active { background: var(--cal-accent)!important; color: #fff!important; border-color: var(--cal-accent)!important; }
+    #calendarBox .fc-button:hover { background: var(--cal-bg)!important; }
+    
+    #calendarBox .fc-daygrid-day { background:#fff; border-color:var(--cal-border)!important; }
+    #calendarBox .fc-day-today { background: var(--cal-accent-light)!important; }
+    #calendarBox .fc-col-header-cell { background:var(--cal-bg); border-color:var(--cal-border)!important; padding: 12px 0; }
+    #calendarBox .fc-col-header-cell-cushion { font-size: .75rem; font-weight: 800; text-transform: uppercase; color: var(--cal-muted); }
+    #calendarBox .fc-scrollgrid { border-radius: 8px; overflow: hidden; border-color:var(--cal-border)!important; }
+
+    #calendarBox .fc-event { border-radius: 4px; border: none; padding: 2px 4px; font-weight: 600; }
+
+    .empty-state { text-align:center; padding:3rem; color:var(--cal-muted); font-size:.9rem; font-weight: 500; }
+    
+    /* Custom Modal */
+    .modal-content { border-radius: 12px; border: none; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); background: var(--cal-card); }
+    .modal-header { background: var(--cal-bg); border-radius: 12px 12px 0 0; padding: 1.5rem; border-bottom: 1px solid var(--cal-border); }
+    .modal-title { font-weight: 800; color: var(--cal-text); }
+    .modal-body { padding: 2rem; color: var(--cal-text); }
+    .modal-footer { border-top: 1px solid var(--cal-border); padding: 1.25rem 2rem; }
+    
+    .btn-close { filter: none; opacity: 0.8; }
+    .btn-close:hover { opacity: 1; }
+</style>
+
+@Html.AntiForgeryToken()
+<div class="cal-page">
+    <!-- ═══ SIDEBAR ═══ -->
+    <div class="cal-sidebar">
+
+        <!-- Stats -->
+        <div class="cal-card">
+            <h5>Overview</h5>
+            <div class="stats-row">
+                <div class="stat-chip">
+                    <div class="val">@Model.LiveSessions.Count</div>
+                    <div class="lbl">Live Now</div>
+                </div>
+                <div class="stat-chip">
+                    <div class="val">@Model.TotalUpcoming</div>
+                    <div class="lbl">Upcoming</div>
+                </div>
+                <div class="stat-chip">
+                    <div class="val">@Model.TotalCompleted</div>
+                    <div class="lbl">Completed</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Sessions -->
+        @if (Model.LiveSessions.Any())
+        {
+            <div class="cal-card">
+                <h5>🔴 Live Now</h5>
+                <div class="session-list">
+                    @foreach (var s in Model.LiveSessions)
+                    {
+                        <div class="session-item live">
+                            <div class="time">
+                                <span class="badge-live">● LIVE</span>
+                            </div>
+                            <div class="info">
+                                <div class="title">@s.Title</div>
+                                <div class="meta">@s.CourseName · @s.FacultyName</div>
+                                @if (!string.IsNullOrEmpty(s.JoinUrl))
+                                {
+                                    <a href="@s.JoinUrl" target="_blank" class="btn-join mt-1">Join Now</a>
+                                }
+                                else
+                                {
+                                    <span class="text-danger d-block mt-1" style="font-size:0.7rem; font-weight:700;">Meeting Link Pending</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Upcoming Sessions -->
+        <div class="cal-card" style="flex:1; overflow:hidden;">
+            <h5>Upcoming Sessions</h5>
+            <div class="session-list">
+                @if (!Model.UpcomingSessions.Any())
+                {
+                    <div class="empty-state">No upcoming sessions</div>
+                }
+                else
+                {
+                    @foreach (var s in Model.UpcomingSessions.Take(10))
+                    {
+                        <div class="session-item">
+                            <div class="time">@s.ScheduledStart.ToString("dd MMM")<br /><small>@s.ScheduledStart.ToString("hh:mm tt")</small></div>
+                            <div class="info">
+                                <div class="title">@s.Title</div>
+                                <div class="meta">@s.CourseName · @s.SubjectName · @s.DurationMinutes min</div>
+                                @if (s.CanJoin)
+                                {
+                                    if (!string.IsNullOrEmpty(s.JoinUrl))
+                                    {
+                                        <a href="@s.JoinUrl" target="_blank" class="btn-join mt-1">Join</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-danger d-block mt-1" style="font-size:0.7rem; font-weight:700;">Link Pending</span>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ MAIN AREA ═══ -->
+    <div class="cal-main">
+
+        <!-- Create Class (Faculty/Admin only) -->
+        @if (!Model.UserRole.Equals("Student", StringComparison.OrdinalIgnoreCase))
+        {
+            <div class="cal-card">
+                <h5>Schedule a Class</h5>
+                <form id="createClassForm">
+                    <div class="form-grid">
+                        <div class="full">
+                            <label>Class Title</label>
+                            <input type="text" id="classTitle" placeholder="e.g. Introduction to Algorithms" required />
+                        </div>
+                        <div>
+                            <label>Course</label>
+                            <select id="classCourse">
+                                <option value="">Select Course</option>
+                                @foreach (var c in Model.Courses)
+                                {
+                                    <option value="@c.Id">@c.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div>
+                            <label>Subject</label>
+                            <select id="classSubject"><option value="">Select Subject</option></select>
+                        </div>
+                        <div>
+                            <label>Start Date</label>
+                            <input type="date" id="classStartDate" />
+                        </div>
+                        <div>
+                            <label>Start Time</label>
+                            <input type="time" id="classStartTime" value="10:00" />
+                        </div>
+                        <div>
+                            <label>Duration (min)</label>
+                            <input type="number" id="classDuration" value="60" min="15" max="300" />
+                        </div>
+                        <div>
+                            <label>Max Capacity</label>
+                            <input type="number" id="classCapacity" value="100" min="1" />
+                        </div>
+                        <div>
+                            <label>Meeting Provider</label>
+                            <select id="meetingProvider" onchange="toggleExternalLink()">
+                                <option value="Zoom">Zoom (Automatic)</option>
+                                <option value="External">External Link (Manual)</option>
+                            </select>
+                        </div>
+                        <div class="full" id="externalLinkBox" style="display:none;">
+                            <label>External Meeting Link</label>
+                            <input type="url" id="externalMeetingLink" placeholder="https://teams.microsoft.com/..." />
+                        </div>
+                        <div class="full">
+                            <label><input type="checkbox" id="isRecurring" /> Recurring Class</label>
+                        </div>
+                        <div class="full" id="recurringOptions" style="display:none;">
+                            <label>End Date</label>
+                            <input type="date" id="classEndDate" style="margin-bottom:.5rem;" />
+                            <label>Repeat On</label>
+                            <div class="day-selector">
+                                <button type="button" class="day-btn" data-day="MO">Mon</button>
+                                <button type="button" class="day-btn" data-day="TU">Tue</button>
+                                <button type="button" class="day-btn" data-day="WE">Wed</button>
+                                <button type="button" class="day-btn" data-day="TH">Thu</button>
+                                <button type="button" class="day-btn" data-day="FR">Fri</button>
+                                <button type="button" class="day-btn" data-day="SA">Sat</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary-cal" id="btnCreateClass">Create Class</button>
+                </form>
+                <div id="createResult" style="margin-top:.5rem; font-size:.8rem;"></div>
+            </div>
+        }
+
+        <!-- Calendar -->
+        <div class="cal-card" style="flex:1;">
+            <h5>Calendar</h5>
+            <div id="calendarBox"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for event details -->
+<div class="modal fade" id="eventModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="eventModalTitle">Session Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="eventModalBody"></div>
+            <div class="modal-footer" id="eventModalFooter"></div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const userRole = '@Model.UserRole';
+        const calendarEl = document.getElementById('calendarBox');
+
+        // ── FullCalendar Init ──
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            height: 520,
+            nowIndicator: true,
+            events: function (fetchInfo, successCallback, failureCallback) {
+                fetch(`/Calendar/GetEvents?start=${fetchInfo.startStr}&end=${fetchInfo.endStr}`)
+                    .then(r => r.json())
+                    .then(data => successCallback(data))
+                    .catch(err => failureCallback(err));
+            },
+            eventClick: function (info) {
+                info.jsEvent.preventDefault();
+                const p = info.event.extendedProps;
+                document.getElementById('eventModalTitle').textContent = info.event.title;
+                document.getElementById('eventModalBody').innerHTML = `
+                    <p><strong>Course:</strong> ${p.course}</p>
+                    <p><strong>Subject:</strong> ${p.subject}</p>
+                    <p><strong>Faculty:</strong> ${p.faculty}</p>
+                    <p><strong>Status:</strong> <span style="color:${info.event.backgroundColor}">${p.status}</span></p>
+                    <p><strong>Duration:</strong> ${p.duration} min</p>
+                    ${p.recordingUrl ? `<p><a href="${p.recordingUrl}" target="_blank" class="btn-join">Watch Recording</a></p>` : ''}
+                `;
+                let footerHtml = '';
+                if (p.canJoin) {
+                    if (p.joinUrl) {
+                        footerHtml += `<a href="${p.joinUrl}" target="_blank" class="btn-join">Join Session</a>`;
+                    } else {
+                        footerHtml += `<span style="color:var(--cal-live);font-size:0.85rem;margin-right:10px;">Meeting link not available</span>`;
+                        if (userRole !== 'Student') {
+                             footerHtml += `<button class="btn-join" onclick="alert('Zoom meeting could not be generated. Please edit the class and add an External Link.')">Get Link</button>`;
+                        }
+                    }
+                }
+                if (userRole !== 'Student' && p.statusCode === 0) {
+                    footerHtml += `<button class="btn-join" style="background:#f59e0b;" onclick="cancelSession(${p.instanceId})">Cancel</button>`;
+                }
+                document.getElementById('eventModalFooter').innerHTML = footerHtml;
+                new bootstrap.Modal(document.getElementById('eventModal')).show();
+            },
+            eventTimeFormat: { hour: '2-digit', minute: '2-digit', meridiem: 'short' }
+        });
+        calendar.render();
+
+        // ── Recurring Toggle ──
+        const recurCheck = document.getElementById('isRecurring');
+        if (recurCheck) {
+            recurCheck.addEventListener('change', function () {
+                document.getElementById('recurringOptions').style.display = this.checked ? 'block' : 'none';
+            });
+        }
+
+        // ── Day Selector ──
+        document.querySelectorAll('.day-btn').forEach(btn => {
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                this.classList.toggle('active');
+            });
+        });
+
+        // ── Course → Subject cascade ──
+        const courseSelect = document.getElementById('classCourse');
+        if (courseSelect) {
+            courseSelect.addEventListener('change', function () {
+                const courseId = this.value;
+                const subjectSelect = document.getElementById('classSubject');
+                subjectSelect.innerHTML = '<option value="">Loading...</option>';
+                if (!courseId) { subjectSelect.innerHTML = '<option value="">Select Subject</option>'; return; }
+                console.log('Fetching subjects for courseId:', courseId);
+                fetch('/Calendar/GetSubjects?courseId=' + courseId)
+                    .then(r => {
+                        if (!r.ok) throw new Error('HTTP ' + r.status);
+                        return r.json();
+                    })
+                    .then(data => {
+                        console.log('Subjects received:', data);
+                        let html = '<option value="">Select Subject</option>';
+                        if (data && data.length > 0) {
+                            data.forEach(s => {
+                                html += `<option value="${s.id}">${s.name}</option>`;
+                            });
+                        } else {
+                            html = '<option value="">No subjects found</option>';
+                        }
+                        subjectSelect.innerHTML = html;
+                    })
+                    .catch(err => {
+                        console.error('Error fetching subjects:', err);
+                        subjectSelect.innerHTML = '<option value="">Error loading subjects</option>';
+                    });
+            });
+        }
+
+        // ── Create Class ──
+        const form = document.getElementById('createClassForm');
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const selectedDays = [];
+                document.querySelectorAll('.day-btn.active').forEach(b => selectedDays.push(b.dataset.day));
+
+                const payload = {
+                    Title: document.getElementById('classTitle').value,
+                    CourseId: parseInt(document.getElementById('classCourse').value) || 0,
+                    SubjectId: parseInt(document.getElementById('classSubject').value) || null,
+                    StartDate: document.getElementById('classStartDate').value,
+                    StartTime: document.getElementById('classStartTime').value + ':00',
+                    DurationMinutes: parseInt(document.getElementById('classDuration').value) || 60,
+                    MaxCapacity: parseInt(document.getElementById('classCapacity').value) || 100,
+                    IsRecurring: document.getElementById('isRecurring').checked,
+                    EndDate: document.getElementById('classEndDate')?.value || null,
+                    SelectedDays: selectedDays,
+                    MeetingProvider: document.getElementById('meetingProvider').value,
+                    ExternalMeetingLink: document.getElementById('externalMeetingLink').value
+                };
+
+                const resultEl = document.getElementById('createResult');
+                document.getElementById('btnCreateClass').disabled = true;
+                document.getElementById('btnCreateClass').textContent = 'Creating...';
+
+                fetch('/Calendar/CreateClass', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                    },
+                    body: JSON.stringify(payload)
+                })
+                .then(r => r.json().then(data => ({ status: r.status, data: data })))
+                .then(res => {
+                    const data = res.data;
+                    resultEl.innerHTML = data.success
+                        ? `<span style="color:var(--cal-success)">${data.message}</span>`
+                        : `<span style="color:var(--cal-live)">${data.message || 'Error: ' + res.status} ${data.debugInfo ? '<br/><small>' + data.debugInfo + '</small>' : ''}</span>`;
+                    if (data.success) {
+                        calendar.refetchEvents();
+                        form.reset();
+                        setTimeout(() => location.reload(), 1500);
+                    }
+                })
+                .catch((err) => { 
+                    console.error(err);
+                    resultEl.innerHTML = '<span style="color:var(--cal-live)">Connection error. Please check your network or server logs.</span>'; 
+                })
+                .finally(() => {
+                    document.getElementById('btnCreateClass').disabled = false;
+                    document.getElementById('btnCreateClass').textContent = 'Create Class';
+                });
+            });
+        }
+
+        // ── Cancel Session ──
+        window.cancelSession = function (instanceId) {
+            if (!confirm('Cancel this session?')) return;
+            fetch('/Calendar/CancelInstance', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                },
+                body: JSON.stringify({ instanceId: instanceId, reason: 'Cancelled by faculty' })
+            })
+            .then(r => r.json())
+            .then(data => {
+                alert(data.message);
+                if (data.success) { calendar.refetchEvents(); location.reload(); }
+            });
+        };
+    });
+
+    function toggleExternalLink() {
+        const provider = document.getElementById('meetingProvider').value;
+        document.getElementById('externalLinkBox').style.display = (provider === 'External') ? 'block' : 'none';
+    }
+</script>

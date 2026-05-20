@@ -1,0 +1,130 @@
+@model IEnumerable<TMS.Models.Academics.AssignmentMaster>
+@{
+    ViewData["Title"] = "Admin Assignment Dashboard";
+    var submissions = ViewBag.Submissions as IEnumerable<TMS.Models.Academics.AssignmentSubmission> ?? Enumerable.Empty<TMS.Models.Academics.AssignmentSubmission>();
+    var grades = ViewBag.Grades as IEnumerable<TMS.Models.Academics.AssignmentGrade> ?? Enumerable.Empty<TMS.Models.Academics.AssignmentGrade>();
+}
+
+<div class="container-fluid py-4">
+    <!-- Header Block -->
+    <div class="mb-4">
+        <h1 class="h3 text-gray-800 font-weight-bold">Assignment Monitor</h1>
+        <p class="text-muted">Administrator read-only dashboard for all programs and assignments.</p>
+    </div>
+
+    <!-- Stats Widgets -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm bg-gradient-primary text-white h-100" style="border-radius: 16px; background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);">
+                <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-white-50 font-weight-bold font-9 text-uppercase mb-1">Assignments</div>
+                        <div class="h2 font-weight-bold mb-0">@Model.Count()</div>
+                    </div>
+                    <i class="fa-solid fa-file-invoice fa-2x text-white-50"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm bg-gradient-success text-white h-100" style="border-radius: 16px; background: linear-gradient(135deg, #1cc88a 0%, #13855c 100%);">
+                <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-white-50 font-weight-bold font-9 text-uppercase mb-1">Submissions</div>
+                        <div class="h2 font-weight-bold mb-0">@submissions.Count()</div>
+                    </div>
+                    <i class="fa-solid fa-file-arrow-up fa-2x text-white-50"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm bg-gradient-info text-white h-100" style="border-radius: 16px; background: linear-gradient(135deg, #36b9cc 0%, #258391 100%);">
+                <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-white-50 font-weight-bold font-9 text-uppercase mb-1">Graded Work</div>
+                        <div class="h2 font-weight-bold mb-0">@grades.Count()</div>
+                    </div>
+                    <i class="fa-solid fa-award fa-2x text-white-50"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm bg-gradient-warning text-white h-100" style="border-radius: 16px; background: linear-gradient(135deg, #f6c23e 0%, #dda20a 100%);">
+                <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-white-50 font-weight-bold font-9 text-uppercase mb-1">Pending Grade</div>
+                        <div class="h2 font-weight-bold mb-0">@(submissions.Count() - grades.Count())</div>
+                    </div>
+                    <i class="fa-solid fa-hourglass-half fa-2x text-white-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assignments & Marks Distribution Table -->
+    <div class="card shadow-sm border-0 mb-4" style="border-radius: 16px; overflow: hidden;">
+        <div class="card-header bg-white py-3">
+            <h5 class="m-0 font-weight-bold text-gray-800">All Assignments Overview</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 font-9">
+                    <thead class="bg-light text-secondary">
+                        <tr>
+                            <th class="ps-4">Program</th>
+                            <th>Assignment Title</th>
+                            <th>Due Date</th>
+                            <th>Submissions</th>
+                            <th>Avg Marks</th>
+                            <th class="text-end pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!Model.Any())
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted">No assignments created yet.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            foreach (var item in Model)
+                            {
+                                var itemSubmissions = submissions.Where(s => s.AssignmentId == item.Id).ToList();
+                                var itemSubmissionIds = itemSubmissions.Select(s => s.Id).ToList();
+                                var itemGrades = grades.Where(g => itemSubmissionIds.Contains(g.SubmissionId)).ToList();
+                                
+                                double avgMarks = itemGrades.Any() ? (double)itemGrades.Average(g => g.Marks) : 0.0;
+
+                                <tr>
+                                    <td class="ps-4">@item.Program?.Name</td>
+                                    <td class="font-weight-bold text-gray-900">@item.Title</td>
+                                    <td>@item.DueDate.ToString("dd MMM yyyy")</td>
+                                    <td>@itemSubmissions.Count</td>
+                                    <td>
+                                        <span class="badge bg-light-primary text-primary px-3 py-1 font-weight-bold rounded-pill">
+                                            @avgMarks.ToString("F2") / @item.MaxMarks
+                                        </span>
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <a href="@Url.Action("ViewSubmissions", new { assignmentId = item.Id })" class="btn btn-xs btn-outline-primary">
+                                            <i class="fa-solid fa-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-light-primary {
+        background-color: #eff6ff;
+    }
+</style>

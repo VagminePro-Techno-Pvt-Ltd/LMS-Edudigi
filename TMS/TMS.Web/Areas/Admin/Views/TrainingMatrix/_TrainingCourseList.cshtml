@@ -1,0 +1,49 @@
+﻿@model List<TMS.ViewModels.Masters.TrainingMatrixViewModel>;
+@{
+    var iIndex = 0;
+    var formPermissions = ViewContext.HttpContext.GetFormPermissions();
+}
+<table class="table" id="tblMatrices">
+    <thead>
+        <tr>
+            <th style="text-align:center;width:105px;">Sl. No.</th>
+            <th>Course</th>
+            <th>Description</th>
+           
+            <th>Category</th>
+           
+         
+
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            iIndex += 1;
+            <tr data-courseId="@item.Course?.Id" data-id="@item!.Id">
+                <td style="text-align:right;">
+                    <div class="form-check checkbox checkbox-primary mb-0">
+                        <input type="checkbox" id="@item.Course?.Id" class="form-check-input selectedchk mr-1" checked="@item!.IsActive" />
+                        <label for="@item.Course?.Id" class="form-check-label m-0 py-0">@iIndex</label>
+                    </div>                    
+                </td>
+                <td>@item.Course?.NameStatus</td>
+                <td>@item.Course?.Description</td>
+               
+                <td>@item.Course?.CourseCategory?.NameStatus</td>
+               
+               
+
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (Model != null && Model.Count > 0 && formPermissions.Edit)
+{
+    <div class="row">
+        <div class="col-12 text-center">
+            <button type="button" id="btnSubmit" class="btn btn-primary">Submit</button>
+        </div>
+    </div>
+}

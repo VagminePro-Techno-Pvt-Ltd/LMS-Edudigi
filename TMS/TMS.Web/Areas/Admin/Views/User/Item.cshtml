@@ -1,0 +1,106 @@
+@model TMS.ViewModels.UserViewModel
+@{
+    var permissions = ViewContext.HttpContext.GetFormPermissions();
+    var roleFilter = ViewData["RoleFilter"]?.ToString();
+    var isRoleLocked = !string.IsNullOrWhiteSpace(roleFilter);
+}
+<form method="post" class="noclick" id="frmItem" disabled="@(!permissions.Add && !permissions.Edit)" enctype="multipart/form-data">
+    <div class="card glass">
+        <div class="card-body">
+            <input asp-for="Id" type="hidden" />
+            <div class="row mb-2">
+                <div class="col-12 col-md-6">
+                    <div class="mb-1">
+                        <label asp-for="Name"></label>
+                        <input asp-for="Name" placeholder="Enter Name" />
+                        <span asp-validation-for="Name" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="mb-1">
+                        <label asp-for="Email"></label>
+                        <input asp-for="Email" placeholder="Enter Email" />
+                        <span asp-validation-for="Email" class="text-danger"></span>
+                    </div>
+                </div>
+                  <div class="col-12 col-md-6">
+                    <div class="mb-1">
+                        <label asp-for="ContactNo"></label>
+                        <input asp-for="ContactNo" placeholder="Enter Contact Number" />
+                        <span asp-validation-for="ContactNo" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="mb-1">
+                        <label asp-for="Description"></label>
+                        <input asp-for="Description" placeholder="Enter Description" />
+                        <span asp-validation-for="Description" class="text-danger"></span>
+                    </div>
+                </div>
+
+                @* ── Role Dropdown: LOCKED when on role-specific tab ── *@
+                <div class="col-12 col-md-6">
+                    <div class="mb-1">
+                        <label asp-for="RoleId"></label>
+                        @if (isRoleLocked)
+                        {
+                            @* Show role as read-only badge + keep hidden field for form submission *@
+                            <input asp-for="RoleId" type="hidden" />
+                            <div class="form-control" style="background:#f1f5f9; cursor:not-allowed; font-weight:600; display:flex; align-items:center; gap:8px;">
+                                <i class="fas fa-lock" style="color:#94a3b8; font-size:12px;"></i>
+                                <span>@roleFilter</span>
+                            </div>
+                            <small class="text-muted"><i class="fas fa-info-circle"></i> Role is auto-assigned from this tab</small>
+                        }
+                        else
+                        {
+                            <select asp-for="RoleId" asp-items="ViewBag.RoleId" class="form-select"></select>
+                        }
+                    </div>
+                    <span asp-validation-for="RoleId" class="text-danger"></span>
+                </div>
+              
+                @if (Model!.Id > 0)
+                {
+                   
+                    <div class="col-12 col-md-6">
+                        <div class="mb-1 position-relative">
+                            <label asp-for="Password" class="form-label">Password</label>
+
+                            <div class="input-group">
+                                <input asp-for="Password"
+                                       class="form-control"
+                                       placeholder="Enter Password"
+                                       value="@TMS.EncriptorUtility.Decrypt(Model.Password)" />
+
+                            </div>
+
+                            <span asp-validation-for="Password" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Status</label>
+                        <div class="d-flex">
+                            <label asp-for="IsActive" class="form-check-label nomandatory">Inactive</label>
+                            <div class="form-switch form-check ms-2">
+                                <input asp-for="IsActive" class="form-check-input">
+                            </div>
+                            <label asp-for="IsActive" class="form-check-label nomandatory">Active</label>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="col-12 col-md-6">
+                        <div class="mb-1">
+                            <label asp-for="Password"></label>
+                            <input asp-for="Password" placeholder="Enter Password" />
+                            <span asp-validation-for="Password" class="text-danger"></span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</form>

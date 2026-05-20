@@ -1,0 +1,42 @@
+﻿@model List<TMS.ViewModels.Account.FormControlViewModel>
+@using TMS;
+@{
+    var iIndex = 0;
+}
+<table class="table" id="tblRolePermissions">
+    <thead>
+        <tr>
+            <th style="text-align:center;width:105px;">Sl. No.</th>
+            <th style="text-align:left;">Control</th>
+            <th style="width:10%;text-align:center;"></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            iIndex += 1;
+            <tr data-fromid="@item.FormId" data-controlid="@item.ControlId">
+                <td style="text-align:right;">@iIndex</td>
+                <td>@item.ControlName</td>
+                <td style="text-align:center">
+                    <div class="form-check form-switch">
+                        <label class="form-check-label">
+                            <input asp-for="@item.IsVisible" class="chkVisible form-check-input" type="checkbox">
+                            Show
+                        </label>
+                    </div>
+                </td>
+            </tr>
+        }
+    </tbody>
+    @if (Model != null && Model.Count > 0)
+    {
+        <tfoot>
+            <tr>
+                <td colspan="5" style="text-align:center">
+                    <button type="button" id="btnUpdateRolePermission" class="btn btn-primary">Update</button>
+                </td>
+            </tr>
+        </tfoot>
+    }
+</table>

@@ -1,0 +1,130 @@
+﻿@model TMS.ViewModels.Academics.FacultyQuizAssessmentViewModel
+@{
+    bool isAssessed = Model.IsAssessed;
+}
+
+<div class="modal-header">
+    <h5 class="modal-title">Quiz Assessment - @Model.QuizName</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+
+<div class="modal-body">
+    <div class="mb-3">
+        <strong>Student:</strong> @Model.StudentName <br />
+        <strong>Course:</strong> @Model.CourseName <br />
+        <strong>Quadrant:</strong> @Model.QuadrantName <br />
+        <strong>Attempted On:</strong> @Model.AttemptedOn.ToString("dd-MMM-yyyy hh:mm tt")
+    </div>
+
+    <hr />
+
+    <form id="quizAssessmentForm">
+        @Html.HiddenFor(m => m.AttemptId)
+        @Html.HiddenFor(m => m.QuizId)
+        @Html.HiddenFor(m => m.StudentId)
+        @Html.HiddenFor(m => m.CourseId)
+        @Html.HiddenFor(m => m.QuadrantId)
+        @Html.HiddenFor(m => m.StudentName)
+        @Html.HiddenFor(m => m.CourseName)
+        @Html.HiddenFor(m => m.QuadrantName)
+      @Html.HiddenFor(m => m.QuizName)
+         
+        <table class="table table-bordered table-sm align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 40%">Question</th>
+                    <th>Student Answer</th>
+                    <th style="width: 10%">Max Score</th>
+                    <th style="width: 10%">Faculty Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 0; i < Model.Questions.Count; i++)
+                {
+                    var q = Model.Questions[i];
+                    <tr>
+                        <td>@q.QuestionText</td>
+                        <td>
+                            @if (q.QuestionType == TMS.Models.Masters.QuestionType.Objective)
+                            {
+                                @q.SelectedOptionText
+                            }
+                            else
+                            {
+                                @q.WrittenAnswer
+                            }
+                        </td>
+                        <td class="text-center">@q.MaxScore</td>
+                        <td>
+                            @if(!isAssessed)
+                            {
+                                <input type="number"
+                                       name="Questions[@i].StudentScore"
+                                       class="form-control form-control-sm question-score"
+                                       value="@q.StudentScore"
+                                       min="0"
+                                       max="@q.MaxScore"
+                                @(isAssessed ? "readonly" : "") />
+                            }
+                            else
+                            {
+                                @q.StudentScore
+                            }
+
+                            <input type="hidden" name="Questions[@i].QuestionId" value="@q.QuestionId" />
+                            <input type="hidden" name="Questions[@i].QuestionText" value="@q.QuestionText" />
+                            <input type="hidden" name="Questions[@i].MaxScore" value="@q.MaxScore" />
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        @if (isAssessed)
+        {
+            <div class="text-end mt-2">
+                <strong>Total Score:</strong> @Model.TotalScore
+            </div>
+        }
+    </form>
+</div>
+
+<div class="modal-footer">
+    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+    @if (!isAssessed)
+    {
+        <button type="submit" form="quizAssessmentForm" class="btn btn-primary btn-sm" id="saveAssessmentBtn">
+            Save Assessment
+        </button>
+    }
+</div>
+
+@section Scripts {
+    @if (!isAssessed)
+    {
+        <script>
+            $(document).ready(function () {
+                $("#saveAssessmentBtn").click(function (e) {
+                    e.preventDefault();
+                    let formData = $("#quizAssessmentForm").serialize();
+                    $.ajax({
+                        url: '@Url.Action("SaveAssessment", "FacultyQuizAssessment")',
+                        type: 'POST',
+                        data: formData,
+                        success: function (res) {
+                            if (res.success) {
+                                alert("Assessment saved. Total Score: " + res.totalScore);
+                                location.reload();
+                            } else {
+                                alert("Error saving assessment");
+                            }
+                        },
+                        error: function () {
+                            alert("Error saving assessment");
+                        }
+                    });
+                });
+            });
+        </script>
+    }
+}

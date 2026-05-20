@@ -1,0 +1,162 @@
+@model TMS.Repository.Managers.ExamAnalyticsViewModel
+
+@{
+    ViewData["Title"] = "Exam Analytics";
+}
+
+<div class="exam-page">
+    <!-- Page Header -->
+    <div class="exam-page-header">
+        <div>
+            <h1>
+                <span class="header-icon" style="background:#fff7ed; color:#ea580c;">
+                    <i class="fa-solid fa-chart-line"></i>
+                </span>
+                Performance Analytics
+            </h1>
+            <p>Assessment: <strong style="color:#7c3aed;">@Model.ExamTitle</strong></p>
+        </div>
+        <div class="header-actions">
+            <a asp-action="Index" class="exam-btn exam-btn-secondary">
+                <i class="fa-solid fa-arrow-left"></i> Control Desk
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="exam-stats-row">
+        <div class="exam-stat-card blue">
+            <span class="stat-label">Attendance</span>
+            <span class="stat-value">@Model.AttendancePercentage%</span>
+            <span class="stat-sub">@Model.TotalAttempts / @Model.TotalAssigned</span>
+        </div>
+        <div class="exam-stat-card orange">
+            <span class="stat-label">Class Average</span>
+            <span class="stat-value">@Model.AverageScore</span>
+            <span class="stat-sub">Mean score</span>
+        </div>
+        <div class="exam-stat-card green">
+            <span class="stat-label">Highest Score</span>
+            <span class="stat-value">@Model.HighestScore</span>
+            <span class="stat-sub">Top achiever</span>
+        </div>
+        <div class="exam-stat-card purple">
+            <span class="stat-label">Pass Rate</span>
+            <span class="stat-value">@Model.PassPercentage%</span>
+            <span class="stat-sub">@Model.PassedCount Pass / @Model.FailedCount Fail</span>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Toppers Leaderboard -->
+        <div class="col-lg-6">
+            <div class="exam-section-box" style="padding:0; overflow:hidden;">
+                <div style="padding:20px 24px; border-bottom:1px solid #f1f5f9;">
+                    <h3 style="font-size:16px; font-weight:700; color:#1e293b; margin:0; display:flex; align-items:center; gap:10px;">
+                        <span class="title-icon" style="background:#fef9c3; color:#ca8a04; width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px;">
+                            <i class="fa-solid fa-crown"></i>
+                        </span>
+                        Toppers Leaderboard
+                    </h3>
+                </div>
+                <table class="exam-table">
+                    <thead>
+                        <tr>
+                            <th>Candidate</th>
+                            <th>Score</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.TopPerformers == null || !Model.TopPerformers.Any())
+                        {
+                            <tr>
+                                <td colspan="3" style="text-align:center; padding:30px; color:#94a3b8;">
+                                    No attempt records recorded yet.
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var topper in Model.TopPerformers)
+                            {
+                                <tr>
+                                    <td>
+                                        <strong style="color:#1e293b;">@topper.StudentName</strong>
+                                        <div style="font-size:11px; color:#64748b;">@topper.Email</div>
+                                    </td>
+                                    <td>
+                                        <strong style="color:#1e293b;">@topper.Score</strong>
+                                        <div style="font-size:11px; color:#3b82f6;">@topper.Percentage%</div>
+                                    </td>
+                                    <td>
+                                        @if (topper.ResultStatus == "Pass" || topper.ResultStatus == "Passed")
+                                        {
+                                            <span class="exam-badge passed"><i class="fa-solid fa-check"></i> Pass</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="exam-badge failed"><i class="fa-solid fa-xmark"></i> Fail</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Question Difficulty Analysis -->
+        <div class="col-lg-6">
+            <div class="exam-section-box">
+                <div class="exam-section-title">
+                    <span class="title-icon" style="background:#eff6ff; color:#3b82f6;">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </span>
+                    Question Difficulty Analysis
+                </div>
+
+                @if (Model.QuestionAnalysis == null || !Model.QuestionAnalysis.Any())
+                {
+                    <div style="text-align:center; padding:30px; color:#94a3b8; font-size:13px;">
+                        No question metrics aggregated yet.
+                    </div>
+                }
+                else
+                {
+                    <div style="display:flex; flex-direction:column; gap:14px;">
+                        @foreach (var q in Model.QuestionAnalysis)
+                        {
+                            <div style="padding:14px; background:#f8fafc; border-radius:10px; border:1px solid #f1f5f9;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                    <span style="font-size:13px; font-weight:600; color:#1e293b; max-width:70%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="@q.QuestionText">
+                                        @q.QuestionText
+                                    </span>
+                                    @if (q.DeducedDifficulty == "Easy")
+                                    {
+                                        <span class="exam-badge active">Easy</span>
+                                    }
+                                    else if (q.DeducedDifficulty == "Medium")
+                                    {
+                                        <span class="exam-badge pending">Medium</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="exam-badge failed">Hard</span>
+                                    }
+                                </div>
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <div class="exam-progress" style="flex:1;">
+                                        <div class="exam-progress-bar @(q.CorrectResponsePercentage >= 70 ? "green" : q.CorrectResponsePercentage >= 40 ? "blue" : "red")" style="width:@(q.CorrectResponsePercentage)%;"></div>
+                                    </div>
+                                    <span style="font-size:12px; font-weight:700; color:#1e293b; white-space:nowrap;">@q.CorrectResponsePercentage% Correct</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

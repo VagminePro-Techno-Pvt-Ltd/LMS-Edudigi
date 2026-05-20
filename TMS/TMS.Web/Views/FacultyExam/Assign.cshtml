@@ -1,0 +1,126 @@
+@model IEnumerable<TMS.Models.Account.UserMaster>
+
+@{
+    ViewData["Title"] = "Assign Exam";
+    var exam = ViewBag.Exam as TMS.Models.Assessments.ExamMaster;
+}
+
+<div class="exam-page">
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+
+            <!-- Page Header -->
+            <div class="exam-page-header" style="margin-bottom:24px;">
+                <div>
+                    <h1>
+                        <span class="header-icon" style="background:#ecfdf5; color:#059669;">
+                            <i class="fa-solid fa-user-plus"></i>
+                        </span>
+                        Assign Candidates
+                    </h1>
+                    <p>Assessment: <strong style="color:#7c3aed;">@exam?.Title</strong></p>
+                </div>
+                <div class="header-actions">
+                    <a asp-action="Index" class="exam-btn exam-btn-secondary">
+                        <i class="fa-solid fa-arrow-left"></i> Back
+                    </a>
+                </div>
+            </div>
+
+            <form asp-action="Assign" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="examId" value="@exam?.Id" />
+
+                <!-- Search Box -->
+                <div class="exam-section-box" style="padding:16px 24px; margin-bottom:20px;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <i class="fa-solid fa-magnifying-glass" style="color:#64748b;"></i>
+                        <input type="text" id="search-box" class="exam-input" placeholder="Search students by name or email..." onkeyup="filterStudents()" style="border:none; box-shadow:none; padding:8px 0;" />
+                    </div>
+                </div>
+
+                <!-- Student Table -->
+                <div class="exam-section-box" style="padding:0; overflow:hidden;">
+                    <div style="padding:20px 24px; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between;">
+                        <h3 style="font-size:16px; font-weight:700; color:#1e293b; margin:0;">
+                            <i class="fa-solid fa-users" style="color:#3b82f6; margin-right:8px;"></i>
+                            Available Students
+                        </h3>
+                        <label style="margin:0; display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:#64748b; cursor:pointer;">
+                            <input type="checkbox" id="select-all-checkbox" onclick="selectAll(this)" style="width:18px; height:18px; accent-color:#3b82f6; cursor:pointer;" />
+                            Select All
+                        </label>
+                    </div>
+                    <div style="max-height:400px; overflow-y:auto;">
+                        <table class="exam-table" id="students-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:60px;">Select</th>
+                                    <th>Student Name</th>
+                                    <th>Email</th>
+                                    <th>Contact</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (Model == null || !Model.Any())
+                                {
+                                    <tr>
+                                        <td colspan="4">
+                                            <div class="exam-empty-state" style="border:none; padding:30px;">
+                                                <p style="color:#64748b;">No active student accounts found on this platform.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var s in Model)
+                                    {
+                                        <tr class="student-row">
+                                            <td class="text-center">
+                                                <input type="checkbox" name="studentIds" value="@s.Id" class="student-checkbox"
+                                                       style="width:18px; height:18px; accent-color:#3b82f6; cursor:pointer;" />
+                                            </td>
+                                            <td>
+                                                <strong style="color:#1e293b;">@s.Name</strong>
+                                            </td>
+                                            <td style="color:#64748b; font-size:13px;">@s.Email</td>
+                                            <td>
+                                                <span style="background:#f1f5f9; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:600; color:#64748b;">
+                                                    @s.ContactNo
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div style="display:flex; justify-content:flex-end; margin-top:20px;">
+                    <button type="submit" class="exam-btn exam-btn-primary" style="padding:12px 32px;">
+                        <i class="fa-solid fa-user-check"></i> Assign Selected Candidates
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function selectAll(checkbox) {
+        document.querySelectorAll('.student-checkbox').forEach(cb => cb.checked = checkbox.checked);
+    }
+
+    function filterStudents() {
+        const query = document.getElementById('search-box').value.toLowerCase();
+        document.querySelectorAll('.student-row').forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(query) ? '' : 'none';
+        });
+    }
+</script>
+}

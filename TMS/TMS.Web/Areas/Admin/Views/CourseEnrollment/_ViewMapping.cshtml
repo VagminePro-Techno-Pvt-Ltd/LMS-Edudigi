@@ -1,0 +1,165 @@
+@model IEnumerable<TMS.Web.Areas.Admin.Controllers.ProgramStudentEnrollmentVM>
+
+@{
+    var programCourses = ViewBag.ProgramCourses as IEnumerable<TMS.ViewModels.Masters.CourseMasterViewModel>;
+    var programId = (int)(ViewBag.ProgramId ?? 0);
+}
+
+<style>
+    .view-header { padding: 20px 24px; border-bottom: 1px solid #e2e8f0; }
+    .course-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .course-pill {
+        background: #eef2ff; color: #4f46e5; padding: 4px 10px;
+        border-radius: 8px; font-size: 11px; font-weight: 600;
+    }
+    .view-table { margin: 0; }
+    .view-table thead th {
+        background: #f8fafc; color: #64748b; font-size: 11px;
+        text-transform: uppercase; letter-spacing: 0.05em; padding: 12px 16px; border: none;
+    }
+    .view-table tbody td {
+        padding: 10px 16px; font-size: 13px; color: #1e293b;
+        border-color: #f1f5f9; vertical-align: middle;
+    }
+    .view-table tbody tr:hover { background: #f8fafc; }
+    .progress-bar-mini {
+        height: 6px; border-radius: 3px; background: #e2e8f0; overflow: hidden; width: 80px; display: inline-block;
+    }
+    .progress-bar-mini .fill {
+        height: 100%; border-radius: 3px; background: linear-gradient(90deg, #6366f1, #22c55e);
+    }
+</style>
+
+<div>
+    @* ── Header ── *@
+    <div class="view-header">
+        <h6 class="fw-bold mb-1" style="color:#1e293b;">
+            <i class="fas fa-graduation-cap me-1" style="color:#6366f1;"></i>
+            @ViewBag.ProgramName — Enrolled Students
+        </h6>
+
+        @if (programCourses != null && programCourses.Any())
+        {
+            <small class="text-muted">Courses included in this program:</small>
+            <div class="course-pills">
+                @foreach (var course in programCourses)
+                {
+                    <span class="course-pill">
+                        <i class="fas fa-book"></i> @course.CourseCode — @course.Name
+                        @if (course.Semester != null)
+                        {
+                            <span style="opacity:0.7;">(Sem @course.Semester.Name)</span>
+                        }
+                    </span>
+                }
+            </div>
+        }
+    </div>
+
+    @if (Model.Any())
+    {
+        <div style="max-height: 450px; overflow-y: auto;">
+            <table class="table view-table">
+                <thead>
+                    <tr>
+                        <th>Student Name</th>
+                        <th>Email</th>
+                        <th>Enrolled On</th>
+                        <th>Course Coverage</th>
+                        <th>Status</th>
+                        <th>Source</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        var pct = item.TotalCourseCount > 0
+                            ? (int)((double)item.ActiveCourseCount / item.TotalCourseCount * 100)
+                            : 0;
+
+                        <tr>
+                            <td class="fw-semibold">@item.StudentName</td>
+                            <td>@item.StudentEmail</td>
+                            <td>@item.EnrolledOn.ToString("dd-MMM-yyyy")</td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="progress-bar-mini">
+                                        <div class="fill" style="width: @(pct)%;"></div>
+                                    </div>
+                                    <small class="text-muted">@item.ActiveCourseCount/@item.TotalCourseCount</small>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge @item.StatusBadgeClass">@item.StatusText</span>
+                            </td>
+                            <td>
+                                <small class="text-muted">@item.Source</small>
+                            </td>
+                            <td>
+                                @if (item.Status == 1)
+                                {
+                                    <button class="btn btn-sm btn-outline-danger drop-student"
+                                            data-program-id="@programId"
+                                            data-student-id="@item.StudentId"
+                                            title="Drop from Program">
+                                        <i class="fas fa-user-minus"></i> Drop
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-info complete-enrollment"
+                                            data-program-id="@programId"
+                                            data-student-id="@item.StudentId"
+                                            title="Mark Completed">
+                                        <i class="fas fa-check-circle"></i> Complete
+                                    </button>
+                                }
+                                else if (item.Status == 3)
+                                {
+                                    <small class="text-muted">Dropped</small>
+                                }
+                                else if (item.Status == 4)
+                                {
+                                    <small class="text-muted">Completed</small>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <script>
+            $(document).on("click", ".drop-student", function () {
+                if (!confirm("Are you sure you want to drop this student from ALL courses in this program?")) return;
+                var programId = $(this).data("program-id");
+                var studentId = $(this).data("student-id");
+                $.post("/Admin/CourseEnrollment/DropStudent", { programId: programId, studentId: studentId }, function (res) {
+                    if (res.success) {
+                        location.reload();
+                    } else {
+                        alert(res.message);
+                    }
+                });
+            });
+
+            $(document).on("click", ".complete-enrollment", function () {
+                if (!confirm("Mark this student's enrollment as completed for all courses in this program?")) return;
+                var programId = $(this).data("program-id");
+                var studentId = $(this).data("student-id");
+                $.post("/Admin/CourseEnrollment/CompleteEnrollment", { programId: programId, studentId: studentId }, function (res) {
+                    if (res.success) {
+                        location.reload();
+                    } else {
+                        alert(res.message);
+                    }
+                });
+            });
+        </script>
+    }
+    else
+    {
+        <div class="text-center py-5">
+            <i class="fas fa-user-slash" style="font-size:36px; color:#cbd5e1;"></i>
+            <p class="text-muted mt-2">No students enrolled in this program yet.</p>
+        </div>
+    }
+</div>

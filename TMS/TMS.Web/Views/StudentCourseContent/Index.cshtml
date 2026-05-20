@@ -1,0 +1,167 @@
+@model TMS.ViewModels.Academics.StudentCourseCategoryViewModel
+
+@{
+    ViewData["Title"] = "My Courses";
+}
+
+<style>
+    .mc-page { padding: 24px 30px; max-width: 1200px; font-family: 'Segoe UI', -apple-system, sans-serif; }
+    /* Breadcrumb */
+    .mc-bc { font-size: 13px; color: #94a3b8; margin-bottom: 12px; }
+    .mc-bc a { color: #64748b; text-decoration: none; }
+    .mc-bc a:hover { text-decoration: underline; }
+    .mc-bc strong { color: #1e293b; }
+    /* Page title */
+    .mc-page-title {
+        font-size: 22px; font-weight: 800; color: #1e293b;
+        display: flex; align-items: center; gap: 10px; margin-bottom: 22px;
+    }
+    .mc-page-title i { color: #6366f1; }
+    /* Intro card */
+    .mc-intro {
+        background: #fff; border-radius: 14px;
+        border: 1px solid #eef2f6; border-left: 5px solid #6366f1;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+        padding: 22px 28px; margin-bottom: 22px;
+    }
+    .mc-intro h5 { font-size: 17px; font-weight: 800; color: #1e293b; margin-bottom: 8px; }
+    .mc-intro p  { font-size: 14px; color: #64748b; margin: 0; line-height: 1.7; }
+    /* Section header (enrolled courses) */
+    .mc-sec-row {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 18px; flex-wrap: wrap; gap: 10px;
+    }
+    .mc-sec-title {
+        font-size: 16px; font-weight: 800; color: #1e293b;
+        display: flex; align-items: center; gap: 8px;
+    }
+    .mc-sec-title i { color: #6366f1; }
+    .mc-refresh-hint { font-size: 13px; color: #94a3b8; }
+    .btn-refresh {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: #6366f1; color: #fff; border: none; border-radius: 8px;
+        padding: 8px 18px; font-size: 13px; font-weight: 700;
+        text-decoration: none; cursor: pointer; transition: all .2s;
+    }
+    .btn-refresh:hover { background: #4f46e5; color: #fff; transform: translateY(-1px); }
+    /* ── Semester card ── */
+    .sem-card {
+        background: #fff; border-radius: 14px;
+        border: 1px solid #eef2f6;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        overflow: hidden; margin-bottom: 22px;
+    }
+    .sem-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 18px 26px 16px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .sem-header-title { font-size: 16px; font-weight: 800; color: #1e293b; }
+    .sem-count { font-size: 13px; color: #64748b; font-weight: 500; }
+    /* Table */
+    .mc-tbl { width: 100%; border-collapse: collapse; }
+    .mc-tbl thead tr { background: #f8fafc; }
+    .mc-tbl thead th {
+        padding: 13px 22px; font-size: 11px; font-weight: 800;
+        color: #94a3b8; text-transform: uppercase; letter-spacing: .6px;
+        text-align: left; border-bottom: 1px solid #eef2f6;
+    }
+    .mc-tbl thead th.th-center { text-align: center; }
+    .mc-tbl tbody tr { border-bottom: 1px solid #f1f5f9; transition: background .14s; }
+    .mc-tbl tbody tr:last-child { border-bottom: none; }
+    .mc-tbl tbody tr:hover { background: #fafbfc; }
+    .mc-tbl tbody td { padding: 15px 22px; font-size: 14px; vertical-align: middle; }
+    .td-num  { font-size: 14px; font-weight: 600; color: #64748b; width: 60px; }
+    .td-name { color: #3b82f6; font-weight: 600; cursor: default; }
+    .td-credit { text-align: center; }
+    .btn-view-course {
+        background: #6366f1; color: #fff; border: none; border-radius: 6px;
+        padding: 6px 18px; font-size: 13px; font-weight: 700;
+        text-decoration: none; cursor: pointer; transition: background .2s;
+        white-space: nowrap; display: inline-flex; align-items: center;
+    }
+    .btn-view-course:hover { background: #4f46e5; color: #fff; }
+</style>
+
+<div class="mc-page">
+    <!-- Breadcrumb -->
+    <div class="mc-bc">
+        <a asp-controller="Home" asp-action="StudentDashboard">Dashboard</a> / <strong>My Courses</strong>
+    </div>
+
+    <!-- Title -->
+    <div class="mc-page-title">
+        <i class="fa-solid fa-graduation-cap"></i>
+        <span>My Courses</span>
+    </div>
+
+    <!-- Intro Card -->
+    <div class="mc-intro">
+        <h5>@Model.CategoryName</h5>
+        <p>@Model.CategoryDescription</p>
+    </div>
+
+    <!-- Section Header -->
+    <div class="mc-sec-row">
+        <div class="mc-sec-title">
+            <i class="fa-solid fa-book-open-reader"></i>
+            <span>Semester Subjects</span>
+        </div>
+        <div>
+            <span class="mc-refresh-hint">Unable to see your subjects? </span>
+            <a href="@Url.Action("Index", "StudentCourseContent")" class="btn-refresh">
+                <i class="fa-solid fa-rotate-right"></i>
+                Refresh
+            </a>
+        </div>
+    </div>
+
+    <!-- Semester Cards -->
+    @if (Model.Semesters != null && Model.Semesters.Any())
+    {
+        foreach (var sem in Model.Semesters)
+        {
+            <div class="sem-card">
+                <div class="sem-header">
+                    <span class="sem-header-title">Semester @sem.Semester</span>
+                    <span class="sem-count">(@sem.Courses.Count Subjects)</span>
+                </div>
+                <table class="mc-tbl">
+                    <thead>
+                        <tr>
+                            <th class="td-num">#</th>
+                            <th>Subject Name</th>
+                            <th class="th-center" style="width:150px;">Credit</th>
+                            <th class="th-center" style="width:150px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{
+                            int idx = 1;
+                        }
+                        @foreach (var course in sem.Courses)
+                        {
+                            <tr>
+                                <td class="td-num">@idx</td>
+                                <td class="td-name">@course.CourseCode @course.CourseName</td>
+                                <td class="td-credit">
+                                    <span style="background: #eff6ff; color: #3b82f6; width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600;">-</span>
+                                </td>
+                                <td style="text-align: center;">
+                                    <a href="@Url.Action("Details", "StudentCourseContent", new { semesterId = sem.Semester, courseId = course.CourseId })" class="btn-view-course">View Subject</a>
+                                </td>
+                            </tr>
+                            idx++;
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+    else
+    {
+        <div style="text-align: center; padding: 40px; background: #fff; border-radius: 14px; border: 1px solid #eef2f6;">
+            <p class="text-muted">You are not enrolled in any courses.</p>
+        </div>
+    }
+</div>

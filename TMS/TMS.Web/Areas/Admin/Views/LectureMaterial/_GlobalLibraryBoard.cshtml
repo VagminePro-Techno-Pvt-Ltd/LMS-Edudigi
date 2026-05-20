@@ -1,0 +1,141 @@
+@using TMS
+@model List<TMS.ViewModels.Academics.GlobalLibraryItemViewModel>
+
+@{
+    var permissions = ViewContext.HttpContext.GetFormPermissions();
+    var controller = Convert.ToString(ViewContext.RouteData.Values["controller"]);
+}
+
+<div class="gl-header">
+    <div>
+        <div class="cl-board-heading">
+            <i class="fa fa-layer-group" style="color:var(--cl-accent);"></i>
+            Central Content Library
+        </div>
+        <div class="cl-board-meta">
+            @Model.Count items in library • Upload once, reuse everywhere
+        </div>
+    </div>
+    <div class="gl-filter-bar">
+        <select id="glSourceFilter" class="gl-filter-select">
+            <option value="All">All Sources</option>
+            <option value="Local">📁 Local</option>
+            <option value="GoogleDrive">☁️ Google Drive</option>
+            <option value="OneDrive">📘 OneDrive</option>
+        </select>
+        <select id="glTypeFilter" class="gl-filter-select">
+            <option value="All">All Types</option>
+            <option value="Document">📄 Document</option>
+            <option value="Video">🎥 Video</option>
+            <option value="VideoURL">🔗 Video URL</option>
+        </select>
+    </div>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="gl-empty-state">
+        <div class="gl-empty-icon">📚</div>
+        <h4>Your library is empty</h4>
+        <p>Upload your first content to get started. Files can be reused across multiple courses.</p>
+        <a href="@Url.Action("Item")" class="cl-upload-btn" style="display:inline-flex;">
+            <i class="fa fa-plus"></i> Upload Content
+        </a>
+    </div>
+}
+else
+{
+    <div class="gl-grid">
+        @foreach (var item in Model)
+        {
+            var typeIcon = item.MaterialType switch
+            {
+                "Video" => "🎥",
+                "VideoURL" => "🔗",
+                _ => "📄"
+            };
+
+            var sourceIcon = item.Source switch
+            {
+                "GoogleDrive" => "☁️",
+                "OneDrive" => "📘",
+                _ => "📁"
+            };
+
+            var sourceLabel = item.Source switch
+            {
+                "GoogleDrive" => "Google Drive",
+                "OneDrive" => "OneDrive",
+                _ => "Local"
+            };
+
+            var fileSize = item.FileSizeBytes.HasValue
+                ? (item.FileSizeBytes.Value > 1048576
+                    ? $"{item.FileSizeBytes.Value / 1048576.0:F1} MB"
+                    : $"{item.FileSizeBytes.Value / 1024.0:F0} KB")
+                : "";
+
+            <div class="gl-item" data-title="@item.Title?.ToLower()">
+                <div class="gl-item-icon">@typeIcon</div>
+                <div class="gl-item-body">
+                    <div class="gl-item-title">@item.Title</div>
+                    <div class="gl-item-meta">
+                        <span class="gl-badge gl-badge-source">@sourceIcon @sourceLabel</span>
+                        <span class="gl-badge gl-badge-type">@item.MaterialType</span>
+                        @if (!string.IsNullOrEmpty(fileSize))
+                        {
+                            <span class="gl-badge">@fileSize</span>
+                        }
+                    </div>
+                    @if (!string.IsNullOrEmpty(item.AssignmentSummary))
+                    {
+                        <div class="gl-assignment-info">
+                            <i class="fa fa-info-circle"></i> @item.AssignmentSummary
+                            <a href="javascript:void(0);" class="view-assignments-link" data-id="@item.Id" style="margin-left:8px;font-weight:600;color:var(--cl-accent);">View All</a>
+                        </div>
+                    }
+                </div>
+                <div class="gl-item-right">
+                    <div class="gl-mapped-count view-assignments-link" data-id="@item.Id" style="cursor:pointer;" title="Click to view assignments">
+                        <i class="fa fa-book"></i>
+                        @item.MappedCourseCount
+                    </div>
+                    <div class="gl-item-actions">
+                        @if (!string.IsNullOrEmpty(item.FilePath))
+                        {
+                            <a href="javascript:void(0);"
+                               class="gl-action-btn view-file-link"
+                               data-filepath="@item.FilePath"
+                               data-title="@item.Title"
+                               title="Preview">
+                                <i class="fa fa-eye"></i>
+                            </a>
+                        }
+                        <a asp-area="Admin"
+                           asp-action="Item"
+                           asp-controller="@controller"
+                           asp-route-iId="@item.EncryptedId"
+                           class="gl-action-btn"
+                           title="Edit">
+                            <i class="fa fa-edit"></i>
+                        </a>
+                        <button class="gl-action-btn quick-assign-btn"
+                                data-material-id="@item.Id"
+                                title="Assign to Course">
+                            <i class="fa fa-plus-circle"></i>
+                        </button>
+                        @if (item.MaterialType == "Video" || item.MaterialType == "VideoURL")
+                        {
+                            <a href="/Admin/VideoQuiz/Manage?materialId=@item.Id"
+                               class="gl-action-btn"
+                               title="Manage Video Quiz"
+                               style="background:#fdf4ff;color:#a855f7;">
+                                <i class="fa fa-film"></i>
+                            </a>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}

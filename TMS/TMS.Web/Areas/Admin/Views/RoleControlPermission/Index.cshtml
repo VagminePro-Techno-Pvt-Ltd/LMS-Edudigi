@@ -1,0 +1,34 @@
+﻿@using TMS.Common
+@{
+    ViewData["Title"] = "Role Controls Permissions";
+}
+<div class="card glass">
+    <div class="card-body">
+        <div class="row mb-2">
+            <div class="col-12 col-md-6 col-lg-4">
+                <div class="form-group">
+                    <label>Roles</label>
+                    <select asp-items="ViewBag.Roles" id="RoleId" class="select2 form-select"></select>
+                </div>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4">
+                <div class="form-group">
+                    <label>Form</label>
+                    <select id="FormId" class="select2 form-select">
+                        <option value="">--Select--</option>
+                        <option value="@((int)FormDefination.User)">User</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4">
+                <button type="button" id="btnSearchRolePremissions" class="btn btn-primary" data-toggle="tooltip" title="Search Permission"><i class="fas fa-search"></i></button>
+            </div>
+            <div class="col-12 mt-1" id="divPermissionsContainer"></div>
+        </div>
+
+    </div>
+</div>
+@section Scripts{
+    <script src="@Url.Action("AdminRoleControlsPermissions","LinkScript",new {area=""})" asp-append-version="true"></script>
+    <script src="~/js/Masters/RolesControlsPermissions-Index.js" asp-append-version="true"></script>
+}

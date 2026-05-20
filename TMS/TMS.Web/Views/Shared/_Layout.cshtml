@@ -1,0 +1,827 @@
+@inject Microsoft.Extensions.Options.IOptions<TMS.ViewModels.StorageSettings> myOptions
+@{
+    TMS.ViewModels.StorageSettings _storageSettings = myOptions.Value;
+    string? logo = User?.Claims?.Where(t => t.Type == "logourl").FirstOrDefault()?.Value;
+    if (!string.IsNullOrWhiteSpace(logo))
+        logo = $"{_storageSettings.StorageUrl}/{_storageSettings.ContainerName}/{logo}";
+
+    string? company = User?.Claims?.Where(t => t.Type == "brandingname").FirstOrDefault()?.Value;
+    if (string.IsNullOrWhiteSpace(company))
+        company = "Edudigi";
+}
+<!DOCTYPE html>
+<html lang="en" class="loading white-layout" data-textdirection="ltr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - @company</title>
+    <meta name="description" content="@company">
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-multiselect/0.9.14/css/bootstrap-multiselect.css" />
+    <link href="~/css/bootstrap.css" rel="stylesheet" asp-append-version="true" />
+    <link href="~/lib/datatables/dataTables.bootstrap5.min.css" rel="stylesheet" asp-append-version="true" />
+    <link href="~/app-assets/bootstrap-toaster/bootstrap-toaster.min.css" rel="stylesheet" asp-append-version="true" />
+    <link href="~/css/owlcarousel.css" rel="stylesheet" asp-append-version="true" />
+    <link href="~/css/style.css" rel="stylesheet" asp-append-version="true" />
+    <link href="~/css/enhanced-sidebar.css" rel="stylesheet" asp-append-version="true" />
+    <link rel="stylesheet" href="~/TMS.Web.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/global-search.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/help-panel.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/exam-theme.css" asp-append-version="true" />
+    @await RenderSectionAsync("extracss", required: false)
+
+    <style>
+        /* ================================================================
+           TOPBAR — Enhanced to match Sidebar design language
+           ================================================================ */
+
+        /* CSS Variables (shared with sidebar palette) */
+        :root {
+            --top-bg: #ffffff;
+            --top-border: #e8ecf0;
+            --top-height: 64px;
+            --badge-radius: 4px;
+            --text-primary: #1e293b;
+            --text-muted: #64748b;
+            --blue: #3b82f6;
+            --indigo: #6366f1;
+            --hover-bg: #f8fafc;
+            --transition: all 0.18s ease;
+            --sidebar-width: 260px;
+            --sidebar-collapsed-width: 72px;
+        }
+
+        /* ── Header Shell ─────────────────────────────────────── */
+        .page-header {
+            position: fixed;
+            top: 0;
+            right: 0;
+            left: 0;
+            width: 100%;
+            z-index: 999;
+            background: var(--top-bg);
+            border-bottom: 1px solid var(--top-border);
+            height: var(--top-height);
+            box-shadow: 0 1px 8px rgba(0, 0, 0, 0.05);
+            transition: all 0.25s ease;
+            padding-left: var(--sidebar-width);
+            padding-right: 24px;
+        }
+
+        .sidebar-wrapper {
+            top: 0 !important;
+            height: 100vh !important;
+            z-index: 1000 !important;
+        }
+
+        .page-body-wrapper .page-body {
+            padding-top: calc(var(--top-height) + 24px) !important;
+            padding-left: 24px !important;
+            padding-right: 24px !important;
+            padding-bottom: 24px !important;
+        }
+
+        .page-body-wrapper .container-fluid {
+            padding: 0 !important;
+        }
+
+        /* When sidebar is collapsed */
+        .page-header.close_icon {
+            padding-left: var(--sidebar-collapsed-width) !important;
+        }
+
+        .page-header .header-wrapper {
+            height: 100% !important;
+            padding: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+        }
+
+        /* ── Logo & Brand ─────────────────────────────────────── */
+        .header-logo-wrapper {
+            display: flex !important;
+            align-items: center !important;
+            gap: 12px;
+            height: 100% !important;
+        }
+
+        .logo-wrapper a {
+            display: flex;
+            align-items: center;
+        }
+
+        .enhanced-logo {
+            height: 38px;
+            width: auto;
+            border-radius: 8px;
+            object-fit: contain;
+        }
+
+        .brand-text-enhanced .university-name {
+            font-family: 'Jost', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.2px;
+            white-space: nowrap;
+        }
+
+        /* ── Hamburger Toggle ─────────────────────────────────── */
+        .toggle-enhanced {
+            width: 34px;
+            height: 34px;
+            border-radius: var(--badge-radius);
+            background: #eff6ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .toggle-enhanced i {
+            font-size: 15px;
+            color: var(--blue);
+            transition: transform 0.2s ease;
+        }
+
+        .toggle-enhanced:hover {
+            background: #dbeafe;
+            transform: scale(1.06);
+        }
+
+        .toggle-enhanced:hover i {
+            transform: rotate(90deg);
+        }
+
+        /* ── Right Nav Area ───────────────────────────────────── */
+        .nav-right {
+            display: flex !important;
+            align-items: center !important;
+            height: 100% !important;
+        }
+
+        .nav-enhanced {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* ── Shared Icon Badge (same as sidebar) ──────────────── */
+        .nav-icon-badge {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--badge-radius);
+            background: var(--ibg, #f1f5f9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.18s ease;
+            position: relative;
+        }
+
+        .nav-icon-badge i {
+            font-size: 15px;
+            color: var(--iclr, #64748b);
+            transition: transform 0.2s ease;
+        }
+
+        .nav-icon-badge:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.10);
+        }
+
+        .nav-icon-badge:hover i {
+            transform: scale(1.08);
+        }
+
+        /* ── Language Pill ────────────────────────────────────── */
+        .lang-pill {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 0 12px;
+            height: 36px;
+            border-radius: var(--badge-radius);
+            background: #f0fdf4;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 13px;
+            font-weight: 500;
+            color: #16a34a;
+        }
+
+        .lang-pill i.globe-icon { font-size: 14px; color: #16a34a; }
+        .lang-pill i.chevron    { font-size: 10px; color: #16a34a; opacity: 0.6; }
+
+        .lang-pill:hover {
+            background: #dcfce7;
+            transform: scale(1.03);
+            box-shadow: 0 3px 10px rgba(22,163,74,0.12);
+        }
+
+        /* ── Notification Bell ────────────────────────────────── */
+        .notif-wrap {
+            position: relative;
+        }
+
+        .notif-wrap .notif-count {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            min-width: 17px;
+            height: 17px;
+            background: #ef4444;
+            color: #fff;
+            font-size: 9px;
+            font-weight: 700;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #fff;
+            line-height: 1;
+        }
+
+        /* ── Divider ──────────────────────────────────────────── */
+        .nav-divider {
+            width: 1px;
+            height: 24px;
+            background: #e8ecf0;
+            margin: 0 4px;
+            flex-shrink: 0;
+        }
+
+        /* ── Profile Button ───────────────────────────────────── */
+        .profile-nav-enhanced {
+            position: relative;
+        }
+
+        .profile-btn {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 5px 12px 5px 5px;
+            border-radius: 4px;
+            background: #fff;
+            border: 1px solid var(--top-border);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .profile-btn:hover {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            box-shadow: 0 3px 10px rgba(59,130,246,0.10);
+        }
+
+        .avatar-circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+            background: #3b82f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        }
+
+        .avatar-circle i {
+            font-size: 13px;
+            color: #fff;
+        }
+
+        .profile-name-block {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.25;
+        }
+
+        .profile-name-block .p-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .profile-name-block .p-role {
+            font-size: 10.5px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .profile-chevron {
+            font-size: 10px;
+            color: var(--text-muted);
+            opacity: 0.6;
+            transition: transform 0.2s ease;
+        }
+
+        /* ── Profile Dropdown ─────────────────────────────────── */
+        .profile-dropdown {
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            min-width: 220px;
+            background: #fff;
+            border-radius: 4px;
+            border: 1px solid #e8ecf0;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.10);
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            overflow: hidden;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px);
+            transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+            z-index: 9999;
+        }
+
+        .profile-nav-enhanced:hover .profile-dropdown,
+        .profile-nav-enhanced.open .profile-dropdown {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .profile-nav-enhanced:hover .profile-chevron {
+            transform: rotate(180deg);
+        }
+
+        .profile-dropdown .dp-header {
+            padding: 14px 16px;
+            background: linear-gradient(135deg, #eff6ff, #f5f3ff);
+            border-bottom: 1px solid #e8ecf0;
+        }
+
+        .profile-dropdown .dp-header h6 {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0 0 2px 0;
+        }
+
+        .profile-dropdown .dp-header p {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin: 0;
+        }
+
+        .profile-dropdown .dp-item a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            font-size: 13.5px;
+            font-weight: 500;
+            color: #374151;
+            text-decoration: none;
+            transition: background 0.15s ease;
+        }
+
+        .profile-dropdown .dp-item a:hover {
+            background: #fef2f2;
+            color: #ef4444;
+        }
+
+        .profile-dropdown .dp-item a .dp-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            background: #fef2f2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .profile-dropdown .dp-item a .dp-icon i {
+            font-size: 13px;
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <!-- loader starts-->
+    <div class="loader-wrapper topLoader">
+        <div class="loader-index"><span></span></div>
+        <svg>
+            <defs></defs>
+            <filter id="goo">
+                <fegaussianblur in="SourceGraphic" stddeviation="11" result="blur"></fegaussianblur>
+                <fecolormatrix in="blur" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -9" result="goo"></fecolormatrix>
+            </filter>
+        </svg>
+    </div>
+    <!-- loader ends-->
+
+    <div class="tap-top"><i class="fa-solid fa-chevron-up"></i></div>
+
+    <div class="page-wrapper compact-wrapper" id="pageWrapper">
+
+        <!-- ══════════════════════════════════════════════════════
+             PAGE HEADER — Enhanced Topbar
+        ══════════════════════════════════════════════════════ -->
+        <div class="page-header">
+            <div class="header-wrapper row m-0 align-items-center">
+
+                <!-- LEFT: Logo + Brand + Toggle -->
+                <div class="header-logo-wrapper col-auto p-0">
+                    <div class="logo-wrapper">
+                        <a asp-area="" asp-controller="Home" asp-action="Index">
+                            @if (string.IsNullOrEmpty(logo))
+                            {
+                                <img src="~/images/logo.jpg" alt="@company" class="enhanced-logo" />
+                            }
+                            else
+                            {
+                                <img src="@logo" alt="@company" class="enhanced-logo" />
+                            }
+                        </a>
+                    </div>
+                    <div class="brand-text-enhanced ms-2">
+                        <span class="university-name">@company</span>
+                    </div>
+                    <div class="toggle-sidebar toggle-enhanced ms-3">
+                        <i class="fa-solid fa-bars-staggered"></i>
+                    </div>
+                </div>
+
+                <!-- RIGHT: Nav Icons -->
+                <div class="nav-right col-auto ms-auto p-0">
+                    <ul class="nav-enhanced">
+
+                        <!-- Language -->
+                        @*
+                        <li>
+                            <div class="lang-pill">
+                                <i class="fa-solid fa-earth-americas globe-icon"></i>
+                                <span>English</span>
+                                <i class="fa-solid fa-chevron-down chevron"></i>
+                            </div>
+                        </li>
+
+                        <li><div class="nav-divider"></div></li>
+                        *@
+
+                        <!-- Notifications -->
+                        <li class="notif-wrap">
+                            <a asp-area="" asp-controller="Notifications" asp-action="Index" style="text-decoration: none;">
+                                <div class="nav-icon-badge" style="--ibg:#fef9c3; --iclr:#ca8a04;">
+                                    <i class="fa-solid fa-bell"></i>
+                                </div>
+                            </a>
+                            <span class="notif-count">0</span>
+                        </li>
+
+                        <!-- Global Search -->
+                        <li>
+                            <div class="global-search-wrapper" id="globalSearchWrapper">
+                                <!-- Collapsed: icon badge -->
+                                <div class="search-icon-badge" id="globalSearchIcon" title="Search pages & modules" aria-label="Open search">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                </div>
+                                <!-- Expanded: search bar -->
+                                <div class="global-search-bar" id="globalSearchBar" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-controls="globalSearchDropdown">
+                                    <i class="fa-solid fa-magnifying-glass search-bar-icon"></i>
+                                    <input type="text" id="globalSearchInput" placeholder="Search courses, exams, fees…" autocomplete="off" spellcheck="false" aria-label="Search dashboard modules" aria-autocomplete="list" role="searchbox" />
+                                    <button class="search-close-btn" id="globalSearchClose" aria-label="Close search" title="Close">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
+                                <!-- Autocomplete Dropdown -->
+                                <div class="search-dropdown" id="globalSearchDropdown" role="listbox" aria-label="Search results">
+                                    <!-- Populated by global-search.js -->
+                                </div>
+                            </div>
+                        </li>
+
+                        <!-- Help & Support -->
+                        <li class="help-nav-wrapper">
+                            <!-- Trigger button (Green Question Mark) -->
+                            <button class="help-trigger"
+                                    id="helpPanelTrigger"
+                                    aria-haspopup="true"
+                                    aria-expanded="false"
+                                    aria-controls="helpPanel">
+                                <i class="fa-regular fa-circle-question"></i>
+                            </button>
+                            <!-- Dropdown panel -->
+                            <div class="help-panel" id="helpPanel" role="dialog" aria-label="Help & Support">
+                                <!-- Header -->
+                                <div class="help-panel-header">
+                                    <div class="hp-icon">
+                                        <i class="fa-solid fa-headset"></i>
+                                    </div>
+                                    <div class="hp-text">
+                                        <h6>Help &amp; Support</h6>
+                                        <p>How can we assist you today?</p>
+                                    </div>
+                                </div>
+                                <!-- Menu items -->
+                                <ul class="help-menu">
+                                    <!-- FAQ -->
+                                    <li class="help-menu-item">
+                                        <a href="/Support/FAQ">
+                                            <span class="hm-icon" style="background:#f0fdf4; color:#16a34a;">
+                                                <i class="fa-solid fa-circle-question"></i>
+                                            </span>
+                                            <span class="hm-body">
+                                                <span class="hm-title">FAQ</span>
+                                                <span class="hm-desc">Browse frequently asked questions</span>
+                                            </span>
+                                            <i class="fa-solid fa-chevron-right hm-arrow"></i>
+                                        </a>
+                                    </li>
+                                    <!-- Contact Mentor -->
+                                    <li class="help-menu-item">
+                                        <a href="/Support/ContactMentor">
+                                            <span class="hm-icon" style="background:#eff6ff; color:#3b82f6;">
+                                                <i class="fa-solid fa-chalkboard-user"></i>
+                                            </span>
+                                            <span class="hm-body">
+                                                <span class="hm-title">Contact Mentor</span>
+                                                <span class="hm-desc">Reach out to your assigned mentor</span>
+                                            </span>
+                                            <i class="fa-solid fa-chevron-right hm-arrow"></i>
+                                        </a>
+                                    </li>
+                                    <li><div class="help-menu-divider"></div></li>
+                                    <!-- Raise Ticket (highlighted) -->
+                                    <li class="help-menu-item hm-highlight">
+                                        <a href="/Support/RaiseTicket">
+                                            <span class="hm-icon" style="background:#fff7ed; color:#f97316;">
+                                                <i class="fa-solid fa-life-ring"></i>
+                                            </span>
+                                            <span class="hm-body">
+                                                <span class="hm-title">Raise a Ticket</span>
+                                                <span class="hm-desc">Report an issue or request support</span>
+                                            </span>
+                                            <i class="fa-solid fa-chevron-right hm-arrow"></i>
+                                        </a>
+                                    </li>
+                                </ul>
+                                <!-- Footer: Quick Guide -->
+                                <div class="help-panel-footer">
+                                    <a href="#" class="help-quick-guide-btn" id="helpGuideOpen">
+                                        <i class="fa-solid fa-book-open-reader"></i>
+                                        Quick Dashboard Guide
+                                    </a>
+                                </div>
+                            </div>
+                        </li>
+
+                        <li><div class="nav-divider"></div></li>
+
+                        <!-- Profile -->
+                        <li class="profile-nav-enhanced onhover-dropdown p-0">
+                            <div class="profile-btn">
+                                <div class="avatar-circle">
+                                    <i class="fa-regular fa-user"></i>
+                                </div>
+                                <div class="profile-name-block">
+                                    <span class="p-name">@User?.Claims?.Where(t => t.Type == "userName").FirstOrDefault()?.Value</span>
+                                    <span class="p-role">@User?.Claims?.Where(t => t.Type == "role").FirstOrDefault()?.Value</span>
+                                </div>
+                                <i class="fa-solid fa-chevron-down profile-chevron"></i>
+                            </div>
+
+                            <!-- Dropdown -->
+                            <ul class="profile-dropdown onhover-show-div">
+                                <li class="dp-header">
+                                    <h6>@User?.Claims?.Where(t => t.Type == "userName").FirstOrDefault()?.Value</h6>
+                                    <p>@User?.Claims?.Where(t => t.Type == "role").FirstOrDefault()?.Value</p>
+                                </li>
+                                <li class="dp-item">
+                                    <a asp-area="" asp-controller="Auth" asp-action="ChangePassword">
+                                        <span class="dp-icon" style="background:#eff6ff;">
+                                            <i class="fa-solid fa-key" style="color:#3b82f6;"></i>
+                                        </span>
+                                        <span style="color:#374151;">Change Password</span>
+                                    </a>
+                                </li>
+                                <li class="dp-item">
+                                    <a href="#" class="aLogout">
+                                        <span class="dp-icon">
+                                            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                                        </span>
+                                        <span>Logout Now</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <!-- Page Header Ends -->
+
+        <!-- Page Body Start -->
+        <div class="page-body-wrapper">
+            <!-- Page Sidebar Start -->
+            <div class="sidebar-wrapper">
+                <div>
+                    @* Legacy logo removed in favor of enhanced branding block in partials *@
+                    @{
+                        string? role = User?.Claims?.FirstOrDefault(c => c.Type == "role")?.Value;
+                    }
+                    @if (!string.IsNullOrEmpty(role) && role.ToLower() == "student")
+                    {
+                        <partial name="_StudentMenu" />
+                    }
+                    else
+                    {
+                        <partial name="_MenuPartial" />
+                    }
+                </div>
+                <footer class="footer text-center">
+                    <p class="mb-0 font-9 line-height-11"><a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy Policy</a></p>
+                    <p class="mb-1 font-9 line-height-11">Terms &amp; Conditions</p>
+                    <p class="mb-0 font-9 line-height-11">&copy; 2023 - @company.</p>
+                    <form asp-area="" asp-controller="Auth" asp-action="LogOff" id="frmLogout"></form>
+                </footer>
+            </div>
+            <!-- Page Sidebar Ends -->
+
+            <div class="page-body">
+                <div class="container-fluid">
+                    <section>
+                        @RenderBody()
+                    </section>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- page-wrapper End -->
+
+    <div class="appMessage">
+        @{
+            var appResult = TempData.Get<AppResultViewModel>("AppResult");
+        }
+        @if (appResult != null)
+        {
+            if (appResult.Status)
+            {
+                <div class="toast toast-basic position-fixed success" role="alert" aria-live="assertive" aria-atomic="true" data-delay="10000" style="top: 1rem; right: 1rem">
+                    <div class="toast-header">
+                        <strong class="mr-auto">Success</strong>
+                        <button type="button" class="ml-1 close" data-dismiss="toast" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    </div>
+                    <div class="toast-body">@appResult.Message</div>
+                </div>
+            }
+            else
+            {
+                <div class="toast toast-basic position-fixed error" role="alert" aria-live="assertive" aria-atomic="true" data-delay="10000" style="top: 1rem; right: 1rem">
+                    <div class="toast-header">
+                        <strong class="mr-auto">Alert</strong>
+                        <button type="button" class="ml-1 close" data-dismiss="toast" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    </div>
+                    <div class="toast-body text-danger bg-white">@appResult.Message</div>
+                </div>
+            }
+        }
+    </div>
+
+    <!-- Modal Start -->
+    <div class="modal fade" id="divGlobalModal">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content pb-0" style="border-radius:4px;">
+                <div class="modal-header p-3 pb-0">
+                    <h5 class="modal-title"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="btnGlobalModal">Save</button>
+                    <button type="button" class="btn btn-danger RejectBtnGlobal" id="RejectBtnGlobalModal">Reject Nomination</button>
+                    <button type="button" class="btn btn-primary ApproveBtnGlobal" id="ApproveBtnGlobalModal">Approve</button>
+                    <button type="button" id="submitNominationBtn" class="btn btn-primary submitBtn">Nominate</button>
+                    <button type="button" id="WithdrawlBtn" class="btn btn-primary rejectBtn">Withdraw Nomination</button>
+                    <button type="button" id="submitBtn" class="btn btn-primary submitBtn">Submit</button>
+                    <button type="button" id="rejectBtn" class="btn btn-primary rejectBtn">Reject</button>
+                    <button type="button" id="cancelBtn" class="btn btn-primary cancelBtn">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="loader-wrapper">
+        <div class="loader-index"><span></span></div>
+        <svg>
+            <defs></defs>
+            <filter id="goo">
+                <fegaussianblur in="SourceGraphic" stddeviation="11" result="blur"></fegaussianblur>
+                <fecolormatrix in="blur" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -9" result="goo"></fecolormatrix>
+            </filter>
+        </svg>
+    </div>
+    <!-- Modal End -->
+
+    <!-- Quick Guide Overlay Modal -->
+    <div id="helpGuideOverlay" class="help-guide-overlay" role="dialog" aria-modal="true" aria-label="Quick Dashboard Guide">
+        <div class="help-guide-content">
+            <button id="helpGuideClose" class="help-guide-close-btn" aria-label="Close guide">&times;</button>
+            <div class="help-guide-header">
+                <i class="fa-solid fa-book-open-reader"></i>
+                <h3>Quick Dashboard Guide</h3>
+            </div>
+            <div class="help-guide-body">
+                <p>Welcome to the EduDigi LMS Dashboard! Here's a quick overview of how to navigate your learning space:</p>
+                <div class="guide-steps">
+                    <div class="guide-step">
+                        <span class="step-num">1</span>
+                        <div class="step-text">
+                            <h5>View Courses</h5>
+                            <p>Access your enrolled courses from the "My Enrolled Courses" section below or use the sidebar menu.</p>
+                        </div>
+                    </div>
+                    <div class="guide-step">
+                        <span class="step-num">2</span>
+                        <div class="step-text">
+                            <h5>Track Progress</h5>
+                            <p>Monitor your performance, attendance, and exam scores in the Stats Grid on the dashboard.</p>
+                        </div>
+                    </div>
+                    <div class="guide-step">
+                        <span class="step-num">3</span>
+                        <div class="step-text">
+                            <h5>Join Classes</h5>
+                            <p>Jump directly into your virtual classrooms from the "Today's Virtual Classes" card.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js" asp-append-version="true"></script>
+    <script src="~/js/bootstrap.bundle.min.js" asp-append-version="true"></script>
+    <script src="~/app-assets/bootstrap-toaster/bootstrap-toaster.min.js" asp-append-version="true"></script>
+    <script src="~/lib/datatables/jquery.dataTables.min.js" asp-append-version="true"></script>
+    <script src="~/lib/datatables/dataTables.bootstrap5.min.js" asp-append-version="true"></script>
+    <script src="~/js/owl.carousel.js" asp-append-version="true"></script>
+    <script src="~/js/owl-custom.js" asp-append-version="true"></script>
+    <script src="~/js/sidebar-menu.js" asp-append-version="true"></script>
+    <script src="~/js/simplebar.js" asp-append-version="true"></script>
+    <script src="~/js/script.js" asp-append-version="true"></script>
+    <script src="~/js/app.util.js" asp-append-version="true"></script>
+    <script src="~/js/app.util.modal.js" asp-append-version="true"></script>
+    <script src="@Url.Action("Global","LinkScript",new {area=""})" asp-append-version="true"></script>
+    <script src="~/js/Global.js" asp-append-version="true"></script>
+    <script src="~/js/global-search.js" asp-append-version="true"></script>
+    <script src="~/js/help-panel.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const links = document.querySelectorAll('.enhanced-sidebar a');
+            const currentPath = window.location.pathname.toLowerCase().replace(/\/$/, "");
+
+            links.forEach(link => {
+                try {
+                    const linkPath = new URL(link.href).pathname.toLowerCase().replace(/\/$/, "");
+                    if (currentPath === linkPath || (linkPath !== "/" && currentPath.startsWith(linkPath + "/"))) {
+                        link.classList.add('active');
+                        
+                        // Open parent menu if it's in a submenu
+                        let parentList = link.closest('.sidebar-list');
+                        if (parentList) {
+                            parentList.classList.add('open');
+                        }
+                    }
+                } catch (e) {}
+            });
+
+            // Toggle submenus
+            document.querySelectorAll('.enhanced-sidebar .has-submenu').forEach(parentLink => {
+                parentLink.addEventListener('click', function(e) {
+                    // Prevent navigation if it has subitems
+                    const parentLi = this.closest('.sidebar-list');
+                    if(parentLi.querySelector('.sidebar-submenu')) {
+                        e.preventDefault();
+                        parentLi.classList.toggle('open');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

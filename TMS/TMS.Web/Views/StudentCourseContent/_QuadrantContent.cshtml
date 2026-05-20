@@ -1,0 +1,84 @@
+﻿@model List<TMS.ViewModels.Masters.LectureMaterialViewModel>
+
+@if (Model == null || !Model.Any())
+{
+    <div class="alert alert-secondary">No materials available for this quadrant.</div>
+}
+else
+{
+    <div class="row g-3">
+        @{
+            // Professional soft colors
+            var colors = new[] {
+        "#f8f9fa", // Light Gray
+        "#e9ecef", // Grayish
+        "#f1f3f5", // Off-white
+        "#e3f2fd", // Soft Blue
+        "#fdf3e7", // Soft Beige
+        "#fff8e1", // Soft Yellowish
+        "#e8f5e9"  // Soft Green
+        };
+            var rand = new Random();
+        }
+
+        @foreach (var material in Model)
+        {
+            var bgColor = colors[rand.Next(colors.Length)];
+            <div class="col-md-4">
+                <div class="card h-100 shadow-sm" style="background-color:@bgColor; border-radius:12px;">
+                    <div class="card-body text-center d-flex flex-column justify-content-between">
+                        <!-- Material Icon -->
+                        <div class="mb-3">
+                            @{
+                                var ext = !string.IsNullOrEmpty(material.FilePath)
+                                ? System.IO.Path.GetExtension(material.FilePath).ToLower()
+                                : null;
+                                string iconClass = ext switch
+                                {
+                                    ".pdf" => "bi-file-earmark-pdf",
+                                    ".doc" or ".docx" => "bi-file-earmark-word",
+                                    ".xls" or ".xlsx" => "bi-file-earmark-excel",
+                                    ".ppt" or ".pptx" => "bi-file-earmark-ppt",
+                                    ".mp4" or ".webm" or ".ogg" => "bi-play-circle",
+                                    ".jpg" or ".jpeg" or ".png" or ".gif" => "bi-file-image",
+                                    _ => "bi-file-earmark"
+                                };
+                            }
+                            <i class="bi @iconClass fs-1 text-primary"></i>
+                        </div>
+
+                        <!-- Material Title -->
+                        <h5 class="card-title fw-semibold">@material.Title</h5>
+
+                        <!-- Material Description -->
+                        <p class="card-text text-muted small">@material.Description</p>
+
+                        <!-- Action Buttons -->
+                        <div class="mt-2">
+                            @if (!string.IsNullOrEmpty(material.FilePath))
+                            {
+                                <button class="btn btn-sm btn-outline-primary view-file-link"
+                                        data-filepath="@Url.Content(material.FilePath)"
+                                        data-title="@material.Title">
+                                    <i class="bi bi-eye"></i> Preview
+                                </button>
+                            }
+                            else if (!string.IsNullOrEmpty(material.ContentPath))
+                            {
+                                <button class="btn btn-sm btn-outline-success view-file-link"
+                                        data-filepath="@material.ContentPath"
+                                        data-title="@material.Title">
+                                    <i class="bi bi-play-circle"></i> Watch
+                                </button>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">No file</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}

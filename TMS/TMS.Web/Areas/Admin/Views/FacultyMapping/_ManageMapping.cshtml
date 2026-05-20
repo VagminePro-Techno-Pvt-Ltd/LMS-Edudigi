@@ -1,0 +1,50 @@
+﻿@model TMS.ViewModels.Masters.CourseFacultyMapViewModel
+
+<form id="mappingForm">
+    <input type="hidden" name="CourseId" value="@Model.CourseId" />
+
+    <h6>@ViewBag.CourseName</h6>
+    <hr />
+
+    <div class="table-responsive">
+        <table class="table table-sm table-hover">
+            <thead>
+                <tr>
+                    <th>Select</th>
+                    <th>Faculty Name</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var f in (List<SelectListItem>)ViewBag.FacultyList)
+                {
+                    <tr>
+                        <td>
+                            <input type="checkbox" name="FacultyIds" value="@f.Value" @(f.Selected ? "checked" : "") />
+                        </td>
+                        <td>@f.Text</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save</button>
+</form>
+
+<script>
+    $("#mappingForm").submit(function (e) {
+        e.preventDefault();
+        $.ajax({
+            url: "/Admin/FacultyMapping/SaveMapping",
+            method: "POST",
+            data: $(this).serialize(),
+            success: function (res) {
+                if (res.success) {
+                    alert(res.message);
+                    $("#mappingModal").modal("hide");
+                    location.reload();
+                }
+            }
+        });
+    });
+</script>

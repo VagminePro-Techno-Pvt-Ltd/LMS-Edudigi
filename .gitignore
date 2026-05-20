@@ -1,0 +1,135 @@
+##---------------------------------------------------------------------
+## 1. Visual Studio / MSBuild / Dotnet Core
+##---------------------------------------------------------------------
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# User-specific files (MonoDevelop/ActiveState ActiveGo)
+*.userprefs
+
+# Mono auto-generated files
+mono_crash.*
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPS/
+[Rr]elease/
+[Rr]eleasePS/
+x64/
+x86/
+[Aa]rm/
+[Aa]rm64/
+bld/
+[Bb]in/
+[Ob]j/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio 2015/2017/2019/2022 cache directory
+.vs/
+# Visual Studio Code cache directory
+.vscode/
+# Rider cache directory
+.idea/
+
+# MSTest test Results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# NUnit
+*.VisualState.xml
+StyleCopHistory.xml
+
+# MyGet package files
+decryptedKey
+
+# OpenCover
+*-results.xml
+
+# WyBuild
+web.config
+
+# EF Core migrations script files
+*.sql
+!*.sql # But allow checking in manual migration scripts if desired. Let's keep specific SQL files if they are migrations but exclude temporary ones.
+# Actually, let's allow SQL scripts that are part of the migrations/cleanup that we saw in the project directory, but ignore database files:
+*.mdf
+*.ldf
+*.ndf
+*.sdf
+*.db
+*.sqlite
+*.sqlite3
+
+# ASP.NET Core LightSwitch build garbage
+**/*.Lightswitch/GeneratedArtifacts
+
+# Backup and restore files from NuGet
+project.lock.json
+project.assets.json
+*.nuget.props
+*.nuget.targets
+
+# Paket
+.paket/
+
+# Web projects
+node_modules/
+jspm_packages/
+bower_components/
+.npm/
+
+# Client-side compilation / build artifacts
+**/wwwroot/dist/
+**/wwwroot/lib/
+.sass-cache/
+.eslintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Server-side environment/config files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ASP.NET Core secrets / local config
+appsettings.Development.json
+appsettings.Local.json
+appsettings.secrets.json
+secrets.json
+*.user.config
+
+##---------------------------------------------------------------------
+## 2. OneDrive & OS / Cloud Syncing Temp Files
+##---------------------------------------------------------------------
+# OneDrive/SharePoint Temp Files
+~$*
+.~$*
+*.tmp
+*.lnk
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+##---------------------------------------------------------------------
+## 3. General Developer Tools & OS Temp Files
+##---------------------------------------------------------------------
+# Windows directory metadata
+[Tt]humbs.db
+[Dd]esktop.ini
+
+# Crash dumps
+*.dmp
+*.dump
+
+# Log files
+*.log

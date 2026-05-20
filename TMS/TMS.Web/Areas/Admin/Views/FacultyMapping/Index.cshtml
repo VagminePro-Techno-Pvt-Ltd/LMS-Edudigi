@@ -1,0 +1,85 @@
+﻿@model IEnumerable<TMS.ViewModels.Masters.CourseMasterViewModel>
+@{
+    ViewData["Title"] = "Faculty-Course Mapping";
+}
+
+ 
+
+<table id="tbl" class="table table-bordered table-striped align-middle">
+    <thead>
+        <tr>
+            <th>Course</th>
+            <th>Mapped Faculties</th>
+            <th class="text-center">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var course in Model)
+        {
+            var hasMappings = course?.MappedFaculties != null && course.MappedFaculties.Any();
+            <tr>
+                <td>@course?.Name</td>
+                <td>
+                    @if (hasMappings)
+                    {
+                        foreach (var f in course.MappedFaculties)
+                        {
+                            <span class="badge bg-secondary me-1">@f?.Name</span>
+                        }
+                    }
+                    else
+                    {
+                        <span class="text-muted">No mapping</span>
+                    }
+                </td>
+                <td class="text-center">
+                    <a href="javascript:void(0)" class="btn btn-sm btn-outline-info me-1 view-mapping"
+                       data-course="@course?.Id" title="View">
+                        <i class="fa fa-eye"></i>
+                    </a>
+                    <a href="javascript:void(0)" class="btn btn-sm btn-outline-primary manage-mapping"
+                       data-course="@course?.Id" title="@(hasMappings ? "Edit" : "Add")">
+                        <i class="fa @(hasMappings ? "fa-edit" : "fa-plus")"></i>
+                    </a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<!-- Modal -->
+<div class="modal fade" id="mappingModal" tabindex="-1" aria-labelledby="mappingModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="mappingModalLabel"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="mappingModalBody">
+                <div class="text-center p-3">
+                    <i class="fa fa-spinner fa-spin fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(function () {
+            $(".view-mapping").click(function () {
+                var courseId = $(this).data("course");
+                $("#mappingModalLabel").text("View Faculty Mapping");
+                $("#mappingModalBody").load(`/Admin/FacultyMapping/ViewMapping?courseId=${courseId}`);
+                $("#mappingModal").modal("show");
+            });
+
+            $(".manage-mapping").click(function () {
+                var courseId = $(this).data("course");
+                $("#mappingModalLabel").text("Manage Faculty Mapping");
+                $("#mappingModalBody").load(`/Admin/FacultyMapping/ManageMapping?courseId=${courseId}`);
+                $("#mappingModal").modal("show");
+            });
+        });
+    </script>
+}

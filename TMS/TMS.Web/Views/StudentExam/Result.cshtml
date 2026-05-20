@@ -1,0 +1,129 @@
+@model TMS.Models.Assessments.ExamResult
+
+@{
+    ViewData["Title"] = "Assessment Score Report";
+    var isPassed = Model.ResultStatus == "Pass" || Model.ResultStatus == "Passed";
+    var isFailed = Model.ResultStatus == "Fail" || Model.ResultStatus == "Failed";
+}
+
+<div class="exam-page">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+            <!-- Page Header -->
+            <div class="exam-page-header" style="margin-bottom:24px;">
+                <div>
+                    <h1>
+                        <span class="header-icon" style="background:@(isPassed ? "#ecfdf5" : isFailed ? "#fef2f2" : "#fffbeb"); color:@(isPassed ? "#059669" : isFailed ? "#ef4444" : "#d97706");">
+                            <i class="fa-solid @(isPassed ? "fa-trophy" : isFailed ? "fa-xmark" : "fa-hourglass-half")"></i>
+                        </span>
+                        Score Report
+                    </h1>
+                    <p>Your assessment has been evaluated. Review your performance below.</p>
+                </div>
+                <div class="header-actions">
+                    <a asp-action="Index" class="exam-btn exam-btn-secondary">
+                        <i class="fa-solid fa-arrow-left"></i> Back to Exams
+                    </a>
+                </div>
+            </div>
+
+            <!-- Result Status Banner -->
+            <div style="text-align:center; padding:40px 20px; background:@(isPassed ? "#ecfdf5" : isFailed ? "#fef2f2" : "#fffbeb"); border:1px solid @(isPassed ? "#a7f3d0" : isFailed ? "#fecaca" : "#fde68a"); border-radius:16px; margin-bottom:28px;">
+                <div style="font-size:56px; margin-bottom:12px; color:@(isPassed ? "#059669" : isFailed ? "#ef4444" : "#d97706");">
+                    <i class="fa-solid @(isPassed ? "fa-circle-check" : isFailed ? "fa-circle-xmark" : "fa-clock")"></i>
+                </div>
+                <h2 style="font-size:28px; font-weight:800; color:@(isPassed ? "#065f46" : isFailed ? "#991b1b" : "#92400e"); margin:0 0 8px 0;">
+                    @(isPassed ? "PASSED" : isFailed ? "FAILED" : "PENDING EVALUATION")
+                </h2>
+                <p style="font-size:14px; color:@(isPassed ? "#047857" : isFailed ? "#b91c1c" : "#a16207"); margin:0;">
+                    @(isPassed ? "Congratulations! You have successfully passed this assessment." : isFailed ? "Unfortunately, you did not meet the passing criteria." : "Your subjective answers are still being evaluated by faculty.")
+                </p>
+            </div>
+
+            <!-- Score Grid -->
+            <div class="exam-stats-row" style="grid-template-columns: repeat(4, 1fr); margin-bottom:28px;">
+                <div class="exam-stat-card blue">
+                    <span class="stat-label">Score Obtained</span>
+                    <span class="stat-value">@Model.ObtainedMarks</span>
+                    <span class="stat-sub">Out of total marks</span>
+                </div>
+                <div class="exam-stat-card green">
+                    <span class="stat-label">Percentage</span>
+                    <span class="stat-value">@Model.Percentage%</span>
+                    <span class="stat-sub">Overall score</span>
+                </div>
+                <div class="exam-stat-card purple">
+                    <span class="stat-label">Grade</span>
+                    <span class="stat-value">@Model.Grade</span>
+                    <span class="stat-sub">Achievement level</span>
+                </div>
+                <div class="exam-stat-card orange">
+                    <span class="stat-label">Status</span>
+                    <span class="stat-value" style="font-size:22px;">@Model.ResultStatus</span>
+                    <span class="stat-sub">Final outcome</span>
+                </div>
+            </div>
+
+            <!-- Detailed Breakdown -->
+            <div class="exam-section-box">
+                <div class="exam-section-title">
+                    <span class="title-icon" style="background:#eff6ff; color:#3b82f6;">
+                        <i class="fa-solid fa-chart-bar"></i>
+                    </span>
+                    Detailed Breakdown
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-3 col-6">
+                        <div style="background:#f8fafc; border:1px solid #f1f5f9; border-radius:12px; padding:16px; text-align:center;">
+                            <div style="font-size:11px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.4px;">Total Questions</div>
+                            <div style="font-size:28px; font-weight:800; color:#1e293b; margin-top:4px;">@Model.TotalQuestions</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div style="background:#f8fafc; border:1px solid #f1f5f9; border-radius:12px; padding:16px; text-align:center;">
+                            <div style="font-size:11px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.4px;">Attempted</div>
+                            <div style="font-size:28px; font-weight:800; color:#3b82f6; margin-top:4px;">@Model.AttemptedQuestions</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:12px; padding:16px; text-align:center;">
+                            <div style="font-size:11px; font-weight:600; color:#059669; text-transform:uppercase; letter-spacing:0.4px;">Correct</div>
+                            <div style="font-size:28px; font-weight:800; color:#059669; margin-top:4px;">@Model.CorrectAnswers</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:16px; text-align:center;">
+                            <div style="font-size:11px; font-weight:600; color:#ef4444; text-transform:uppercase; letter-spacing:0.4px;">Wrong</div>
+                            <div style="font-size:28px; font-weight:800; color:#ef4444; margin-top:4px;">@Model.WrongAnswers</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Accuracy Progress Bar -->
+                @{
+                    var accuracy = Model.TotalQuestions > 0 ? Math.Round((double)Model.CorrectAnswers / Model.TotalQuestions * 100, 1) : 0;
+                }
+                <div style="margin-top:20px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <span style="font-size:12px; font-weight:600; color:#64748b;">Accuracy Rate</span>
+                        <span style="font-size:12px; font-weight:700; color:#1e293b;">@accuracy%</span>
+                    </div>
+                    <div class="exam-progress">
+                        <div class="exam-progress-bar @(accuracy >= 70 ? "green" : accuracy >= 40 ? "blue" : "red")" style="width:@(accuracy)%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div style="display:flex; gap:12px; justify-content:center;">
+                <a asp-action="Index" class="exam-btn exam-btn-secondary">
+                    <i class="fa-solid fa-arrow-left"></i> Back to Assessments
+                </a>
+                <a asp-action="Review" asp-route-attemptId="@Model.AttemptId" class="exam-btn exam-btn-primary">
+                    <i class="fa-solid fa-eye"></i> Review Answers
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

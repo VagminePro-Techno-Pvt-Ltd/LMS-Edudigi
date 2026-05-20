@@ -1,0 +1,561 @@
+@model List<TMS.ViewModels.Academics.AnnouncementViewModel>
+@{
+    ViewData["Title"] = "Announcements";
+}
+
+@section extracss {
+<style>
+    /* ════════════════════════════════════════════════════════
+       ANNOUNCEMENTS — Management Board (Light Theme, Futuristic)
+       ════════════════════════════════════════════════════════ */
+    :root {
+        --ann-bg: #f8fafc;
+        --ann-card: #ffffff;
+        --ann-border: #e8ecf0;
+        --ann-radius: 4px;
+        --ann-shadow: 0 1px 6px rgba(0,0,0,0.04);
+        --ann-shadow-hover: 0 6px 24px rgba(0,0,0,0.08);
+        --ann-blue: #3b82f6;
+        --ann-indigo: #6366f1;
+        --ann-green: #10b981;
+        --ann-amber: #f59e0b;
+        --ann-red: #ef4444;
+        --ann-text: #1e293b;
+        --ann-muted: #64748b;
+        --ann-transition: all 0.22s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .ann-page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 28px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .ann-page-header .ann-title-block h1 {
+        font-family: 'Jost', sans-serif;
+        font-size: 26px;
+        font-weight: 800;
+        color: var(--ann-text);
+        margin: 0;
+        letter-spacing: -0.5px;
+    }
+
+    .ann-page-header .ann-title-block p {
+        font-size: 13px;
+        color: var(--ann-muted);
+        margin: 4px 0 0;
+    }
+
+    .ann-btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 22px;
+        background: linear-gradient(135deg, var(--ann-blue), var(--ann-indigo));
+        color: #fff;
+        border: none;
+        border-radius: var(--ann-radius);
+        font-size: 13.5px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        transition: var(--ann-transition);
+        box-shadow: 0 2px 8px rgba(99,102,241,0.25);
+    }
+
+    .ann-btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(99,102,241,0.35);
+        color: #fff;
+    }
+
+    /* ── Stats Bar ── */
+    .ann-stats-bar {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+        margin-bottom: 28px;
+    }
+
+    .ann-stat-card {
+        background: var(--ann-card);
+        border: 1px solid var(--ann-border);
+        border-radius: var(--ann-radius);
+        padding: 18px 20px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        transition: var(--ann-transition);
+    }
+
+    .ann-stat-card:hover {
+        box-shadow: var(--ann-shadow-hover);
+        transform: translateY(-2px);
+    }
+
+    .ann-stat-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: var(--ann-radius);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .ann-stat-icon i { font-size: 18px; }
+
+    .ann-stat-info .stat-value {
+        font-size: 22px;
+        font-weight: 800;
+        color: var(--ann-text);
+        line-height: 1;
+    }
+
+    .ann-stat-info .stat-label {
+        font-size: 11.5px;
+        color: var(--ann-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 2px;
+    }
+
+    /* ── Filter Tabs ── */
+    .ann-filter-bar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    .ann-filter-tab {
+        padding: 7px 16px;
+        border-radius: var(--ann-radius);
+        border: 1px solid var(--ann-border);
+        background: var(--ann-card);
+        color: var(--ann-muted);
+        font-size: 12.5px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--ann-transition);
+    }
+
+    .ann-filter-tab:hover,
+    .ann-filter-tab.active {
+        background: var(--ann-blue);
+        color: #fff;
+        border-color: var(--ann-blue);
+        box-shadow: 0 2px 8px rgba(59,130,246,0.2);
+    }
+
+    /* ── Announcement Cards ── */
+    .ann-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .ann-card {
+        background: var(--ann-card);
+        border: 1px solid var(--ann-border);
+        border-radius: var(--ann-radius);
+        padding: 0;
+        transition: var(--ann-transition);
+        overflow: hidden;
+        position: relative;
+    }
+
+    .ann-card:hover {
+        box-shadow: var(--ann-shadow-hover);
+        transform: translateY(-1px);
+    }
+
+    .ann-card.is-pinned {
+        border-left: 3px solid var(--ann-amber);
+    }
+
+    .ann-card.is-urgent {
+        border-left: 3px solid var(--ann-red);
+    }
+
+    .ann-card.is-event {
+        border-left: 3px solid var(--ann-indigo);
+    }
+
+    .ann-card-body {
+        display: flex;
+        align-items: flex-start;
+        padding: 20px 24px;
+        gap: 16px;
+    }
+
+    .ann-card-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: var(--ann-radius);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .ann-card-icon i { font-size: 16px; }
+
+    .ann-card-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .ann-card-content h3 {
+        font-family: 'Jost', sans-serif;
+        font-size: 15.5px;
+        font-weight: 700;
+        color: var(--ann-text);
+        margin: 0 0 6px;
+        line-height: 1.3;
+    }
+
+    .ann-card-content .ann-desc {
+        font-size: 13px;
+        color: var(--ann-muted);
+        line-height: 1.5;
+        margin: 0 0 10px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .ann-card-meta {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+    }
+
+    .ann-meta-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11px;
+        color: var(--ann-muted);
+        padding: 3px 10px;
+        background: #f1f5f9;
+        border-radius: var(--ann-radius);
+    }
+
+    .ann-meta-tag i { font-size: 10px; }
+
+    /* Badges */
+    .ann-badge-general {
+        background: #eff6ff; color: #3b82f6;
+    }
+    .ann-badge-event {
+        background: #f5f3ff; color: #7c3aed;
+    }
+    .ann-badge-urgent {
+        background: #fef2f2; color: #ef4444;
+        animation: urgentPulse 2s ease-in-out infinite;
+    }
+
+    @@keyframes urgentPulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+        50% { box-shadow: 0 0 0 4px rgba(239,68,68,0.12); }
+    }
+
+    /* Status Badges */
+    .ann-status-published { background: #ecfdf5; color: #059669; }
+    .ann-status-scheduled { background: #fffbeb; color: #d97706; }
+    .ann-status-expired   { background: #f1f5f9; color: #94a3b8; }
+
+    .ann-card-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+
+    .ann-action-btn {
+        width: 34px;
+        height: 34px;
+        border-radius: var(--ann-radius);
+        border: 1px solid var(--ann-border);
+        background: var(--ann-card);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: var(--ann-transition);
+        color: var(--ann-muted);
+    }
+
+    .ann-action-btn:hover {
+        background: #eff6ff;
+        color: var(--ann-blue);
+        border-color: #bfdbfe;
+        transform: scale(1.08);
+    }
+
+    .ann-action-btn.danger:hover {
+        background: #fef2f2;
+        color: var(--ann-red);
+        border-color: #fecaca;
+    }
+
+    .ann-action-btn.pin-active {
+        background: #fffbeb;
+        color: var(--ann-amber);
+        border-color: #fde68a;
+    }
+
+    .ann-action-btn i { font-size: 13px; }
+
+    /* ── Empty State ── */
+    .ann-empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: var(--ann-card);
+        border: 1px solid var(--ann-border);
+        border-radius: var(--ann-radius);
+    }
+
+    .ann-empty-state i {
+        font-size: 48px;
+        color: #cbd5e1;
+        margin-bottom: 16px;
+    }
+
+    .ann-empty-state h3 {
+        font-size: 18px;
+        color: var(--ann-text);
+        font-weight: 700;
+        margin: 0 0 6px;
+    }
+
+    .ann-empty-state p {
+        font-size: 13px;
+        color: var(--ann-muted);
+    }
+
+    /* ── Responsive ── */
+    @@media (max-width: 768px) {
+        .ann-card-body {
+            flex-direction: column;
+            padding: 16px;
+        }
+        .ann-card-actions {
+            align-self: flex-end;
+        }
+    }
+</style>
+}
+
+<div class="ann-page-header">
+    <div class="ann-title-block">
+        <h1><i class="fa-solid fa-bullhorn" style="color: var(--ann-indigo); margin-right: 10px;"></i>Announcements</h1>
+        <p>Create and manage announcements for your institution</p>
+    </div>
+    <a asp-action="Create" class="ann-btn-primary">
+        <i class="fa-solid fa-plus"></i>
+        New Announcement
+    </a>
+</div>
+
+@{
+    int total = Model.Count;
+    int published = Model.Count(a => a.IsPublished);
+    int scheduled = Model.Count(a => a.IsScheduled);
+    int urgent = Model.Count(a => a.AnnouncementType == 2 && a.IsPublished);
+}
+
+<div class="ann-stats-bar">
+    <div class="ann-stat-card">
+        <div class="ann-stat-icon" style="background:#eff6ff;">
+            <i class="fa-solid fa-bullhorn" style="color:#3b82f6;"></i>
+        </div>
+        <div class="ann-stat-info">
+            <div class="stat-value">@total</div>
+            <div class="stat-label">Total</div>
+        </div>
+    </div>
+    <div class="ann-stat-card">
+        <div class="ann-stat-icon" style="background:#ecfdf5;">
+            <i class="fa-solid fa-circle-check" style="color:#10b981;"></i>
+        </div>
+        <div class="ann-stat-info">
+            <div class="stat-value">@published</div>
+            <div class="stat-label">Published</div>
+        </div>
+    </div>
+    <div class="ann-stat-card">
+        <div class="ann-stat-icon" style="background:#fffbeb;">
+            <i class="fa-solid fa-clock" style="color:#f59e0b;"></i>
+        </div>
+        <div class="ann-stat-info">
+            <div class="stat-value">@scheduled</div>
+            <div class="stat-label">Scheduled</div>
+        </div>
+    </div>
+    <div class="ann-stat-card">
+        <div class="ann-stat-icon" style="background:#fef2f2;">
+            <i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;"></i>
+        </div>
+        <div class="ann-stat-info">
+            <div class="stat-value">@urgent</div>
+            <div class="stat-label">Urgent Active</div>
+        </div>
+    </div>
+</div>
+
+<div class="ann-filter-bar">
+    <div class="ann-filter-tab active" data-filter="all">All</div>
+    <div class="ann-filter-tab" data-filter="published">Published</div>
+    <div class="ann-filter-tab" data-filter="scheduled">Scheduled</div>
+    <div class="ann-filter-tab" data-filter="expired">Expired</div>
+    <div class="ann-filter-tab" data-filter="urgent">Urgent</div>
+    <div style="position: relative; margin-left: auto;">
+        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 13px;"></i>
+        <input type="text" id="adminSearch" placeholder="Search title or audience..." style="padding: 8px 12px 8px 34px; border: 1px solid var(--ann-border); border-radius: var(--ann-radius); font-size: 12.5px; width: 220px; outline: none; transition: all 0.2s;" onfocus="this.style.borderColor='var(--ann-blue)'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)';" onblur="this.style.borderColor='var(--ann-border)'; this.style.boxShadow='none';">
+    </div>
+</div>
+
+<div class="ann-grid" id="announcementGrid">
+    @if (!Model.Any())
+    {
+        <div class="ann-empty-state">
+            <i class="fa-solid fa-bullhorn"></i>
+            <h3>No Announcements Yet</h3>
+            <p>Create your first announcement to get started.</p>
+        </div>
+    }
+    else
+    {
+        @foreach (var item in Model)
+        {
+            var cardClass = item.IsPinned ? "is-pinned" : "";
+            if (item.AnnouncementType == 2) cardClass += " is-urgent";
+            else if (item.AnnouncementType == 1) cardClass += " is-event";
+
+            var iconBg = item.AnnouncementType switch { 1 => "#f5f3ff", 2 => "#fef2f2", _ => "#eff6ff" };
+            var iconClr = item.AnnouncementType switch { 1 => "#7c3aed", 2 => "#ef4444", _ => "#3b82f6" };
+            var iconClass = item.AnnouncementType switch { 1 => "fa-solid fa-calendar-days", 2 => "fa-solid fa-triangle-exclamation", _ => "fa-solid fa-circle-info" };
+
+            <div class="ann-card @cardClass" data-status="@item.StatusText.ToLower()" data-type="@item.AnnouncementTypeText.ToLower()">
+                <div class="ann-card-body">
+                    <div class="ann-card-icon" style="background:@iconBg;">
+                        <i class="@iconClass" style="color:@iconClr;"></i>
+                    </div>
+
+                    <div class="ann-card-content">
+                        <h3>
+                            @if (item.IsPinned)
+                            {
+                                <i class="fa-solid fa-thumbtack" style="color:#f59e0b; margin-right:5px; font-size:12px;"></i>
+                            }
+                            @item.Title
+                        </h3>
+                        <div class="ann-desc">@Html.Raw(System.Text.RegularExpressions.Regex.Replace(item.Description ?? "", "<.*?>", ""))</div>
+                        <div class="ann-card-meta">
+                            <span class="ann-meta-tag @item.AnnouncementTypeBadgeClass">
+                                <i class="@iconClass"></i> @item.AnnouncementTypeText
+                            </span>
+                            <span class="ann-meta-tag @item.StatusBadgeClass">@item.StatusText</span>
+                            <span class="ann-meta-tag">
+                                <i class="fa-solid fa-bullseye"></i> @item.TargetTypeText
+                                @if (item.TargetName != null && item.TargetType != 0) { <span>— @item.TargetName</span> }
+                            </span>
+                            <span class="ann-meta-tag">
+                                <i class="fa-regular fa-calendar"></i> @item.PublishDateStr
+                            </span>
+                            @if (item.ExpiryDate.HasValue)
+                            {
+                                <span class="ann-meta-tag">
+                                    <i class="fa-solid fa-hourglass-end"></i> Expires @item.ExpiryDateStr
+                                </span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="ann-card-actions">
+                        <button class="ann-action-btn @(item.IsPinned ? "pin-active" : "")" title="@(item.IsPinned ? "Unpin" : "Pin")" onclick="togglePin(@item.Id)">
+                            <i class="fa-solid fa-thumbtack"></i>
+                        </button>
+                        <a href="@Url.Action("Edit", new { id = item.Id })" class="ann-action-btn" title="Edit">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </a>
+                        <button class="ann-action-btn danger" title="Delete" onclick="deleteAnnouncement(@item.Id)">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@section Scripts {
+<script>
+    // ── Filter Tabs ──
+    const searchInput = document.getElementById('adminSearch');
+    const filterTabs = document.querySelectorAll('.ann-filter-tab');
+    const cards = document.querySelectorAll('.ann-card');
+
+    function filterAnnouncements() {
+        const query = searchInput.value.toLowerCase();
+        const activeFilter = document.querySelector('.ann-filter-tab.active').dataset.filter;
+
+        cards.forEach(card => {
+            const title = card.querySelector('.ann-title').textContent.toLowerCase();
+            const target = card.querySelector('.ann-meta-item:last-child').textContent.toLowerCase();
+            const status = card.dataset.status;
+            const type = card.dataset.type;
+
+            const matchesSearch = title.includes(query) || target.includes(query);
+            
+            let matchesFilter = true;
+            if (activeFilter === 'urgent') matchesFilter = (type === '2');
+            else if (activeFilter !== 'all') matchesFilter = (status === activeFilter);
+
+            card.style.display = (matchesSearch && matchesFilter) ? '' : 'none';
+        });
+    }
+
+    filterTabs.forEach(tab => {
+        tab.addEventListener('click', function () {
+            filterTabs.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            filterAnnouncements();
+        });
+    });
+
+    searchInput.addEventListener('input', filterAnnouncements);
+
+    // ── Pin Toggle ──
+    function togglePin(id) {
+        fetch('@Url.Action("TogglePin")', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || '' },
+            body: 'id=' + id
+        })
+        .then(r => r.json())
+        .then(data => { if (data.success) location.reload(); });
+    }
+
+    // ── Delete ──
+    function deleteAnnouncement(id) {
+        if (!confirm('Are you sure you want to delete this announcement?')) return;
+        fetch('@Url.Action("Delete")', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || '' },
+            body: 'id=' + id
+        })
+        .then(r => r.json())
+        .then(data => { if (data.success) location.reload(); });
+    }
+</script>
+@Html.AntiForgeryToken()
+}

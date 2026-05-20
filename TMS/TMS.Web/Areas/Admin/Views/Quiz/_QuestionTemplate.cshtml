@@ -1,0 +1,79 @@
+﻿ 
+@model TMS.ViewModels.Masters.QuizQuestionViewModel
+@{
+    var qIndex = (int)ViewData["qIndex"];
+}
+
+<div class="question-block border rounded p-3 mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6>Question @(qIndex + 1)</h6>
+        <button type="button" class="btn btn-danger btn-sm remove-question">Remove</button>
+    </div>
+
+    <div class="mb-2">
+        <label class="form-label">Question Text</label>
+        <input type="text" name="Questions[@qIndex].QuestionText" class="form-control" value="@Model.QuestionText" />
+    </div>
+
+    <!-- Hidden IDs for Model Binding -->
+    <input type="hidden" name="Questions[@qIndex].Id" value="@Model.Id" />
+    <input type="hidden" name="Questions[@qIndex].QuizId" value="@Model.QuizId" />
+
+    <div class="mb-2">
+        <label class="form-label">Question Type</label>
+        <select name="Questions[@qIndex].QuestionType" class="form-select question-type">
+            <option value="1" selected="@(Model.QuestionType == TMS.Models.Masters.QuestionType.Objective)">Objective</option>
+            <option value="2" selected="@(Model.QuestionType == TMS.Models.Masters.QuestionType.Subjective)">Subjective</option>
+        </select>
+    </div>
+    <div class="mb-2">
+        <label class="form-label">Maximum Marks</label>
+        <input type="number" min="0" step="1"
+               name="Questions[@qIndex].MaxMarks"
+               class="form-control question-marks"
+               value="@(Model.MaxMarks)"
+               data-qindex="@qIndex" />
+    </div>
+    <div class="options-container" style="display:@(Model.QuestionType == TMS.Models.Masters.QuestionType.Subjective ? "none" : "block")">
+        <h6>Options</h6>
+        <div class="options-list">
+            @if (Model.Options != null)
+            {
+                for (int j = 0; j < Model.Options.Count; j++)
+                {
+                    var option = Model.Options[j];
+                    <div class="option-item mb-2">
+                        <input type="hidden" name="Questions[@qIndex].Options[@j].Id" value="@option.Id" />
+                        <input type="text"
+                               name="Questions[@qIndex].Options[@j].OptionText"
+                               class="form-control mb-1"
+                               value="@option.OptionText"
+                               placeholder="Option text" />
+                        <div class="form-check">
+                            <input type="checkbox"
+                                   class="form-check-input correct-option"
+                                   name="Questions[@qIndex].Options[@j].IsCorrectOption"
+                                   value="true"
+                                   @(option.IsCorrectOption == true ? "checked" : "")
+                                   data-qindex="@qIndex" />
+                            <label class="form-check-label">Correct Option</label>
+                            <input type="hidden" name="Questions[@qIndex].Options[@j].IsCorrectOption" value="false" />
+                        </div>
+
+                       @*  <div class="form-check">
+                            <input type="checkbox"
+                                   class="form-check-input"
+                                   name="Questions[@qIndex].Options[@j].IsCorrectOption"
+                                   value="true"
+                                   @(option.IsCorrectOption == true ? "checked" : "") />
+                            <label class="form-check-label">Correct Option</label>
+                            <input type="hidden" name="Questions[@qIndex].Options[@j].IsCorrectOption" value="false" />
+                        </div> *@
+                    </div>
+                }
+            }
+        </div>
+
+        <button type="button" class="btn btn-sm btn-secondary add-option" data-qindex="@qIndex">+ Add Option</button>
+    </div>
+</div>

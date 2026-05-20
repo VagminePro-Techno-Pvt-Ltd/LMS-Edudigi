@@ -1,0 +1,263 @@
+﻿@using TMS;
+@model TMS.ViewModels.Training.TrainingScheduleViewModel
+@{
+	var permissions = ViewContext.HttpContext.GetFormPermissions();
+}
+<form method="post" class="noclick" id="frmItem" disabled="@(!permissions.Add && !permissions.Edit)">
+	<div class="card glass">
+		<div class="card-body">
+			<input asp-for="Id"  type="hidden" />
+
+			<input asp-for="IsActive" type="hidden" />
+			
+			
+			<input id="hdAddEditActionAllowed" type="hidden" value="@permissions.CanShowAddEditButton(Model!.Id).ToString().ToLower()" />
+			<div class="row mb-2">
+				<h5>Course & Training Details</h5>
+				<div class="col-12 col-md-6">
+					<div class="mb-1">
+						<label asp-for="CourseId"></label>
+
+						<select asp-for="CourseId" class="form-select" disabled="@(!permissions.Add && !permissions.Edit)">
+								<option value="">--Select--</option>
+							@foreach (var course in ViewBag.CourseId as List<TMS.ViewModels.Masters.CourseMasterViewModel>)
+							{
+												   <option value="@course.Id" data-id="@course.Id" data-category="@course.CourseCategory?.NameStatus"
+													 data-name="@course.NameStatus" data-day="@course.CourseDurationMonths" >
+									@course.CourseCode - @course.CourseName
+											   </option>
+							}
+						   </select>
+
+						<span asp-validation-for="CourseId" class="text-danger"></span>
+					</div>
+				</div>
+				<div class="col-12 col-md-6">
+					<div class="mb-1">
+						<label>Course Category</label>
+						<span id="CourseCategory" class="form-control disabled">&nbsp;</span>
+					</div>
+				</div>
+				<div class="col-12">
+					<div class="mb-1">
+						<label>Course Name</label>
+						<span id="CourseName" class="form-control disabled">&nbsp;</span>
+					</div>
+				</div>
+				<div class="col-12 col-md-6">
+					<div class="mb-1">
+						<label asp-for="IsAsPerMatrix"></label>
+						<div class="d-flex">
+							<label asp-for="IsAsPerMatrix" class="form-check-label nomandatory">No</label>
+							<div class="form-switch form-check ms-2">
+								<input asp-for="IsAsPerMatrix" class="form-check-input" disabled="@(!permissions.Add && !permissions.Edit)">
+							</div>
+							<label asp-for="IsAsPerMatrix" class="form-check-label nomandatory">Yes</label>
+						</div>
+					</div>
+				</div>
+				<div class="col-12 col-md-6">
+					<div class="mb-1">
+						<label asp-for="TrainingTitle"></label>
+						<input asp-for="TrainingTitle" aria-required="true" placeholder="Enter Training Title" disabled="@(!permissions.Add && !permissions.Edit)" />
+						<span asp-validation-for="TrainingTitle" class="text-danger"></span>
+					</div>
+				</div>
+
+				<div class="col-12 col-md-6">
+					<div class="mb-1">
+						<label asp-for="ConductedByDivisionId"></label>
+						<select asp-for="ConductedByDivisionId" asp-items="ViewBag.ConductedByDivisionId" class="form-select"></select>
+						<span asp-validation-for="ConductedByDivisionId" class="text-danger"></span>
+					</div>
+				</div>
+				<h5>Schedule Details</h5>
+				<div class="col-12 col-md-6">
+					<div class="mb-1">
+						<label asp-for="FromDate"></label>
+						<input asp-for="FromDate" aria-required="true" disabled="@(!permissions.Add && !permissions.Edit)" />
+						<span asp-validation-for="FromDate" class="text-danger"></span>
+					</div>
+				</div>
+				<div class="col-12 col-md-6">
+					<div class="mb-1">
+						<label asp-for="ToDate"></label>
+						<input asp-for="ToDate" aria-required="true" disabled="@(!permissions.Add && !permissions.Edit)" />
+						<span asp-validation-for="ToDate" class="text-danger"></span>
+					</div>
+				</div>
+				<div class="col-12 col-md-6">
+					<div class="mb-1">
+						<label asp-for="FromTime"></label>
+						<input asp-for="FromTime" aria-required="true" disabled="@(!permissions.Add && !permissions.Edit)" />
+						<span asp-validation-for="FromTime" class="text-danger"></span>
+					</div>
+				</div>
+				<div class="col-12 col-md-6">
+					<div class="mb-1">
+						<label asp-for="ToTime"></label>
+						<input asp-for="ToTime" aria-required="true" disabled="@(!permissions.Add && !permissions.Edit)" />
+						<span asp-validation-for="ToTime" class="text-danger"></span>
+					</div>
+				</div>
+				<div class="col-12 col-md-6">
+					<div class="mb-1">
+						<label>Duration (days)</label>
+						<span id="DurationDays" class="form-control disabled">&nbsp;</span>
+					</div>
+				</div>
+				<div class="col-12 col-md-6">
+					<div class="mb-1">
+						<label>Duration (hours)</label>
+						<span id="DurationHours" class="form-control disabled">&nbsp;</span>
+					</div>
+				</div>
+				<h5>Language</h5>
+				@if (Model.TrainingScheduleLanguages != null)
+				{
+					for (int i = 0; i < Model.TrainingScheduleLanguages.Count; i++)
+					{
+												<div class="col-12 col-md-6">
+													<div class="d-flex">
+														<div class="form-switch form-check ms-2">
+															<input asp-for="TrainingScheduleLanguages![i].IsSelected" class="form-check-input">
+															<input asp-for="TrainingScheduleLanguages![i].LanguageId" type="hidden">
+														</div>
+														<label asp-for="TrainingScheduleLanguages![i].IsSelected" class="form-check-label nomandatory">@Model.TrainingScheduleLanguages![i].Language!.Name</label>
+													</div>
+												</div>
+					}
+				}
+				<h5>Mode & Venue</h5>
+				<div class="col-12 col-md-6">
+					<label class="form-label">Mode<sup class="text-danger">*</sup></label>
+					<div id="Toggle" class="d-flex">
+						<label asp-for="IsOnline" class="form-check-label nomandatory">Offline</label>
+						<div class="form-switch form-check ms-2">
+							<input asp-for="IsOnline" id="toggle" class="form-check-input">
+						</div>
+						<label asp-for="IsOnline" class="form-check-label nomandatory">Online</label>
+					</div>
+				</div>
+				@if (Model.ModeStr == "Online")
+				{
+								<div id="Link-field"class="col-12 col-md-6 ">
+									<label asp-for="MeetingLink"></label>
+									<input id="Link-input"asp-for="MeetingLink" aria-required="true" placeholder="Drop Meeting Link"  />
+									<span asp-validation-for="MeetingLink" class="text-danger"></span>
+
+								</div>
+				}
+				@if (Model.ModeStr == "Offline")
+				{
+									 <div id="Link-field"class="col-12 col-md-6 d-none ">
+										<label asp-for="MeetingLink"></label>
+									<input id="Link-input"asp-for="MeetingLink" aria-required="true" placeholder="Drop Meeting Link"  />
+										<span asp-validation-for="MeetingLink" class="text-danger"></span>
+
+									</div>
+				}
+				<div class="col-12 col-md-6">
+							<div class="mb-1">
+							<label asp-for="VenueId"></label>
+							<select asp-for="VenueId" class="form-select" disabled="@(!permissions.Add && !permissions.Edit)">
+							<option id="Ven"value="">--Select--</option>
+							@if (ViewBag.Venues != null && ViewBag.Venues is List<TMS.ViewModels.Masters.VenueMasterViewModel>)
+							{
+								var venues = ViewBag.Venues as List<TMS.ViewModels.Masters.VenueMasterViewModel>;
+								foreach (var venue in venues)
+								{
+										<option value="@venue.Id" data-id="@venue.Id" data-seats="@venue.VenueSeat">@venue.Name (@venue.VenueSeat)</option>									
+								}
+							}
+							</select>
+							<span asp-validation-for="VenueId" class="text-danger"></span>
+					</div>
+				</div>
+
+				<h5>Mode & Venue</h5>
+				<div class="col-12 col-md-6">
+					<div class="mb-1">
+						<label asp-for="MinNumberOfSeats"></label>
+						<input asp-for="MinNumberOfSeats" aria-required="true" placeholder="Enter Min. Number Of Seats" disabled="@(!permissions.Add && !permissions.Edit)" />
+						<span asp-validation-for="MinNumberOfSeats" class="text-danger"></span>
+					</div>
+				</div>
+			
+				<div class="col-12 col-md-6 d-none"  >
+					<div class="mb-1">
+						<label asp-for="VenueSeat"></label>
+@* 					<span id="MaxSeats" class="form-control"asp-for="VenueSeat" contenteditable="true">&nbsp;</span>
+ *@				<input id="MaxSeats" asp-for="VenueSeat" aria-required="true"  value="@ViewBag.VenueSeats" id="MaxSeats" disabled="@(!permissions.Add && !permissions.Edit)" />
+ 
+					</div>
+				</div>
+				  <div class="col-12 col-md-6">
+                    <div class="mb-1">
+						<label asp-for="MaxNumberOfSeats"></label>
+					   <input asp-for="MaxNumberOfSeats" aria-required="true" placeholder="Enter Max. Number Of Seats"  disabled="@(!permissions.Add && !permissions.Edit)" />
+                       
+                        <span asp-validation-for="MaxNumberOfSeats" class="text-danger"></span>
+                    </div>
+                </div> 
+				<h5>Instructor & Other Details</h5>
+				<div class="col-12 col-md-6">
+					<div class="mb-1">
+						<label asp-for="InstructorId"></label>
+						<select asp-for="InstructorId" asp-items="ViewBag.InstructorId" class="form-select"></select>
+						<span asp-validation-for="InstructorId" class="text-danger"></span>
+					</div>
+				</div>
+				<div class="col-12 col-md-6">
+					<label asp-for="IsQuizMandatory"></label>
+					<div class="mb-1">
+						<div class="d-flex">
+							<label asp-for="IsQuizMandatory" class="form-check-label nomandatory">No</label>
+							<div class="form-switch form-check ms-2">
+								<input asp-for="IsQuizMandatory" class="form-check-input" disabled="@(!permissions.Add && !permissions.Edit)">
+							</div>
+							<label asp-for="IsQuizMandatory" class="form-check-label nomandatory">Yes</label>
+						</div>
+					</div>
+				</div>
+				 <div class="col-12 col-md-6">
+					<label asp-for="IsFeedBackMandatory"></label>
+					<div class="mb-1">
+						<div class="d-flex">
+							<label asp-for="IsFeedBackMandatory" class="form-check-label nomandatory">No</label>
+							<div class="form-switch form-check ms-2">
+								<input asp-for="IsFeedBackMandatory"  class="form-check-input" disabled="@(!permissions.Add && !permissions.Edit)">
+							</div>
+							<label asp-for="IsFeedBackMandatory" class="form-check-label nomandatory">Yes</label>
+						</div>
+					</div>
+				</div>
+
+
+
+				<h5>Training Materials</h5>
+
+				<div class="col-12 col-md-6">
+					<label asp-for="Files"></label>
+					<div class="input-group">
+						<input asp-for="Files" type="file" class="form-control" multiple accept="application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.ms-powerpoint, application/vnd.openxmlformats-officedocument.presentationml.slideshow, application/vnd.openxmlformats-officedocument.presentationml.presentation, application/vnd.ms-excel, application/vnd.ms-powerpoint, text/plain, application/pdf, image/*" />
+					</div>
+					<span asp-validation-for="Files" class="text-danger"></span>
+				   </div>
+				     @if (Model.TrainingScheduleAttachment != null && Model.TrainingScheduleAttachment.Any())
+				  {
+					@foreach (var item in Model.TrainingScheduleAttachment)
+					{
+												<div class="col-12">
+													<a asp-action="STF" asp-controller="Home" asp-area="" asp-route-p="@item.FilePath!.Encrypt()" asp-route-f="@item.FileName!.Encrypt()" target="_blank">@item.FileName</a>
+												</div>
+					}
+				}
+			</div>
+
+		</div>
+	</div>
+</form>
+
+
+

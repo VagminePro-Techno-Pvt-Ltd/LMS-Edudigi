@@ -1,0 +1,293 @@
+@model TMS.Models.Assessments.StudentExamAttempt
+
+@{
+    ViewData["Title"] = "Exam Console";
+    Layout = "_Layout";
+}
+
+<div class="exam-page" style="padding-bottom:0;">
+    <!-- Top Status Bar -->
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px; background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+        <div>
+            <h2 style="font-size:18px; font-weight:800; color:#1e293b; margin:0 0 4px 0;">@Model.Exam?.Title</h2>
+            <span style="background:#f5f3ff; color:#7c3aed; padding:4px 12px; border-radius:6px; font-size:11px; font-weight:700;">
+                <i class="fa-solid fa-book"></i> @Model.Exam?.Course?.Name
+            </span>
+        </div>
+        <div style="display:flex; align-items:center; gap:14px;">
+            <!-- Timer -->
+            <div id="countdown-timer" style="display:flex; align-items:center; gap:10px; padding:10px 20px; background:#fffbeb; border:1px solid #fde68a; border-radius:12px;">
+                <i class="fa-regular fa-clock" style="color:#d97706; font-size:16px;"></i>
+                <span id="timer-text" style="font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:800; color:#92400e; letter-spacing:1px;">00:00:00</span>
+            </div>
+            <!-- Submit -->
+            <form id="exam-submit-form" asp-action="Submit" method="post" style="margin:0;">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="attemptId" value="@Model.Id" />
+                <button type="button" class="exam-btn exam-btn-success" onclick="confirmSubmitExam()" style="padding:10px 24px;">
+                    <i class="fa-solid fa-paper-plane"></i> Submit Exam
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Grid: Sidebar + Questions -->
+    <div style="display:grid; grid-template-columns:260px 1fr; gap:20px; min-height:calc(100vh - 250px);">
+        <!-- Sidebar: Question Navigator -->
+        <div class="exam-section-box" style="padding:20px; position:sticky; top:100px; max-height:calc(100vh - 150px); overflow-y:auto;">
+            <h4 style="font-size:14px; font-weight:700; color:#1e293b; margin:0 0 12px 0;">Question Navigator</h4>
+
+            <!-- Legend -->
+            <div style="display:flex; gap:14px; margin-bottom:16px; flex-wrap:wrap;">
+                <span style="display:flex; align-items:center; gap:5px; font-size:10.5px; color:#64748b;">
+                    <span style="width:12px; height:12px; border-radius:4px; background:#e2e8f0;"></span> Not visited
+                </span>
+                <span style="display:flex; align-items:center; gap:5px; font-size:10.5px; color:#64748b;">
+                    <span style="width:12px; height:12px; border-radius:4px; background:#93c5fd;"></span> Visited
+                </span>
+                <span style="display:flex; align-items:center; gap:5px; font-size:10.5px; color:#64748b;">
+                    <span style="width:12px; height:12px; border-radius:4px; background:#4ade80;"></span> Answered
+                </span>
+            </div>
+
+            <!-- Question Buttons -->
+            <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:8px;" id="question-nav-container">
+                @for (int i = 0; i < Model.Exam?.QuestionMaps.Count; i++)
+                {
+                    var map = Model.Exam.QuestionMaps.ElementAt(i);
+                    var hasAnswer = Model.Answers.Any(a => a.QuestionId == map.QuestionId && (a.SelectedOptionId != null || !string.IsNullOrWhiteSpace(a.SubjectiveAnswer)));
+                    <button class="nav-btn @(hasAnswer ? "answered" : "unvisited")" onclick="showQuestion(@i)" id="nav-btn-@i"
+                            style="width:100%; aspect-ratio:1; border-radius:8px; border:1px solid #e2e8f0; font-size:13px; font-weight:700; cursor:pointer; transition:all 0.2s; background:@(hasAnswer ? "#ecfdf5" : "#f8fafc"); color:@(hasAnswer ? "#059669" : "#94a3b8"); border-color:@(hasAnswer ? "#a7f3d0" : "#e2e8f0");">
+                        @(i + 1)
+                    </button>
+                }
+            </div>
+
+            <!-- Attempt Info -->
+            <div style="margin-top:20px; padding:14px; background:#f8fafc; border-radius:10px; border:1px solid #f1f5f9;">
+                <div style="font-size:12px; color:#64748b; margin-bottom:4px;">Attempt #@Model.AttemptNumber</div>
+                <div style="font-size:13px; font-weight:700; color:#1e293b;">Total: @Model.Exam?.QuestionMaps.Count Questions</div>
+            </div>
+        </div>
+
+        <!-- Question Viewport -->
+        <div id="question-viewport">
+            @for (int i = 0; i < Model.Exam?.QuestionMaps.Count; i++)
+            {
+                var map = Model.Exam.QuestionMaps.ElementAt(i);
+                var q = map.Question!;
+                var ans = Model.Answers.FirstOrDefault(a => a.QuestionId == q.Id);
+
+                <div class="question-card @(i == 0 ? "" : "d-none")" id="question-card-@i" data-qid="@q.Id" data-qtype="@q.QuestionType">
+                    <div class="exam-section-box" style="min-height:400px; display:flex; flex-direction:column;">
+                        <!-- Question Header -->
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding-bottom:14px; border-bottom:2px solid #f1f5f9;">
+                            <span style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">
+                                Question @(i + 1) of @Model.Exam.QuestionMaps.Count
+                            </span>
+                            <span style="display:flex; align-items:center; gap:6px; background:#fef9c3; color:#92400e; padding:5px 12px; border-radius:6px; font-size:12px; font-weight:700; border:1px solid #fde68a;">
+                                <i class="fa-solid fa-star" style="font-size:10px; color:#ca8a04;"></i> @q.Marks Marks
+                            </span>
+                        </div>
+
+                        <!-- Question Text -->
+                        <h3 style="font-size:17px; font-weight:700; color:#1e293b; line-height:1.6; margin-bottom:24px;">@q.QuestionText</h3>
+
+                        <!-- Options / Subjective -->
+                        <div style="flex:1;">
+                            @if (q.QuestionType == "MCQ")
+                            {
+                                <div style="display:flex; flex-direction:column; gap:10px;">
+                                    @foreach (var opt in q.Options)
+                                    {
+                                        var isChecked = ans?.SelectedOptionId == opt.Id;
+                                        <label id="label-opt-@opt.Id" onclick="saveOptionAnswer(@i, @opt.Id)"
+                                               style="display:flex; align-items:center; gap:14px; padding:14px 18px; background:@(isChecked ? "#eff6ff" : "#f8fafc"); border:2px solid @(isChecked ? "#3b82f6" : "#e2e8f0"); border-radius:12px; cursor:pointer; transition:all 0.2s; @(isChecked ? "box-shadow:0 2px 8px rgba(59,130,246,0.1);" : "")" class="option-label">
+                                            <input type="radio" name="options-@q.Id" value="@opt.Id" @(isChecked ? "checked" : "")
+                                                   style="width:20px; height:20px; accent-color:#3b82f6; cursor:pointer;" />
+                                            <span style="font-size:14px; color:#1e293b; font-weight:500;">@opt.OptionText</span>
+                                        </label>
+                                    }
+                                </div>
+                            }
+                            else if (q.QuestionType == "Subjective")
+                            {
+                                <div>
+                                    <textarea class="exam-textarea" id="subjective-@q.Id" rows="8" placeholder="Type your descriptive answer here..." onblur="saveSubjectiveAnswer(@i)" style="min-height:200px;">@ans?.SubjectiveAnswer</textarea>
+                                    <div style="font-size:11px; color:#94a3b8; margin-top:8px;">
+                                        <i class="fa-solid fa-circle-info"></i> Auto-saves when you click outside the editor.
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Navigation Buttons -->
+                        <div style="display:flex; justify-content:space-between; margin-top:24px; padding-top:16px; border-top:1px solid #f1f5f9;">
+                            <button class="exam-btn exam-btn-secondary" onclick="prevQuestion(@i)" id="btn-prev-@i" @(i == 0 ? "disabled" : "") style="@(i == 0 ? "opacity:0.4; cursor:default;" : "")">
+                                <i class="fa-solid fa-chevron-left"></i> Previous
+                            </button>
+                            <button class="exam-btn exam-btn-primary" onclick="nextQuestion(@i)" id="btn-next-@i">
+                                Next <i class="fa-solid fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&display=swap" />
+
+@section Scripts {
+<script>
+    let currentIdx = 0;
+    let totalQuestions = @Model.Exam?.QuestionMaps.Count;
+    let remainingSeconds = @Model.RemainingSeconds;
+    let attemptId = @Model.Id;
+    let timerInterval = null;
+
+    $(document).ready(function () {
+        startTimer();
+        showQuestion(0);
+    });
+
+    function startTimer() {
+        updateTimerDisplay();
+        timerInterval = setInterval(function () {
+            remainingSeconds--;
+            if (remainingSeconds <= 0) {
+                clearInterval(timerInterval);
+                remainingSeconds = 0;
+                updateTimerDisplay();
+                autoSubmitExam();
+            } else {
+                updateTimerDisplay();
+                if (remainingSeconds % 30 === 0) {
+                    saveActiveQuestionData();
+                }
+            }
+        }, 1000);
+    }
+
+    function updateTimerDisplay() {
+        let hrs = Math.floor(remainingSeconds / 3600);
+        let mins = Math.floor((remainingSeconds % 3600) / 60);
+        let secs = remainingSeconds % 60;
+        let display = (hrs < 10 ? "0" + hrs : hrs) + ":" + (mins < 10 ? "0" + mins : mins) + ":" + (secs < 10 ? "0" + secs : secs);
+        $("#timer-text").text(display);
+
+        // Turn red in final 2 minutes
+        if (remainingSeconds < 120) {
+            $("#timer-text").css("color", "#ef4444");
+            $("#countdown-timer").css({ "background": "#fef2f2", "border-color": "#fecaca" });
+        }
+    }
+
+    function showQuestion(index) {
+        if (index < 0 || index >= totalQuestions) return;
+
+        $(`#question-card-${currentIdx}`).addClass("d-none");
+        let prevNavBtn = $(`#nav-btn-${currentIdx}`);
+        prevNavBtn.css("box-shadow", "none");
+
+        // Mark as visited if unvisited
+        let navBtn = $(`#nav-btn-${index}`);
+        if (!navBtn.hasClass("answered")) {
+            navBtn.css({ "background": "#eff6ff", "color": "#3b82f6", "border-color": "#93c5fd" });
+            navBtn.addClass("visited");
+        }
+
+        $(`#question-card-${index}`).removeClass("d-none");
+        navBtn.css("box-shadow", "0 0 0 2px #3b82f6");
+
+        // Handle last question button text
+        let nextBtn = $(`#btn-next-${index}`);
+        if (index === totalQuestions - 1) {
+            nextBtn.html('Finish <i class="fa-solid fa-check-double"></i>');
+            nextBtn.attr("onclick", "confirmSubmitExam()");
+        }
+
+        currentIdx = index;
+    }
+
+    function nextQuestion(index) {
+        saveActiveQuestionData();
+        if (index < totalQuestions - 1) showQuestion(index + 1);
+    }
+
+    function prevQuestion(index) {
+        saveActiveQuestionData();
+        if (index > 0) showQuestion(index - 1);
+    }
+
+    function saveOptionAnswer(index, optionId) {
+        let card = $(`#question-card-${index}`);
+        let qid = card.data("qid");
+
+        // UI updates
+        card.find(".option-label").css({ "background": "#f8fafc", "border-color": "#e2e8f0", "box-shadow": "none" });
+        $(`#label-opt-${optionId}`).css({ "background": "#eff6ff", "border-color": "#3b82f6", "box-shadow": "0 2px 8px rgba(59,130,246,0.1)" });
+
+        let navBtn = $(`#nav-btn-${index}`);
+        navBtn.css({ "background": "#ecfdf5", "color": "#059669", "border-color": "#a7f3d0" }).addClass("answered");
+
+        $.post("/StudentExam/SaveAnswer", {
+            attemptId: attemptId, questionId: qid,
+            selectedOptionId: optionId, subjectiveAnswer: null,
+            remainingSeconds: remainingSeconds
+        });
+    }
+
+    function saveSubjectiveAnswer(index) {
+        let card = $(`#question-card-${index}`);
+        let qid = card.data("qid");
+        let text = $(`#subjective-${qid}`).val();
+
+        let navBtn = $(`#nav-btn-${index}`);
+        if ($.trim(text).length > 0) {
+            navBtn.css({ "background": "#ecfdf5", "color": "#059669", "border-color": "#a7f3d0" }).addClass("answered");
+        } else {
+            navBtn.css({ "background": "#eff6ff", "color": "#3b82f6", "border-color": "#93c5fd" }).removeClass("answered");
+        }
+
+        $.post("/StudentExam/SaveAnswer", {
+            attemptId: attemptId, questionId: qid,
+            selectedOptionId: null, subjectiveAnswer: text,
+            remainingSeconds: remainingSeconds
+        });
+    }
+
+    function saveActiveQuestionData() {
+        let card = $(`#question-card-${currentIdx}`);
+        if (card.data("qtype") === "Subjective") saveSubjectiveAnswer(currentIdx);
+    }
+
+    function confirmSubmitExam() {
+        saveActiveQuestionData();
+        if (confirm("Are you sure you want to submit your examination? Once submitted, you cannot edit your answers!")) {
+            window.examSubmitted = true;
+            $("#exam-submit-form").submit();
+        }
+    }
+
+    function autoSubmitExam() {
+        saveActiveQuestionData();
+        alert("Time is up! Your answers are being submitted automatically.");
+        window.examSubmitted = true;
+        $("#exam-submit-form").submit();
+    }
+
+    // Browser exit protection
+    window.examSubmitted = false;
+    window.addEventListener('beforeunload', function (e) {
+        if (!window.examSubmitted && remainingSeconds > 0) {
+            e.preventDefault();
+            e.returnValue = 'You are in a live exam. Leaving will lose unsaved progress!';
+            return e.returnValue;
+        }
+    });
+    history.pushState(null, null, location.href);
+    window.onpopstate = function () { history.go(1); };
+</script>
+}

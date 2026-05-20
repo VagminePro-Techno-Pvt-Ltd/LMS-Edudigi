@@ -1,0 +1,213 @@
+@model List<TMS.ViewModels.Academics.QuadrantMaterialGroupViewModel>
+
+@{
+    ViewData["Title"] = ViewBag.QuadrantName + " — " + ViewBag.CourseName;
+    int    courseId   = ViewBag.CourseId;
+    int    semesterId = ViewBag.SemesterId;
+    string courseName = ViewBag.CourseName  ?? "Subject";
+    string qName      = ViewBag.QuadrantName ?? "Quadrant";
+    int    qNum       = ViewBag.QuadrantNumber;
+    string qIcon      = ViewBag.QuadrantIcon  ?? "fa-folder";
+    string qColor     = ViewBag.QuadrantColor ?? "#6366f1";
+    string qBg        = ViewBag.QuadrantBg    ?? "#eff6ff";
+    string qDesc      = ViewBag.QuadrantDesc  ?? "";
+    int    totalItems = ViewBag.TotalItems != null ? (int)ViewBag.TotalItems : 0;
+}
+
+<style>
+    .qc-page { padding:8px 4px 40px; font-family:'Jost','Segoe UI',sans-serif; }
+    .qc-bc   { font-size:13px;color:#94a3b8;margin-bottom:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap; }
+    .qc-bc a { color:#64748b;text-decoration:none;transition:color .15s; }
+    .qc-bc a:hover { color:#6366f1; }
+    .qc-bc .sep { color:#cbd5e1; }
+    .qc-bc strong { color:#1e293b; }
+    .qc-hero {
+        background:linear-gradient(135deg,#6366f1 0%,#4f46e5 60%,#7c3aed 100%);
+        border-radius:16px;padding:26px 30px;color:#fff;margin-bottom:28px;
+        display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;
+        box-shadow:0 8px 32px rgba(99,102,241,.28);position:relative;overflow:hidden;
+    }
+    .qc-hero::before { content:'';position:absolute;right:-40px;top:-40px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.07); }
+    .qc-hero-left { display:flex;align-items:center;gap:18px; }
+    .qc-hero-icon { width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0; }
+    .qc-hero-text h2 { font-size:20px;font-weight:800;margin:0 0 4px; }
+    .qc-hero-text p  { font-size:13px;opacity:.82;margin:0; }
+    .qc-stat { text-align:center;min-width:72px; }
+    .qc-stat .sn { font-size:30px;font-weight:800;line-height:1; }
+    .qc-stat .sl { font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:.5px;margin-top:4px; }
+    .qc-back { display:inline-flex;align-items:center;gap:7px;color:#6366f1;font-size:13px;font-weight:700;text-decoration:none;margin-bottom:20px;transition:opacity .15s; }
+    .qc-back:hover { opacity:.75;color:#6366f1; }
+    .qc-unit { margin-bottom:16px; }
+    .qc-unit-hdr { background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:15px 20px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:all .2s; }
+    .qc-unit-hdr:hover { background:#f1f5f9;border-color:#c7d2fe; }
+    .qc-unit-hdr.open  { border-color:#6366f1;background:#fff;border-bottom-left-radius:0;border-bottom-right-radius:0; }
+    .qc-unit-left { display:flex;align-items:center;gap:14px; }
+    .qc-unit-badge { width:34px;height:34px;border-radius:9px;background:#eff6ff;color:#3b82f6;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800; }
+    .qc-unit-info h3 { font-size:15px;font-weight:700;color:#1e293b;margin:0; }
+    .qc-unit-info p  { font-size:12px;color:#64748b;margin:2px 0 0; }
+    .qc-list { background:#fff;border:1px solid #e2e8f0;border-top:none;border-bottom-left-radius:12px;border-bottom-right-radius:12px;display:none;overflow:hidden; }
+    .qc-list.open { display:block; }
+    .qc-row  { display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #f1f5f9;gap:12px;transition:background .15s; }
+    .qc-row:last-child { border-bottom:none; }
+    .qc-row:hover { background:#fafbff; }
+    .qc-row-left { display:flex;align-items:center;gap:14px;flex:1; }
+    .qc-type-icon { font-size:18px;width:24px;text-align:center; }
+    .qc-info h4 { font-size:14px;font-weight:600;color:#1e293b;margin:0 0 2px; }
+    .qc-info p  { font-size:11.5px;color:#94a3b8;margin:0; }
+    .qc-actions { display:flex;align-items:center;gap:8px; }
+    .btn-qc      { padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:6px;text-decoration:none;border:none;cursor:pointer;transition:all .2s; }
+    .btn-qc-view { background:#eff6ff;color:#3b82f6; }
+    .btn-qc-view:hover { background:#3b82f6;color:#fff; }
+    .btn-qc-dl   { background:#f1f5f9;color:#475569; }
+    .btn-qc-dl:hover { background:#e2e8f0;color:#475569; }
+    .qc-empty { text-align:center;padding:60px 24px;background:#fff;border-radius:16px;border:1px dashed #cbd5e1; }
+    .qc-empty i { font-size:42px;color:#cbd5e1;margin-bottom:14px;display:block; }
+    .qc-empty p { color:#94a3b8;font-size:14px;margin:4px 0 0; }
+    @@media(max-width:600px) {
+        .qc-hero { padding:18px; }
+        .qc-row  { flex-direction:column;align-items:flex-start; }
+        .qc-actions { margin-top:8px;width:100%;justify-content:flex-end; }
+    }
+</style>
+
+<div class="qc-page">
+
+    <div class="qc-bc">
+        <a asp-controller="Home" asp-action="StudentDashboard"><i class="fa-solid fa-house"></i> Dashboard</a>
+        <span class="sep">/</span>
+        <a asp-controller="StudentCourseContent" asp-action="Index">My Courses</a>
+        <span class="sep">/</span>
+        <a href="@Url.Action("Details","StudentCourseContent", new { semesterId, courseId })">@courseName</a>
+        <span class="sep">/</span>
+        <strong>@qName</strong>
+    </div>
+
+    <a href="@Url.Action("Details","StudentCourseContent", new { semesterId, courseId })" class="qc-back">
+        <i class="fa-solid fa-arrow-left"></i> Back to @courseName
+    </a>
+
+    <div class="qc-hero">
+        <div class="qc-hero-left">
+            <div class="qc-hero-icon"><i class="fa-solid @qIcon"></i></div>
+            <div class="qc-hero-text">
+                <h2>@qName</h2>
+                <p>@courseName &nbsp;&middot;&nbsp; @qDesc</p>
+            </div>
+        </div>
+        <div class="qc-stat">
+            <div class="sn">@totalItems</div>
+            <div class="sl">Items</div>
+        </div>
+    </div>
+
+    @if (Model == null || !Model.Any())
+    {
+        <div class="qc-empty">
+            <i class="fa-solid fa-folder-open"></i>
+            <h5 style="color:#1e293b;font-weight:700;margin:0 0 6px;">No Content Yet</h5>
+            <p>No @qName materials have been uploaded for @courseName.</p>
+        </div>
+    }
+    else
+    {
+        int unitIdx = 1;
+        foreach (var group in Model)
+        {
+            string hdrId  = "qc-hdr-"  + unitIdx;
+            string listId = "qc-list-" + unitIdx;
+            bool   isFirst = unitIdx == 1;
+            <div class="qc-unit">
+                <div class="qc-unit-hdr @(isFirst ? "open" : "")" id="@hdrId"
+                     onclick="toggleQC('@hdrId','@listId')">
+                    <div class="qc-unit-left">
+                        <div class="qc-unit-badge">@(group.QuadrantId == 0 ? "G" : unitIdx.ToString())</div>
+                        <div class="qc-unit-info">
+                            <h3>@group.QuadrantName</h3>
+                            <p>@(group.Materials?.Count ?? 0) item(s)</p>
+                        </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <span style="font-size:11px;font-weight:700;background:#f1f5f9;color:#475569;padding:3px 10px;border-radius:20px;">@(group.Materials?.Count ?? 0) Items</span>
+                        <i class="fa-solid fa-chevron-down" style="font-size:11px;color:#94a3b8;"></i>
+                    </div>
+                </div>
+                <div class="qc-list @(isFirst ? "open" : "")" id="@listId">
+                    @if (group.Materials == null || !group.Materials.Any())
+                    {
+                        <div class="p-4 text-center text-muted" style="font-size:13px;">No items in this section.</div>
+                    }
+                    else
+                    {
+                        int tn = 1;
+                        foreach (var mat in group.Materials)
+                        {
+                            var ext    = !string.IsNullOrEmpty(mat.FilePath) ? System.IO.Path.GetExtension(mat.FilePath).ToLower() : "";
+                            bool isVid = new[]{".mp4",".webm",".ogg"}.Contains(ext) || mat.MaterialType == "Video" || mat.MaterialType == "VideoURL"
+                                         || (!string.IsNullOrEmpty(mat.ContentPath) && (mat.ContentPath.Contains("youtu") || mat.ContentPath.Contains("vimeo")));
+                            bool isPdf = ext == ".pdf" || mat.MaterialType == "Document";
+                            string prev = isVid && !string.IsNullOrEmpty(mat.ContentPath) ? mat.ContentPath : Url.Content(mat.FilePath ?? "");
+                            <div class="qc-row">
+                                <div class="qc-row-left">
+                                    <div class="qc-type-icon">
+                                        @if (isVid)      { <i class="fa-solid fa-video"    style="color:#3b82f6;"></i> }
+                                        else if (isPdf)  { <i class="fa-solid fa-file-pdf" style="color:#ef4444;"></i> }
+                                        else             { <i class="fa-solid fa-file-lines" style="color:#64748b;"></i> }
+                                    </div>
+                                    <div class="qc-info">
+                                        <h4>@tn. @mat.Title</h4>
+                                        <p>@(mat.MaterialType ?? "Material")</p>
+                                    </div>
+                                </div>
+                                <div class="qc-actions">
+                                    @if (isVid)
+                                    {
+                                        <button class="btn-qc btn-qc-view view-file-link"
+                                                data-filepath="@prev"
+                                                data-filepath-fallback="@Url.Content(mat.FilePath ?? "")"
+                                                data-title="@mat.Title"
+                                                data-material-id="@mat.Id"
+                                                data-materialtype="@mat.MaterialType">
+                                            <i class="fa-solid fa-play"></i> Watch
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <a href="@Url.Action("View", "DocumentViewer", new { id = mat.Id })" class="btn-qc btn-qc-view">
+                                            <i class="fa-solid fa-eye"></i> View
+                                        </a>
+                                    }
+                                    
+                                    @if (!string.IsNullOrEmpty(mat.FilePath) && mat.MaterialType != "VideoURL")
+                                    {
+                                        <a href="@Url.Action("DownloadFile", "StudentCourseContent", new { id = mat.Id })" class="btn-qc btn-qc-dl" title="Download">
+                                            <i class="fa-solid fa-download"></i>
+                                        </a>
+                                    }
+                                </div>
+                            </div>
+                            tn++;
+                        }
+                    }
+                </div>
+            </div>
+            unitIdx++;
+        }
+    }
+
+</div>
+
+@* Shared File Preview Modal — Contains telemetry, anti-skip protection, and in-video quizzes *@
+<partial name="_FilePreviewModal" />
+
+@section Scripts {
+<script>
+    function toggleQC(hdrId, listId) {
+        var hdr  = document.getElementById(hdrId);
+        var list = document.getElementById(listId);
+        if (!hdr || !list) return;
+        var isOpen = list.classList.contains('open');
+        if (isOpen) { list.classList.remove('open'); hdr.classList.remove('open'); }
+        else        { list.classList.add('open');    hdr.classList.add('open'); }
+    }
+</script>
+}

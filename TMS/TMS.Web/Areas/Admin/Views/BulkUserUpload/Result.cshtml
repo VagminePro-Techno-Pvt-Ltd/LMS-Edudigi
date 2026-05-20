@@ -1,0 +1,142 @@
+@{
+    ViewData["Title"] = "Bulk Upload — Results";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var bulkResult = ViewBag.BulkResult as TMS.ViewModels.BulkUserUploadResult;
+}
+
+<style>
+    .result-container { max-width: 900px; margin: 0 auto; }
+    .result-hero { border-radius: 20px; padding: 40px; color: white; margin-bottom: 30px; position: relative; overflow: hidden; }
+    .result-hero.success { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+    .result-hero.partial { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+    .result-hero h2 { font-weight: 800; margin-bottom: 8px; }
+    .result-card { background: white; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 20px rgba(0,0,0,0.04); overflow: hidden; }
+    .result-card .card-body { padding: 30px; }
+    .result-stat { text-align: center; padding: 20px 10px; }
+    .result-stat h3 { font-weight: 800; font-size: 36px; margin-bottom: 4px; }
+    .result-stat small { font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; color: #64748b; }
+    .btn-primary-custom { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; border: none; padding: 12px 24px; border-radius: 12px; font-weight: 700; transition: all 0.3s; box-shadow: 0 4px 12px rgba(79,70,229,0.25); }
+    .btn-primary-custom:hover { transform: translateY(-2px); color: white; }
+</style>
+
+<div class="result-container">
+    @if (bulkResult != null)
+    {
+        var isSuccess = bulkResult.FailedCount == 0;
+
+        @* ── Hero ── *@
+        <div class="result-hero @(isSuccess ? "success" : "partial")">
+            <h2>
+                <i class="fas fa-@(isSuccess ? "check-circle" : "exclamation-triangle") me-2"></i>
+                @(isSuccess ? "Upload Successful!" : "Upload Complete (with issues)")
+            </h2>
+            <p style="opacity:0.9;">
+                @(isSuccess 
+                    ? $"All {bulkResult.CreatedCount} users have been created successfully." 
+                    : $"Created {bulkResult.CreatedCount} users. {bulkResult.FailedCount} rows had errors.")
+            </p>
+        </div>
+
+        @* ── Stats Cards ── *@
+        <div class="result-card mb-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-3">
+                        <div class="result-stat">
+                            <h3 class="text-primary">@bulkResult.TotalProcessed</h3>
+                            <small>Total Rows</small>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="result-stat" style="border-left: 2px solid #f1f5f9;">
+                            <h3 class="text-success">@bulkResult.CreatedCount</h3>
+                            <small>Created</small>
+                        </div>
+                    </div>
+                    <div class="col-2">
+                        <div class="result-stat" style="border-left: 2px solid #f1f5f9;">
+                            <h3 style="color:#3b82f6;">@bulkResult.UpdatedCount</h3>
+                            <small>Updated</small>
+                        </div>
+                    </div>
+                    <div class="col-2">
+                        <div class="result-stat" style="border-left: 2px solid #f1f5f9;">
+                            <h3 style="color:#f59e0b;">@bulkResult.SkippedCount</h3>
+                            <small>Skipped</small>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="result-stat" style="border-left: 2px solid #f1f5f9;">
+                            <h3 class="text-danger">@bulkResult.FailedCount</h3>
+                            <small>Failed</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* ── Errors ── *@
+        @if (bulkResult.Errors.Any())
+        {
+            <div class="result-card mb-4" style="border-top: 3px solid #ef4444;">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3"><i class="fas fa-times-circle text-danger"></i> Errors (@bulkResult.Errors.Count)</h6>
+                    <div style="max-height: 250px; overflow-y: auto;">
+                        <ul class="small mb-0">
+                            @foreach (var err in bulkResult.Errors.Take(30))
+                            {
+                                <li class="mb-1">@err</li>
+                            }
+                            @if (bulkResult.Errors.Count > 30)
+                            {
+                                <li class="fw-bold text-muted">...and @(bulkResult.Errors.Count - 30) more errors.</li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @* ── Warnings ── *@
+        @if (bulkResult.Warnings.Any())
+        {
+            <div class="result-card mb-4" style="border-top: 3px solid #f59e0b;">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3"><i class="fas fa-exclamation-triangle" style="color:#f59e0b;"></i> Warnings (@bulkResult.Warnings.Count)</h6>
+                    <div style="max-height: 200px; overflow-y: auto;">
+                        <ul class="small mb-0">
+                            @foreach (var warn in bulkResult.Warnings.Take(20))
+                            {
+                                <li class="mb-1">@warn</li>
+                            }
+                            @if (bulkResult.Warnings.Count > 20)
+                            {
+                                <li class="fw-bold text-muted">...and @(bulkResult.Warnings.Count - 20) more warnings.</li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @* ── Actions ── *@
+        <div class="d-flex justify-content-center gap-3 mb-5">
+            <a asp-area="Admin" asp-controller="User" asp-action="Index" class="btn-primary-custom">
+                <i class="fas fa-users"></i> View All Users
+            </a>
+            <a asp-area="Admin" asp-controller="BulkUserUpload" asp-action="Index" class="btn btn-light fw-bold" style="border-radius:12px; padding:12px 24px;">
+                <i class="fas fa-upload"></i> Upload More
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="text-center py-5">
+            <i class="fas fa-question-circle" style="font-size:48px; color:#cbd5e1;"></i>
+            <h5 class="mt-3 text-muted">No results available</h5>
+            <a asp-area="Admin" asp-controller="BulkUserUpload" asp-action="Index" class="btn-primary-custom mt-3">
+                <i class="fas fa-upload"></i> Go to Bulk Upload
+            </a>
+        </div>
+    }
+</div>

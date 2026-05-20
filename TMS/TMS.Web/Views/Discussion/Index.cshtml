@@ -1,0 +1,205 @@
+@model IEnumerable<TMS.Models.Masters.DiscussionThread>
+@{
+    ViewBag.Title = "Discussion Forum";
+}
+
+<link rel="stylesheet" href="~/css/forum-premium.css" asp-append-version="true" />
+
+<div class="forum-page-bg py-4">
+    <div class="container">
+        <!-- Top Action Bar -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h3 class="font-weight-bold text-dark m-0">Community Discussions</h3>
+                <p class="text-muted small">Connect, share and grow with your peers</p>
+            </div>
+            <button class="btn btn-premium-ask" data-bs-toggle="modal" data-bs-target="#askQuestionModal">
+                <i class="fas fa-plus mr-2"></i>Start a Discussion
+            </button>
+        </div>
+
+        <div class="row">
+            <!-- Main Feed -->
+            <div class="col-lg-8">
+                <!-- Filters Tab -->
+                <div class="card premium-sidebar-card mb-4">
+                    <div class="card-body p-2">
+                        <ul class="nav nav-pills nav-fill">
+                            <li class="nav-item">
+                                <a class="nav-link @(ViewBag.Filter == "latest" ? "active" : "")" href="@Url.Action("Index", new { programId = ViewBag.ProgramId, filter = "latest" })">Latest Feed</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link @(ViewBag.Filter == "popular" ? "active" : "")" href="@Url.Action("Index", new { programId = ViewBag.ProgramId, filter = "popular" })">Trending</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link @(ViewBag.Filter == "unanswered" ? "active" : "")" href="@Url.Action("Index", new { programId = ViewBag.ProgramId, filter = "unanswered" })">Unanswered</a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                @if (!Model.Any())
+                {
+                    <div class="card premium-post-card text-center py-5">
+                        <div class="card-body">
+                            <img src="~/images/no-data.png" style="width: 150px; opacity: 0.5;" class="mb-3" />
+                            <h4 class="text-dark font-weight-bold">No discussions yet</h4>
+                            <p class="text-muted">Be the first one to start a conversation in this program!</p>
+                            <button class="btn btn-premium-ask mt-3" data-bs-toggle="modal" data-bs-target="#askQuestionModal">Ask Now</button>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var thread in Model)
+                    {
+                        <div class="card premium-post-card">
+                            <div class="post-header">
+                                <div class="post-user-info">
+                                    <img src="/img/user-default.png" class="user-avatar" />
+                                    <div class="user-details">
+                                        <p class="name">@thread.CreatedByUser?.Name <span class="post-badge">Author</span></p>
+                                        <p class="meta">@thread.CreatedOn.ToString("MMM dd, yyyy") • <i class="fas fa-eye mr-1"></i> @thread.ViewCount views</p>
+                                    </div>
+                                </div>
+                                <div class="post-options">
+                                    <button class="btn btn-link text-muted"><i class="fas fa-ellipsis-h"></i></button>
+                                </div>
+                            </div>
+                            <div class="post-content">
+                                <a href="@Url.Action("Details", new { id = thread.Id })" class="post-title">@thread.Title</a>
+                                <p class="post-excerpt">
+                                    @(thread.Replies?.FirstOrDefault(r => r.ParentReplyId == null)?.CommentText ?? "No content provided.")
+                                </p>
+                                @if (thread.Attachments != null && thread.Attachments.Any(a => a.FileType.Contains("image")))
+                                {
+                                    <img src="@thread.Attachments.First(a => a.FileType.Contains("image")).FilePath" class="post-image-preview" />
+                                }
+                            </div>
+                            <div class="post-footer">
+                                <a href="@Url.Action("Details", new { id = thread.Id })" class="post-action">
+                                    <i class="far fa-comment-dots"></i> @(thread.Replies?.Count ?? 0) Comments
+                                </a>
+                                <a href="javascript:void(0)" class="post-action">
+                                    <i class="far fa-thumbs-up"></i> 0 Likes
+                                </a>
+                                @if (thread.IsLocked)
+                                {
+                                    <span class="ml-auto text-muted small"><i class="fas fa-lock mr-1"></i> Locked</span>
+                                }
+                                @if (thread.IsPinned)
+                                {
+                                    <span class="ml-2 text-warning small"><i class="fas fa-thumbtack mr-1"></i> Pinned</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+
+            <!-- Sidebar -->
+            <div class="col-lg-4">
+                <!-- Program Categories -->
+                <div class="card premium-sidebar-card">
+                    <div class="sidebar-header">
+                        <h6>Program Groups</h6>
+                    </div>
+                    <div class="sidebar-body">
+                        <div class="groups-list">
+                            <a href="#" class="group-item active">
+                                <span>Main Forum</span>
+                                <i class="fas fa-chevron-right small"></i>
+                            </a>
+                            <a href="#" class="group-item">
+                                <span>Study Materials</span>
+                                <i class="fas fa-chevron-right small"></i>
+                            </a>
+                            <a href="#" class="group-item">
+                                <span>Exam Queries</span>
+                                <i class="fas fa-chevron-right small"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trending Topics -->
+                <div class="card premium-sidebar-card">
+                    <div class="sidebar-header">
+                        <h6>Trending Topics</h6>
+                    </div>
+                    <div class="sidebar-body p-0">
+                        <div class="list-group list-group-flush">
+                            @foreach(var trending in Model.OrderByDescending(t => t.ViewCount).Take(3))
+                            {
+                                <a href="@Url.Action("Details", new { id = trending.Id })" class="list-group-item list-group-item-action border-0 py-3">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-light rounded p-2 mr-3 text-primary">
+                                            <i class="fas fa-chart-line"></i>
+                                        </div>
+                                        <div>
+                                            <p class="m-0 font-weight-bold small text-dark">@trending.Title</p>
+                                            <small class="text-muted">@trending.ViewCount views • @(trending.Replies?.Count ?? 0) replies</small>
+                                        </div>
+                                    </div>
+                                </a>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Guidelines -->
+                <div class="card premium-sidebar-card bg-primary text-white">
+                    <div class="card-body">
+                        <h6 class="font-weight-bold mb-3"><i class="fas fa-info-circle mr-2"></i>Community Guidelines</h6>
+                        <ul class="small pl-3 mb-0" style="opacity: 0.9;">
+                            <li class="mb-2">Be respectful and helpful to others.</li>
+                            <li class="mb-2">Check for existing questions before posting.</li>
+                            <li>Use clear and descriptive titles.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ask Question Modal -->
+<div class="modal fade" id="askQuestionModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
+            <form action="@Url.Action("CreateThread")" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="ProgramId" value="@ViewBag.ProgramId" />
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title font-weight-bold text-dark">Create New Discussion</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="form-group mb-4">
+                        <label class="font-weight-bold text-muted small text-uppercase mb-2">Discussion Title</label>
+                        <input type="text" name="Title" class="form-control form-control-lg border-0 bg-light" style="border-radius: 10px;" placeholder="What's on your mind?" required />
+                    </div>
+                    <div class="form-group mb-4">
+                        <label class="font-weight-bold text-muted small text-uppercase mb-2">Details & Context</label>
+                        <textarea name="CommentText" class="form-control border-0 bg-light" style="border-radius: 10px;" rows="6" placeholder="Provide more details about your question..." required></textarea>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="font-weight-bold text-muted small text-uppercase mb-2">Attachments</label>
+                        <div class="p-3 border-2 border-dashed rounded text-center bg-light" style="border: 2px dashed #cbd5e0 !important;">
+                            <input type="file" name="attachments" id="attachments" multiple class="d-none" />
+                            <label for="attachments" class="m-0 cursor-pointer text-primary font-weight-bold">
+                                <i class="fas fa-cloud-upload-alt fa-2x mb-2 d-block"></i>
+                                Click to upload images or documents
+                            </label>
+                            <p class="small text-muted mb-0 mt-2">Max 5MB per file</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light px-4 font-weight-bold" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-premium-ask px-5">Publish Post</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,241 @@
+@using TMS
+@model TMS.ViewModels.Academics.CourseMaterialGroupedViewModel
+
+@{
+    var permissions = ViewContext.HttpContext.GetFormPermissions();
+    var controller = Convert.ToString(ViewContext.RouteData.Values["controller"]);
+
+    // Helper function to determine quadrant based on material type
+    Func<TMS.ViewModels.Masters.LectureMaterialViewModel, int> GetQuadrantByType = (material) =>
+    {
+        var materialType = material.MaterialType?.ToLower() ?? "";
+        var filePath = material.FilePath?.ToLower() ?? "";
+        
+        // Quadrant 1: PDF / Notes / Files
+        if (materialType.Contains("pdf") || materialType.Contains("document") || materialType.Contains("file") ||
+            filePath.EndsWith(".pdf") || filePath.EndsWith(".doc") || filePath.EndsWith(".docx") ||
+            filePath.EndsWith(".ppt") || filePath.EndsWith(".pptx") || filePath.EndsWith(".xls") ||
+            filePath.EndsWith(".xlsx") || filePath.EndsWith(".txt"))
+        {
+            return 1;
+        }
+        
+        // Quadrant 2: Videos
+        if (materialType.Contains("video") || materialType.Contains("videourl") ||
+            filePath.EndsWith(".mp4") || filePath.EndsWith(".avi") || filePath.EndsWith(".mov") ||
+            filePath.Contains("youtube") || filePath.Contains("youtu.be") || filePath.Contains("vimeo"))
+        {
+            return 2;
+        }
+        
+        // Quadrant 3: Quizzes / Assignments
+        if (materialType.Contains("quiz") || materialType.Contains("assignment") || materialType.Contains("test"))
+        {
+            return 3;
+        }
+        
+        // Quadrant 4: Discussion
+        if (materialType.Contains("discussion") || materialType.Contains("forum"))
+        {
+            return 4;
+        }
+        
+        // Default to Quadrant 1 for unknown types
+        return 1;
+    };
+
+    // Group materials by Semester FIRST, then assign quadrant based on type
+    var semesterGroups = Model?.GroupedMaterials
+        .SelectMany(g => g.Materials.Select(m => new { 
+            Semester = m.Course?.Semester?.Name ?? "General",
+            SemesterId = m.Course?.SemesterId ?? 0,
+            QuadrantId = GetQuadrantByType(m),  // Use type-based quadrant
+            QuadrantName = g.QuadrantName,
+            Material = m 
+        }))
+        .GroupBy(x => x.Semester)
+        .OrderBy(g => g.Key)
+        .ToList();
+    
+    // Define quadrant metadata
+    var quadrantMeta = new Dictionary<int, (string Icon, string Label, string Color, string Bg)>
+    {
+        { 1, ("fa-file-pdf", "PDF / Notes / Files", "#ef4444", "#fef2f2") },
+        { 2, ("fa-video", "Video Lectures", "#3b82f6", "#eff6ff") },
+        { 3, ("fa-circle-question", "Quizzes / Assignments", "#16a34a", "#f0fdf4") },
+        { 4, ("fa-comments", "Discussion", "#8b5cf6", "#f5f3ff") }
+    };
+}
+
+@if (Model?.Course != null)
+{
+    <div class="cl-board-header">
+        <div>
+            <div class="cl-board-heading">@Model.Course.Name</div>
+            <div class="cl-board-meta">
+                Code: @Model.Course.CourseCode • 
+                @Model.GroupedMaterials.Sum(g => g.Materials.Count) materials
+            </div>
+        </div>
+        <div>
+            <span class="cl-pill">@Model.Course.CourseCategory?.Name</span>
+        </div>
+    </div>
+
+    @* Learning Quadrants Selector *@
+    <div class="cl-quadrant-selector">
+        <div class="cl-quadrant-selector-header">
+            <i class="fa fa-layer-group" style="color:#6366f1;"></i>
+            <span>Learning Quadrants</span>
+            <span class="cl-quadrant-hint">Select a quadrant to filter content</span>
+        </div>
+        <div class="cl-quadrant-chips">
+            <button class="cl-quad-chip active" data-quadrant="0">
+                <i class="fa fa-th"></i>
+                <span>All Content</span>
+            </button>
+            @foreach (var qMeta in quadrantMeta.OrderBy(x => x.Key))
+            {
+                <button class="cl-quad-chip" data-quadrant="@qMeta.Key" style="--quad-color:@qMeta.Value.Color;--quad-bg:@qMeta.Value.Bg;">
+                    <i class="fa @qMeta.Value.Icon"></i>
+                    <span>@qMeta.Value.Label</span>
+                </button>
+            }
+        </div>
+    </div>
+
+    @if (!semesterGroups.Any())
+    {
+        <div class="cl-loading">
+            <p class="text-muted">No content uploaded for this course yet.</p>
+        </div>
+    }
+
+    @foreach (var semGroup in semesterGroups)
+    {
+        <div class="mb-4 cl-semester-group" data-semester="@semGroup.Key">
+            <h5 class="mb-3 d-flex align-items-center gap-2" style="font-weight:700; color:var(--cl-text);">
+                <i class="fa fa-graduation-cap text-primary"></i>
+                @semGroup.Key
+            </h5>
+            
+            @{
+                // Get all unique quadrants present in this semester group
+                var quadrantsInGroup = semGroup
+                    .GroupBy(x => new { x.QuadrantId, x.QuadrantName })
+                    .OrderBy(g => g.Key.QuadrantId)
+                    .ToList();
+            }
+
+            <div class="cl-quadrants">
+                @foreach (var qGroup in quadrantsInGroup)
+                {
+                    var quadrantMaterials = qGroup.Select(x => x.Material).ToList();
+                    var qId = qGroup.Key.QuadrantId;
+                    
+                    // Get quadrant name based on ID
+                    var qName = qId switch
+                    {
+                        1 => "PDF / Notes / Files",
+                        2 => "Video Lectures",
+                        3 => "Quizzes / Assignments",
+                        4 => "Discussion",
+                        _ => "Other"
+                    };
+                    
+                    // Color cycle: 1=blue, 2=red, 3=green, 4=purple, then repeat
+                    var colorIndex = ((qId - 1) % 4) + 1;
+
+                    var quadrantIcons = new Dictionary<int, string> { { 1, "📘" }, { 2, "🎥" }, { 3, "📝" }, { 4, "🌐" } };
+                    var icon = quadrantIcons.ContainsKey(colorIndex) ? quadrantIcons[colorIndex] : "📄";
+
+                    <article class="cl-quadrant-card" data-q="@colorIndex" data-quadrant-id="@qId">
+                        <div class="cl-quadrant-tag">@qName</div>
+                        <div class="cl-quadrant-title">
+                            <span class="cl-q-icon">@icon</span>
+                            @qName
+                            <span class="cl-file-count">@quadrantMaterials.Count</span>
+                        </div>
+
+                        @if (quadrantMaterials.Any())
+                        {
+                            <ul class="cl-file-list">
+                                @foreach (var mat in quadrantMaterials)
+                                {
+                                    var ext = !string.IsNullOrEmpty(mat.FilePath)
+                                        ? System.IO.Path.GetExtension(mat.FilePath).TrimStart('.').ToUpper()
+                                        : "Link";
+
+                                    var sourceIcon = (mat.Source ?? "Local") switch
+                                    {
+                                        "GoogleDrive" => "☁️",
+                                        "OneDrive" => "📘",
+                                        _ => ""
+                                    };
+
+                                    <li class="cl-file-item" data-title="@mat.Title?.ToLower()">
+                                        <div style="flex:1;">
+                                            <div class="cl-file-name">
+                                                @if (!string.IsNullOrEmpty(sourceIcon))
+                                                {
+                                                    <span>@sourceIcon</span>
+                                                }
+                                                @mat.Title
+                                            </div>
+                                            <div class="cl-file-meta">@ext</div>
+                                        </div>
+                                        <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+                                            @if (!string.IsNullOrEmpty(mat.FilePath))
+                                            {
+                                                <a href="javascript:void(0);"
+                                                   class="cl-file-action view-file-link noclick"
+                                                   data-filepath="@mat.FilePath"
+                                                   data-title="@mat.Title">View</a>
+                                            }
+                                            <button class="cl-edit-btn quick-assign-btn" 
+                                                    data-material-id="@mat.Id" 
+                                                    title="Assign to another course">
+                                                <i class="fa fa-plus-circle"></i>
+                                            </button>
+                                            <a asp-area="Admin"
+                                               asp-action="Item"
+                                               asp-controller="@controller"
+                                               asp-route-iId="@EncriptorUtility.Encrypt(mat.Id.ToString(), true)"
+                                               class="cl-edit-btn"
+                                               title="Edit">
+                                                <i class="fa fa-edit"></i>
+                                            </a>
+                                            @if (mat.MaterialType == "Video" || mat.MaterialType == "VideoURL")
+                                            {
+                                                <a href="/Admin/VideoQuiz/Manage?materialId=@mat.Id"
+                                                   class="cl-edit-btn"
+                                                   title="Manage Video Quiz"
+                                                   style="background:#fdf4ff;color:#a855f7;">
+                                                    <i class="fa fa-film"></i>
+                                                </a>
+                                            }
+                                        </div>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                        else
+                        {
+                            <div class="cl-empty-state">No materials.</div>
+                        }
+                    </article>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="cl-board-footer">
+        <span>Mapped Program: @Model.Course.CourseCategory?.Name</span>
+    </div>
+}
+else
+{
+    <div class="cl-loading">
+        <p>No course data available.</p>
+    </div>
+}

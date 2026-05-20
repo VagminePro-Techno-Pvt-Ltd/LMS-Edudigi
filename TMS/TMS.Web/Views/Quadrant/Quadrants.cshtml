@@ -1,0 +1,145 @@
+@model TMS.ViewModels.Academics.SubjectQuadrantPageViewModel
+
+@{
+    ViewData["Title"] = "Quadrants — " + Model.SubjectName;
+}
+
+<style>
+    .qd-page { padding: 8px 4px 32px; font-family: 'Jost','Segoe UI',sans-serif; }
+
+    .qd-bc { font-size:13px; color:#94a3b8; margin-bottom:14px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .qd-bc a { color:#64748b; text-decoration:none; transition:color .15s; }
+    .qd-bc a:hover { color:#6366f1; }
+    .qd-bc .sep { color:#cbd5e1; }
+    .qd-bc strong { color:#1e293b; }
+
+    .qd-title { font-size:22px; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:10px; margin-bottom:20px; }
+    .qd-title i { color:#6366f1; }
+
+    /* Hero */
+    .qd-hero {
+        background: linear-gradient(135deg,#6366f1 0%,#4f46e5 60%,#7c3aed 100%);
+        border-radius:16px; padding:28px 32px; color:#fff; margin-bottom:28px;
+        display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;
+        box-shadow:0 8px 32px rgba(99,102,241,.28); position:relative; overflow:hidden;
+    }
+    .qd-hero::before {
+        content:''; position:absolute; right:-40px; top:-40px;
+        width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,.07);
+    }
+    .qd-hero-left h2 { font-size:20px; font-weight:800; margin:0 0 6px; }
+    .qd-hero-left p  { font-size:14px; opacity:.82; margin:0; }
+    
+    .qd-hero-stat { text-align:center; min-width:80px; }
+    .qd-hero-stat .stat-num { font-size:28px; font-weight:800; line-height:1; }
+    .qd-hero-stat .stat-lbl { font-size:11px; opacity:.75; text-transform:uppercase; letter-spacing:.6px; margin-top:4px; }
+
+    /* Quadrant Grid */
+    .qd-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:24px; margin-bottom:32px; }
+
+    .qd-card {
+        background:#fff; border-radius:20px; border:1px solid #eef2f6;
+        box-shadow:0 4px 15px rgba(0,0,0,0.05); overflow:hidden;
+        transition:transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .3s, border-color .3s;
+        text-decoration:none; display:flex; flex-direction:column; cursor:pointer;
+        height: 100%;
+    }
+    .qd-card:hover { transform:translateY(-8px); box-shadow:0 15px 35px rgba(99,102,241,0.15); }
+
+    .qd-card-body { padding:28px 24px; flex-grow:1; display:flex; flex-direction:column; align-items:center; text-align:center; }
+    
+    .qd-icon-box {
+        width:70px; height:70px; border-radius:20px; margin-bottom:20px;
+        display:flex; align-items:center; justify-content:center; font-size:28px;
+        transition:transform .3s;
+    }
+    .qd-card:hover .qd-icon-box { transform: scale(1.1) rotate(5deg); }
+
+    .qd-card h3 { font-size:18px; font-weight:800; color:#1e293b; margin:0 0 10px; }
+    .qd-card p { font-size:13.5px; color:#64748b; line-height:1.6; margin:0 0 20px; }
+
+    .qd-card-footer {
+        padding:16px 24px; border-top:1px dashed #e2e8f0;
+        display:flex; align-items:center; justify-content:center; gap:16px;
+        background: #fcfdfe;
+    }
+    .qd-stat { font-size:12px; font-weight:700; color:#475569; display:flex; align-items:center; gap:6px; }
+    .qd-stat i { font-size:11px; }
+
+    /* Quadrant Numbers (1, 2, 3, 4) */
+    .qd-num {
+        position:absolute; top:12px; right:16px; font-size:12px; font-weight:900;
+        opacity:0.15; font-style:italic;
+    }
+
+    @@media(max-width:600px){
+        .qd-grid { grid-template-columns:1fr; }
+    }
+</style>
+
+<div class="qd-page">
+    @* Breadcrumb *@
+    <div class="qd-bc">
+        <a asp-controller="Home" asp-action="StudentDashboard"><i class="fa-solid fa-house"></i> Dashboard</a>
+        <span class="sep">/</span>
+        <a asp-controller="StudentCourseContent" asp-action="Index">My Courses</a>
+        <span class="sep">/</span>
+        <a asp-controller="StudentCourseContent" asp-action="Details" asp-route-semesterId="@Model.SemesterId" asp-route-courseId="@Model.CourseId">@Model.CourseName</a>
+        <span class="sep">/</span>
+        <a asp-controller="Quadrant" asp-action="Index" asp-route-semesterId="@Model.SemesterId" asp-route-courseId="@Model.CourseId">Subjects</a>
+        <span class="sep">/</span>
+        <strong>@Model.SubjectName</strong>
+    </div>
+
+    @* Title *@
+    <div class="qd-title">
+        <i class="fa-solid fa-layer-group"></i>
+        <span>@Model.SubjectName — Learning Quadrants</span>
+    </div>
+
+    @* Hero *@
+    <div class="qd-hero">
+        <div class="qd-hero-left">
+            <h2>@Model.SubjectName @(!string.IsNullOrEmpty(Model.SubjectCode) ? $"({Model.SubjectCode})" : "")</h2>
+            <p>Explore content through the specialized 4-Quadrant learning methodology.</p>
+        </div>
+        <div class="qd-hero-stat">
+            <div class="stat-num">4</div>
+            <div class="stat-lbl">Quadrants</div>
+        </div>
+    </div>
+
+    @* Quadrants Grid *@
+    <div class="qd-grid">
+        @foreach (var q in Model.Quadrants)
+        {
+            <a href="@Url.Action("Units", "Quadrant", new { semesterId = Model.SemesterId, courseId = Model.CourseId, subjectId = Model.SubjectId, quadrantId = q.QuadrantId })" 
+               class="qd-card" style="border-top: 4px solid @q.ColorClass;">
+                <div class="qd-num">QUADRANT @q.QuadrantNumber</div>
+                <div class="qd-card-body">
+                    <div class="qd-icon-box" style="background:@q.BgClass; color:@q.ColorClass;">
+                        <i class="fa-solid @q.Icon"></i>
+                    </div>
+                    <h3>@q.QuadrantName</h3>
+                    <p>@q.Description</p>
+                    
+                    <div class="mt-auto">
+                        <span style="color:@q.ColorClass; font-size:13px; font-weight:700;">
+                            Explore Content <i class="fa-solid fa-arrow-right ms-1"></i>
+                        </span>
+                    </div>
+                </div>
+                <div class="qd-card-footer">
+                    <div class="qd-stat">
+                        <i class="fa-solid fa-layer-group" style="color:@q.ColorClass;"></i>
+                        @q.UnitCount Unit(s)
+                    </div>
+                    <div class="qd-stat">
+                        <i class="fa-solid fa-file-lines" style="color:@q.ColorClass;"></i>
+                        @q.ContentCount Item(s)
+                    </div>
+                </div>
+            </a>
+        }
+    </div>
+</div>

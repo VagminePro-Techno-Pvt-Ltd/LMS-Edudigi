@@ -1,0 +1,152 @@
+@model IEnumerable<TMS.Models.Assessments.QuestionBank>
+
+@{
+    ViewData["Title"] = "Question Bank Repository";
+}
+
+<div class="exam-page">
+    <!-- Page Header -->
+    <div class="exam-page-header">
+        <div>
+            <h1>
+                <span class="header-icon" style="background:#f5f3ff; color:#7c3aed;">
+                    <i class="fa-solid fa-building-columns"></i>
+                </span>
+                Question Bank Repository
+            </h1>
+            <p>Create and curate reusable academic questions mapped to courses.</p>
+        </div>
+        <div class="header-actions">
+            <a asp-action="Index" class="exam-btn exam-btn-secondary">
+                <i class="fa-solid fa-cubes"></i> Exam Console
+            </a>
+            <a asp-action="CreateQuestion" class="exam-btn exam-btn-primary">
+                <i class="fa-solid fa-plus"></i> Create Question
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="exam-stats-row" style="grid-template-columns: repeat(4, 1fr);">
+        <div class="exam-stat-card purple">
+            <span class="stat-label">Total Questions</span>
+            <span class="stat-value">@(Model?.Count() ?? 0)</span>
+            <span class="stat-sub">In repository</span>
+        </div>
+        <div class="exam-stat-card green">
+            <span class="stat-label">MCQ</span>
+            <span class="stat-value">@(Model?.Count(q => q.QuestionType == "MCQ") ?? 0)</span>
+            <span class="stat-sub">Multiple choice</span>
+        </div>
+        <div class="exam-stat-card blue">
+            <span class="stat-label">Subjective</span>
+            <span class="stat-value">@(Model?.Count(q => q.QuestionType == "Subjective") ?? 0)</span>
+            <span class="stat-sub">Written answers</span>
+        </div>
+        <div class="exam-stat-card orange">
+            <span class="stat-label">Hard</span>
+            <span class="stat-value">@(Model?.Count(q => q.DifficultyLevel == "Hard") ?? 0)</span>
+            <span class="stat-sub">Challenging</span>
+        </div>
+    </div>
+
+    <!-- Question Table -->
+    <div class="exam-section-box" style="padding:0; overflow:hidden;">
+        <div style="padding:20px 24px; border-bottom:1px solid #f1f5f9;">
+            <h3 style="font-size:16px; font-weight:700; color:#1e293b; margin:0; display:flex; align-items:center; gap:10px;">
+                <span class="title-icon" style="background:#eff6ff; color:#3b82f6; width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px;">
+                    <i class="fa-solid fa-database"></i>
+                </span>
+                All Questions
+            </h3>
+        </div>
+        <table class="exam-table">
+            <thead>
+                <tr>
+                    <th>Question</th>
+                    <th>Course</th>
+                    <th>Type</th>
+                    <th>Difficulty</th>
+                    <th>Marks / Penalty</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model == null || !Model.Any())
+                {
+                    <tr>
+                        <td colspan="6">
+                            <div class="exam-empty-state" style="border:none;">
+                                <div class="empty-icon"><i class="fa-solid fa-inbox"></i></div>
+                                <h3>Question Bank Empty</h3>
+                                <p>Click "Create Question" to begin building your repository.</p>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var q in Model)
+                    {
+                        <tr>
+                            <td style="max-width:350px;">
+                                <strong style="color:#1e293b; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">
+                                    @q.QuestionText
+                                </strong>
+                                @if (q.Options != null && q.Options.Any())
+                                {
+                                    <div style="font-size:11px; color:#94a3b8; margin-top:4px;">
+                                        Options: @string.Join(" | ", q.Options.Select(o => o.OptionText))
+                                    </div>
+                                }
+                            </td>
+                            <td>
+                                <span style="background:#f5f3ff; color:#7c3aed; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700;">
+                                    @q.Course?.Name
+                                </span>
+                            </td>
+                            <td>
+                                <span style="background:#eff6ff; color:#3b82f6; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700;">
+                                    @q.QuestionType
+                                </span>
+                            </td>
+                            <td>
+                                @if (q.DifficultyLevel == "Easy")
+                                {
+                                    <span class="exam-badge active">Easy</span>
+                                }
+                                else if (q.DifficultyLevel == "Medium")
+                                {
+                                    <span class="exam-badge pending">Medium</span>
+                                }
+                                else
+                                {
+                                    <span class="exam-badge failed">Hard</span>
+                                }
+                            </td>
+                            <td>
+                                <div>
+                                    <strong style="color:#059669;">+@q.Marks</strong>
+                                    @if (q.NegativeMarks > 0)
+                                    {
+                                        <span style="color:#ef4444; font-size:12px; margin-left:6px;">-@q.NegativeMarks</span>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                <div style="display:flex; gap:6px;">
+                                    <a asp-action="CreateQuestion" asp-route-id="@q.Id" class="exam-btn exam-btn-secondary exam-btn-sm">
+                                        <i class="fa-solid fa-pen"></i> Edit
+                                    </a>
+                                    <button class="exam-btn exam-btn-sm exam-btn-danger btn-delete-question" data-id="@q.Id" data-row="q-row-@q.Id" title="Delete">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

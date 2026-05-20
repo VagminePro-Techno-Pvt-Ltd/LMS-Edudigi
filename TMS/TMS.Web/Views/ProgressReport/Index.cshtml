@@ -1,0 +1,849 @@
+@model TMS.ViewModels.ProgressReportViewModel
+@{
+    ViewData["Title"] = "";
+}
+
+<style>
+    /* Hide breadcrumb arrow */
+    .breadcrumb::before,
+    .breadcrumb-item::before,
+    .page-title::before,
+    .page-header::before {
+        display: none !important;
+    }
+    
+    /* Hide any navigation arrows */
+    nav .fa-chevron-right,
+    nav .fa-angle-right,
+    nav .fa-arrow-right {
+        display: none !important;
+    }
+
+    :root {
+        --primary-gradient: linear-gradient(135deg, #2563eb, #3b82f6);
+        --success-gradient: linear-gradient(135deg, #059669, #10b981);
+        --purple-gradient: linear-gradient(135deg, #7c3aed, #8b5cf6);
+        --orange-gradient: linear-gradient(135deg, #ea580c, #f97316);
+        --card-bg: #ffffff;
+        --border-color: #e2e8f0;
+        --text-primary: #1e293b;
+        --text-muted: #64748b;
+    }
+
+    .progress-report-container {
+        padding: 15px;
+        background-color: #f8fafc;
+        min-height: calc(100vh - 64px);
+    }
+
+    .report-header {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+        border: 1px solid var(--border-color);
+    }
+
+    .report-title {
+        font-size: 24px;
+        font-weight: 800;
+        color: var(--text-primary);
+        margin-bottom: 5px;
+    }
+
+    .report-subtitle {
+        color: var(--text-muted);
+        font-size: 13px;
+    }
+
+    .overall-progress-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 16px;
+        padding: 25px;
+        color: white;
+        text-align: center;
+        margin-bottom: 20px;
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    }
+
+    .overall-progress-title {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 15px;
+        opacity: 0.95;
+    }
+
+    .overall-progress-value {
+        font-size: 48px;
+        font-weight: 800;
+        margin-bottom: 8px;
+    }
+
+    .overall-progress-label {
+        font-size: 13px;
+        opacity: 0.9;
+    }
+
+    .progress-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .progress-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+        border: 1px solid var(--border-color);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .progress-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .progress-card-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 18px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #f1f5f9;
+    }
+
+    .progress-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+    }
+
+    .progress-icon.blue { background: #eff6ff; color: #2563eb; }
+    .progress-icon.green { background: #ecfdf5; color: #059669; }
+    .progress-icon.purple { background: #f5f3ff; color: #7c3aed; }
+    .progress-icon.orange { background: #fff7ed; color: #ea580c; }
+
+    .progress-card-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .progress-stats {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 15px;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .stat-label {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 3px;
+    }
+
+    .circular-progress-container {
+        display: flex;
+        justify-content: center;
+        margin: 15px 0;
+    }
+
+    /* Individual page chart sizing - same as full report */
+    .progress-card canvas {
+        max-width: 120px !important;
+        max-height: 120px !important;
+        width: 120px !important;
+        height: 120px !important;
+    }
+
+    /* Ensure consistent chart container sizing */
+    .circular-progress-container canvas {
+        display: block;
+        box-sizing: border-box;
+    }
+
+    /* Mobile responsive behavior */
+    @@media (max-width: 768px) {
+        .progress-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .progress-card canvas {
+            max-width: 100px !important;
+            max-height: 100px !important;
+            width: 100px !important;
+            height: 100px !important;
+        }
+    }
+
+    .unit-progress-section {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+        border: 1px solid var(--border-color);
+    }
+
+    .section-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .unit-bar {
+        margin-bottom: 15px;
+    }
+
+    .unit-bar-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 6px;
+    }
+
+    .unit-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .unit-percentage {
+        font-size: 13px;
+        font-weight: 700;
+        color: #2563eb;
+    }
+
+    .progress-bar-container {
+        height: 10px;
+        background: #f1f5f9;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        border-radius: 10px;
+        transition: width 0.5s ease;
+    }
+
+    .progress-bar-fill.blue { background: linear-gradient(90deg, #3b82f6, #2563eb); }
+    .progress-bar-fill.green { background: linear-gradient(90deg, #10b981, #059669); }
+    .progress-bar-fill.purple { background: linear-gradient(90deg, #8b5cf6, #7c3aed); }
+    .progress-bar-fill.orange { background: linear-gradient(90deg, #f97316, #ea580c); }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--text-muted);
+    }
+
+    .empty-state i {
+        font-size: 48px;
+        margin-bottom: 15px;
+        opacity: 0.3;
+    }
+
+    .empty-state h4 {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: var(--text-primary);
+    }
+
+    .back-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        color: var(--text-primary);
+        text-decoration: none !important;
+        font-weight: 600;
+        font-size: 13px;
+        transition: all 0.2s ease;
+    }
+
+    .back-button:hover {
+        background: #ffffff;
+        border-color: #3b82f6;
+        color: #2563eb;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.08);
+    }
+
+    .back-button i {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        background: #eff6ff;
+        color: #3b82f6;
+    }
+</style>
+
+<div class="progress-report-container">
+    <!-- Back Button -->
+    <div class="mb-3">
+        <a asp-controller="Home" asp-action="StudentDashboard" class="back-button">
+            <i class="fa-solid fa-arrow-left"></i>
+            <span>Back to Dashboard</span>
+        </a>
+    </div>
+
+    <!-- Header -->
+    <div class="report-header">
+        <h1 class="report-title">📊 Progress Report</h1>
+        <p class="report-subtitle">Track your learning progress across all activities</p>
+    </div>
+
+    @if (Model.OverallProgress > 0 || Model.QuizProgress.TotalQuizzes > 0 || Model.AssignmentProgress.TotalAssignments > 0 || Model.StudyMaterialProgress.TotalMaterials > 0 || Model.EContentProgress.TotalContent > 0)
+    {
+        <!-- Overall Progress (Show only when type=all) -->
+        @if (Model.ReportType == "all")
+        {
+            <div class="overall-progress-card">
+                <div class="overall-progress-title">Overall Progress</div>
+                <div class="overall-progress-value">@Model.OverallProgress.ToString("0.00")%</div>
+                <div class="overall-progress-label">Average completion across all activities</div>
+            </div>
+        }
+
+        <!-- Progress Cards Grid -->
+        <div class="progress-grid">
+            <!-- Quiz Progress -->
+            @if (Model.ReportType == "all" || Model.ReportType == "quiz")
+            {
+                <div class="progress-card">
+                    <div class="progress-card-header">
+                        <div class="progress-icon blue">
+                            <i class="fa-solid fa-clipboard-question"></i>
+                        </div>
+                        <div class="progress-card-title">Quiz Progress</div>
+                    </div>
+                    <div class="progress-stats">
+                        <div class="stat-item">
+                            <div class="stat-value">@Model.QuizProgress.TotalQuizzes</div>
+                            <div class="stat-label">Total</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" style="color: #10b981;">@Model.QuizProgress.AttemptedQuizzes</div>
+                            <div class="stat-label">Attempted</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" style="color: #f97316;">@Model.QuizProgress.PendingQuizzes</div>
+                            <div class="stat-label">Pending</div>
+                        </div>
+                    </div>
+                    <div class="circular-progress-container">
+                        <canvas id="quizChart" width="120" height="120"></canvas>
+                    </div>
+                </div>
+            }
+
+            <!-- Assignment Progress -->
+            @if (Model.ReportType == "all" || Model.ReportType == "assignment")
+            {
+                <div class="progress-card">
+                    <div class="progress-card-header">
+                        <div class="progress-icon green">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </div>
+                        <div class="progress-card-title">Assignment Progress</div>
+                    </div>
+                    <div class="progress-stats">
+                        <div class="stat-item">
+                            <div class="stat-value">@Model.AssignmentProgress.TotalAssignments</div>
+                            <div class="stat-label">Total</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" style="color: #10b981;">@Model.AssignmentProgress.SubmittedAssignments</div>
+                            <div class="stat-label">Submitted</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" style="color: #f97316;">@Model.AssignmentProgress.PendingAssignments</div>
+                            <div class="stat-label">Pending</div>
+                        </div>
+                    </div>
+                    <div class="circular-progress-container">
+                        <canvas id="assignmentChart" width="120" height="120"></canvas>
+                    </div>
+                </div>
+            }
+
+            <!-- Study Material Progress -->
+            @if (Model.ReportType == "all" || Model.ReportType == "study-material")
+            {
+                <div class="progress-card">
+                    <div class="progress-card-header">
+                        <div class="progress-icon purple">
+                            <i class="fa-solid fa-book-open"></i>
+                        </div>
+                        <div class="progress-card-title">Study Material Progress</div>
+                    </div>
+                    <div class="progress-stats">
+                        <div class="stat-item">
+                            <div class="stat-value">@Model.StudyMaterialProgress.TotalMaterials</div>
+                            <div class="stat-label">Total</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" style="color: #10b981;">@Model.StudyMaterialProgress.ReadMaterials</div>
+                            <div class="stat-label">Read</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" style="color: #f97316;">@Model.StudyMaterialProgress.PendingMaterials</div>
+                            <div class="stat-label">Pending</div>
+                        </div>
+                    </div>
+                    <div class="circular-progress-container">
+                        <canvas id="materialChart" width="120" height="120"></canvas>
+                    </div>
+                </div>
+            }
+
+            <!-- E-Content Progress -->
+            @if (Model.ReportType == "all" || Model.ReportType == "e-content")
+            {
+                <div class="progress-card">
+                    <div class="progress-card-header">
+                        <div class="progress-icon orange">
+                            <i class="fa-solid fa-video"></i>
+                        </div>
+                        <div class="progress-card-title">E-Content Progress</div>
+                    </div>
+                    <div class="progress-stats">
+                        <div class="stat-item">
+                            <div class="stat-value">@Model.EContentProgress.TotalContent</div>
+                            <div class="stat-label">Total</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" style="color: #10b981;">@Model.EContentProgress.CompletedContent</div>
+                            <div class="stat-label">Completed</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" style="color: #f97316;">@Model.EContentProgress.PendingContent</div>
+                            <div class="stat-label">Pending</div>
+                        </div>
+                    </div>
+                    <div class="circular-progress-container">
+                        <canvas id="contentChart" width="120" height="120"></canvas>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Unit-wise Progress Sections -->
+        @if (Model.ReportType == "all" || Model.ReportType == "quiz")
+        {
+            @if (Model.QuizProgress.UnitWiseProgress.Any())
+            {
+                <div class="unit-progress-section">
+                    <div class="section-title">
+                        <i class="fa-solid fa-chart-bar" style="color: #2563eb;"></i>
+                        Unit-wise Quiz Progress
+                    </div>
+                    @foreach (var unit in Model.QuizProgress.UnitWiseProgress)
+                    {
+                        <div class="unit-bar">
+                            <div class="unit-bar-header">
+                                <span class="unit-name">@unit.UnitName</span>
+                                <span class="unit-percentage">@unit.Percentage.ToString("0.00")% (@unit.Completed/@unit.Total)</span>
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar-fill blue" style="width: @unit.Percentage%"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        }
+
+        @if (Model.ReportType == "all" || Model.ReportType == "assignment")
+        {
+            @if (Model.AssignmentProgress.UnitWiseProgress.Any())
+            {
+                <div class="unit-progress-section">
+                    <div class="section-title">
+                        <i class="fa-solid fa-chart-bar" style="color: #059669;"></i>
+                        Unit-wise Assignment Progress
+                    </div>
+                    @foreach (var unit in Model.AssignmentProgress.UnitWiseProgress)
+                    {
+                        <div class="unit-bar">
+                            <div class="unit-bar-header">
+                                <span class="unit-name">@unit.UnitName</span>
+                                <span class="unit-percentage">@unit.Percentage.ToString("0.00")% (@unit.Completed/@unit.Total)</span>
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar-fill green" style="width: @unit.Percentage%"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        }
+
+        @if (Model.ReportType == "all" || Model.ReportType == "study-material")
+        {
+            @if (Model.StudyMaterialProgress.UnitWiseProgress.Any())
+            {
+                <div class="unit-progress-section">
+                    <div class="section-title">
+                        <i class="fa-solid fa-chart-bar" style="color: #7c3aed;"></i>
+                        Unit-wise Study Material Progress
+                    </div>
+                    @foreach (var unit in Model.StudyMaterialProgress.UnitWiseProgress)
+                    {
+                        <div class="unit-bar">
+                            <div class="unit-bar-header">
+                                <span class="unit-name">@unit.UnitName</span>
+                                <span class="unit-percentage">@unit.Percentage.ToString("0.00")% (@unit.Completed/@unit.Total)</span>
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar-fill purple" style="width: @unit.Percentage%"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        }
+
+        @if (Model.ReportType == "all" || Model.ReportType == "e-content")
+        {
+            @if (Model.EContentProgress.UnitWiseProgress.Any())
+            {
+                <div class="unit-progress-section">
+                    <div class="section-title">
+                        <i class="fa-solid fa-chart-bar" style="color: #ea580c;"></i>
+                        Unit-wise E-Content Progress
+                    </div>
+                    @foreach (var unit in Model.EContentProgress.UnitWiseProgress)
+                    {
+                        <div class="unit-bar">
+                            <div class="unit-bar-header">
+                                <span class="unit-name">@unit.UnitName</span>
+                                <span class="unit-percentage">@unit.Percentage.ToString("0.00")% (@unit.Completed/@unit.Total)</span>
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar-fill orange" style="width: @unit.Percentage%"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="unit-progress-section" style="margin-top: 20px;">
+                <div class="section-title">
+                    <i class="fa-solid fa-video" style="color: #ea580c;"></i>
+                    Individual Video Progress
+                </div>
+                @if (Model.EContentProgress.VideoItems != null && Model.EContentProgress.VideoItems.Any())
+                {
+                    <div class="table-responsive border rounded-3 shadow-sm" style="background: #fff; overflow: hidden;">
+                        <table class="table table-hover align-middle mb-0" style="font-size: 13.5px; border-collapse: separate;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Video Title</th>
+                                    <th>Course</th>
+                                    <th style="width: 220px;">Watch Progress</th>
+                                    <th style="width: 110px;" class="text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            @foreach (var item in Model.EContentProgress.VideoItems)
+                            {
+                                <tr>
+                                    <td class="fw-semibold ps-3" style="color: var(--text-primary);">@item.VideoTitle</td>
+                                    <td class="text-muted" style="font-size: 12.5px;">@item.CourseName</td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="progress-bar-container flex-grow-1" style="height: 6px; background: #f1f5f9;">
+                                                <div class="progress-bar-fill orange" style="width: @item.WatchedPercentage%; background: linear-gradient(90deg, #f97316, #ea580c);"></div>
+                                            </div>
+                                            <span class="fw-bold" style="font-size: 12.5px; color: #ea580c; min-width: 45px; text-align: right;">
+                                                @item.WatchedPercentage.ToString("0.0")%
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td class="text-center pe-3">
+                                        @if (item.IsCompleted)
+                                        {
+                                            <span class="badge bg-success-subtle text-success px-2 py-1 border border-success" style="border-radius: 6px; font-size: 11px; background: #ecfdf5; color: #059669 !important; border-color: #10b981 !important;">
+                                                Completed
+                                            </span>
+                                        }
+                                        else if (item.WatchedPercentage > 0)
+                                        {
+                                            <span class="badge bg-warning-subtle text-warning px-2 py-1 border" style="border-radius: 6px; font-size: 11px; background: #fffbeb; color: #d97706 !important; border-color: #fef3c7 !important;">
+                                                In Progress
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-light text-muted px-2 py-1 border" style="border-radius: 6px; font-size: 11px;">
+                                                Not Started
+                                            </span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted small mb-0 p-2"><i class="fa-solid fa-circle-info me-1"></i> No enrolled video materials found.</p>
+                }
+            </div>
+        }
+    }
+    else
+    {
+        <!-- Empty State -->
+        <div class="empty-state">
+            <i class="fa-solid fa-chart-line"></i>
+            <h4>No Progress Data Available</h4>
+            <p>Start your learning journey to see your progress here.</p>
+        </div>
+    }
+</div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script>
+    // Chart configuration
+    const chartConfig = {
+        type: 'doughnut',
+        options: {
+            responsive: false,
+            maintainAspectRatio: true,
+            cutout: '70%',
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    enabled: true
+                }
+            }
+        }
+    };
+
+    // Quiz Chart
+    @if (Model.ReportType == "all" || Model.ReportType == "quiz")
+    {
+        <text>
+        const quizCtx = document.getElementById('quizChart');
+        if (quizCtx) {
+            new Chart(quizCtx, {
+                ...chartConfig,
+                data: {
+                    labels: ['Completed', 'Pending'],
+                    datasets: [{
+                        data: [@Model.QuizProgress.CompletionPercentage, @(100 - Model.QuizProgress.CompletionPercentage)],
+                        backgroundColor: ['#3b82f6', '#e2e8f0'],
+                        borderWidth: 0
+                    }]
+                },
+                plugins: [{
+                    id: 'centerText',
+                    beforeDraw: function(chart) {
+                        const width = chart.width;
+                        const height = chart.height;
+                        const ctx = chart.ctx;
+                        ctx.restore();
+                        const fontSize = (height / 80).toFixed(2);
+                        ctx.font = 'bold ' + fontSize + 'em sans-serif';
+                        ctx.textBaseline = 'middle';
+                        const text = '@Model.QuizProgress.CompletionPercentage.ToString("0.0")%';
+                        const textX = Math.round((width - ctx.measureText(text).width) / 2);
+                        const textY = height / 2;
+                        ctx.fillStyle = '#1e293b';
+                        ctx.fillText(text, textX, textY);
+                        ctx.save();
+                    }
+                }]
+            });
+        }
+        </text>
+    }
+
+    // Assignment Chart
+    @if (Model.ReportType == "all" || Model.ReportType == "assignment")
+    {
+        <text>
+        const assignmentCtx = document.getElementById('assignmentChart');
+        if (assignmentCtx) {
+            new Chart(assignmentCtx, {
+                ...chartConfig,
+                data: {
+                    labels: ['Completed', 'Pending'],
+                    datasets: [{
+                        data: [@Model.AssignmentProgress.CompletionPercentage, @(100 - Model.AssignmentProgress.CompletionPercentage)],
+                        backgroundColor: ['#10b981', '#e2e8f0'],
+                        borderWidth: 0
+                    }]
+                },
+                plugins: [{
+                    id: 'centerText',
+                    beforeDraw: function(chart) {
+                        const width = chart.width;
+                        const height = chart.height;
+                        const ctx = chart.ctx;
+                        ctx.restore();
+                        const fontSize = (height / 80).toFixed(2);
+                        ctx.font = 'bold ' + fontSize + 'em sans-serif';
+                        ctx.textBaseline = 'middle';
+                        const text = '@Model.AssignmentProgress.CompletionPercentage.ToString("0.0")%';
+                        const textX = Math.round((width - ctx.measureText(text).width) / 2);
+                        const textY = height / 2;
+                        ctx.fillStyle = '#1e293b';
+                        ctx.fillText(text, textX, textY);
+                        ctx.save();
+                    }
+                }]
+            });
+        }
+        </text>
+    }
+
+    // Study Material Chart
+    @if (Model.ReportType == "all" || Model.ReportType == "study-material")
+    {
+        <text>
+        const materialCtx = document.getElementById('materialChart');
+        if (materialCtx) {
+            new Chart(materialCtx, {
+                ...chartConfig,
+                data: {
+                    labels: ['Completed', 'Pending'],
+                    datasets: [{
+                        data: [@Model.StudyMaterialProgress.CompletionPercentage, @(100 - Model.StudyMaterialProgress.CompletionPercentage)],
+                        backgroundColor: ['#8b5cf6', '#e2e8f0'],
+                        borderWidth: 0
+                    }]
+                },
+                plugins: [{
+                    id: 'centerText',
+                    beforeDraw: function(chart) {
+                        const width = chart.width;
+                        const height = chart.height;
+                        const ctx = chart.ctx;
+                        ctx.restore();
+                        const fontSize = (height / 80).toFixed(2);
+                        ctx.font = 'bold ' + fontSize + 'em sans-serif';
+                        ctx.textBaseline = 'middle';
+                        const text = '@Model.StudyMaterialProgress.CompletionPercentage.ToString("0.0")%';
+                        const textX = Math.round((width - ctx.measureText(text).width) / 2);
+                        const textY = height / 2;
+                        ctx.fillStyle = '#1e293b';
+                        ctx.fillText(text, textX, textY);
+                        ctx.save();
+                    }
+                }]
+            });
+        }
+        </text>
+    }
+
+    // E-Content Chart
+    @if (Model.ReportType == "all" || Model.ReportType == "e-content")
+    {
+        <text>
+        const contentCtx = document.getElementById('contentChart');
+        if (contentCtx) {
+            new Chart(contentCtx, {
+                ...chartConfig,
+                data: {
+                    labels: ['Completed', 'Pending'],
+                    datasets: [{
+                        data: [@Model.EContentProgress.CompletionPercentage, @(100 - Model.EContentProgress.CompletionPercentage)],
+                        backgroundColor: ['#f97316', '#e2e8f0'],
+                        borderWidth: 0
+                    }]
+                },
+                plugins: [{
+                    id: 'centerText',
+                    beforeDraw: function(chart) {
+                        const width = chart.width;
+                        const height = chart.height;
+                        const ctx = chart.ctx;
+                        ctx.restore();
+                        const fontSize = (height / 80).toFixed(2);
+                        ctx.font = 'bold ' + fontSize + 'em sans-serif';
+                        ctx.textBaseline = 'middle';
+                        const text = '@Model.EContentProgress.CompletionPercentage.ToString("0.0")%';
+                        const textX = Math.round((width - ctx.measureText(text).width) / 2);
+                        const textY = height / 2;
+                        ctx.fillStyle = '#1e293b';
+                        ctx.fillText(text, textX, textY);
+                        ctx.save();
+                    }
+                }]
+            });
+        }
+        </text>
+    }
+</script>
+
+<script>
+    // Hide any breadcrumb arrows on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Hide common breadcrumb elements
+        const breadcrumbSelectors = [
+            '.breadcrumb',
+            '.breadcrumb-item',
+            '.page-title',
+            '.page-header .fa-chevron-right',
+            '.page-header .fa-angle-right', 
+            '.page-header .fa-arrow-right',
+            '[class*="breadcrumb"]',
+            '[class*="navigation"]'
+        ];
+        
+        breadcrumbSelectors.forEach(selector => {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(el => {
+                if (el.textContent.includes('>') || el.innerHTML.includes('&gt;')) {
+                    el.style.display = 'none';
+                }
+            });
+        });
+        
+        // Hide any element containing arrow symbols
+        const allElements = document.querySelectorAll('*');
+        allElements.forEach(el => {
+            if (el.textContent === '>' || el.innerHTML === '&gt;' || el.innerHTML === '&#62;') {
+                el.style.display = 'none';
+            }
+        });
+    });
+</script>
+
+</div>

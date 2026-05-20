@@ -1,0 +1,138 @@
+/* Enhanced Topbar Styles */
+.enhanced-header {
+    background: #ffffff !important;
+    border-bottom: 1px solid #eef0f2 !important;
+    height: 70px !important;
+    padding: 0 30px !important;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.03) !important;
+    display: flex;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.header-wrapper.wrapper-enhanced {
+    width: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.enhanced-logo {
+    height: 42px !important;
+    width: auto !important;
+    object-fit: contain;
+}
+
+.brand-text-enhanced {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.university-name {
+    font-family: 'Jost', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: #094CA6; /* Blue shade matching the image */
+    letter-spacing: -0.5px;
+}
+
+.toggle-enhanced {
+    font-size: 18px;
+    color: #64748b;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.toggle-enhanced:hover {
+    color: #094CA6;
+}
+
+/* Right Nav items */
+.nav-enhanced {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.language-dropdown-mock {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    padding: 8px 16px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 500;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.language-dropdown-mock:hover {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+}
+
+.notification-box-enhanced {
+    position: relative;
+    font-size: 20px;
+    color: #64748b;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.notification-box-enhanced:hover {
+    background: #f1f5f9;
+    color: #094CA6;
+}
+
+.notification-box-enhanced .badge {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 8px;
+    height: 8px;
+    padding: 0;
+    background: #ef4444;
+    border: 2px solid #fff;
+}
+
+.avatar-circle {
+    width: 38px;
+    height: 38px;
+    background: #f1f5f9;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+
+.pointer {
+    cursor: pointer;
+}
+
+.hover-bg-light:hover {
+    background: #f1f5f9;
+}
+
+.letter-spacing-1 {
+    letter-spacing: 1px;
+}
+
+/* Fix for profile dropdown overlap */
+.profile-nav-enhanced .profile-dropdown {
+    top: 55px !important;
+    right: 0 !important;
+    width: 220px !important;
+}
+
+.nav-item-enhanced {
+    list-style: none;
+}

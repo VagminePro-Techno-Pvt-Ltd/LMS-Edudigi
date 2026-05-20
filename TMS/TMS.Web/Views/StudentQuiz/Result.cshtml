@@ -1,0 +1,64 @@
+@model TMS.ViewModels.Academics.StudentQuizAttemptViewModel
+@{
+    ViewData["Title"] = "Quiz Result";
+    var totalQuestions = Model.Answers.Count;
+    var score = Model.Score ?? 0;
+    var percentage = totalQuestions > 0 ? (double)score / totalQuestions * 100 : 0;
+    var passMarks = ViewBag.PassingMarks as int? ?? 50; 
+    var isPassed = percentage >= passMarks;
+}
+
+<div class="exam-page" style="max-width: 600px; margin: 50px auto; padding: 0 20px; font-family: 'Jost', sans-serif;">
+    <div class="exam-section-box" style="background: #ffffff; border-radius: 16px; padding: 40px; box-shadow: 0 8px 30px rgba(0,0,0,0.04); border: 1px solid #f1f5f9; text-align: center;">
+        
+        <!-- Pass/Fail Badge Header -->
+        @if (isPassed)
+        {
+            <div style="background: #eff6ff; color: #3b82f6; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 36px; margin: 0 auto 24px auto;">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            <h1 style="font-size: 24px; font-weight: 800; color: #1e293b; margin: 0 0 8px 0;">Congratulations!</h1>
+            <p style="font-size: 14px; color: #64748b; margin: 0 0 32px 0;">You have successfully passed this learning checkpoint.</p>
+        }
+        else
+        {
+            <div style="background: #fff1f2; color: #f43f5e; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 36px; margin: 0 auto 24px auto;">
+                <i class="fa-solid fa-circle-xmark"></i>
+            </div>
+            <h1 style="font-size: 24px; font-weight: 800; color: #1e293b; margin: 0 0 8px 0;">Keep Practicing!</h1>
+            <p style="font-size: 14px; color: #64748b; margin: 0 0 32px 0;">You did not achieve the required passing score of @passMarks% for this checkpoint.</p>
+        }
+
+        <!-- Percentage Ring -->
+        <div style="margin-bottom: 32px;">
+            <div style="font-size: 48px; font-weight: 900; color: @(isPassed ? "#3b82f6" : "#f43f5e"); line-height: 1;">@Math.Round(percentage)%</div>
+            <div style="font-size: 12px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 8px; letter-spacing: 1px;">Your Score</div>
+        </div>
+
+        <!-- Metrics Grid -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 40px; text-align: left;">
+            <div style="background: #f8fafc; border: 1px solid #f1f5f9; padding: 16px 20px; border-radius: 12px;">
+                <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Correct Answers</span>
+                <strong style="font-size: 18px; color: #1e293b;">@score / @totalQuestions</strong>
+            </div>
+            <div style="background: #f8fafc; border: 1px solid #f1f5f9; padding: 16px 20px; border-radius: 12px;">
+                <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Result Status</span>
+                <strong style="font-size: 18px; color: @(isPassed ? "#059669" : "#ef4444");">@(isPassed ? "PASSED" : "FAILED")</strong>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 12px; justify-content: center;">
+            <a asp-controller="Home" asp-action="StudentDashboard" class="exam-btn exam-btn-secondary" style="padding: 12px 24px; border-radius: 8px; font-weight: 700; font-size: 13px; text-decoration: none;">
+                <i class="fa-solid fa-house"></i> Return to Dashboard
+            </a>
+            @if (!isPassed)
+            {
+                <a asp-action="Attempt" asp-route-courseId="@Model.CourseId" asp-route-quadrantId="@Model.CourseQuadrantId" class="exam-btn exam-btn-primary" style="padding: 12px 24px; border-radius: 8px; font-weight: 700; font-size: 13px; text-decoration: none; box-shadow: 0 4px 12px rgba(99,102,241,0.2);">
+                    <i class="fa-solid fa-rotate-right"></i> Try Again
+                </a>
+            }
+        </div>
+
+    </div>
+</div>

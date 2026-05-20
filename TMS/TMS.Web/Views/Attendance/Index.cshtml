@@ -1,0 +1,226 @@
+@model List<TMS.ViewModels.Academics.DailyAttendanceViewModel>
+@{
+    ViewData["Title"] = "Daily Attendance";
+    var selectedDate = (DateTime)ViewBag.SelectedDate;
+}
+
+<div class="container-fluid p-4">
+    <!-- Header Section -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-primary mb-1">Daily Attendance Management</h3>
+            <p class="text-muted small">Monitor and manage student presence across the platform.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <form method="get" class="d-flex gap-2 align-items-center bg-white p-2 rounded shadow-sm">
+                <label class="small fw-bold text-muted px-2">Select Date:</label>
+                <input type="date" name="date" value="@selectedDate.ToString("yyyy-MM-dd")" class="form-control form-control-sm border-0" onchange="this.form.submit()" />
+            </form>
+            <button class="btn btn-outline-primary btn-sm shadow-sm">
+                <i class="fa-solid fa-file-export me-1"></i> Export
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-light-primary p-3 me-3">
+                        <i class="fa-solid fa-users text-primary fs-4"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-muted mb-0 small">Total Students</h6>
+                        <h4 class="fw-bold mb-0">@Model.Count</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-light-success p-3 me-3">
+                        <i class="fa-solid fa-user-check text-success fs-4"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-muted mb-0 small">Present</h6>
+                        <h4 class="fw-bold mb-0">@Model.Count(t => t.AttendanceStatus == 1)</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-light-danger p-3 me-3">
+                        <i class="fa-solid fa-user-xmark text-danger fs-4"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-muted mb-0 small">Absent</h6>
+                        <h4 class="fw-bold mb-0">@Model.Count(t => t.AttendanceStatus == 0)</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-light-warning p-3 me-3">
+                        <i class="fa-solid fa-clock text-warning fs-4"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-muted mb-0 small">Late</h6>
+                        <h4 class="fw-bold mb-0">@Model.Count(t => t.AttendanceStatus == 2)</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Table -->
+    <div class="card border-0 shadow-sm rounded-4 bg-white overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="ps-4 py-3">Student</th>
+                        <th class="py-3">Login Time</th>
+                        <th class="py-3">Status</th>
+                        <th class="py-3">Remarks</th>
+                        <th class="py-3 text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Any())
+                    {
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted italic">
+                                No attendance records found for this date.
+                            </td>
+                        </tr>
+                    }
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="rounded-circle bg-light p-2 me-2 text-center" style="width: 35px;">
+                                        <i class="fa-solid fa-user text-muted small"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold">@item.StudentName</div>
+                                        <div class="text-muted small">ID: #@item.StudentId</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                @if (item.LoginTime.HasValue)
+                                {
+                                    <span class="text-muted">@item.LoginTime.Value.ToString("hh:mm tt")</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                            <td>
+                                @switch (item.AttendanceStatus)
+                                {
+                                    case 1:
+                                        <span class="badge bg-light-success text-success px-3 py-2 rounded-pill">Present</span>
+                                        break;
+                                    case 2:
+                                        <span class="badge bg-light-warning text-warning px-3 py-2 rounded-pill">Late</span>
+                                        break;
+                                    default:
+                                        <span class="badge bg-light-danger text-danger px-3 py-2 rounded-pill">Absent</span>
+                                        break;
+                                }
+                            </td>
+                            <td class="text-muted small text-truncate" style="max-width: 200px;">
+                                @(item.Remarks ?? "No remarks")
+                            </td>
+                            <td class="text-end pe-4">
+                                <button class="btn btn-light btn-sm rounded-3 px-3" onclick="openOverrideModal(@item.Id, '@item.StudentName', @item.AttendanceStatus)">
+                                    <i class="fa-solid fa-pen-to-square"></i> Override
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Override Modal -->
+<div class="modal fade" id="overrideModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Override Attendance</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="overrideForm">
+                <div class="modal-body py-4">
+                    <input type="hidden" id="overrideId" name="id" />
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">Student Name</label>
+                        <input type="text" id="overrideName" class="form-control bg-light border-0" readonly />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">Status</label>
+                        <select id="overrideStatus" name="status" class="form-select border-0 bg-light">
+                            <option value="1">Present</option>
+                            <option value="0">Absent</option>
+                            <option value="2">Late</option>
+                            <option value="3">Excused</option>
+                        </select>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label small fw-bold text-muted">Remarks</label>
+                        <textarea id="overrideRemarks" name="remarks" class="form-control border-0 bg-light" rows="3" placeholder="Reason for override..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-3 px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary rounded-3 px-4">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-light-primary { background-color: #eff6ff; }
+    .bg-light-success { background-color: #f0fdf4; }
+    .bg-light-danger { background-color: #fef2f2; }
+    .bg-light-warning { background-color: #fffbeb; }
+    .rounded-4 { border-radius: 1rem !important; }
+    .italic { font-style: italic; }
+</style>
+
+@section Scripts {
+    <script>
+        function openOverrideModal(id, name, status) {
+            $('#overrideId').val(id);
+            $('#overrideName').val(name);
+            $('#overrideStatus').val(status);
+            $('#overrideRemarks').val('');
+            $('#overrideModal').modal('show');
+        }
+
+        $('#overrideForm').on('submit', function(e) {
+            e.preventDefault();
+            const data = $(this).serialize();
+            $.post('/Attendance/UpdateStatus', data, function(res) {
+                if(res.success) {
+                    location.reload();
+                } else {
+                    alert('Failed to update status.');
+                }
+            });
+        });
+    </script>
+}

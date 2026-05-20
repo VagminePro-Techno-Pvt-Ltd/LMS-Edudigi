@@ -1,0 +1,124 @@
+@model List<TMS.ViewModels.Academics.DailyAttendanceViewModel>
+@{
+    ViewData["Title"] = "My Attendance";
+    var attendanceRate = Model.Any() ? (Model.Count(t => t.AttendanceStatus == 1 || t.AttendanceStatus == 2) * 100 / Model.Count) : 0;
+}
+
+<div class="container-fluid p-4">
+    <div class="row mb-4 align-items-center">
+        <div class="col-md-8">
+            <h3 class="fw-bold text-primary mb-1">My Attendance Log</h3>
+            <p class="text-muted small">Keep track of your presence on the platform.</p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <div class="d-inline-flex align-items-center bg-white p-2 rounded-pill shadow-sm px-4">
+                <div class="me-3">
+                    <div class="text-muted x-small fw-bold text-uppercase">Current Rate</div>
+                    <div class="fw-bold text-primary fs-5">@attendanceRate%</div>
+                </div>
+                <div class="progress" style="width: 100px; height: 8px;">
+                    <div class="progress-bar bg-primary" role="progressbar" style="width: @attendanceRate%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Summary Cards -->
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+                <h6 class="fw-bold mb-4">Quick Stats</h6>
+                <div class="d-flex justify-content-between mb-3 border-bottom pb-2">
+                    <span class="text-muted small">Total Days Tracked</span>
+                    <span class="fw-bold">@Model.Count</span>
+                </div>
+                <div class="d-flex justify-content-between mb-3 border-bottom pb-2">
+                    <span class="text-muted small">Days Present</span>
+                    <span class="fw-bold text-success">@Model.Count(t => t.AttendanceStatus == 1)</span>
+                </div>
+                <div class="d-flex justify-content-between mb-3 border-bottom pb-2">
+                    <span class="text-muted small">Late Arrivals</span>
+                    <span class="fw-bold text-warning">@Model.Count(t => t.AttendanceStatus == 2)</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted small">Absences</span>
+                    <span class="fw-bold text-danger">@Model.Count(t => t.AttendanceStatus == 0)</span>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-primary text-white">
+                <i class="fa-solid fa-circle-info mb-3 fs-3 opacity-50"></i>
+                <h6 class="fw-bold">Attendance Policy</h6>
+                <p class="x-small mb-0 opacity-75">
+                    Your attendance is marked automatically when you log into the platform. A minimum of 75% attendance is recommended for optimal learning.
+                </p>
+            </div>
+        </div>
+
+        <!-- History Table -->
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm rounded-4 bg-white overflow-hidden">
+                <div class="p-4 border-bottom d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold mb-0">Recent Activity</h6>
+                    <button class="btn btn-light btn-sm rounded-pill px-3">View Full History</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4">Date</th>
+                                <th>Login Time</th>
+                                <th>Status</th>
+                                <th class="pe-4">Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (!Model.Any())
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center py-5 text-muted">
+                                        No attendance data available yet.
+                                    </td>
+                                </tr>
+                            }
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td class="ps-4 fw-bold">@item.Date.ToString("MMM dd, yyyy")</td>
+                                    <td>
+                                        <span class="text-muted">@(item.LoginTime?.ToString("hh:mm tt") ?? "—")</span>
+                                    </td>
+                                    <td>
+                                        @switch (item.AttendanceStatus)
+                                        {
+                                            case 1:
+                                                <span class="badge bg-light-success text-success rounded-pill px-3 py-2">Present</span>
+                                                break;
+                                            case 2:
+                                                <span class="badge bg-light-warning text-warning rounded-pill px-3 py-2">Late</span>
+                                                break;
+                                            default:
+                                                <span class="badge bg-light-danger text-danger rounded-pill px-3 py-2">Absent</span>
+                                                break;
+                                        }
+                                    </td>
+                                    <td class="pe-4">
+                                        <span class="text-muted small">@(item.Remarks ?? "-")</span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .x-small { font-size: 0.75rem; }
+    .bg-light-success { background-color: #f0fdf4; }
+    .bg-light-danger { background-color: #fef2f2; }
+    .bg-light-warning { background-color: #fffbeb; }
+    .rounded-4 { border-radius: 1rem !important; }
+</style>

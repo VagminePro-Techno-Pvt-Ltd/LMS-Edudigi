@@ -1,0 +1,401 @@
+@model IEnumerable<TMS.Models.Academics.AssignmentMaster>
+@{
+    ViewData["Title"] = "Faculty Assignment Dashboard";
+    var programs = ViewBag.Programs as IEnumerable<TMS.Models.Masters.CourseCategoryMaster> ?? Enumerable.Empty<TMS.Models.Masters.CourseCategoryMaster>();
+    var courses = ViewBag.Courses as IEnumerable<TMS.Models.Masters.CourseMaster> ?? Enumerable.Empty<TMS.Models.Masters.CourseMaster>();
+    var selectedProgramId = ViewBag.SelectedProgramId as int?;
+}
+
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #0f172a, #1e293b);
+        --accent-gradient: linear-gradient(135deg, #2563eb, #3b82f6);
+        --glass-bg: rgba(255, 255, 255, 0.95);
+        --premium-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        --card-border-radius: 20px;
+    }
+
+    .premium-wrapper {
+        padding: 30px;
+        background-color: #f1f5f9;
+        min-height: calc(100vh - 120px);
+        font-family: 'Outfit', sans-serif;
+    }
+
+    .page-title {
+        font-size: 28px;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 5px;
+    }
+
+    .page-subtitle {
+        font-size: 15px;
+        color: #64748b;
+        margin-bottom: 30px;
+    }
+
+    .premium-card {
+        background: var(--glass-bg);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        border-radius: var(--card-border-radius);
+        box-shadow: var(--premium-shadow);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+        overflow: hidden;
+    }
+
+    .premium-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+        border-color: #3b82f6;
+    }
+
+    .badge-program {
+        background: rgba(37, 99, 235, 0.1);
+        color: #2563eb;
+        font-weight: 700;
+        border-radius: 30px;
+        font-size: 13px;
+        padding: 8px 16px;
+    }
+
+    .status-badge {
+        font-size: 12px;
+        font-weight: 700;
+        padding: 6px 14px;
+        border-radius: 30px;
+    }
+
+    .status-active { background: rgba(16, 185, 129, 0.1); color: #059669; }
+    .status-past { background: rgba(239, 68, 68, 0.1); color: #dc2626; }
+
+    .assignment-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #0f172a;
+        margin-top: 20px;
+        margin-bottom: 12px;
+    }
+
+    .assignment-desc {
+        color: #64748b;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .info-strip {
+        background: #f8fafc;
+        border-radius: 12px;
+        padding: 15px;
+        margin-top: 20px;
+        margin-bottom: 25px;
+    }
+
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+
+    .info-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .info-label { color: #64748b; }
+    .info-value { color: #0f172a; font-weight: 600; }
+
+    .btn-create {
+        background: var(--accent-gradient);
+        color: white;
+        border: none;
+        font-weight: 700;
+        border-radius: 12px;
+        padding: 12px 24px;
+        transition: opacity 0.2s;
+    }
+
+    .btn-create:hover {
+        opacity: 0.9;
+        color: white;
+    }
+
+    .btn-action {
+        background: var(--primary-gradient);
+        color: white;
+        border: none;
+        font-weight: 700;
+        border-radius: 12px;
+        padding: 12px;
+        width: 100%;
+        text-align: center;
+        display: inline-block;
+        text-decoration: none;
+        transition: opacity 0.2s;
+    }
+
+    .btn-action:hover {
+        opacity: 0.9;
+        color: white;
+    }
+
+    .select-premium {
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-size: 15px;
+        color: #1e293b;
+        font-weight: 600;
+        background-color: white;
+    }
+
+    /* Modal Premium Styling */
+    .premium-modal .modal-content {
+        border-radius: 20px;
+        border: none;
+        box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+    }
+
+    .premium-modal .modal-header {
+        background: var(--primary-gradient);
+        color: white;
+        border-top-left-radius: 20px;
+        border-top-right-radius: 20px;
+        padding: 24px;
+    }
+
+    .premium-modal .modal-body {
+        padding: 30px;
+    }
+
+    .form-label-custom {
+        font-weight: 700;
+        color: #1e293b;
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+
+    .form-control-custom {
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-size: 15px;
+        transition: border-color 0.2s;
+    }
+
+    .form-control-custom:focus {
+        border-color: #2563eb;
+        box-shadow: none;
+    }
+</style>
+
+<div class="premium-wrapper">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <div>
+            <h1 class="page-title">📁 Assignment Workspace</h1>
+            <p class="page-subtitle">Design program assessments, define grading requirements, and manage workloads.</p>
+        </div>
+        <button class="btn btn-create shadow-sm" data-bs-toggle="modal" data-bs-target="#createAssignmentModal">
+            <i class="fa-solid fa-plus me-2"></i> Create Assignment
+        </button>
+    </div>
+
+    <!-- Filter Block -->
+    <div class="card premium-card mb-4" style="border-radius: 16px;">
+        <div class="card-body p-4">
+            <form method="get" action="@Url.Action("FacultyDashboard")" class="row g-3 align-items-end">
+                <div class="col-md-6">
+                    <label class="form-label-custom">Filter by Target Program</label>
+                    <select name="programId" class="form-select select-premium" onchange="this.form.submit()">
+                        <option value="">All Active Programs</option>
+                        @foreach (var prog in programs)
+                        {
+                            if (selectedProgramId == prog.Id)
+                            {
+                                <option value="@prog.Id" selected>@prog.Name</option>
+                            }
+                            else
+                            {
+                                <option value="@prog.Id">@prog.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <a href="@Url.Action("FacultyDashboard")" class="btn btn-light px-4 py-2" style="border-radius: 12px; font-weight:600; border:2px solid #e2e8f0;">
+                        <i class="fa-solid fa-arrows-rotate me-1"></i> Reset View
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Assignments Grid -->
+    <div class="row">
+        @if (!Model.Any())
+        {
+            <div class="col-12 text-center py-5">
+                <img src="/uploads/system/empty-folder.png" style="width: 150px; opacity: 0.6; margin-bottom: 20px;" alt="Empty Folder" onerror="this.src='https://cdn-icons-png.flaticon.com/512/7486/7486744.png'" />
+                <h4 class="font-weight-bold" style="color: #64748b;">No Assignments Configured</h4>
+                <p class="text-muted">Launch your program's assessments using the button above.</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var item in Model)
+            {
+                <div class="col-xl-4 col-md-6 mb-4">
+                    <div class="card h-100 premium-card">
+                        <div class="card-body p-4 d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="badge-program">
+                                    <i class="fa-solid fa-graduation-cap me-1"></i> @(item.Program?.Name ?? "General")
+                                </span>
+                                @if (DateTime.UtcNow > item.DueDate)
+                                {
+                                    <span class="status-badge status-past">Past Due</span>
+                                }
+                                else
+                                {
+                                    <span class="status-badge status-active">Active</span>
+                                }
+                            </div>
+                            
+                            <h5 class="assignment-title">@item.Title</h5>
+                            <p class="assignment-desc flex-grow-1">
+                                @(item.Description?.Length > 120 ? item.Description.Substring(0, 117) + "..." : item.Description)
+                            </p>
+                            
+                            <div class="info-strip">
+                                <div class="info-item">
+                                    <span class="info-label"><i class="fa-solid fa-calendar-day me-1"></i> Due Date:</span>
+                                    <span class="info-value">@item.DueDate.ToString("dd MMM yyyy")</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label"><i class="fa-solid fa-star me-1"></i> Pass / Max:</span>
+                                    <span class="info-value">@item.PassMarks / @item.MaxMarks</span>
+                                </div>
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(item.AttachmentPath))
+                            {
+                                <div class="mb-3">
+                                    <a href="@item.AttachmentPath" target="_blank" class="btn btn-sm btn-outline-secondary w-100 py-2" style="border-radius: 10px; font-weight:600;">
+                                        <i class="fa-solid fa-paperclip me-1"></i> Attached Guidelines
+                                    </a>
+                                </div>
+                            }
+
+                            <div class="mt-auto">
+                                <a href="@Url.Action("ViewSubmissions", new { assignmentId = item.Id })" class="btn btn-action">
+                                    <i class="fa-solid fa-users-viewfinder me-1"></i> View Submissions
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+<!-- Create Assignment Modal -->
+<div class="modal fade premium-modal" id="createAssignmentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fa-solid fa-file-circle-plus me-2"></i> Design New Assignment</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="@Url.Action("CreateAssignment")" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label-custom">Assignment Title <span class="text-danger">*</span></label>
+                            <input type="text" name="Title" class="form-control form-control-custom" placeholder="e.g. Quantitative Assessment Part I" required />
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label-custom">Target Program <span class="text-danger">*</span></label>
+                            <select name="ProgramId" class="form-select select-premium w-100" required>
+                                <option value="">-- Select Program --</option>
+                                @foreach (var prog in programs)
+                                {
+                                    <option value="@prog.Id">@prog.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label-custom">Course (Optional)</label>
+                            <select name="CourseId" class="form-select select-premium w-100">
+                                <option value="">-- All Related Courses --</option>
+                                @foreach (var course in courses)
+                                {
+                                    <option value="@course.Id">@course.Name (@course.CourseCode)</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label-custom">Description / Instructions</label>
+                            <textarea name="Description" class="form-control form-control-custom" rows="4" placeholder="Detail standard operational procedure for this assignment..."></textarea>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label-custom">Due Date & Time <span class="text-danger">*</span></label>
+                            <input type="datetime-local" name="DueDate" class="form-control form-control-custom" required />
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label-custom">Max Marks <span class="text-danger">*</span></label>
+                            <input type="number" name="MaxMarks" min="1" step="0.01" class="form-control form-control-custom" value="100" required />
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label-custom">Pass Marks <span class="text-danger">*</span></label>
+                            <input type="number" name="PassMarks" min="1" step="0.01" class="form-control form-control-custom" value="40" required />
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-check form-switch mt-3">
+                                <input class="form-check-input" type="checkbox" name="AllowLateSubmission" value="true" id="lateSwitch" />
+                                <label class="form-check-label font-weight-bold text-dark ms-2" for="lateSwitch">Allow Late Submissions</label>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6" id="penaltyBlock" style="display:none;">
+                            <label class="form-label-custom">Late Penalty (%)</label>
+                            <input type="number" name="LatePenalty" min="0" max="100" class="form-control form-control-custom" value="10" />
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label-custom">Guideline Attachment (PDF/DOC)</label>
+                            <input type="file" name="attachment" class="form-control form-control-custom" />
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end mt-4 gap-2">
+                        <button type="button" class="btn btn-light px-4 py-2" style="border-radius: 12px; font-weight:600;" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-create px-4 py-2 shadow-sm">Save Assignment</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            $('#lateSwitch').change(function() {
+                if(this.checked) {
+                    $('#penaltyBlock').fadeIn();
+                } else {
+                    $('#penaltyBlock').fadeOut();
+                }
+            });
+        });
+    </script>
+}
+

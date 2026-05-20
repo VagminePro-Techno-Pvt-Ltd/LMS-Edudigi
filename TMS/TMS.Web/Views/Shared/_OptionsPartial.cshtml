@@ -1,0 +1,17 @@
+﻿@model List<SelectListItem>                               //select list is in mvc.rendering
+@{
+    var excluedDefault = false;
+    if (ViewBag.ExcludeDefault != null)
+        excluedDefault = Convert.ToBoolean(ViewBag.ExcludeDefault);
+}
+@if (!excluedDefault)
+{
+    <option value="">--Select--</option>
+}
+@if (Model != null && Model.Any())
+{
+    foreach (SelectListItem item in Model)
+    {
+        <option value="@item.Value">@Html.Raw(item.Text)</option>
+    }
+}

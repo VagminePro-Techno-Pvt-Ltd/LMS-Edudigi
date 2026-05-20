@@ -1,0 +1,139 @@
+@model TMS.ViewModels.Academics.SubjectUnitsPageViewModel
+
+@{
+    ViewData["Title"] = "Units — " + Model.SubjectName;
+}
+
+<style>
+    .su-page { padding: 8px 4px 32px; font-family: 'Jost','Segoe UI',sans-serif; }
+
+    .su-bc { font-size:13px; color:#94a3b8; margin-bottom:14px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .su-bc a { color:#64748b; text-decoration:none; transition:color .15s; }
+    .su-bc a:hover { color:#6366f1; }
+    .su-bc .sep { color:#cbd5e1; }
+    .su-bc strong { color:#1e293b; }
+
+    .su-title { font-size:22px; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:10px; margin-bottom:20px; }
+    .su-title i { color:#6366f1; }
+
+    /* Hero */
+    .su-hero {
+        background: linear-gradient(135deg,#6366f1 0%,#4f46e5 60%,#7c3aed 100%);
+        border-radius:16px; padding:28px 32px; color:#fff; margin-bottom:28px;
+        display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;
+        box-shadow:0 8px 32px rgba(99,102,241,.28); position:relative; overflow:hidden;
+    }
+    .su-hero::before {
+        content:''; position:absolute; right:-40px; top:-40px;
+        width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,.07);
+    }
+    .su-hero-left h2 { font-size:20px; font-weight:800; margin:0 0 6px; }
+    .su-hero-left p  { font-size:14px; opacity:.82; margin:0; }
+    .su-hero-stat { text-align:center; min-width:80px; }
+    .su-hero-stat .stat-num { font-size:28px; font-weight:800; line-height:1; }
+    .su-hero-stat .stat-lbl { font-size:11px; opacity:.75; text-transform:uppercase; letter-spacing:.6px; margin-top:4px; }
+
+    /* Unit Grid */
+    .unit-list { display:grid; grid-template-columns:1fr; gap:16px; margin-bottom:28px; }
+
+    .unit-card {
+        background:#fff; border-radius:14px; border:1px solid #eef2f6;
+        padding:20px 24px; display:flex; align-items:center; justify-content:space-between;
+        transition:all 0.2s; text-decoration:none; cursor:pointer;
+    }
+    .unit-card:hover { transform:translateX(8px); border-color:#6366f1; box-shadow:0 4px 20px rgba(99,102,241,0.08); }
+
+    .unit-c-left { display:flex; align-items:center; gap:18px; }
+    .unit-num-badge {
+        width:42px; height:42px; border-radius:10px; background:#eff6ff; color:#3b82f6;
+        display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:800;
+    }
+    .unit-info h4 { font-size:16px; font-weight:700; color:#1e293b; margin:0 0 2px; }
+    .unit-info p { font-size:13px; color:#64748b; margin:0; }
+
+    .unit-c-right { display:flex; align-items:center; gap:20px; }
+    .unit-meta { font-size:12px; font-weight:700; color:#94a3b8; display:flex; align-items:center; gap:6px; }
+    .btn-unit-open {
+        width:36px; height:36px; border-radius:50%; background:#f1f5f9; color:#64748b;
+        display:flex; align-items:center; justify-content:center; transition:all 0.2s;
+    }
+    .unit-card:hover .btn-unit-open { background:#6366f1; color:#fff; }
+
+    /* Empty state */
+    .su-empty { text-align:center; padding:60px 24px; background:#fff; border-radius:16px; border:1px solid #eef2f6; }
+    .su-empty i { font-size:48px; color:#cbd5e1; margin-bottom:12px; display:block; }
+
+    @@media(max-width:600px){
+        .unit-card { flex-direction:column; align-items:flex-start; gap:16px; }
+        .unit-c-right { width:100%; justify-content:space-between; }
+    }
+</style>
+
+<div class="su-page">
+    @* Breadcrumb *@
+    <div class="su-bc">
+        <a asp-controller="Home" asp-action="StudentDashboard"><i class="fa-solid fa-house"></i> Dashboard</a>
+        <span class="sep">/</span>
+        <a asp-controller="StudentCourseContent" asp-action="Index">My Courses</a>
+        <span class="sep">/</span>
+        <a asp-controller="Quadrant" asp-action="Index" asp-route-semesterId="@Model.SemesterId" asp-route-courseId="@Model.CourseId">@Model.CourseName</a>
+        <span class="sep">/</span>
+        <strong>@Model.SubjectName</strong>
+    </div>
+
+    @* Title *@
+    <div class="su-title">
+        <i class="fa-solid fa-layer-group"></i>
+        <span>@Model.SubjectName — Units</span>
+    </div>
+
+    @* Hero *@
+    <div class="su-hero">
+        <div class="su-hero-left">
+            <h2>@Model.SubjectName @(!string.IsNullOrEmpty(Model.SubjectCode) ? $"({Model.SubjectCode})" : "")</h2>
+            <p>Select a unit to explore its learning quadrants.</p>
+        </div>
+        <div class="su-hero-stat">
+            <div class="stat-num">@Model.Units.Count</div>
+            <div class="stat-lbl">Units</div>
+        </div>
+    </div>
+
+    @if (Model.Units == null || !Model.Units.Any())
+    {
+        <div class="su-empty">
+            <i class="fa-solid fa-folder-open"></i>
+            <h4>No Units Found</h4>
+            <p>No units have been added to this subject yet.</p>
+        </div>
+    }
+    else
+    {
+        <div class="unit-list">
+            @{ int uIdx = 1; }
+            @foreach (var unit in Model.Units)
+            {
+                <a href="@Url.Action("UnitQuadrants","Quadrant", new { semesterId=Model.SemesterId, courseId=Model.CourseId, subjectId=Model.SubjectId, unitId=unit.UnitId })"
+                   class="unit-card">
+                    <div class="unit-c-left">
+                        <div class="unit-num-badge">@uIdx</div>
+                        <div class="unit-info">
+                            <h4>@unit.UnitName</h4>
+                            <p>@(string.IsNullOrEmpty(unit.Description) ? "Explore learning materials and activities for this unit." : unit.Description)</p>
+                        </div>
+                    </div>
+                    <div class="unit-c-right">
+                        <div class="unit-meta">
+                            <i class="fa-solid fa-file-lines"></i>
+                            @unit.TotalContent Content Items
+                        </div>
+                        <div class="btn-unit-open">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </div>
+                    </div>
+                </a>
+                uIdx++;
+            }
+        </div>
+    }
+</div>

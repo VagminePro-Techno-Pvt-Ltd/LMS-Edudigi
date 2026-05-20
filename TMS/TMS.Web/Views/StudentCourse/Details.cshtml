@@ -1,0 +1,105 @@
+@model TMS.ViewModels.Academics.SubjectHubViewModel
+@{ ViewData["Title"] = Model.CourseName; }
+
+<style>
+    .sh-page { padding:8px 4px 32px; font-family:'Jost','Segoe UI',sans-serif; }
+    .sh-bc { font-size:13px; color:#94a3b8; margin-bottom:14px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .sh-bc a { color:#64748b; text-decoration:none; } .sh-bc a:hover { color:#6366f1; } .sh-bc .sep { color:#cbd5e1; } .sh-bc strong { color:#1e293b; }
+    .sh-hero { background:linear-gradient(135deg,#6366f1 0%,#4f46e5 60%,#7c3aed 100%); border-radius:18px; padding:28px 32px; color:#fff; margin-bottom:28px; display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap; box-shadow:0 8px 32px rgba(99,102,241,.28); position:relative; overflow:hidden; }
+    .sh-hero::before { content:''; position:absolute; right:-40px; top:-40px; width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,.07); }
+    .sh-hero-left h2 { font-size:22px; font-weight:900; margin:0 0 6px; } .sh-hero-left p { font-size:14px; opacity:.82; margin:0; }
+    .sh-hero-badges { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+    .sh-badge { background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.25); border-radius:20px; padding:4px 14px; font-size:12px; font-weight:600; display:inline-flex; align-items:center; gap:6px; }
+    .sh-hero-stats { display:flex; gap:24px; }
+    .sh-stat { text-align:center; min-width:70px; } .sh-stat .sn { font-size:28px; font-weight:900; line-height:1; } .sh-stat .sl { font-size:11px; opacity:.75; text-transform:uppercase; letter-spacing:.6px; margin-top:4px; }
+    .sh-info-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; margin-bottom:28px; }
+    .sh-info-card { background:#fff; border-radius:14px; border:1px solid #eef2f6; box-shadow:0 2px 10px rgba(0,0,0,.04); padding:20px; display:flex; align-items:center; gap:14px; transition:transform .2s,box-shadow .2s; }
+    .sh-info-card:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(99,102,241,.1); }
+    .sh-info-ic { width:44px; height:44px; border-radius:12px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:18px; }
+    .sh-info-card h5 { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:#94a3b8; margin:0 0 4px; font-weight:700; }
+    .sh-info-card p { font-size:15px; font-weight:700; color:#1e293b; margin:0; }
+    .sh-sec-head { font-size:16px; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:8px; margin-bottom:18px; }
+    .sh-sec-head i { color:#6366f1; }
+    .unit-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:18px; margin-bottom:28px; }
+    .unit-card { background:#fff; border-radius:16px; border:1.5px solid #eef2f6; box-shadow:0 2px 12px rgba(0,0,0,.05); overflow:hidden; transition:all .22s; text-decoration:none; display:block; position:relative; }
+    .unit-card:hover { transform:translateY(-4px); box-shadow:0 12px 32px rgba(99,102,241,.14); border-color:#c7d2fe; }
+    .uc-top { padding:20px 22px 16px; display:flex; align-items:flex-start; gap:14px; }
+    .uc-icon { width:48px; height:48px; border-radius:12px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:20px; }
+    .uc-info h4 { font-size:15px; font-weight:800; color:#1e293b; margin:0 0 4px; line-height:1.3; }
+    .uc-info p { font-size:12px; color:#64748b; margin:0; line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .uc-progress { padding:0 22px 6px; }
+    .uc-pbar-bg { width:100%; height:6px; background:#f1f5f9; border-radius:10px; overflow:hidden; }
+    .uc-pbar { height:100%; border-radius:10px; background:linear-gradient(90deg,#6366f1,#8b5cf6); transition:width .4s ease; }
+    .uc-bottom { padding:12px 22px 16px; display:flex; align-items:center; justify-content:space-between; border-top:1px solid #f1f5f9; }
+    .uc-meta { font-size:12px; font-weight:600; color:#64748b; display:flex; align-items:center; gap:5px; }
+    .uc-arrow { font-size:12px; font-weight:700; color:#6366f1; display:inline-flex; align-items:center; gap:5px; transition:gap .2s; }
+    .unit-card:hover .uc-arrow { gap:9px; }
+    .uc-empty { background:#fff; border-radius:16px; border:2px dashed #e2e8f0; padding:40px 24px; text-align:center; }
+    .uc-empty i { font-size:40px; color:#cbd5e1; margin-bottom:12px; display:block; }
+    .uc-empty p { color:#94a3b8; font-size:14px; margin:0; }
+    @@media(max-width:768px){ .sh-hero{padding:20px;flex-direction:column;} .unit-grid{grid-template-columns:1fr;} .sh-info-grid{grid-template-columns:1fr 1fr;} }
+    @@media(max-width:480px){ .sh-info-grid{grid-template-columns:1fr;} }
+</style>
+
+<div class="sh-page">
+    <div class="sh-bc">
+        <a asp-controller="Home" asp-action="StudentDashboard"><i class="fa-solid fa-house"></i> Dashboard</a><span class="sep">/</span>
+        <a asp-controller="StudentCourse" asp-action="Index">My Courses</a><span class="sep">/</span>
+        <strong>@Model.CourseName</strong>
+    </div>
+
+    <div class="sh-hero">
+        <div class="sh-hero-left">
+            <h2><i class="fa-solid fa-graduation-cap" style="font-size:18px;opacity:.8;margin-right:8px;"></i>@Model.CourseName</h2>
+            <p>@(string.IsNullOrEmpty(Model.CourseDescription) ? "Browse units and explore their learning content." : Model.CourseDescription)</p>
+            <div class="sh-hero-badges">
+                <span class="sh-badge"><i class="fa-solid fa-layer-group"></i> @Model.TotalUnits Units</span>
+                <span class="sh-badge"><i class="fa-solid fa-file"></i> @Model.TotalMaterials Materials</span>
+                @if (!string.IsNullOrEmpty(Model.CourseCode)) { <span class="sh-badge"><i class="fa-solid fa-hashtag"></i> @Model.CourseCode</span> }
+            </div>
+        </div>
+        <div class="sh-hero-stats">
+            <div class="sh-stat"><div class="sn">@Model.TotalUnits</div><div class="sl">Units</div></div>
+            <div class="sh-stat"><div class="sn">@(Model.OverallProgressPercent)%</div><div class="sl">Progress</div></div>
+        </div>
+    </div>
+
+    <div class="sh-info-grid">
+        <div class="sh-info-card"><div class="sh-info-ic" style="background:#eff6ff;color:#3b82f6;"><i class="fa-solid fa-bookmark"></i></div><div><h5>Category</h5><p>@Model.CategoryName</p></div></div>
+        <div class="sh-info-card"><div class="sh-info-ic" style="background:#f0fdf4;color:#16a34a;"><i class="fa-solid fa-star"></i></div><div><h5>Credits</h5><p>@(Model.Credits > 0 ? Model.Credits.ToString() : "—")</p></div></div>
+        <div class="sh-info-card"><div class="sh-info-ic" style="background:#fef9c3;color:#ca8a04;"><i class="fa-solid fa-clock"></i></div><div><h5>Duration</h5><p>@(Model.DurationMonths.HasValue && Model.DurationMonths > 0 ? Model.DurationMonths + " Months" : "—")</p></div></div>
+        <div class="sh-info-card"><div class="sh-info-ic" style="background:#fdf4ff;color:#a855f7;"><i class="fa-solid fa-code"></i></div><div><h5>Code</h5><p>@(string.IsNullOrEmpty(Model.CourseCode) ? "—" : Model.CourseCode)</p></div></div>
+    </div>
+
+    <div class="sh-sec-head"><i class="fa-solid fa-layer-group"></i> Course Units</div>
+
+    @if (Model.Units.Any())
+    {
+        <div class="unit-grid">
+            @{ string[] uBg={"#eff6ff","#fef9c3","#f0fdf4","#fff7ed","#fdf4ff","#fef2f2"}; string[] uCl={"#3b82f6","#ca8a04","#16a34a","#ea580c","#a855f7","#ef4444"}; string[] uIc={"fa-book","fa-video","fa-flask","fa-file-alt","fa-tasks","fa-star"}; int ui=0; }
+            @foreach (var unit in Model.Units)
+            {
+                int cx=ui%6;
+                <a href="@Url.Action("Details","StudentUnit",new{courseId=Model.CourseId,unitId=unit.UnitId})" class="unit-card">
+                    <div class="uc-top">
+                        <div class="uc-icon" style="background:@uBg[cx];color:@uCl[cx];"><i class="fa-solid @uIc[cx]"></i></div>
+                        <div class="uc-info">
+                            <h4>Unit @(ui+1): @unit.UnitName</h4>
+                            <p>@(string.IsNullOrEmpty(unit.UnitDescription) ? $"{unit.TotalMaterials} learning materials available" : unit.UnitDescription)</p>
+                        </div>
+                    </div>
+                    <div class="uc-progress"><div class="uc-pbar-bg"><div class="uc-pbar" style="width:@(unit.ProgressPercent)%"></div></div></div>
+                    <div class="uc-bottom">
+                        <span class="uc-meta"><i class="fa-solid fa-file-lines"></i> @unit.TotalMaterials Materials · @(unit.ProgressPercent)%</span>
+                        <span class="uc-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
+                    </div>
+                </a>
+                ui++;
+            }
+        </div>
+    }
+    else
+    {
+        <div class="uc-empty"><i class="fa-solid fa-folder-open"></i><p>No units have been added to this course yet. Content will appear here once your faculty uploads materials.</p></div>
+    }
+</div>

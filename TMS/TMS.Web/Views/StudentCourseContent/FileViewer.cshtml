@@ -1,0 +1,509 @@
+@model TMS.ViewModels.Masters.LectureMaterialViewModel
+
+@{
+    ViewData["Title"] = "File Viewer - " + Model.Title;
+    string viewerType = ViewBag.ViewerType ?? "Unsupported";
+    string previewUrl = ViewBag.PreviewFileUrl ?? "";
+    bool isLocalhost = ViewBag.IsLocalhost ?? false;
+    string fileExt = ViewBag.FileExtension ?? "";
+    int courseId = ViewBag.CourseId;
+    int semesterId = ViewBag.SemesterId;
+    int quadrantId = ViewBag.QuadrantId;
+    string courseName = ViewBag.CourseName ?? "Course";
+
+    string backUrl = Url.Action("QuadrantContent", "StudentCourseContent", new { courseId, semesterId, quadrantId });
+    string downloadUrl = Url.Action("DownloadFile", "StudentCourseContent", new { id = Model.Id });
+}
+
+<!-- Safe Conditional Script Inclusion (Prevents version conflicts like JSZip version mismatch) -->
+@if (fileExt == ".docx")
+{
+    <script src="https://unpkg.com/jszip/dist/jszip.min.js"></script>
+    <script src="https://unpkg.com/docx-preview/dist/docx-preview.min.js"></script>
+}
+else if (fileExt == ".xlsx")
+{
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+}
+
+<style>
+    .fv-container {
+        font-family: 'Jost', 'Segoe UI', sans-serif;
+        padding: 15px;
+        background-color: #f8fafc;
+        min-height: 100vh;
+    }
+    .fv-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 16px 24px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        margin-bottom: 20px;
+        gap: 15px;
+        border: 1px solid #e2e8f0;
+    }
+    .fv-header-left {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        flex: 1;
+    }
+    .btn-fv-back {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        background: #f1f5f9;
+        color: #64748b;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+    }
+    .btn-fv-back:hover {
+        background: #e2e8f0;
+        color: #1e293b;
+    }
+    .fv-title-info h2 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+        color: #1e293b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 600px;
+    }
+    .fv-title-info p {
+        margin: 2px 0 0;
+        font-size: 12px;
+        color: #64748b;
+    }
+    .fv-header-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .btn-fv-action {
+        padding: 9px 18px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        transition: all 0.2s;
+        border: none;
+        cursor: pointer;
+    }
+    .btn-fv-download {
+        background: #6366f1;
+        color: #fff;
+    }
+    .btn-fv-download:hover {
+        background: #4f46e5;
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+    }
+    .btn-fv-fullscreen {
+        background: #f1f5f9;
+        color: #475569;
+    }
+    .btn-fv-fullscreen:hover {
+        background: #e2e8f0;
+        color: #1e293b;
+    }
+    
+    .fv-body {
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.06);
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+        position: relative;
+        min-height: 650px;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .fv-viewer-wrapper {
+        flex: 1;
+        position: relative;
+        width: 100%;
+        height: 650px;
+        background: #f8fafc;
+        overflow: auto;
+    }
+    .fv-iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+        background: #fff;
+    }
+    
+    /* Anti-Branding CSS Clip trick */
+    .office-clip-container {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+    }
+    .office-iframe-clip {
+        width: 100%;
+        height: calc(100% + 30px);
+        border: none;
+        margin-bottom: -30px;
+    }
+
+    .fv-image-preview {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        display: block;
+        margin: auto;
+        position: absolute;
+        top: 0; bottom: 0; left: 0; right: 0;
+    }
+    
+    /* Client-side Local Rendering Styles */
+    #docx-container {
+        padding: 20px;
+        background: #f1f5f9;
+        min-height: 100%;
+        display: flex;
+        justify-content: center;
+    }
+    .docx-wrapper { background: transparent !important; padding: 0 !important; }
+    .docx {
+        background: white !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+        margin: 10px auto !important;
+        border-radius: 4px;
+    }
+    
+    #excel-container {
+        padding: 15px;
+        background: white;
+        min-height: 100%;
+        overflow: auto;
+    }
+    .excel-table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 13px;
+    }
+    .excel-table td, .excel-table th {
+        border: 1px solid #e2e8f0;
+        padding: 8px 12px;
+        text-align: left;
+    }
+    .excel-table tr:nth-child(even) { background-color: #f8fafc; }
+    .excel-table th { background-color: #f1f5f9; font-weight: 700; color: #1e293b; }
+
+    /* Loading Overlay */
+    .fv-loader {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: #ffffff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        transition: opacity 0.4s ease;
+    }
+    .fv-spinner {
+        width: 45px;
+        height: 45px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #6366f1;
+        border-radius: 50%;
+        animation: fv-spin 1s linear infinite;
+        margin-bottom: 15px;
+    }
+    @@keyframes fv-spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    .fv-loader-text {
+        color: #64748b;
+        font-size: 14px;
+        font-weight: 500;
+    }
+    
+    .fv-notice {
+        padding: 40px 20px;
+        text-align: center;
+        max-width: 550px;
+        margin: auto;
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        border: 1px solid #e2e8f0;
+    }
+    .fv-notice-icon { font-size: 40px; color: #f59e0b; margin-bottom: 15px; }
+    .fv-notice-title { font-size: 18px; font-weight: 700; color: #1e293b; margin-bottom: 8px; }
+    .fv-notice-text { color: #64748b; font-size: 13.5px; line-height: 1.6; margin-bottom: 20px; }
+    
+    /* Fullscreen utility */
+    .fv-body:-webkit-full-screen { width: 100%; height: 100%; background: #f8fafc; }
+    .fv-body:fullscreen { width: 100%; height: 100%; background: #f8fafc; }
+    .fv-body:-webkit-full-screen .fv-viewer-wrapper { height: 100% !important; }
+    .fv-body:fullscreen .fv-viewer-wrapper { height: 100% !important; }
+
+    @@media(max-width:768px) {
+        .fv-header { flex-direction: column; align-items: flex-start; }
+        .fv-header-right { width: 100%; justify-content: flex-end; }
+    }
+</style>
+
+<div class="fv-container">
+    
+    <!-- Toolbar Header -->
+    <div class="fv-header">
+        <div class="fv-header-left">
+            <a href="@backUrl" class="btn-fv-back" title="Back to Quadrant">
+                <i class="fa-solid fa-arrow-left"></i>
+            </a>
+            <div class="fv-title-info">
+                <h2>@Model.Title</h2>
+                <p>
+                    <span>@courseName</span>
+                    &middot; 
+                    <span style="text-transform:uppercase; font-weight: 600;">@fileExt.Replace(".", "") Document</span>
+                </p>
+            </div>
+        </div>
+        
+        <div class="fv-header-right">
+            <button class="btn-fv-action btn-fv-fullscreen" onclick="toggleFullscreen()">
+                <i class="fa-solid fa-expand"></i> Fullscreen
+            </button>
+            <a href="@downloadUrl" class="btn-fv-action btn-fv-download">
+                <i class="fa-solid fa-download"></i> Download
+            </a>
+        </div>
+    </div>
+    
+    <!-- Viewer Frame Area -->
+    <div class="fv-body" id="viewerFrame">
+        
+        <!-- Loading Indicator overlay -->
+        <div class="fv-loader" id="viewerLoader">
+            <div class="fv-spinner"></div>
+            <div class="fv-loader-text" id="loaderText">Preparing document preview...</div>
+        </div>
+        
+        <div class="fv-viewer-wrapper" id="viewerWrapper">
+            @if (viewerType == "PDF")
+            {
+                <!-- Native Local Browser PDF Renderer -->
+                <iframe id="mainIframe" class="fv-iframe" src="@previewUrl" onload="hideLoader()"></iframe>
+            }
+            else if (viewerType == "Image")
+            {
+                <!-- Native Local Browser Image Renderer -->
+                <img src="@previewUrl" class="fv-image-preview" onload="hideLoader()" onerror="handlePreviewError()" />
+            }
+            else if (fileExt == ".docx")
+            {
+                <!-- Browser-Native Local DOCX Engine -->
+                <div id="docx-container"></div>
+            }
+            else if (fileExt == ".xlsx")
+            {
+                <!-- Browser-Native Local Spreadsheet Engine -->
+                <div id="excel-container"></div>
+            }
+            else if (fileExt == ".pptx")
+            {
+                @* PowerPoint: Microsoft Office Online Viewer (same approach as Interactive PPT). PPTXjs local renderer was unreliable. *@
+                @if (isLocalhost)
+                {
+                    <div class="fv-notice">
+                        <div class="fv-notice-icon"><i class="fa-solid fa-circle-exclamation"></i></div>
+                        <div class="fv-notice-title">Preview needs a public URL</div>
+                        <div class="fv-notice-text">
+                            Microsoft Office Online Viewer cannot load files from <strong>localhost</strong> or private networks.
+                            Use a <strong>deployed HTTPS URL</strong>, <strong>ngrok</strong>, or <strong>Download</strong> to open the deck.
+                        </div>
+                        <a href="@downloadUrl" class="btn-fv-action btn-fv-download" style="display:inline-flex;">
+                            <i class="fa-solid fa-download"></i> Download to View
+                        </a>
+                    </div>
+                    <script>
+                        window.addEventListener('DOMContentLoaded', function() { hideLoader(); });
+                    </script>
+                }
+                else
+                {
+                    string officeUrlPptx = "https://view.officeapps.live.com/op/embed.aspx?src=" + System.Uri.EscapeDataString(previewUrl);
+                    <div class="office-clip-container">
+                        <iframe class="office-iframe-clip" src="@officeUrlPptx" onload="hideLoader()" onerror="handlePreviewError()"></iframe>
+                    </div>
+                }
+            }
+            else if (viewerType == "Office")
+            {
+                <!-- Legacy Office Format Fallback (.doc, .xls, .ppt) -->
+                @if (isLocalhost)
+                {
+                    <div class="fv-notice">
+                        <div class="fv-notice-icon"><i class="fa-solid fa-circle-exclamation"></i></div>
+                        <div class="fv-notice-title">Legacy Format Local Limit</div>
+                        <div class="fv-notice-text">
+                            Older <strong>@fileExt</strong> formats cannot be rendered in the browser locally.
+                            <br/>
+                            <small class="text-muted">Tip: Please use modern <strong>.docx, .pptx, .xlsx</strong> or <strong>.pdf</strong> files for automated branding-free offline local preview.</small>
+                        </div>
+                        <a href="@downloadUrl" class="btn-fv-action btn-fv-download" style="display:inline-flex;">
+                            <i class="fa-solid fa-download"></i> Download to View
+                        </a>
+                    </div>
+                    <script>
+                        window.addEventListener('DOMContentLoaded', function() { hideLoader(); });
+                    </script>
+                }
+                else
+                {
+                    string officeUrl = "https://view.officeapps.live.com/op/embed.aspx?src=" + System.Uri.EscapeDataString(previewUrl);
+                    <div class="office-clip-container">
+                        <iframe class="office-iframe-clip" src="@officeUrl" onload="hideLoader()" onerror="handlePreviewError()"></iframe>
+                    </div>
+                }
+            }
+            else if (viewerType == "Cloud")
+            {
+                <iframe class="fv-iframe" src="@Model.FilePath" onload="hideLoader()"></iframe>
+            }
+            else
+            {
+                <div class="fv-notice">
+                    <div class="fv-notice-icon" style="color:#94a3b8;"><i class="fa-solid fa-file-zipper"></i></div>
+                    <div class="fv-notice-title">Preview Not Available</div>
+                    <div class="fv-notice-text">
+                        Unsupported file format <strong>@fileExt</strong>. Please download to view.
+                    </div>
+                    <a href="@downloadUrl" class="btn-fv-action btn-fv-download" style="display:inline-flex;">
+                        <i class="fa-solid fa-download"></i> Download File
+                    </a>
+                </div>
+                <script>
+                    window.addEventListener('DOMContentLoaded', function() { hideLoader(); });
+                </script>
+            }
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const rawFileUrl = '@Url.Action("PreviewFile", "StudentCourseContent", new { id = Model.Id })';
+    const ext = '@fileExt'.toLowerCase();
+
+    window.addEventListener('DOMContentLoaded', function() {
+        // Dynamic Intelligent Local File Processor Chain
+        if (ext === '.docx') {
+            renderLocalDocx();
+        } else if (ext === '.xlsx') {
+            renderLocalExcel();
+        }
+    });
+
+    // 1. Local DOCX Engine
+    async function renderLocalDocx() {
+        try {
+            updateLoaderText("Downloading Word document...");
+            const response = await fetch(rawFileUrl);
+            if (!response.ok) throw new Error("File fetch failed.");
+            const arrayBuffer = await response.arrayBuffer();
+            const container = document.getElementById("docx-container");
+            updateLoaderText("Rendering document locally...");
+            await docx.renderAsync(arrayBuffer, container, null, {
+                className: "docx", inWrapper: true, ignoreWidth: false, ignoreHeight: false, breakPages: true
+            });
+            hideLoader();
+        } catch (err) {
+            console.error("Local DOCX error:", err);
+            handlePreviewError("Failed to render Word document locally.");
+        }
+    }
+
+    // 2. Local Spreadsheet Engine
+    async function renderLocalExcel() {
+        try {
+            updateLoaderText("Downloading spreadsheet...");
+            const response = await fetch(rawFileUrl);
+            if (!response.ok) throw new Error("File fetch failed.");
+            const arrayBuffer = await response.arrayBuffer();
+            updateLoaderText("Analyzing data...");
+            const data = new Uint8Array(arrayBuffer);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+            const htmlTable = XLSX.utils.sheet_to_html(worksheet, { id: "excel-table", editable: false });
+            const container = document.getElementById("excel-container");
+            container.innerHTML = htmlTable;
+            const table = document.getElementById("excel-table");
+            if (table) table.classList.add("excel-table");
+            hideLoader();
+        } catch (err) {
+            console.error("Local Excel error:", err);
+            handlePreviewError("Failed to render spreadsheet locally.");
+        }
+    }
+
+    function updateLoaderText(text) {
+        const t = document.getElementById('loaderText');
+        if (t) t.textContent = text;
+    }
+
+    function hideLoader() {
+        const loader = document.getElementById('viewerLoader');
+        if (loader) {
+            loader.style.opacity = '0';
+            setTimeout(function() { loader.style.display = 'none'; }, 400);
+        }
+    }
+    
+    function handlePreviewError(customMsg) {
+        const loader = document.getElementById('viewerLoader');
+        if (loader) {
+            loader.innerHTML = '<div class="text-center p-4"><i class="fa-solid fa-circle-xmark text-danger mb-3" style="font-size:32px;"></i><p class="text-danger font-weight-bold">' + (customMsg || 'Failed to load preview.') + '</p><p class="text-muted small">Please try refreshing or download the file.</p></div>';
+            loader.style.display = 'flex';
+            loader.style.opacity = '1';
+        }
+    }
+
+    // Max timeout boundary fail-safe for native and iframe views (Non-JS renderers)
+    setTimeout(function() {
+        const loader = document.getElementById('viewerLoader');
+        const nonJsExts = ['.docx', '.xlsx'];
+        if (loader && loader.style.display !== 'none' && !nonJsExts.includes(ext)) {
+            handlePreviewError("Preview loading timed out. Consider downloading instead.");
+        }
+    }, 8000);
+
+    function toggleFullscreen() {
+        const element = document.getElementById('viewerFrame');
+        if (!document.fullscreenElement && !document.mozFullScreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+            if (element.requestFullscreen) element.requestFullscreen();
+            else if (element.msRequestFullscreen) element.msRequestFullscreen();
+            else if (element.mozRequestFullScreen) element.mozRequestFullScreen();
+            else if (element.webkitRequestFullscreen) element.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
+        } else {
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.msExitFullscreen) document.msExitFullscreen();
+            else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        }
+    }
+</script>

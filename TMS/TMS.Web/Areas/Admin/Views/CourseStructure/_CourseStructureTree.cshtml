@@ -1,0 +1,132 @@
+@model TMS.ViewModels.Academics.CourseStructureViewModel
+@{
+    bool isFaculty = ViewBag.IsFaculty ?? (ViewContext.HttpContext.User.FindFirst("role")?.Value?.ToLower() == "faculty");
+    var semesterColors = new[] { "#6366f1", "#8b5cf6", "#16a34a", "#f59e0b", "#ec4899" };
+}
+
+@if (Model?.Course != null)
+{
+    <div class="cs-board-header">
+        <div>
+            <div class="cl-board-heading">
+                <i class="fa-solid fa-graduation-cap" style="color:#6366f1;"></i>
+                @Model.Course.Name
+            </div>
+            <div class="cl-board-meta">
+                Code: @Model.Course.CourseCode •
+                @Model.Semesters.Count semester(s) •
+                @Model.Semesters.Sum(s => s.Subjects.Count) subject(s)
+            </div>
+        </div>
+        <div class="cs-header-actions">
+            @if (!isFaculty)
+            {
+                <button class="btn btn-sm btn-outline-primary cs-add-semester-btn" data-course-id="@Model.Course.Id">
+                    <i class="fa fa-plus"></i> Add Semester
+                </button>
+            }
+        </div>
+    </div>
+
+    @if (!Model.Semesters.Any())
+    {
+        <div class="cs-empty-hero">
+            <i class="fa-solid fa-folder-open" style="font-size:56px; color:#e2e8f0;"></i>
+            <h5 style="color:#94a3b8; margin-top:16px;">No semesters defined yet</h5>
+            <p style="color:#cbd5e1; font-size:13px;">Click "Add Semester" above to start building the academic year.</p>
+        </div>
+    }
+
+    var semIdx = 0;
+    foreach (var sem in Model.Semesters)
+    {
+        var color = semesterColors[semIdx % semesterColors.Length];
+        <div class="cs-semester-block" data-semester-id="@sem.SemesterId">
+            <div class="cs-semester-header" style="--sem-color: @color;">
+                <div class="cs-semester-icon" style="background: @(color)15;">
+                    <i class="fa-solid fa-calendar-alt" style="color:@color;"></i>
+                </div>
+                <div class="cs-semester-info">
+                    <span class="cs-semester-name">@sem.SemesterName</span>
+                    <span class="cs-semester-meta">@sem.Subjects.Count subject(s) defined</span>
+                </div>
+                <div class="cs-header-tools">
+                    @if (!isFaculty)
+                    {
+                        <button class="btn btn-xs btn-link cs-add-subject-btn" data-semester-id="@sem.SemesterId" data-course-id="@Model.Course.Id" title="Add Subject">
+                            <i class="fa-plus-circle"></i> Add Subject
+                        </button>
+                    }
+                    <i class="fa-solid fa-chevron-down cs-collapse-icon"></i>
+                </div>
+            </div>
+
+            <div class="cs-semester-body">
+                @foreach (var subject in sem.Subjects)
+                {
+                    <div class="cs-unit-card" data-subject-id="@subject.SubjectId">
+                        <div class="cs-unit-header">
+                            <div class="cs-unit-icon" style="background:#f8fafc; color:#475569;">
+                                <i class="fa-solid fa-book"></i>
+                            </div>
+                            <div class="cs-unit-info">
+                                <span class="cs-unit-name">@subject.SubjectName</span>
+                                <span class="cs-unit-desc">Code: @(string.IsNullOrEmpty(subject.SubjectCode) ? "N/A" : subject.SubjectCode)</span>
+                            </div>
+                            <div class="cs-unit-actions">
+                                @if (!isFaculty)
+                                {
+                                    <button class="cs-action-btn cs-add-unit-btn" data-subject-id="@subject.SubjectId" title="Add Unit">
+                                        <i class="fa-solid fa-plus"></i>
+                                    </button>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Units -->
+                        <div class="cs-subjects-list">
+                            @foreach (var unit in subject.Units)
+                            {
+                                <div class="cs-subject-item">
+                                    <div class="cs-subject-dot" style="background:#94a3b8;"></div>
+                                    <div class="cs-subject-info">
+                                        <span class="cs-subject-name">@unit.UnitName</span>
+                                        @if (!string.IsNullOrEmpty(unit.UnitDescription))
+                                        {
+                                            <span class="cs-unit-desc" style="font-size:11px; color:#94a3b8;">@unit.UnitDescription</span>
+                                        }
+                                    </div>
+                                    @if (unit.ContentCount > 0)
+                                    {
+                                        <span class="cs-content-badge">@unit.ContentCount files</span>
+                                    }
+                                    @if (!isFaculty)
+                                    {
+                                        <button class="cs-action-btn-sm cs-manage-content-btn" 
+                                                data-unit-id="@unit.UnitId" 
+                                                data-unit-name="@unit.UnitName"
+                                                data-course-id="@Model.Course.Id"
+                                                title="Assign Content">
+                                            <i class="fa-solid fa-link"></i>
+                                        </button>
+                                    }
+                                </div>
+                            }
+                            @if (!subject.Units.Any())
+                            {
+                                <div class="p-2 text-center text-muted" style="font-size:12px;">No units added yet.</div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+        semIdx++;
+    }
+}
+else
+{
+    <div class="cl-loading">
+        <p>No course structure loaded.</p>
+    </div>
+}

@@ -1,0 +1,226 @@
+﻿@using TMS
+@model TMS.ViewModels.Masters.QuizMasterViewModel
+
+@{
+    ViewData["Title"] = Model.Id > 0 ? "Edit Quiz" : "Create Quiz";
+    var isEdit = Model.Id > 0;
+}
+
+<hr />
+
+<form asp-action="Item" method="post" id="quizForm">
+    @Html.AntiForgeryToken()
+    <input asp-for="Id" type="hidden" />
+
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <label asp-for="CourseId" class="form-label"></label>
+            <select asp-for="CourseId" class="form-select" id="courseDropdown"
+                    asp-items="@(new SelectList(ViewBag.CourseId, "Id", "Name", Model.CourseId))">
+                <option value="">-- Select Course --</option>
+            </select>
+            <span asp-validation-for="CourseId" class="text-danger"></span>
+        </div>
+
+        <div class="col-md-4">
+            <label asp-for="CourseQuadrantId" class="form-label"></label>
+            <select asp-for="CourseQuadrantId" class="form-select" id="quadrantDropdown"
+                    asp-items="@(new SelectList(ViewBag.QuadrantId, "Id", "Name", Model.CourseQuadrantId))">
+                <option value="">-- Select Quadrant --</option>
+            </select>
+            <span asp-validation-for="CourseQuadrantId" class="text-danger"></span>
+        </div>
+
+        <div class="col-md-4">
+            <label asp-for="Title" class="form-label"></label>
+            <input asp-for="Title" class="form-control" />
+            <span asp-validation-for="Title" class="text-danger"></span>
+        </div>
+    </div>
+    <div class="row mb-3">
+     
+        <div class="col-md-4">
+            <label asp-for="PassingMarks" class="form-label"></label>
+            <input asp-for="PassingMarks" class="form-control" />
+            <span asp-validation-for="PassingMarks" class="text-danger"></span>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label"><strong>Total Quiz Score</strong></label>
+            <input type="number"
+                   id="totalQuizMarks"
+                   name="TotalMarks"
+                   class="form-control fw-bold"
+                   value="0"
+                   readonly />
+        </div>
+    </div>
+    <hr />
+    <h5>Questions</h5>
+    <div id="questionContainer">
+        @if (Model.Questions != null)
+        {
+            for (int i = 0; i < Model.Questions.Count; i++)
+            {
+                <partial name="_QuestionTemplate" model="Model.Questions[i]"
+                         view-data='new ViewDataDictionary(ViewData) { { "qIndex", i } }' />
+            }
+        }
+    </div>
+
+    <button type="button" id="addQuestion" class="btn btn-secondary mt-3">+ Add Question</button>
+
+    <div class="mt-4">
+        <button type="submit" class="btn btn-success">Save Quiz</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+</form>
+
+@section Scripts {
+    <!-- Load jQuery first -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- Then load validation scripts -->
+    <partial name="_ValidationScriptsPartial" />
+
+    <!-- Custom Quiz JS -->
+    <script>
+        // Load quadrants based on course
+        $('#courseDropdown').change(function () {
+            var courseId = $(this).val();
+            $.getJSON('/Admin/Quiz/GetQuadrantsByCourse', { courseId: courseId }, function (data) {
+                var dropdown = $('#quadrantDropdown');
+                dropdown.empty().append('<option value="">-- Select Quadrant --</option>');
+                $.each(data, function (i, item) {
+                    dropdown.append($('<option>', { value: item.id, text: item.name }));
+                });
+            });
+        });
+
+        // Add question dynamically
+        $('#addQuestion').click(function () {
+            var index = $('.question-block').length;
+            var url = '@Url.Action("RenderQuestionPartial", "Quiz", new { area = "Admin" })';
+            $.get(url, { index: index })
+                .done(function (html) {
+                    $('#questionContainer').append(html);
+                    reindexQuestions();
+                    toggleRemoveButtons();
+                })
+                .fail(function () { alert('Unable to load question.'); });
+        });
+
+        // Remove question
+        $(document).on('click', '.remove-question', function () {
+            $(this).closest('.question-block').remove();
+              calculateTotalMarks();
+               $('#questionsContainer .question-block').each(function(index) {
+                    $(this).find('h6').text('Question ' + (index + 1));
+                    $(this).find('.question-marks').attr('data-qindex', index);
+                });
+            reindexQuestions();
+            toggleRemoveButtons();
+        });
+
+        // Add option dynamically
+        // $(document).on('click', '.add-option', function () {
+        //     var $qBlock = $(this).closest('.question-block');
+        //     var qIndex = $('#questionContainer .question-block').index($qBlock);
+        //     var $optionsList = $qBlock.find('.options-list');
+        //     var optIndex = $optionsList.children('.option-item').length;
+
+        //     var optionHtml = `
+        //         <div class="option-item mb-2">
+        //             <input type="text" name="Questions[${qIndex}].Options[${optIndex}].OptionText" class="form-control mb-1" placeholder="Option text" required />
+        //             <label><input type="radio" name="Questions[${qIndex}].CorrectOptionId" value="${optIndex}" /> Correct</label>
+        //         </div>`;
+        //     $optionsList.append(optionHtml);
+        // });
+             $(document).on('click', '.add-option', function () {
+            var $qBlock = $(this).closest('.question-block');
+            var qIndex = $('#questionContainer .question-block').index($qBlock);
+            var $optionsList = $qBlock.find('.options-list');
+            var optIndex = $optionsList.children('.option-item').length;
+
+            var optionHtml = `
+                <div class="option-item mb-2">
+                    <input type="text"
+                           name="Questions[${qIndex}].Options[${optIndex}].OptionText"
+                           class="form-control mb-1"
+                           placeholder="Option text" required />
+
+                    <div class="form-check">
+                        <input type="checkbox"
+                               class="form-check-input correct-option"
+                               name="Questions[${qIndex}].Options[${optIndex}].IsCorrectOption"
+                               value="true"
+                               data-qindex="${qIndex}" />
+                        <label class="form-check-label">Correct Option</label>
+                        <input type="hidden"
+                               name="Questions[${qIndex}].Options[${optIndex}].IsCorrectOption"
+                               value="false" />
+                    </div>
+                </div>`;
+
+            $optionsList.append(optionHtml);
+        });
+        // Show/hide options for subjective type
+        $(document).on('change', '.question-type', function () {
+            var $qBlock = $(this).closest('.question-block');
+            var val = $(this).val();
+            var $optionsContainer = $qBlock.find('.options-container');
+            if (val == "2") $optionsContainer.hide();
+            else $optionsContainer.show();
+        });
+
+        // Reindex model binding names after adding/removing
+        function reindexQuestions() {
+            $('#questionContainer .question-block').each(function (qIndex) {
+                $(this).find('input, select, textarea').each(function () {
+                    var name = $(this).attr('name');
+                    if (name)
+                        $(this).attr('name', name.replace(/Questions\[\d+\]/g, 'Questions[' + qIndex + ']'));
+                });
+                $(this).find('.options-list .option-item').each(function (optIndex) {
+                    $(this).find('input[type="text"]').attr('name', `Questions[${qIndex}].Options[${optIndex}].OptionText`);
+                    $(this).find('input[type="radio"]').attr('name', `Questions[${qIndex}].CorrectOptionId`).val(optIndex);
+                });
+            });
+        }
+
+        function toggleRemoveButtons() {
+            var total = $('#questionContainer .question-block').length;
+            $('.remove-question').toggle(total > 1);
+        }
+
+        $(document).ready(function () {
+            reindexQuestions();
+            toggleRemoveButtons();
+        });
+             $(document).on('change', '.correct-option', function () {
+            var qIndex = $(this).data('qindex');
+            var $current = $(this);
+                        // Uncheck all other checkboxes for this question
+            $("input.correct-option[data-qindex='" + qIndex + "']").not($current).prop('checked', false);
+        });
+    </script>
+    <script>
+        // Calculate total quiz marks dynamically
+        function calculateTotalMarks() {
+            let totalMarks = 0;
+            $('.question-marks').each(function() {
+                const val = parseFloat($(this).val()) || 0;
+                totalMarks += val;
+            });
+            $('#totalQuizMarks').val(totalMarks);
+            // $('#totalQuizMarks').text(totalMarks);
+        }
+
+        // Trigger on page load and on any marks change
+        $(document).ready(function() {
+            calculateTotalMarks();
+            $(document).on('input', '.question-marks', function() {
+                calculateTotalMarks();
+            });
+        });
+    </script>
+}
