@@ -331,10 +331,10 @@ namespace TMS.Web.Areas.Admin.Controllers
                         using (var reader = new StreamReader(stream))
                         {
                             int line = 0;
-                            while (!reader.EndOfStream)
+                            string? content;
+                            while ((content = await reader.ReadLineAsync()) is not null)
                             {
                                 line++;
-                                var content = await reader.ReadLineAsync();
                                 if (line == 1 || string.IsNullOrWhiteSpace(content)) continue;
 
                                 var parts = content.Split(',');

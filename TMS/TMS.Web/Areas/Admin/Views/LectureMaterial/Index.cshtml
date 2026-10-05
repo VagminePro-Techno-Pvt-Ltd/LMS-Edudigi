@@ -296,7 +296,9 @@
             $(document).on('click', '.view-file-link', function () {
                 const filePath = $(this).data('filepath');
                 const title = $(this).data('title') || 'Preview';
-                const ext = filePath.split('.').pop().toLowerCase();
+                const materialType = String($(this).data('material-type') || '').toLowerCase();
+                const cleanPath = String(filePath || '').split('?')[0].split('#')[0];
+                const ext = cleanPath.includes('.') ? cleanPath.split('.').pop().toLowerCase() : '';
 
                 $('#filePreviewLabel').text(title);
                 let content = '';
@@ -308,7 +310,21 @@
                         content = `<div id="youtube-player-container" class="ratio ratio-16x9"></div>`;
                         $('#filePreviewBody').html(content);
                         ytPlayer = new YT.Player('youtube-player-container', { videoId: videoId, width: '100%', height: '500', playerVars: { autoplay: 1, rel: 0 } });
+                    } else {
+                        content = `<div class="p-4 text-center"><a href="${filePath}" target="_blank" rel="noopener" class="btn btn-primary">Open Video</a></div>`;
+                        $('#filePreviewBody').html(content);
                     }
+                } else if (filePath.includes("vimeo.com")) {
+                    const vimeoMatch = filePath.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+                    if (vimeoMatch) {
+                        content = `<div class="ratio ratio-16x9"><iframe src="https://player.vimeo.com/video/${vimeoMatch[1]}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen style="border:0;"></iframe></div>`;
+                    } else {
+                        content = `<div class="p-4 text-center"><a href="${filePath}" target="_blank" rel="noopener" class="btn btn-primary">Open Video</a></div>`;
+                    }
+                    $('#filePreviewBody').html(content);
+                } else if (materialType === 'videourl') {
+                    content = `<div class="p-4 text-center"><p class="text-muted mb-3">This video URL cannot be embedded safely in the preview.</p><a href="${filePath}" target="_blank" rel="noopener" class="btn btn-primary"><i class="fa fa-external-link-alt"></i> Open Video</a></div>`;
+                    $('#filePreviewBody').html(content);
                 } else if (['mp4', 'webm', 'ogg'].includes(ext)) {
                     content = `<video width="100%" height="500" controls autoplay><source src="${filePath}" type="video/${ext}"></video>`;
                     $('#filePreviewBody').html(content);

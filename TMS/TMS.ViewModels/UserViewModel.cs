@@ -10,7 +10,8 @@ namespace TMS.ViewModels
     {
         [MapToDTO, Required, DataType(DataType.EmailAddress), Display(Name = "Email")]
         public string? Email { get; set; }
-		public int? ContactNo { get; set; }
+		[Phone(ErrorMessage = "Enter a valid contact number."), StringLength(20), Display(Name = "Contact Number")]
+		public string? ContactNo { get; set; }
 		 
 		 
 

@@ -461,7 +461,7 @@ namespace TMS.Web.Controllers
                 FileName = material.OriginalFileName ?? System.IO.Path.GetFileName(absolutePath),
                 Inline = true
             };
-            Response.Headers.Add("Content-Disposition", cd.ToString());
+            Response.Headers.ContentDisposition = cd.ToString();
 
             return File(fileBytes, contentType);
         }

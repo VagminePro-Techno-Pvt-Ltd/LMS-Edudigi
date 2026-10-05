@@ -15,6 +15,7 @@ using TMS.ViewModels.Training;
 using TMS.ViewModels.Account;
 using TMS.Models.Academics;
 using TMS.ViewModels.Academics;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace TMS.Repository
 {
@@ -31,7 +32,7 @@ namespace TMS.Repository
             var config = new AutoMapper.MapperConfiguration(cfg =>
             {
                 cfg.AddProfile(new AutoMapperProfileConfiguration());
-            });
+            }, NullLoggerFactory.Instance);
             var mapper = config.CreateMapper();
             services.AddSingleton(mapper);
 
@@ -51,7 +52,7 @@ namespace TMS.Repository
             #region Managers    
             #region Masters
             services.AddScoped<IMasterManager<RoleMasterViewModel>, MasterManager<RoleMasterViewModel, RoleMaster>>();
-            services.AddScoped<IMasterManager<UserViewModel>, MasterManager<UserViewModel, UserMaster>>();
+            services.AddScoped<IMasterManager<UserViewModel>, UserManager>();
             services.AddScoped<IMasterManager<CompanyMasterViewModel>, MasterManager<CompanyMasterViewModel, CompanyMaster>>();
             services.AddScoped<IMasterManager<BadgeMasterViewModel>, MasterManager<BadgeMasterViewModel, BadgeMaster>>();
             services.AddScoped<IMasterManager<CertificateMasterViewModel>, MasterManager<CertificateMasterViewModel, CertificateMaster>>();

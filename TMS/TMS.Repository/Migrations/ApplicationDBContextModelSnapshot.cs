@@ -2591,8 +2591,9 @@ namespace TMS.Repository.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
 
-                    b.Property<int?>("ContactNo")
-                        .HasColumnType("int")
+                    b.Property<string>("ContactNo")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
                         .HasColumnOrder(6);
 
                     b.Property<int>("CreatedBy")

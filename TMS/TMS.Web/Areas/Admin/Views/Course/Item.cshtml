@@ -1,261 +1,572 @@
 @model TMS.ViewModels.Masters.CourseMasterViewModel
+
 @{
     var permissions = ViewContext.HttpContext.GetFormPermissions();
+    var isEdit = Model?.Id > 0;
 }
 
 <style>
-    .course-card-premium {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(16px);
-        border-radius: 24px;
-        border: 1px solid rgba(226, 232, 240, 0.6);
-        padding: 36px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.04);
-    }
-
-    .form-label-premium {
-        font-weight: 700;
-        color: #1e293b;
-        margin-bottom: 8px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 0.82rem;
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-    }
-
-    .form-label-premium .label-icon {
-        width: 20px;
-        height: 20px;
-        border-radius: 6px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        color: white;
-    }
-
-    .input-premium {
-        width: 100%;
-        padding: 13px 18px;
-        border-radius: 14px;
-        border: 1.5px solid #e2e8f0;
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        background: #f8fafc;
-        font-size: 0.95rem;
-        color: #1e293b;
-    }
-
-    .input-premium:focus {
-        border-color: #6366f1;
-        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.08);
+    .course-form-card {
         background: #fff;
-        outline: none;
+        border: 1px solid #e7edf5;
+        border-radius: 18px;
+        padding: 22px 24px;
+        box-shadow: 0 8px 30px rgba(15,23,42,.04);
     }
 
-    .section-header-premium {
+    .course-form-header {
         display: flex;
         align-items: center;
         gap: 14px;
-        margin-bottom: 28px;
         padding-bottom: 18px;
-        border-bottom: 2px solid #f1f5f9;
+        margin-bottom: 18px;
+        border-bottom: 1px solid #e8eef6;
     }
 
-    .section-icon {
-        width: 44px;
-        height: 44px;
-        background: linear-gradient(135deg, #6366f1, #818cf8);
-        color: white;
-        border-radius: 12px;
+    .course-form-header-icon {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.2rem;
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+        border-radius: 13px;
+        background: linear-gradient(135deg,#6366f1,#8b5cf6);
+        color: #fff;
+        box-shadow: 0 6px 16px rgba(99,102,241,.22);
+        font-size: 18px;
     }
 
-    .form-divider {
-        height: 1px;
-        background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
-        margin: 28px 0;
+    .course-form-title {
+        margin: 0;
+        color: #172033;
+        font-size: 1.55rem;
+        font-weight: 800;
     }
 
-    .form-section-label {
-        font-size: 0.72rem;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        color: #94a3b8;
-        font-weight: 700;
-        margin-bottom: 16px;
+    .course-form-subtitle {
+        margin: 3px 0 0;
+        color: #64748b;
+        font-size: .85rem;
+    }
+
+    .course-section { margin-top: 18px; }
+
+    .course-section-title {
         display: flex;
         align-items: center;
         gap: 8px;
+        margin-bottom: 14px;
+        color: #8da0ba;
+        font-size: .72rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .8px;
     }
 
-    .form-section-label::after {
-        content: '';
+    .course-section-title::after {
+        content: "";
         flex: 1;
         height: 1px;
-        background: #e2e8f0;
+        background: #e4eaf2;
     }
 
-    .status-toggle-card {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        padding: 16px 20px;
-        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-        border-radius: 14px;
-        border: 1px solid #e2e8f0;
+    .course-section-title i { color:#6366f1; }
+
+    .course-field { margin-bottom:15px; }
+
+    .course-label {
+        display:flex;
+        align-items:center;
+        gap:7px;
+        margin-bottom:7px;
+        color:#172033;
+        font-size:.78rem;
+        font-weight:800;
+        text-transform:uppercase;
+        letter-spacing:.45px;
+    }
+
+    .course-label-icon {
+        width:21px;
+        height:21px;
+        min-width:21px;
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        border-radius:6px;
+        color:#fff;
+        font-size:10px;
+    }
+
+    .course-required { color:#ef4444; }
+
+    .course-control {
+        display:block;
+        width:100%;
+        min-height:48px;
+        padding:10px 15px;
+        border:1px solid #dfe7f1;
+        border-radius:12px;
+        background:#f8fafc;
+        color:#1e293b;
+        font-size:.92rem;
+        outline:none;
+    }
+
+    .course-control:focus {
+        border-color:#6366f1;
+        background:#fff;
+        box-shadow:0 0 0 3px rgba(99,102,241,.09);
+    }
+
+    textarea.course-control {
+        min-height:82px;
+        resize:vertical;
+    }
+
+    .course-divider {
+        height:1px;
+        background:#edf1f6;
+        margin:4px 0 18px;
+    }
+
+    .course-validation {
+        display:block;
+        margin-top:4px;
+        font-size:.75rem;
+    }
+
+    .course-entry {
+        border:1px solid #e3e9f2;
+        border-radius:15px;
+        padding:18px;
+        margin-bottom:16px;
+        background:#fbfcfe;
+    }
+
+    .course-entry-header {
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
+        margin-bottom:14px;
+    }
+
+    .course-entry-title {
+        margin:0;
+        font-size:.95rem;
+        font-weight:800;
+        color:#334155;
+    }
+
+    .course-remove-btn {
+        border:1px solid #fecaca;
+        background:#fff;
+        color:#dc2626;
+        border-radius:9px;
+        padding:7px 11px;
+        font-weight:700;
+        font-size:.78rem;
+    }
+
+    .course-add-btn {
+        width:100%;
+        border:1px dashed #818cf8;
+        background:#f5f7ff;
+        color:#4f46e5;
+        border-radius:12px;
+        min-height:46px;
+        font-weight:800;
+    }
+
+    .course-status-card {
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:16px;
+        min-height:54px;
+        padding:12px 16px;
+        border:1px solid #e2e8f0;
+        border-radius:12px;
+        background:#f8fafc;
+    }
+
+    .course-status-title,
+    .course-status-state {
+        font-size:.78rem;
+        font-weight:800;
+    }
+
+    @@media (max-width:767.98px) {
+        .course-form-card { padding:18px; }
+        .course-form-title { font-size:1.25rem; }
     }
 </style>
 
-<form method="post" class="noclick" id="frmItem" disabled="@(!permissions.Add && !permissions.Edit)">
-    <div class="course-card-premium">
-        <div class="section-header-premium">
-            <div class="section-icon">📖</div>
+<form method="post"
+      class="noclick"
+      id="frmItem"
+      disabled="@(!permissions.Add && !permissions.Edit)">
+
+    <div class="course-form-card">
+        <div class="course-form-header">
+            <div class="course-form-header-icon">
+                <i class="fa-solid fa-book-open"></i>
+            </div>
             <div>
-                <h3 style="margin:0; font-weight:800; color:#1e293b; letter-spacing:-0.02em;">
-                    @(Model!.Id > 0 ? "Update Course" : "New Course Registration")
+                <h3 class="course-form-title">
+                    @(isEdit ? "Update Course" : "Create Courses")
                 </h3>
-                <p style="margin:0; font-size:0.85rem; color:#64748b;">Define a course under a specific Program and Semester.</p>
+                <p class="course-form-subtitle">
+                    @(isEdit
+                        ? "Update this course under its Program and Semester."
+                        : "Add one or more courses under the same Program and Semester.")
+                </p>
             </div>
         </div>
 
         <input asp-for="Id" type="hidden" />
-        <input id="hdAddEditActionAllowed" type="hidden" value="@permissions.CanShowAddEditButton(Model!.Id).ToString().ToLower()" />
+        <input id="hdAddEditActionAllowed"
+               type="hidden"
+               value="@permissions.CanShowAddEditButton(Model!.Id).ToString().ToLower()" />
 
-        <!-- ═══════ SECTION: Program & Semester ═══════ -->
-        <div class="form-section-label">
-            <i class="fa fa-sitemap" style="color:#6366f1;"></i> Program & Semester
-        </div>
-
-        <div class="row">
-            <div class="col-12 col-md-6 mb-4">
-                <label asp-for="CourseCategoryId" class="form-label-premium">
-                    <span class="label-icon" style="background:#6366f1;">🎓</span> Select Program
-                </label>
-                <select asp-for="CourseCategoryId" asp-items="ViewBag.CourseCategoryId" class="input-premium" required id="ddlProgram"></select>
-                <span asp-validation-for="CourseCategoryId" class="text-danger small"></span>
+        <div class="course-section">
+            <div class="course-section-title">
+                <i class="fa-solid fa-sitemap"></i>
+                Program & Semester
             </div>
 
-            <div class="col-12 col-md-6 mb-4">
-                <label asp-for="SemesterId" class="form-label-premium">
-                    <span class="label-icon" style="background:#8b5cf6;">📅</span> Semester / Level
-                </label>
-                <select asp-for="SemesterId" asp-items="ViewBag.SemesterId" class="input-premium" required id="ddlSemester"></select>
-                <span asp-validation-for="SemesterId" class="text-danger small"></span>
-            </div>
-        </div>
-
-        <div class="form-divider"></div>
-
-        <!-- ═══════ SECTION: Course Details ═══════ -->
-        <div class="form-section-label">
-            <i class="fa fa-book-open" style="color:#8b5cf6;"></i> Course Details
-        </div>
-
-        <div class="row">
-            <div class="col-12 col-md-4 mb-4">
-                <label asp-for="CourseCode" class="form-label-premium">
-                    <span class="label-icon" style="background:#f59e0b;">🔖</span> Course Code
-                </label>
-                <input asp-for="CourseCode" class="input-premium" placeholder="e.g. CS101" required />
-                <span asp-validation-for="CourseCode" class="text-danger small"></span>
-            </div>
-
-            <div class="col-12 col-md-8 mb-4">
-                <label asp-for="Name" class="form-label-premium">
-                    <span class="label-icon" style="background:#10b981;">📝</span> Full Course Title
-                </label>
-                <input asp-for="Name" class="input-premium" placeholder="e.g. Advanced Data Structures" required />
-                <span asp-validation-for="Name" class="text-danger small"></span>
-            </div>
-
-            <div class="col-12 mb-4">
-                <label asp-for="Description" class="form-label-premium">
-                    <span class="label-icon" style="background:#64748b;">📋</span> Course Description
-                </label>
-                <textarea asp-for="Description" class="input-premium" rows="3" placeholder="Explain what this course covers..."></textarea>
-                <span asp-validation-for="Description" class="text-danger small"></span>
-            </div>
-        </div>
-
-        <div class="form-divider"></div>
-
-        <!-- ═══════ SECTION: Academic Info ═══════ -->
-        <div class="form-section-label">
-            <i class="fa fa-chart-bar" style="color:#ec4899;"></i> Academic Configuration
-        </div>
-
-        <div class="row">
-            <div class="col-12 col-md-6 mb-4">
-                <label asp-for="NoofCredit" class="form-label-premium">
-                    <span class="label-icon" style="background:#ec4899;">⭐</span> Credits
-                </label>
-                <input asp-for="NoofCredit" type="number" class="input-premium" placeholder="e.g. 4" required />
-                <span asp-validation-for="NoofCredit" class="text-danger small"></span>
-            </div>
-
-            <div class="col-12 col-md-6 mb-4">
-                <label asp-for="CourseDurationMonths" class="form-label-premium">
-                    <span class="label-icon" style="background:#0ea5e9;">⏱</span> Duration (Days)
-                </label>
-                <input asp-for="CourseDurationMonths" type="number" class="input-premium" placeholder="e.g. 180" required />
-                <span asp-validation-for="CourseDurationMonths" class="text-danger small"></span>
-            </div>
-        </div>
-
-        @if (Model?.Id > 0)
-        {
-            <div class="form-divider"></div>
-            <div class="col-12">
-                <div class="status-toggle-card">
-                    <span class="form-label-premium" style="margin:0;">Course Visibility:</span>
-                    <div class="form-check form-switch m-0">
-                        <input asp-for="IsActive" class="form-check-input" style="cursor:pointer; width: 44px; height: 22px;">
-                        <label class="form-check-label ms-2" style="font-weight:700; color: @(Model.IsActive ? "#10b981" : "#ef4444")">
-                            @(Model.IsActive ? "ACTIVE" : "INACTIVE")
+            <div class="row">
+                <div class="col-12 col-md-6">
+                    <div class="course-field">
+                        <label asp-for="CourseCategoryId" class="course-label">
+                            <span class="course-label-icon" style="background:#6366f1;">
+                                <i class="fa-solid fa-graduation-cap"></i>
+                            </span>
+                            Select Program <span class="course-required">*</span>
                         </label>
+
+                        <select asp-for="CourseCategoryId"
+                                asp-items="ViewBag.CourseCategoryId"
+                                class="course-control"
+                                id="ddlProgram"
+                                required>
+                        </select>
+                        <span asp-validation-for="CourseCategoryId"
+                              class="text-danger course-validation"></span>
                     </div>
                 </div>
+
+                <div class="col-12 col-md-6">
+                    <div class="course-field">
+                        <label asp-for="SemesterId" class="course-label">
+                            <span class="course-label-icon" style="background:#8b5cf6;">
+                                <i class="fa-solid fa-calendar-days"></i>
+                            </span>
+                            Semester / Level <span class="course-required">*</span>
+                        </label>
+
+                        <select asp-for="SemesterId"
+                                asp-items="ViewBag.SemesterId"
+                                class="course-control"
+                                id="ddlSemester"
+                                required>
+                        </select>
+                        <span asp-validation-for="SemesterId"
+                              class="text-danger course-validation"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="course-divider"></div>
+
+        @if (isEdit)
+        {
+            <div class="course-section">
+                <div class="course-section-title">
+                    <i class="fa-solid fa-book"></i>
+                    Course Details
+                </div>
+
+                <div class="row">
+                    <div class="col-12 col-md-4">
+                        <div class="course-field">
+                            <label asp-for="CourseCode" class="course-label">
+                                Course Code <span class="course-required">*</span>
+                            </label>
+                            <input asp-for="CourseCode" class="course-control" required />
+                            <span asp-validation-for="CourseCode" class="text-danger course-validation"></span>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-8">
+                        <div class="course-field">
+                            <label asp-for="Name" class="course-label">
+                                Full Course Title <span class="course-required">*</span>
+                            </label>
+                            <input asp-for="Name" class="course-control" required />
+                            <span asp-validation-for="Name" class="text-danger course-validation"></span>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="course-field">
+                            <label asp-for="Description" class="course-label">Course Description</label>
+                            <textarea asp-for="Description" class="course-control" rows="2"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <div class="course-field">
+                            <label asp-for="NoofCredit" class="course-label">
+                                Credits <span class="course-required">*</span>
+                            </label>
+                            <input asp-for="NoofCredit" type="number" min="1" class="course-control" required />
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <div class="course-field">
+                            <label asp-for="CourseDurationMonths" class="course-label">
+                                Duration (Days) <span class="course-required">*</span>
+                            </label>
+                            <input asp-for="CourseDurationMonths" type="number" min="1" class="course-control" required />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="course-divider"></div>
+
+            <div class="course-status-card">
+                <span class="course-status-title">Course Visibility</span>
+                <div class="form-check form-switch m-0 d-flex align-items-center">
+                    <input asp-for="IsActive"
+                           class="form-check-input"
+                           style="cursor:pointer;width:44px;height:22px;" />
+                    <label class="form-check-label ms-2 course-status-state"
+                           style="color:@(Model!.IsActive ? "#10b981" : "#ef4444");">
+                        @(Model.IsActive ? "ACTIVE" : "INACTIVE")
+                    </label>
+                </div>
+            </div>
+
+
+            <div class="course-divider"></div>
+
+            <div class="course-section">
+                <div class="course-section-title">
+                    <i class="fa-solid fa-layer-group"></i>
+                    Add More Courses To This Semester
+                </div>
+
+                <div id="courseEntries"></div>
+
+                <button type="button"
+                        class="course-add-btn"
+                        id="btnAddCourse">
+                    <i class="fa-solid fa-plus me-1"></i>
+                    Add Another Course
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="course-section">
+                <div class="course-section-title">
+                    <i class="fa-solid fa-layer-group"></i>
+                    Courses
+                </div>
+
+                <div id="courseEntries"></div>
+
+                <button type="button"
+                        class="course-add-btn"
+                        id="btnAddCourse">
+                    <i class="fa-solid fa-plus me-1"></i>
+                    Add Another Course
+                </button>
             </div>
         }
     </div>
 </form>
 
+<template id="courseEntryTemplate">
+        <div class="course-entry">
+            <div class="course-entry-header">
+                <h4 class="course-entry-title">Course</h4>
+                <button type="button" class="course-remove-btn">
+                    <i class="fa-solid fa-trash me-1"></i> Remove
+                </button>
+            </div>
+
+            <div class="row">
+                <div class="col-12 col-md-4">
+                    <div class="course-field">
+                        <label class="course-label">
+                            Course Code <span class="course-required">*</span>
+                        </label>
+                        <input type="text"
+                               class="course-control js-course-code"
+                               placeholder="e.g. BCA001"
+                               required />
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-8">
+                    <div class="course-field">
+                        <label class="course-label">
+                            Full Course Title <span class="course-required">*</span>
+                        </label>
+                        <input type="text"
+                               class="course-control js-course-name"
+                               placeholder="e.g. C Programming"
+                               required />
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="course-field">
+                        <label class="course-label">Course Description</label>
+                        <textarea class="course-control js-course-description"
+                                  rows="2"
+                                  placeholder="Explain what this course covers..."></textarea>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <div class="course-field">
+                        <label class="course-label">
+                            Credits <span class="course-required">*</span>
+                        </label>
+                        <input type="number"
+                               min="1"
+                               class="course-control js-course-credit"
+                               placeholder="e.g. 4"
+                               required />
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <div class="course-field">
+                        <label class="course-label">
+                            Duration (Days) <span class="course-required">*</span>
+                        </label>
+                        <input type="number"
+                               min="1"
+                               class="course-control js-course-duration"
+                               placeholder="e.g. 180"
+                               required />
+                    </div>
+                </div>
+            </div>
+        </div>
+</template>
+
 <script>
-    // ═══════ DEPENDENT DROPDOWN: Program → Semester ═══════
     $(document).ready(function () {
+        var isEdit = @((isEdit ? "true" : "false"));
+        var $form = $('#frmItem');
         var $program = $('#ddlProgram');
         var $semester = $('#ddlSemester');
-        var currentSemesterId = '@Model?.SemesterId';
 
         $program.on('change', function () {
             var programId = $(this).val();
-            if (!programId || programId === '0' || programId === '') {
+
+            if (!programId || programId === '0') {
                 $semester.html('<option value="">-- Select Program First --</option>');
                 return;
             }
 
-            $semester.html('<option value="">Loading...</option>');
+            $semester
+                .prop('disabled', true)
+                .html('<option value="">Loading...</option>');
 
-            $.getJSON('@Url.Action("GetSemestersByProgram", "Course", new { area = "Admin" })?programId=' + programId, function (data) {
+            $.getJSON(
+                '@Url.Action("GetSemestersByProgram", "Course", new { area = "Admin" })',
+                { programId: programId }
+            )
+            .done(function (data) {
                 var options = '<option value="">-- Select Semester --</option>';
-                if (data && data.length > 0) {
+
+                if (Array.isArray(data) && data.length > 0) {
                     data.forEach(function (item) {
-                        var selected = (currentSemesterId && item.id.toString() === currentSemesterId.toString()) ? ' selected' : '';
-                        options += '<option value="' + item.id + '"' + selected + '>' + item.name + '</option>';
+                        options +=
+                            '<option value="' + item.id + '">' +
+                            $('<div>').text(item.name || '').html() +
+                            '</option>';
                     });
                 } else {
                     options = '<option value="">No semesters available</option>';
                 }
+
                 $semester.html(options);
-                // Clear the currentSemesterId after first load so it doesn't persist on subsequent changes
-                currentSemesterId = null;
+            })
+            .fail(function () {
+                $semester.html('<option value="">Unable to load semesters</option>');
+            })
+            .always(function () {
+                $semester.prop('disabled', false);
             });
         });
+
+        var $entries = $('#courseEntries');
+        var template = document.getElementById('courseEntryTemplate');
+
+        function reindexCourses() {
+            var prefix = isEdit ? 'additionalCourses' : 'courses';
+            var count = $entries.find('.course-entry').length;
+
+            $entries.find('.course-entry').each(function (index) {
+                var $entry = $(this);
+
+                $entry.find('.course-entry-title').text(
+                    isEdit ? 'Additional Course ' + (index + 1) : 'Course ' + (index + 1)
+                );
+                $entry.find('.js-course-code').attr('name', prefix + '[' + index + '].CourseCode');
+                $entry.find('.js-course-name').attr('name', prefix + '[' + index + '].Name');
+                $entry.find('.js-course-description').attr('name', prefix + '[' + index + '].Description');
+                $entry.find('.js-course-credit').attr('name', prefix + '[' + index + '].NoofCredit');
+                $entry.find('.js-course-duration').attr('name', prefix + '[' + index + '].CourseDurationMonths');
+
+                $entry.find('.course-remove-btn').toggle(isEdit || count > 1);
+            });
+        }
+
+        function addCourse() {
+            var node = template.content.cloneNode(true);
+            $entries.append(node);
+            reindexCourses();
+        }
+
+        $('#btnAddCourse').on('click', addCourse);
+
+        $entries.on('click', '.course-remove-btn', function () {
+            if (!isEdit && $entries.find('.course-entry').length <= 1) {
+                return;
+            }
+
+            $(this).closest('.course-entry').remove();
+            reindexCourses();
+        });
+
+        if (isEdit) {
+            $form.attr(
+                'action',
+                '@Url.Action("UpdateWithAdditional", "Course", new { area = "Admin" })'
+            );
+        } else {
+            addCourse();
+
+            $form.attr(
+                'action',
+                '@Url.Action("CreateMultiple", "Course", new { area = "Admin" })'
+            );
+
+            $program.attr('name', 'courseCategoryId');
+            $semester.attr('name', 'semesterId');
+        }
     });
 </script>

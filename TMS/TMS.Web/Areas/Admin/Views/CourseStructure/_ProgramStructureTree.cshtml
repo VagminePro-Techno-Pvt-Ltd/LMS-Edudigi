@@ -1,317 +1,231 @@
-@model TMS.ViewModels.Academics.ProgramStructureViewModel
+﻿@model TMS.ViewModels.Academics.ProgramStructureViewModel
+
 @{
-    bool isFaculty = ViewBag.IsFaculty ?? (ViewContext.HttpContext.User.FindFirst("role")?.Value?.ToLower() == "faculty");
-    var semColors = new[] { "#6366f1", "#8b5cf6", "#16a34a", "#f59e0b", "#ec4899", "#0ea5e9", "#14b8a6", "#f97316" };
+    bool isFaculty = ViewBag.IsFaculty ??
+        (ViewContext.HttpContext.User.FindFirst("role")?.Value?.ToLower() == "faculty");
+
+    var semColors = new[]
+    {
+        "#6366f1",
+        "#8b5cf6",
+        "#16a34a",
+        "#f59e0b",
+        "#ec4899",
+        "#0ea5e9",
+        "#14b8a6",
+        "#f97316"
+    };
+
+    var totalCourses = Model?.SemesterGroups?.Sum(x => x.Courses.Count) ?? 0;
+    var totalContent = Model?.SemesterGroups?.Sum(x => x.Courses.Sum(c => c.ContentCount)) ?? 0;
 }
 
-<style>
-    .ps-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 24px 28px;
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.03), rgba(139, 92, 246, 0.03));
-        border-bottom: 1px solid #f1f5f9;
-    }
-
-    .ps-header-info h3 {
-        margin: 0;
-        font-weight: 800;
-        font-size: 1.3rem;
-        color: #0f172a;
-        letter-spacing: -0.02em;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .ps-header-meta {
-        font-size: 0.82rem;
-        color: #64748b;
-        margin-top: 4px;
-    }
-
-    .ps-stat-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 3px 10px;
-        border-radius: 6px;
-        font-size: 0.72rem;
-        font-weight: 700;
-        background: #f1f5f9;
-        color: #475569;
-    }
-
-    /* ─── SEMESTER BLOCK ─── */
-    .ps-semester {
-        margin: 20px 24px;
-        border-radius: 16px;
-        border: 1px solid #e2e8f0;
-        overflow: hidden;
-        transition: all 0.25s;
-    }
-
-    .ps-semester:hover {
-        box-shadow: 0 4px 20px rgba(0,0,0,0.04);
-    }
-
-    .ps-semester-header {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        padding: 16px 20px;
-        cursor: pointer;
-        user-select: none;
-        transition: background 0.2s;
-    }
-
-    .ps-semester-header:hover {
-        background: rgba(0,0,0,0.01);
-    }
-
-    .ps-sem-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1rem;
-        color: white;
-        flex-shrink: 0;
-    }
-
-    .ps-sem-name {
-        font-weight: 700;
-        font-size: 1rem;
-        color: #1e293b;
-    }
-
-    .ps-sem-meta {
-        font-size: 0.78rem;
-        color: #94a3b8;
-    }
-
-    .ps-sem-chevron {
-        margin-left: auto;
-        color: #94a3b8;
-        transition: transform 0.3s;
-    }
-
-    .ps-semester.collapsed .ps-sem-chevron {
-        transform: rotate(-90deg);
-    }
-
-    .ps-semester.collapsed .ps-semester-body {
-        display: none;
-    }
-
-    /* ─── COURSE CARD ─── */
-    .ps-semester-body {
-        padding: 0 16px 16px;
-    }
-
-    .ps-course-card {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        padding: 14px 18px;
-        border-radius: 12px;
-        border: 1px solid #f1f5f9;
-        background: #fafbfc;
-        margin-bottom: 8px;
-        transition: all 0.2s;
-    }
-
-    .ps-course-card:hover {
-        background: #f8fafc;
-        border-color: #e2e8f0;
-        transform: translateX(2px);
-    }
-
-    .ps-course-icon {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
-        background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #475569;
-        font-size: 0.9rem;
-        flex-shrink: 0;
-    }
-
-    .ps-course-info {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .ps-course-name {
-        font-weight: 700;
-        font-size: 0.92rem;
-        color: #1e293b;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .ps-course-meta {
-        font-size: 0.76rem;
-        color: #94a3b8;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-top: 2px;
-    }
-
-    .ps-course-actions {
-        display: flex;
-        gap: 6px;
-        align-items: center;
-    }
-
-    .ps-content-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 3px 10px;
-        border-radius: 8px;
-        font-size: 0.72rem;
-        font-weight: 700;
-        background: linear-gradient(135deg, #dbeafe, #e0e7ff);
-        color: #4f46e5;
-    }
-
-    .ps-action-btn {
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
-        border: 1px solid #e2e8f0;
-        background: #fff;
-        color: #6366f1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all 0.2s;
-        font-size: 0.82rem;
-    }
-
-    .ps-action-btn:hover {
-        background: #6366f1;
-        color: white;
-        border-color: #6366f1;
-        transform: scale(1.08);
-    }
-
-    .ps-empty-state {
-        text-align: center;
-        padding: 60px 20px;
-        color: #94a3b8;
-    }
-</style>
-
-@if (Model != null)
+@if (Model == null)
 {
-    <div class="ps-header">
-        <div class="ps-header-info">
-            <h3>
-                <i class="fa-solid fa-building-columns" style="color:#6366f1;"></i>
-                @Model.ProgramName
-            </h3>
-            <div class="ps-header-meta">
-                @if (!string.IsNullOrEmpty(Model.ProgramDescription))
-                {
-                    <span>@Model.ProgramDescription</span>
-                    <span style="margin:0 6px;">•</span>
-                }
-                <span class="ps-stat-badge"><i class="fa fa-calendar-alt"></i> @Model.NoOfSemester Semester(s)</span>
-                <span class="ps-stat-badge" style="margin-left:6px;"><i class="fa fa-book"></i> @Model.SemesterGroups.Sum(s => s.Courses.Count) Course(s)</span>
+    <div class="cb-empty-state">
+        <div class="cb-empty-icon">
+            <i class="fa-solid fa-building-columns"></i>
+        </div>
+        <h4>No program data available</h4>
+        <p>Select another program and try again.</p>
+    </div>
+
+    return;
+}
+
+<div class="ps-program-header">
+    <div class="ps-program-main">
+        <div class="ps-program-icon">
+            <i class="fa-solid fa-building-columns"></i>
+        </div>
+
+        <div class="ps-program-info">
+            <h2>@Model.ProgramName</h2>
+
+            @if (!string.IsNullOrWhiteSpace(Model.ProgramDescription))
+            {
+                <p>@Model.ProgramDescription</p>
+            }
+
+            <div class="ps-program-stats">
+                <span>
+                    <i class="fa-regular fa-calendar"></i>
+                    @Model.NoOfSemester Semester@(Model.NoOfSemester == 1 ? "" : "s")
+                </span>
+
+                <span>
+                    <i class="fa-solid fa-book-open"></i>
+                    @totalCourses Course@(totalCourses == 1 ? "" : "s")
+                </span>
+
+                <span>
+                    <i class="fa-regular fa-file-lines"></i>
+                    @totalContent Content Item@(totalContent == 1 ? "" : "s")
+                </span>
             </div>
         </div>
     </div>
+</div>
 
-    @if (!Model.SemesterGroups.Any())
-    {
-        <div class="ps-empty-state">
-            <i class="fa-solid fa-folder-open" style="font-size:48px; color:#e2e8f0;"></i>
-            <h5 style="margin-top:16px; color:#94a3b8;">No courses found in this program</h5>
-            <p style="font-size:0.85rem; color:#cbd5e1;">Add courses from the <strong>Course</strong> management page by selecting this program.</p>
+@if (Model.SemesterGroups == null || !Model.SemesterGroups.Any())
+{
+    <div class="cb-empty-state">
+        <div class="cb-empty-icon">
+            <i class="fa-regular fa-folder-open"></i>
         </div>
-    }
-    else
-    {
-        var semIdx = 0;
-        foreach (var sem in Model.SemesterGroups)
-        {
-            var color = semColors[semIdx % semColors.Length];
-            <div class="ps-semester" data-semester-id="@sem.SemesterId">
-                <div class="ps-semester-header" style="border-left: 4px solid @color;" onclick="$(this).closest('.ps-semester').toggleClass('collapsed');">
-                    <div class="ps-sem-icon" style="background: @color;">
-                        <i class="fa-solid fa-calendar-alt"></i>
-                    </div>
-                    <div>
-                        <div class="ps-sem-name">@sem.SemesterName</div>
-                        <div class="ps-sem-meta">@sem.Courses.Count course(s) • @sem.Courses.Sum(c => c.ContentCount) content item(s)</div>
-                    </div>
-                    <i class="fa-solid fa-chevron-down ps-sem-chevron"></i>
-                </div>
 
-                <div class="ps-semester-body">
-                    @foreach (var course in sem.Courses)
-                    {
-                        <div class="ps-course-wrapper" style="margin-bottom: 8px;">
-                            <div class="ps-course-card" style="margin-bottom: 0;">
-                                <div class="ps-course-icon">
-                                    <i class="fa-solid fa-book"></i>
-                                </div>
-                                <div class="ps-course-info">
-                                    <div class="ps-course-name" title="@course.CourseName">@course.CourseName</div>
-                                    <div class="ps-course-meta">
-                                        <span><i class="fa fa-hashtag"></i> @course.CourseCode</span>
-                                        <span><i class="fa fa-star"></i> @course.Credits credits</span>
-                                    </div>
-                                </div>
-                                <div class="ps-course-actions">
-                                    @if (course.ContentCount > 0)
-                                    {
-                                        <span class="ps-content-badge cb-view-content-badge" 
-                                              data-course-id="@course.CourseId" 
-                                              style="cursor: pointer; background: #e0e7ff; color: #4f46e5; border: 1px solid #c7d2fe;"
-                                              title="Click to view assigned content">
-                                            <i class="fa fa-file-alt"></i> @course.ContentCount
-                                        </span>
-                                    }
-                                    <button class="ps-action-btn cb-manage-content-btn"
-                                            data-course-id="@course.CourseId"
-                                            data-course-name="@course.CourseName (@course.CourseCode)"
-                                            title="Manage Content">
-                                        <i class="fa-solid fa-link"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="ps-course-content-list" id="content-list-@course.CourseId" 
-                                 style="display:none; padding: 12px 15px 12px 50px; background: #fafbff; border-radius: 0 0 12px 12px; border: 1px solid #e2e8f0; border-top: none; margin-top: -1px;">
-                                <!-- Assigned materials will load here dynamically via AJAX -->
-                            </div>
-                        </div>
-                    }
-                    @if (!sem.Courses.Any())
-                    {
-                        <div class="text-center text-muted p-3" style="font-size:0.82rem;">No courses in this semester yet.</div>
-                    }
-                </div>
-            </div>
-            semIdx++;
+        <h4>No courses found</h4>
+
+        <p>
+            No active courses are currently assigned to
+            <strong>@Model.ProgramName</strong>.
+        </p>
+
+        @if (!isFaculty)
+        {
+            <a href="@Url.Action("Index", "Course", new { area = "Admin" })"
+               class="cb-empty-action">
+                <i class="fa-solid fa-plus"></i>
+                Manage Courses
+            </a>
         }
-    }
+    </div>
 }
 else
 {
-    <div class="ps-empty-state">
-        <i class="fa-solid fa-building-columns" style="font-size:48px; color:#e2e8f0;"></i>
-        <p style="margin-top:12px;">No program data loaded.</p>
+    <div class="ps-semester-list">
+        @{
+            int semesterIndex = 0;
+        }
+
+        @foreach (var semester in Model.SemesterGroups)
+        {
+            var color = semColors[semesterIndex % semColors.Length];
+            var semesterContentCount = semester.Courses.Sum(x => x.ContentCount);
+
+            <section class="ps-semester"
+                     data-semester-id="@semester.SemesterId">
+
+                <button type="button"
+                        class="ps-semester-header"
+                        style="--semester-color:@color;"
+                        aria-expanded="true">
+
+                    <span class="ps-semester-icon"
+                          style="background:@color;">
+                        <i class="fa-regular fa-calendar"></i>
+                    </span>
+
+                    <span class="ps-semester-heading">
+                        <strong>@semester.SemesterName</strong>
+
+                        <small>
+                            @semester.Courses.Count Course@(semester.Courses.Count == 1 ? "" : "s")
+
+                            @if (semesterContentCount > 0)
+                            {
+                                <span>• @semesterContentCount Content Item@(semesterContentCount == 1 ? "" : "s")</span>
+                            }
+                        </small>
+                    </span>
+
+                    <span class="ps-semester-chevron">
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </span>
+                </button>
+
+                <div class="ps-semester-body">
+                    @if (!semester.Courses.Any())
+                    {
+                        <div class="ps-semester-empty">
+                            No courses are assigned to this semester.
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var course in semester.Courses)
+                        {
+                            <div class="ps-course-wrapper">
+
+                                <div class="ps-course-card">
+
+                                    <div class="ps-course-icon">
+                                        <i class="fa-solid fa-book"></i>
+                                    </div>
+
+                                    <div class="ps-course-info">
+                                        <div class="ps-course-name"
+                                             title="@course.CourseName">
+                                            @course.CourseName
+                                        </div>
+
+                                        <div class="ps-course-meta">
+
+                                            @if (!string.IsNullOrWhiteSpace(course.CourseCode))
+                                            {
+                                                <span>
+                                                    <i class="fa-solid fa-hashtag"></i>
+                                                    @course.CourseCode
+                                                </span>
+                                            }
+
+                                            <span>
+                                                <i class="fa-regular fa-star"></i>
+                                                @course.Credits Credit@(course.Credits == 1 ? "" : "s")
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="ps-course-actions">
+
+                                        @if (course.ContentCount > 0)
+                                        {
+                                            <button type="button"
+                                                    class="ps-content-badge cb-view-content-badge"
+                                                    data-course-id="@course.CourseId"
+                                                    aria-expanded="false"
+                                                    title="View assigned content">
+
+                                                <i class="fa-regular fa-file-lines"></i>
+
+                                                <span>@course.ContentCount</span>
+
+                                                <i class="fa-solid fa-chevron-down ps-content-chevron"></i>
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <span class="ps-zero-content">
+                                                No content
+                                            </span>
+                                        }
+
+                                        @if (!isFaculty)
+                                        {
+                                            <button type="button"
+                                                    class="ps-action-btn cb-manage-content-btn"
+                                                    data-course-id="@course.CourseId"
+                                                    data-course-name="@course.CourseName (@course.CourseCode)"
+                                                    title="Manage Content"
+                                                    aria-label="Manage content for @course.CourseName">
+
+                                                <i class="fa-solid fa-link"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+
+                                <div class="ps-course-content-list"
+                                     id="content-list-@course.CourseId"
+                                     style="display:none;">
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </section>
+
+            semesterIndex++;
+        }
     </div>
 }

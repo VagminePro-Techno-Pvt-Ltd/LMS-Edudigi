@@ -18,7 +18,8 @@ namespace TMS.Models.Account
         public int? RoleId { get; set; }
 
        
-        public int? ContactNo{  get; set; }
+        [StringLength(20)]
+        public string? ContactNo { get; set; }
 
         /// <summary>
         /// When true, user is forced to change password on next login.

@@ -34,7 +34,14 @@ namespace TMS.Web.BackgroundServices
                 var delay = nextRunTime - now;
                 _logger.LogInformation("Attendance Job scheduled to run at {time} (in {delay} hours)", nextRunTime, delay.TotalHours);
 
-                await Task.Delay(delay, stoppingToken);
+                try
+                {
+                    await Task.Delay(delay, stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
 
                 try
                 {
