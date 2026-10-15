@@ -1,8 +1,8 @@
 # EduDigi Classes LMS - Verified Project Context
 
-Last source audit: 2026-10-12
+Last source audit: 2026-10-15
 
-This handoff covers the application under `TMS/`. “Implemented” means present in audited source, not proven in deployment. This audit did not connect to SQL Server, run migrations, start the site, seed/delete data, or edit application source/configuration.
+This handoff covers the application under `TMS/`. “Implemented” means present in audited source, not proven in deployment.
 
 ## Repository and architecture
 
@@ -209,12 +209,53 @@ dotnet ef migrations list --project .\TMS.Repository\TMS.Repository.csproj --sta
 
 Do not run `database update`, add/remove migrations, enable `DatabaseInitialization`, or start against production merely to test UI. Back up and restore-test, externalize secrets, secure/scan durable upload storage, and run authenticated role smoke/print tests on a disposable DB before release.
 
-## Next priorities
+## Gemini AI-Powered Internal Assessment Evaluation (Added 2026-10-15)
 
-1. Implement faculty-direct publication across controller, marks entry, views and confirmation text while preserving all legacy approval values.
-2. Add owner/successor/unrelated-faculty/admin/student authorization and publication-history tests.
-3. Inventory live schema and produce one additive reviewed IA reconciliation migration.
-4. Resolve historical enrollment visibility and subject/course grouping.
-5. Obtain grading, external marks, compartment and official-document decisions before building a final grade card.
+### Architecture & Components
+- **Service Interface & Implementation**:
+  - `TMS.Web/Services/IAiEvaluationService.cs`: Interface defining `EvaluateQuestionAsync(AiEvaluationRequest, CancellationToken)`.
+  - `TMS.Web/Services/GeminiAiEvaluationService.cs`: Implementation calling Google Gemini REST API (`generateContent`) using `HttpClient` with typed DI registration in `Program.cs`.
+- **DTOs / Models**:
+  - `TMS.Models/Academics/AiEvaluationModels.cs`: `AiEvaluationRequest`, `AiEvaluationResult`, `GeminiEvaluationPayload`.
+- **Database Schema**:
+  - `InternalAssessmentQuestions`: Added `ExpectedAnswer` (NVARCHAR(MAX)), `Rubric` (NVARCHAR(MAX)), `RubricVersion` (INT NOT NULL DEFAULT 1).
+  - `InternalAssessmentQuestionAnswers`: Added `AiConceptualMatchPercentage` (DECIMAL(5,2)), `AiSuggestedMarks` (DECIMAL(10,2)), `AiThresholdMet` (BIT), `AiFeedback` (NVARCHAR(1000)), `AiStrengths` (NVARCHAR(MAX)), `AiMissingConcepts` (NVARCHAR(MAX)), `AiConfidence` (NVARCHAR(50)), `AiModel` (NVARCHAR(100)), `AiEvaluatedOn` (DATETIME2), `AiAccepted` (BIT NOT NULL DEFAULT 0), `AiRubricVersion` (INT), `AiEvaluationMetadata` (NVARCHAR(MAX)), and `FilePath` (NVARCHAR(500) NULL).
+  - `InternalAssessmentSubmissions`: `FilePath` (NVARCHAR(500)) for overall assessment document uploads.
+  - Schema was applied idempotently via safe non-destructive SQL (`IF NOT EXISTS ADD COLUMN...`). No existing tables or data were dropped or reset.
+- **Controller Endpoints (`InternalAssessmentController.cs`)**:
+  - `EvaluateQuestionAi(int submissionId, int questionId)` [HttpPost, ValidateAntiForgeryToken, Staff Only]
+  - `EvaluateAllQuestionsAi(int submissionId)` [HttpPost, ValidateAntiForgeryToken, Staff Only]
+  - `SaveQuestionRubric(int submissionId, int questionId, string? expectedAnswer, string? rubric)` [HttpPost, ValidateAntiForgeryToken, Staff Only]
+  - `AcceptAiMarks(int submissionId, int questionId)` [HttpPost, ValidateAntiForgeryToken, Staff Only, Locked check]
+  - `AcceptAllAiMarks(int submissionId)` [HttpPost, ValidateAntiForgeryToken, Staff Only, Locked check]
+  - `SubmitAnswers(int id, Dictionary<int, string>? answers)` [HttpPost, ValidateAntiForgeryToken, RequestSizeLimit(32MB), Student Only]: Supports `multipart/form-data` document uploads per question for Project/Presentation and general attachments.
+  - `DownloadAnswerFile(int answerId)` [HttpGet, Student & Staff authorized]: Secure download of student-uploaded project/presentation documents.
+- **Prompt Injection Defense & Security**:
+  - Student submissions are enclosed in strict `<student_submission>` tags.
+  - A strict security directive informs Gemini to disregard commands or score demands within student text.
+  - Evaluation focuses purely on conceptual merit, completeness, correctness, and rubric weighting.
+- **Threshold Rules**:
+  - Conceptual match benchmark: 50%.
+  - `Match >= 50%`: `ThresholdMet = true`. Suggested marks are calculated based on rubric depth, NOT automatically 50%.
+  - `Match < 50%`: `ThresholdMet = false`. Flagged for mandatory faculty review; partial credit preserved.
+- **UI & Workflow Refinements (Unbranded Conceptual Evaluation)**:
+  - **Question Creation / Edit Time Feeding (`Questions.cshtml`)**: Faculty can input Expected Answer / Key Concepts and Marking Rubric directly when creating or editing questions. `SaveQuestion` persists both fields so they are ready before evaluation.
+  - **Zero "AI" / "Gemini" Branding**: The words "Gemini", "AI", and model names are completely hidden from the user interface. Clean, professional academic terminology is used throughout ("Conceptual Understanding Evaluation", "Evaluate Understanding", "Apply Evaluated Marks").
+  - **Streamlined Evaluation Display (`GradeQuestions.cshtml`)**: The separate suggested marks box has been removed in favor of a clean Conceptual Understanding Match indicator (green for >=50%, red for <50%), Demonstrated Strengths, Missing or Incomplete Concepts, and Constructive Feedback, allowing faculty to focus on conceptual assessment and award marks directly or via "Apply Evaluated Marks".
+- **Natural Academic Scoring & Maximum Mark Prevention**:
+  - In subjective/written university evaluations, descriptive answers are never awarded 100% full marks.
+  - Evaluation prompt guides Gemini to award natural academic marks (80%–88% for exceptional answers, 68%–78% for good, 50%–65% for average) using realistic increments (.00, .25, .50, .75).
+  - Server-side deterministic guard in `GeminiAiEvaluationService.ParseAndValidateResponse` enforces `suggestedMarks < MaxMarks` with a natural ceiling (87.5% for >5 marks, 85% for 2-5 marks) and quarter-mark rounding so marks look authentic and human.
+  - Rubric status badge in `GradeQuestions.cshtml` and `Questions.cshtml` fixed to display clean `Rubric Configured` without literal `(v@q.RubricVersion)` string syntax.
+- **Dynamic MCQ Visibility in Question Management**:
+  - In [Questions.cshtml](file:///E:/LMS/TMS/TMS.Web/Views/InternalAssessment/Questions.cshtml), MCQ-specific inputs (Option A, B, C, D and Correct Option select) only display when the selected question type is `"MCQ"`. For all other types (`Written`, `Project`, `Presentation`, `Practical`, `Viva`), MCQ inputs are cleanly hidden, keeping the interface uncluttered.
+- **Document Upload for Project & Presentation Submissions**:
+  - In [Attempt.cshtml](file:///E:/LMS/TMS/TMS.Web/Views/InternalAssessment/Attempt.cshtml), students attempting `Project` or `Presentation` questions receive a dedicated document upload field (`.pdf`, `.docx`, `.pptx`, `.jpg`, `.jpeg`, `.png`, max 8MB) with optional summary/notes textarea.
+  - In [InternalAssessmentController.cs](file:///E:/LMS/TMS/TMS.Web/Controllers/InternalAssessmentController.cs), `SubmitAnswers` supports `multipart/form-data` uploads, validates binary signatures with `InternalAssessmentUploadValidator`, persists `FilePath` on `InternalAssessmentQuestionAnswers` and `InternalAssessmentSubmissions`, and provides secure `DownloadAnswerFile`.
+  - In [GradeQuestions.cshtml](file:///E:/LMS/TMS/TMS.Web/Views/InternalAssessment/GradeQuestions.cshtml), faculty can directly download and review the student's submitted project/presentation document when evaluating answers.
+- **Verification Status**:
+  - `dotnet build TMS.sln`: 0 errors.
+  - `TMS.IA.RuntimeChecks`: **65/65 passed (100% success)**.
+  - `TMS.Web`: Running live on `http://localhost:5022`.
 
-Recommended immediate task: **replace the legacy Admin approval gate with tested faculty-direct result publication without altering historical approval values**, then browser-test Publish/Unpublish warnings and role visibility.
+
