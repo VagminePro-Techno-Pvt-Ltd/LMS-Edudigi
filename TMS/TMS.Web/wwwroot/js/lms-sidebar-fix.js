@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
     "use strict";
 
     function init() {
@@ -6,6 +6,12 @@
         const header = document.querySelector(".page-header");
 
         if (!sidebar || !header) return;
+
+        function isRtl() {
+            return document.documentElement.dir === "rtl" ||
+                   document.documentElement.getAttribute("lang") === "ur" ||
+                   document.documentElement.classList.contains("lms-rtl");
+        }
 
         function fixHeader() {
             const width = sidebar.getBoundingClientRect().width;
@@ -15,8 +21,17 @@
             );
 
             header.style.setProperty("position", "fixed", "important");
-            header.style.setProperty("left", width + "px", "important");
-            header.style.setProperty("right", "0px", "important");
+            if (isRtl()) {
+                header.style.setProperty("left", "0px", "important");
+                header.style.setProperty("right", width + "px", "important");
+                header.style.setProperty("padding-left", "20px", "important");
+                header.style.setProperty("padding-right", "20px", "important");
+            } else {
+                header.style.setProperty("left", width + "px", "important");
+                header.style.setProperty("right", "0px", "important");
+                header.style.setProperty("padding-left", "var(--sidebar-width, 260px)", "important");
+                header.style.setProperty("padding-right", "24px", "important");
+            }
             header.style.setProperty(
                 "width", "calc(100vw - " + width + "px)", "important"
             );
@@ -106,10 +121,19 @@
 
             const rect = item.getBoundingClientRect();
 
-            tooltip.style.left = Math.min(
-                rect.right + 12,
-                window.innerWidth - 220
-            ) + "px";
+            if (isRtl()) {
+                tooltip.style.right = Math.min(
+                    (window.innerWidth - rect.left + 12),
+                    window.innerWidth - 220
+                ) + "px";
+                tooltip.style.left = "auto";
+            } else {
+                tooltip.style.left = Math.min(
+                    rect.right + 12,
+                    window.innerWidth - 220
+                ) + "px";
+                tooltip.style.right = "auto";
+            }
 
             tooltip.style.top = Math.max(
                 8,

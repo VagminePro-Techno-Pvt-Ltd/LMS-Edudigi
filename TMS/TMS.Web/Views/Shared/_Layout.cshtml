@@ -8,16 +8,23 @@
     string? company = User?.Claims?.Where(t => t.Type == "brandingname").FirstOrDefault()?.Value;
     if (string.IsNullOrWhiteSpace(company) || company == "Edudigi")
         company = "Edudigi Class";
+
+    string currentUserId = User?.Claims?.FirstOrDefault(c => c.Type == "userId" || c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+    string? userLangCookie = (!string.IsNullOrEmpty(currentUserId) ? Context.Request.Cookies[$"lms_lang_{currentUserId}"] : null) ?? Context.Request.Cookies["lms_lang"] ?? "en";
+    bool isUrdu = userLangCookie == "ur";
+    string currentLang = isUrdu ? "ur" : "en";
+    string currentDir = isUrdu ? "rtl" : "ltr";
 }
 <!DOCTYPE html>
-<html lang="en" class="loading white-layout" data-textdirection="ltr">
+<html lang="@currentLang" class="loading white-layout @(isUrdu ? "lms-rtl" : "")" data-textdirection="@currentDir" dir="@currentDir">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - @company</title>
     <meta name="description" content="@company">
+    <meta name="current-user-id" content="@currentUserId" />
 
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@300;400;500;600;700;800&family=Noto+Nastaliq+Urdu:wght@400;500;600;700&family=Jost:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-multiselect/0.9.14/css/bootstrap-multiselect.css" />
@@ -31,6 +38,8 @@
     <link rel="stylesheet" href="~/css/global-search.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/help-panel.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/exam-theme.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/lms-rtl.css" asp-append-version="true" />
+    <script src="~/js/lms-i18n.js" asp-append-version="true"></script>
     @await RenderSectionAsync("extracss", required: false)
 
     <style>
@@ -73,6 +82,23 @@
             padding-bottom: 0 !important;
             display: flex !important;
             align-items: center !important;
+        }
+
+        html[dir="rtl"] .page-header,
+        body.lms-rtl .page-header {
+            padding-left: 20px !important;
+            padding-right: 20px !important;
+        }
+
+        html[dir="rtl"] .topbar-search-container,
+        body.lms-rtl .topbar-search-container {
+            max-width: 320px !important;
+        }
+
+        html[dir="rtl"] .nav-right,
+        body.lms-rtl .nav-right {
+            flex-shrink: 0 !important;
+            min-width: 0 !important;
         }
 
         .sidebar-wrapper {
@@ -494,7 +520,7 @@
     </style>
 <link rel="stylesheet" href="~/css/lms-sidebar-fix.css" asp-append-version="true" />
 </head>
-<body>
+<body class="@(isUrdu ? "lms-rtl" : "")" data-user-id="@currentUserId">
     <!-- loader starts-->
     <div class="loader-wrapper topLoader">
         <div class="loader-index"><span></span></div>
@@ -539,6 +565,50 @@
                 <!-- RIGHT: Nav Icons -->
                 <div class="nav-right">
                     <ul class="nav-enhanced">
+
+                        <!-- Language Switcher (English | اردو) -->
+                        <li class="lms-lang-switcher-wrap" id="lmsLangSwitcher">
+                            <button type="button"
+                                    class="lms-lang-pill"
+                                    id="lmsLangPill"
+                                    aria-haspopup="true"
+                                    aria-expanded="false"
+                                    aria-controls="lmsLangDropdown"
+                                    title="Switch Language / زبان تبدیل کریں"
+                                    aria-label="Current Language: @(isUrdu ? "اردو" : "English")">
+                                <i class="fa-solid fa-globe globe-icon"></i>
+                                <span class="current-lang-text" id="lmsCurrentLangLabel">@(isUrdu ? "اردو" : "English")</span>
+                                <i class="fa-solid fa-chevron-down chevron-icon"></i>
+                            </button>
+                            <ul class="lms-lang-menu" id="lmsLangDropdown" role="menu" aria-label="Select Language">
+                                <li role="none">
+                                    <button type="button"
+                                            class="lms-lang-option @(!isUrdu ? "active" : "")"
+                                            data-lang="en"
+                                            role="menuitem"
+                                            tabindex="0">
+                                        <span class="lang-label-group">
+                                            <span style="font-size:14px;">🇬🇧</span>
+                                            <span>English</span>
+                                        </span>
+                                        <i class="fa-solid fa-check lms-lang-check" style="@(!isUrdu ? "display:inline-block;" : "display:none;")"></i>
+                                    </button>
+                                </li>
+                                <li role="none">
+                                    <button type="button"
+                                            class="lms-lang-option @(isUrdu ? "active" : "")"
+                                            data-lang="ur"
+                                            role="menuitem"
+                                            tabindex="0">
+                                        <span class="lang-label-group">
+                                            <span style="font-size:14px;">🇮🇳</span>
+                                            <span style="font-family:'Noto Sans Arabic', sans-serif;">اردو (Urdu)</span>
+                                        </span>
+                                        <i class="fa-solid fa-check lms-lang-check" style="@(isUrdu ? "display:inline-block;" : "display:none;")"></i>
+                                    </button>
+                                </li>
+                            </ul>
+                        </li>
 
                         <!-- Notifications -->
                         <li class="notif-wrap">

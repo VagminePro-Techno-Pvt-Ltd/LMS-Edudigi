@@ -1,0 +1,341 @@
+/* ================================================================
+   EDUDIGI LMS — URDU & RTL COMPREHENSIVE STYLESHEET
+   Supports seamless LTR <-> RTL transitions, professional typography,
+   mirrored navigation, forms, modals, tables, and topbar switcher.
+   ================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@300;400;500;600;700;800&family=Noto+Nastaliq+Urdu:wght@400;500;600;700&display=swap');
+
+/* ── Typography & Global RTL ─────────────────────────────────── */
+html[lang="ur"],
+html[dir="rtl"],
+body.lms-rtl {
+    direction: rtl !important;
+    text-align: right !important;
+    font-family: 'Noto Sans Arabic', 'Noto Nastaliq Urdu', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+html[lang="ur"] h1, html[lang="ur"] h2, html[lang="ur"] h3,
+html[lang="ur"] h4, html[lang="ur"] h5, html[lang="ur"] h6,
+body.lms-rtl h1, body.lms-rtl h2, body.lms-rtl h3,
+body.lms-rtl h4, body.lms-rtl h5, body.lms-rtl h6 {
+    font-family: 'Noto Sans Arabic', 'Noto Nastaliq Urdu', sans-serif !important;
+    letter-spacing: 0 !important;
+}
+
+/* ── Mixed Data Protection (Emails, Codes, Numbers, URLs) ──── */
+html[dir="rtl"] .no-translate,
+html[dir="rtl"] [data-no-translate],
+html[dir="rtl"] .user-data-field,
+html[dir="rtl"] input[type="email"],
+html[dir="rtl"] input[type="tel"],
+html[dir="rtl"] input[type="url"],
+html[dir="rtl"] .p-email,
+html[dir="rtl"] .ltr-val,
+html[dir="rtl"] .code-badge,
+html[dir="rtl"] .course-code {
+    direction: ltr !important;
+    unicode-bidi: embed !important;
+    text-align: left !important;
+    display: inline-block;
+}
+
+/* ── Topbar Language Switcher UI (Shared LTR/RTL) ────────────── */
+.lms-lang-switcher-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.lms-lang-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    height: 38px;
+    border-radius: 10px;
+    background: #f0fdf4;
+    border: 1.5px solid #bbf7d0;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    font-size: 13px;
+    font-weight: 600;
+    color: #15803d;
+    user-select: none;
+    outline: none;
+}
+
+.lms-lang-pill:hover,
+.lms-lang-pill:focus-visible {
+    background: #dcfce7;
+    border-color: #86efac;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(22, 163, 74, 0.16);
+}
+
+.lms-lang-pill .globe-icon {
+    font-size: 15px;
+    color: #16a34a;
+}
+
+.lms-lang-pill .current-lang-text {
+    font-weight: 700;
+    letter-spacing: 0.2px;
+}
+
+.lms-lang-pill .chevron-icon {
+    font-size: 10px;
+    color: #16a34a;
+    opacity: 0.7;
+    transition: transform 0.2s ease;
+}
+
+.lms-lang-switcher-wrap .lms-lang-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 175px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(0, 0, 0, 0.05);
+    padding: 6px;
+    list-style: none;
+    margin: 0;
+    z-index: 10000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-6px);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+}
+
+.lms-lang-switcher-wrap .lms-lang-menu.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+html[dir="rtl"] .lms-lang-switcher-wrap .lms-lang-menu {
+    right: auto !important;
+    left: 0 !important;
+}
+
+.lms-lang-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: #334155;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+    text-align: inherit;
+    text-decoration: none;
+}
+
+.lms-lang-option:hover,
+.lms-lang-option:focus-visible {
+    background: #eff6ff;
+    color: #2563eb;
+    outline: none;
+}
+
+.lms-lang-option.active {
+    background: #f0fdf4;
+    color: #15803d;
+    font-weight: 700;
+}
+
+.lms-lang-option .lang-label-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.lms-lang-option .lms-lang-check {
+    font-size: 12px;
+    color: #16a34a;
+}
+
+/* ── RTL Topbar Layout ───────────────────────────────────────── */
+html[dir="rtl"] .page-header {
+    right: var(--lms-sidebar-width, 260px) !important;
+    left: 0 !important;
+    padding-right: 20px !important;
+    padding-left: 20px !important;
+}
+
+html[dir="rtl"] .page-header.close_icon {
+    right: var(--sidebar-collapsed-width, 72px) !important;
+    left: 0 !important;
+    padding-right: 20px !important;
+    padding-left: 20px !important;
+}
+
+html[dir="rtl"] .topbar-search-container {
+    max-width: 320px !important;
+}
+
+html[dir="rtl"] .header-left-wrapper {
+    flex-direction: row !important;
+}
+
+html[dir="rtl"] .topbar-search-inner {
+    flex-direction: row-reverse !important;
+}
+
+html[dir="rtl"] .topbar-search-inner input {
+    text-align: right !important;
+}
+
+html[dir="rtl"] .nav-right {
+    margin-right: auto !important;
+    margin-left: 0 !important;
+}
+
+html[dir="rtl"] .nav-enhanced {
+    flex-direction: row !important;
+}
+
+html[dir="rtl"] .profile-dropdown {
+    right: auto !important;
+    left: 0 !important;
+}
+
+html[dir="rtl"] .help-panel {
+    right: auto !important;
+    left: 0 !important;
+}
+
+/* ── RTL Sidebar Layout ──────────────────────────────────────── */
+html[dir="rtl"] .sidebar-wrapper {
+    right: 0 !important;
+    left: auto !important;
+    border-right: none !important;
+    border-left: 1px solid var(--sidebar-border, #e8ecf0) !important;
+    box-shadow: -2px 0 12px rgba(0, 0, 0, 0.04) !important;
+}
+
+html[dir="rtl"] .page-body-wrapper .page-body {
+    margin-right: var(--lms-sidebar-width, 260px) !important;
+    margin-left: 0 !important;
+    transition: margin-right 0.25s ease !important;
+}
+
+html[dir="rtl"] body.sidebar-collapsed .page-body-wrapper .page-body,
+html[dir="rtl"] .sidebar-wrapper.close_icon ~ .page-body {
+    margin-right: var(--sidebar-collapsed-width, 72px) !important;
+    margin-left: 0 !important;
+}
+
+html[dir="rtl"] .enhanced-sidebar ul li a {
+    flex-direction: row !important;
+    text-align: right !important;
+}
+
+html[dir="rtl"] .enhanced-sidebar .icon-badge {
+    margin-left: 10px !important;
+    margin-right: 0 !important;
+}
+
+html[dir="rtl"] .enhanced-sidebar .main-title {
+    flex-direction: row !important;
+}
+
+html[dir="rtl"] .enhanced-sidebar .main-title .brand-icon-wrap {
+    margin-left: 12px !important;
+    margin-right: 0 !important;
+}
+
+/* ── RTL Directional Icons ───────────────────────────────────── */
+html[dir="rtl"] .fa-chevron-right,
+html[dir="rtl"] .fa-arrow-right,
+html[dir="rtl"] .fa-angle-right,
+html[dir="rtl"] .bi-chevron-right,
+html[dir="rtl"] .hm-arrow {
+    transform: scaleX(-1) !important;
+}
+
+html[dir="rtl"] .fa-chevron-left,
+html[dir="rtl"] .fa-arrow-left,
+html[dir="rtl"] .fa-angle-left,
+html[dir="rtl"] .bi-chevron-left {
+    transform: scaleX(-1) !important;
+}
+
+/* ── RTL Cards, Tables & Grids ───────────────────────────────── */
+html[dir="rtl"] .card-header,
+html[dir="rtl"] .card-body,
+html[dir="rtl"] .card-footer {
+    text-align: right !important;
+}
+
+html[dir="rtl"] .table th,
+html[dir="rtl"] .table td {
+    text-align: right !important;
+}
+
+html[dir="rtl"] .hero-welcome-card {
+    flex-direction: row !important;
+}
+
+html[dir="rtl"] .hero-text-side {
+    text-align: right !important;
+}
+
+html[dir="rtl"] .hero-login-badge {
+    flex-direction: row !important;
+}
+
+/* ── RTL Forms, Inputs & Modals ──────────────────────────────── */
+html[dir="rtl"] .form-label,
+html[dir="rtl"] .col-form-label,
+html[dir="rtl"] label {
+    text-align: right !important;
+    display: block;
+}
+
+html[dir="rtl"] .form-control,
+html[dir="rtl"] .form-select {
+    text-align: right !important;
+}
+
+html[dir="rtl"] .modal-header {
+    flex-direction: row !important;
+}
+
+html[dir="rtl"] .modal-header .btn-close {
+    margin-left: 0 !important;
+    margin-right: auto !important;
+}
+
+html[dir="rtl"] .modal-footer {
+    justify-content: flex-start !important;
+}
+
+/* ── RTL Breadcrumbs & Pagination ────────────────────────────── */
+html[dir="rtl"] .breadcrumb {
+    flex-direction: row !important;
+}
+
+html[dir="rtl"] .breadcrumb-item + .breadcrumb-item::before {
+    float: right !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0 !important;
+    content: "«" !important;
+}
+
+html[dir="rtl"] .pagination {
+    flex-direction: row !important;
+}
+
+/* ── Alert Toasts ────────────────────────────────────────────── */
+html[dir="rtl"] .appMessage .toast {
+    right: auto !important;
+    left: 1rem !important;
+}
