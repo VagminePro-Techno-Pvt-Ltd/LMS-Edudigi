@@ -41,7 +41,7 @@
                 <h4 class="fw-bold mb-0 text-dark">@Model.Course.Name</h4>
             </div>
             <div class="cl-board-meta text-muted small">
-                <i class="fa fa-layer-group text-primary me-1"></i> Program: <strong>@(Model.Course.CourseCategory?.Name ?? "General")</strong> • 
+                <i class="fa fa-layer-group text-primary me-1"></i> Program: <strong>@(Model.Course.CourseCategory?.Name ?? "General")</strong> •
                 <i class="fa fa-file-lines text-secondary me-1 ms-2"></i> <strong>@totalMaterialsCount</strong> content resource(s)
             </div>
         </div>
@@ -156,7 +156,7 @@
                     <i class="fa fa-graduation-cap text-primary fs-5"></i>
                     <h5 class="fw-bold text-dark mb-0">@semGroup.Key.Semester</h5>
                 </div>
-                
+
                 @{
                     var quadrantsInGroup = semGroup
                         .GroupBy(x => new { x.QuadrantId, x.QuadrantName })
@@ -169,7 +169,7 @@
                     {
                         var quadrantMaterials = qGroup.Select(x => x.Material).ToList();
                         var qId = qGroup.Key.QuadrantId;
-                        
+
                         var qName = string.IsNullOrWhiteSpace(qGroup.Key.QuadrantName)
                             ? $"Quadrant {qId}"
                             : qGroup.Key.QuadrantName;
@@ -218,8 +218,8 @@
                                                     <span class="badge bg-light text-muted border" style="font-size:9px;">@ext</span>
                                                     @if (mat.FileSizeBytes.HasValue)
                                                     {
-                                                        var sizeFormatted = mat.FileSizeBytes.Value > 1048576 
-                                                            ? $"{mat.FileSizeBytes.Value / 1048576.0:F1} MB" 
+                                                        var sizeFormatted = mat.FileSizeBytes.Value > 1048576
+                                                            ? $"{mat.FileSizeBytes.Value / 1048576.0:F1} MB"
                                                             : $"{mat.FileSizeBytes.Value / 1024.0:F0} KB";
                                                         <span class="badge bg-light text-muted border" style="font-size:9px;">@sizeFormatted</span>
                                                     }
@@ -236,8 +236,8 @@
                                                         <i class="fa fa-eye me-1"></i>View
                                                     </a>
                                                 }
-                                                <button class="cl-edit-btn quick-assign-btn" 
-                                                        data-material-id="@mat.Id" 
+                                                <button class="cl-edit-btn quick-assign-btn"
+                                                        data-material-id="@mat.Id"
                                                         title="Assign to another course">
                                                     <i class="fa fa-link"></i>
                                                 </button>

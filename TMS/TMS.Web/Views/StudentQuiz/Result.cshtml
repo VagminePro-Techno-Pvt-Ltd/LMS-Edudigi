@@ -7,7 +7,7 @@
     var totalMaxMarks = quiz?.TotalMarks ?? (quiz?.Questions?.Sum(q => q.MaxMarks ?? 1) ?? totalQuestions);
     if (totalMaxMarks <= 0) totalMaxMarks = totalQuestions > 0 ? totalQuestions : 1;
     var percentage = totalMaxMarks > 0 ? ((double)score / totalMaxMarks) * 100 : 0;
-    var passMarks = ViewBag.PassingMarks as int? ?? 50; 
+    var passMarks = ViewBag.PassingMarks as int? ?? 50;
     var isPassed = percentage >= passMarks;
 }
 
@@ -111,8 +111,8 @@
 
         <h2 class="fw-bold mb-1 text-white">@(isPassed ? "Assessment Passed!" : "Needs Improvement")</h2>
         <p class="text-light opacity-90 small mb-4 mx-auto" style="max-width: 500px;">
-            @(isPassed 
-                ? "Excellent job! You have satisfied the passing score requirement for this module." 
+            @(isPassed
+                ? "Excellent job! You have satisfied the passing score requirement for this module."
                 : $"You achieved {Math.Round(percentage)}%. A minimum of {passMarks}% is required to pass this checkpoint.")
         </p>
 

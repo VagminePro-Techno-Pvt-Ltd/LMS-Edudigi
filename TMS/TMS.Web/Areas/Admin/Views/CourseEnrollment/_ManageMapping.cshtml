@@ -38,66 +38,66 @@
 }
 
 <style>
-    .enroll-search { 
-        border: 1px solid #cbd5e1; 
-        border-radius: 12px; 
-        padding: 9px 16px; 
-        width: 100%; 
-        font-size: 13px; 
-        transition: all 0.2s; 
+    .enroll-search {
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        padding: 9px 16px;
+        width: 100%;
+        font-size: 13px;
+        transition: all 0.2s;
     }
-    .enroll-search:focus { 
-        outline: none; 
-        border-color: #6366f1; 
-        box-shadow: 0 0 0 3px rgba(99,102,241,0.15); 
+    .enroll-search:focus {
+        outline: none;
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
     }
     .student-table { margin: 0; }
-    .student-table thead th { 
-        background: #f8fafc; 
-        color: #475569; 
-        font-size: 11px; 
+    .student-table thead th {
+        background: #f8fafc;
+        color: #475569;
+        font-size: 11px;
         font-weight: 700;
-        text-transform: uppercase; 
-        letter-spacing: 0.05em; 
-        padding: 12px 16px; 
-        border-bottom: 1px solid #e2e8f0; 
-        position: sticky; 
-        top: 0; 
-        z-index: 1; 
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 12px 16px;
+        border-bottom: 1px solid #e2e8f0;
+        position: sticky;
+        top: 0;
+        z-index: 1;
     }
-    .student-table tbody td { 
-        padding: 12px 16px; 
-        font-size: 13px; 
-        color: #1e293b; 
-        border-color: #f1f5f9; 
-        vertical-align: middle; 
+    .student-table tbody td {
+        padding: 12px 16px;
+        font-size: 13px;
+        color: #1e293b;
+        border-color: #f1f5f9;
+        vertical-align: middle;
     }
     .student-table tbody tr:hover { background: #f8fafc; }
     .student-table input[type="checkbox"] { width: 17px; height: 17px; cursor: pointer; accent-color: #6366f1; }
-    .enroll-footer { 
-        padding: 16px 24px; 
-        background: #f8fafc; 
-        border-top: 1px solid #e2e8f0; 
-        display: flex; 
-        justify-content: space-between; 
-        align-items: center; 
+    .enroll-footer {
+        padding: 16px 24px;
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
-    .counter-badge { 
-        background: #eff6ff; 
-        color: #3b82f6; 
-        padding: 4px 12px; 
-        border-radius: 20px; 
-        font-size: 12px; 
-        font-weight: 700; 
+    .counter-badge {
+        background: #eff6ff;
+        color: #3b82f6;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
     }
-    .btn-save-enrollment { 
-        background: linear-gradient(135deg, #6366f1, #4f46e5); 
-        color: white; 
-        border: none; 
-        padding: 10px 24px; 
-        border-radius: 12px; 
-        font-weight: 700; 
-        transition: all 0.2s; 
+    .btn-save-enrollment {
+        background: linear-gradient(135deg, #6366f1, #4f46e5);
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 12px;
+        font-weight: 700;
+        transition: all 0.2s;
     }
     .btn-save-enrollment:hover { transform: translateY(-1px); color: white; }
     .filter-pill-btn {
@@ -211,8 +211,8 @@
                             var inThisProgram = hasEnrollments && enrolledList!.Any(e => e.ProgramId == programId);
                             var inOtherProgram = hasEnrollments && !inThisProgram;
 
-                            <tr class="student-row" 
-                                data-name="@studentObj.Name?.ToLower()" 
+                            <tr class="student-row"
+                                data-name="@studentObj.Name?.ToLower()"
                                 data-email="@studentObj.Email?.ToLower()"
                                 data-enrolled="@(hasEnrollments ? "yes" : "no")"
                                 data-this-prog="@(inThisProgram ? "yes" : "no")"

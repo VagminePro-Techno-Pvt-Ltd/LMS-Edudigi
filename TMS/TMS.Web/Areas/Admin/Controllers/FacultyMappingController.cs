@@ -66,7 +66,7 @@ namespace TMS.Web.Areas.Admin.Controllers
             {
                 faculties = allUsers.OrderBy(u => u.Name).ToList();
             }
-            
+
             // Get existing active mappings
             var mappings = await _mappingManager.GetAsync(null, m => m.CourseId == courseId && m.IsActive);
             var selectedIds = mappings.Select(m => m.FacultyId).ToList();
@@ -97,8 +97,8 @@ namespace TMS.Web.Areas.Admin.Controllers
                 return Json(new { success = false, message = "Invalid Course selected." });
 
             var result = await _mappingManager.SaveMappingAsync(
-                model.CourseId, 
-                model.FacultyIds ?? new List<int>(), 
+                model.CourseId,
+                model.FacultyIds ?? new List<int>(),
                 GetUserId()
             );
 
@@ -107,9 +107,9 @@ namespace TMS.Web.Areas.Admin.Controllers
                 return Json(new { success = false, message = string.Join("; ", result.Errors) });
             }
 
-            return Json(new { 
-                success = true, 
-                message = $"Faculty mappings updated successfully ({result.SuccessCount} assigned, {result.DroppedCount} unassigned)." 
+            return Json(new {
+                success = true,
+                message = $"Faculty mappings updated successfully ({result.SuccessCount} assigned, {result.DroppedCount} unassigned)."
             });
         }
 
@@ -132,8 +132,8 @@ namespace TMS.Web.Areas.Admin.Controllers
 
             var success = await _mappingManager.UnassignFacultyAsync(courseId, facultyId, GetUserId());
 
-            return Json(new { 
-                success = success, 
+            return Json(new {
+                success = success,
                 message = success ? "Instructor successfully unassigned." : "Failed to unassign instructor."
             });
         }
@@ -146,12 +146,10 @@ namespace TMS.Web.Areas.Admin.Controllers
 
             var count = await _mappingManager.UnassignAllAsync(courseId, GetUserId());
 
-            return Json(new { 
-                success = true, 
+            return Json(new {
+                success = true,
                 message = $"All instructors ({count}) unassigned successfully."
             });
         }
     }
 }
-
-

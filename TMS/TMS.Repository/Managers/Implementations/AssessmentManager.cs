@@ -328,7 +328,7 @@ namespace TMS.Repository.Managers.Implementations
             return await _context.ExamMasters
                 .Include(e => e.Course)
                 .Include(e => e.Faculty)
-                .Where(e => (examIds.Contains(e.Id) || enrolledCourseIds.Contains(e.CourseId)) 
+                .Where(e => (examIds.Contains(e.Id) || enrolledCourseIds.Contains(e.CourseId))
                             && e.Status == "Active")
                 .ToListAsync();
         }

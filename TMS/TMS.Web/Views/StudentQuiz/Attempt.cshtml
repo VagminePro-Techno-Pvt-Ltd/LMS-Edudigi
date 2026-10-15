@@ -187,7 +187,7 @@
             <p class="mb-0 text-light opacity-80 small">
                 Answer all @totalQuestions questions carefully. Minimum score to pass: <strong>@ViewBag.PassingMarks%</strong>.
             </p>
-            
+
             <div class="quiz-progress-bar-wrap">
                 <div class="quiz-progress-bar-fill" id="quizProgressFill"></div>
             </div>
@@ -249,10 +249,10 @@
                                     {
                                         var opt = q.Options[j];
                                         <label class="option-label" for="opt_@(i)_@(j)">
-                                            <input type="radio" 
-                                                   name="Answers[@i].SelectedOptionId" 
-                                                   value="@opt.Id" 
-                                                   id="opt_@(i)_@(j)" 
+                                            <input type="radio"
+                                                   name="Answers[@i].SelectedOptionId"
+                                                   value="@opt.Id"
+                                                   id="opt_@(i)_@(j)"
                                                    class="quiz-radio-input"
                                                    data-qindex="@i" />
                                             <span class="fw-semibold text-dark" style="font-size: 0.92rem;">@opt.OptionText</span>

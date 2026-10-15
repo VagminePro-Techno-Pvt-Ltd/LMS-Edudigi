@@ -33,8 +33,8 @@ namespace TMS.Web.Controllers
         {
             int userId = GetUserId();
             string role = GetUserRole()?.Trim() ?? string.Empty;
-            bool isFaculty = role.Equals("Faculty", StringComparison.OrdinalIgnoreCase) 
-                          || role.Equals("Admin", StringComparison.OrdinalIgnoreCase) 
+            bool isFaculty = role.Equals("Faculty", StringComparison.OrdinalIgnoreCase)
+                          || role.Equals("Admin", StringComparison.OrdinalIgnoreCase)
                           || role.Equals("Super Admin", StringComparison.OrdinalIgnoreCase)
                           || IsFacultyRole();
 
@@ -78,7 +78,7 @@ namespace TMS.Web.Controllers
                 {
                     var facultyMaps = await _db.CourseFacultyMaps.AsNoTracking().Where(x => x.FacultyId == userId && x.IsActive).ToListAsync();
                     courseIds = facultyMaps.Select(m => m.CourseId).ToList();
-                    
+
                     if (!courseIds.Any())
                     {
                         courseIds = allCourses.Select(c => c.Id).ToList();
@@ -126,7 +126,7 @@ namespace TMS.Web.Controllers
                 CreatedOn = t.CreatedOn
             }).ToList();
 
-            var now = DateTime.Now; 
+            var now = DateTime.Now;
             var upcoming = allMeetings
                 .Where(m => m.ScheduledAt >= now.AddMinutes(-15) || (m.ScheduledAt < now && m.ScheduledAt.AddMinutes(m.Duration) >= now))
                 .OrderBy(m => m.ScheduledAt)

@@ -344,8 +344,8 @@
                                 var inThisProgram = hasEnrollments && enrolledList!.Any(e => e.ProgramId == programId);
                                 var inOtherProgram = hasEnrollments && !inThisProgram;
 
-                                <tr class="batch-student-row" 
-                                    data-name="@s.Name?.ToLower()" 
+                                <tr class="batch-student-row"
+                                    data-name="@s.Name?.ToLower()"
                                     data-email="@s.Email?.ToLower()"
                                     data-enrolled="@(hasEnrollments ? "yes" : "no")"
                                     data-this-prog="@(inThisProgram ? "yes" : "no")"
@@ -441,7 +441,7 @@
                         </div>
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold small text-secondary">Initial Password</label>
-                            <input type="text" id="quickPassword" class="form-control" value="Welcome@123" placeholder="Default: Welcome@123" style="border-radius:10px;" />
+                            <input type="text" id="quickPassword" class="form-control" placeholder="Enter a temporary password" style="border-radius:10px;" required />
                         </div>
                         <div class="col-12">
                             <div class="form-check form-switch p-2 bg-light rounded border">
@@ -593,8 +593,8 @@
         var password = $('#quickPassword').val().trim();
         var autoEnroll = $('#quickAutoEnroll').is(':checked');
 
-        if (!name || !email) {
-            alert('Name and Email are required.');
+        if (!name || !email || !password) {
+            alert('Name, email, and an initial password are required.');
             return;
         }
 

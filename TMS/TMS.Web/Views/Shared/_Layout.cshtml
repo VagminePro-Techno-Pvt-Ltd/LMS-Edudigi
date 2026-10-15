@@ -847,7 +847,7 @@
                     const linkPath = new URL(link.href).pathname.toLowerCase().replace(/\/$/, "");
                     if (currentPath === linkPath || (linkPath !== "/" && currentPath.startsWith(linkPath + "/"))) {
                         link.classList.add('active');
-                        
+
                         // Open parent menu if it's in a submenu
                         let parentList = link.closest('.sidebar-list');
                         if (parentList) {
@@ -933,4 +933,3 @@ document.addEventListener("DOMContentLoaded", function () {
 </script>
 </body>
 </html>
-

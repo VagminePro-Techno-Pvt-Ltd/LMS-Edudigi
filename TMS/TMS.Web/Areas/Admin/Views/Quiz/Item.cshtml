@@ -214,7 +214,7 @@
             function addQuestionHandler() {
                 var index = $('#questionContainer .question-block').length;
                 var url = '@Url.Action("RenderQuestionPartial", "Quiz", new { area = "Admin" })';
-                
+
                 $('.empty-questions-state').remove();
 
                 $.get(url, { index: index })
@@ -258,7 +258,7 @@
                                name="Questions[${qIndex}].Options[${optIndex}].OptionText"
                                class="form-control form-control-sm"
                                placeholder="Option text..." required />
-                        
+
                         <div class="form-check d-flex align-items-center gap-1 ms-2 me-2">
                             <input type="checkbox"
                                    class="form-check-input correct-option"

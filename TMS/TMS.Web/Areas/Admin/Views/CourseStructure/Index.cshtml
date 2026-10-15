@@ -2277,10 +2277,10 @@
                                         4 => "fa-list-check text-success",
                                         _ => "fa-layer-group text-secondary"
                                     };
-                                    <button type="button" 
-                                            class="cb-quad-pill @(qIdx == 0 ? "active" : "")" 
-                                            data-quad-id="@q.Id" 
-                                            data-quad-number="@q.QuadrantNumber" 
+                                    <button type="button"
+                                            class="cb-quad-pill @(qIdx == 0 ? "active" : "")"
+                                            data-quad-id="@q.Id"
+                                            data-quad-number="@q.QuadrantNumber"
                                             data-quad-name="@q.Name">
                                         <i class="fa-solid @iconClass me-1"></i> @q.Name
                                     </button>
@@ -2706,7 +2706,7 @@
                 const isSuccess = type === "success";
                 const iconClass = isSuccess ? "fa-circle-check text-success" : (type === "error" ? "fa-circle-xmark text-danger" : "fa-circle-info text-primary");
                 const toastClass = isSuccess ? "cb-toast-success" : (type === "error" ? "cb-toast-error" : "cb-toast-info");
-                
+
                 const toastHtml = $(`
                     <div class="cb-toast-item ${toastClass}">
                         <i class="fa-solid ${iconClass} fs-4"></i>
@@ -4190,5 +4190,3 @@
         })();
     </script>
 }
-
-

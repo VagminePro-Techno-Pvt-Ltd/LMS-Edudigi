@@ -187,7 +187,7 @@ namespace TMS.Web.Controllers
             {
                 // Get all quizzes for enrolled courses - try QuizMaster first, then QuizMasters
                 var allQuizzes = new List<QuizMaster>();
-                
+
                 try
                 {
                     allQuizzes = await _db.QuizMaster
@@ -305,10 +305,10 @@ namespace TMS.Web.Controllers
                     string fPath = (mat.FilePath ?? "").ToLowerInvariant();
                     string fExt = string.IsNullOrEmpty(fPath) ? "" : System.IO.Path.GetExtension(fPath).ToLowerInvariant();
 
-                    bool isVideo = mType == "video" 
+                    bool isVideo = mType == "video"
                                 || mType == "videourl"
                                 || new[] { ".mp4", ".webm", ".ogg", ".avi", ".mov" }.Contains(fExt)
-                                || fPath.Contains("youtu") 
+                                || fPath.Contains("youtu")
                                 || fPath.Contains("vimeo");
 
                     if (!isVideo)
@@ -330,10 +330,10 @@ namespace TMS.Web.Controllers
                     string fPath = (mat.FilePath ?? "").ToLowerInvariant();
                     string fExt = string.IsNullOrEmpty(fPath) ? "" : System.IO.Path.GetExtension(fPath).ToLowerInvariant();
 
-                    bool isVideo = mType == "video" 
+                    bool isVideo = mType == "video"
                                 || mType == "videourl"
                                 || new[] { ".mp4", ".webm", ".ogg", ".avi", ".mov" }.Contains(fExt)
-                                || fPath.Contains("youtu") 
+                                || fPath.Contains("youtu")
                                 || fPath.Contains("vimeo");
 
                     if (!isVideo && mat.CourseId.HasValue)
@@ -426,10 +426,10 @@ namespace TMS.Web.Controllers
                     var fPath = (mat.FilePath ?? "").ToLower();
                     var fExt = string.IsNullOrEmpty(fPath) ? "" : System.IO.Path.GetExtension(fPath).ToLower();
 
-                    bool isVideo = mType == "video" 
+                    bool isVideo = mType == "video"
                                 || mType == "videourl"
                                 || new[] { ".mp4", ".webm", ".ogg", ".avi", ".mov" }.Contains(fExt)
-                                || fPath.Contains("youtu") 
+                                || fPath.Contains("youtu")
                                 || fPath.Contains("vimeo");
 
                     if (isVideo)
@@ -441,7 +441,7 @@ namespace TMS.Web.Controllers
 
                 // 3. Fallback: Fetch directly linked materials (if any are not in mappings)
                 var directVideoMaterials = await _db.LectureMaterials
-                    .Where(m => m.CourseId.HasValue && courseIds.Contains(m.CourseId.Value) && m.IsActive 
+                    .Where(m => m.CourseId.HasValue && courseIds.Contains(m.CourseId.Value) && m.IsActive
                              && !seenMaterialIds.Contains(m.Id))
                     .ToListAsync();
 
@@ -451,10 +451,10 @@ namespace TMS.Web.Controllers
                     var fPath = (mat.FilePath ?? "").ToLower();
                     var fExt = string.IsNullOrEmpty(fPath) ? "" : System.IO.Path.GetExtension(fPath).ToLower();
 
-                    bool isVideo = mType == "video" 
+                    bool isVideo = mType == "video"
                                 || mType == "videourl"
                                 || new[] { ".mp4", ".webm", ".ogg", ".avi", ".mov" }.Contains(fExt)
-                                || fPath.Contains("youtu") 
+                                || fPath.Contains("youtu")
                                 || fPath.Contains("vimeo");
 
                     if (isVideo && mat.CourseId.HasValue)
@@ -472,8 +472,8 @@ namespace TMS.Web.Controllers
 
                     // 4. Get detailed progress records
                     var progressRecords = await _db.LectureVideoProgresses
-                        .Where(p => p.StudentId == studentId 
-                                  && videoMaterialIds.Contains(p.LectureMaterialId) 
+                        .Where(p => p.StudentId == studentId
+                                  && videoMaterialIds.Contains(p.LectureMaterialId)
                                   && p.IsActive)
                         .ToListAsync();
 
@@ -502,7 +502,7 @@ namespace TMS.Web.Controllers
                             item.DurationSeconds = record.DurationSeconds;
                             item.IsCompleted = record.IsCompleted;
                             item.LastWatchedAt = record.LastWatchedAt;
-                            
+
                             item.WatchedPercentage = record.ProgressPercentage;
                             if (item.WatchedPercentage > 100m) item.WatchedPercentage = 100m;
                             if (item.WatchedPercentage < 0m) item.WatchedPercentage = 0m;
@@ -522,7 +522,7 @@ namespace TMS.Web.Controllers
 
                     data.CompletedContent = completedVideoCount;
                     data.PendingContent = data.TotalContent - data.CompletedContent;
-                    
+
                     // Overall completion is computed as the mathematical average of percentage watched across ALL videos
                     data.CompletionPercentage = Math.Round(totalProgressSum / data.TotalContent, 2);
                 }

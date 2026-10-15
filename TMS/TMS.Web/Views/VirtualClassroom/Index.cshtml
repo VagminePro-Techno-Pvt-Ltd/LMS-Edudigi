@@ -689,8 +689,8 @@
                 </div>
                 <h4 style="font-weight: 700; color: #1e293b; margin-bottom: 8px;">No Live Sessions Scheduled</h4>
                 <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">
-                    @(Model.IsFaculty 
-                        ? "You haven't scheduled any live virtual classes yet. Click 'Schedule Zoom Class' above to host a new session." 
+                    @(Model.IsFaculty
+                        ? "You haven't scheduled any live virtual classes yet. Click 'Schedule Zoom Class' above to host a new session."
                         : "There are no live classes scheduled right now. Check back later or review the course calendar.")
                 </p>
                 @if (Model.IsFaculty)
@@ -776,7 +776,7 @@
             <form asp-action="CreateMeeting" asp-controller="VirtualClassroom" method="post">
                 <div class="vc-modal-body">
                     <div class="vc-form-grid">
-                        
+
                         <!-- Meeting Title -->
                         <div class="vc-form-group vc-form-col-2">
                             <label>Session Title *</label>

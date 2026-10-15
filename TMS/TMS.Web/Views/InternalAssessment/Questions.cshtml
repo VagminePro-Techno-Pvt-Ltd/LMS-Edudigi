@@ -1,12 +1,249 @@
 @model IEnumerable<TMS.Models.Academics.InternalAssessmentQuestion>
 @using TMS.Models.Academics
-@{ var a=(InternalAssessment)ViewBag.Assessment; var selected=a.Type.Split(','); var total=Model.Sum(q=>q.Marks); ViewData["Title"]="Manage Questions"; }
-<div class="container-fluid py-4"><a asp-action="FacultyDashboard" class="btn btn-outline-secondary mb-3">Back</a><h2>@a.Title — Manage Questions</h2>
-<div class="alert @(total==a.MaxMarks?"alert-success":"alert-warning")">Question marks: <strong>@total / @a.MaxMarks</strong>. Total must equal maximum marks before publishing.</div>
-@if(a.IsPublished){<div class="alert alert-info">Unpublish assessment to edit questions.</div>}
-@foreach(var q in Model){<div class="card mb-3"><div class="card-body"><div class="d-flex justify-content-between"><strong>@q.Type — @q.Marks marks</strong><span>Question #@q.Id</span></div><p style="white-space:pre-wrap">@q.Text</p>
-@if(q.Type=="MCQ"){<p>A. @q.OptionA | B. @q.OptionB | C. @q.OptionC | D. @q.OptionD<br/>Correct: @q.CorrectOption</p>}
-@if(!a.IsPublished){<details><summary>Edit question</summary><form asp-action="SaveQuestion" method="post" class="row g-2 mt-2">@Html.AntiForgeryToken()<input type="hidden" name="assessmentId" value="@a.Id"/><input type="hidden" name="questionId" value="@q.Id"/><div class="col-md-3"><select name="type" class="form-select">@foreach(var t in selected){if(t==q.Type){<option selected>@t</option>}else{<option>@t</option>}}</select></div><div class="col-md-9"><textarea name="text" class="form-control" required maxlength="4000">@q.Text</textarea></div><div class="col-md-3"><input type="number" name="marks" class="form-control" step="0.01" min="0.01" value="@q.Marks" required/></div><div class="col-md-9"><input name="optionA" value="@q.OptionA" placeholder="MCQ Option A" class="form-control"/><input name="optionB" value="@q.OptionB" placeholder="MCQ Option B" class="form-control"/><input name="optionC" value="@q.OptionC" placeholder="MCQ Option C" class="form-control"/><input name="optionD" value="@q.OptionD" placeholder="MCQ Option D" class="form-control"/><select name="correctOption" class="form-select"><option value="">MCQ correct option</option>@foreach(var c in new[]{"A","B","C","D"}){if(q.CorrectOption==c){<option selected>@c</option>}else{<option>@c</option>}}</select></div><div class="col-12"><button class="btn btn-primary">Save Changes</button></div></form></details><form asp-action="DeleteQuestion" method="post" class="mt-2">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@q.Id"/><button class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete question?')">Delete</button></form>}
-</div></div>}
-@if(!a.IsPublished){<div class="card"><div class="card-body"><h4>Add Question</h4><form asp-action="SaveQuestion" method="post" class="row g-3">@Html.AntiForgeryToken()<input type="hidden" name="assessmentId" value="@a.Id"/><div class="col-md-4"><label>Section / Type</label><select name="type" class="form-select" required>@foreach(var t in selected){<option>@t</option>}</select></div><div class="col-md-4"><label>Marks for this question</label><input type="number" name="marks" step="0.01" min="0.01" max="@a.MaxMarks" class="form-control" required/></div><div class="col-12"><label>Question / Task</label><textarea name="text" maxlength="4000" class="form-control" required rows="3"></textarea></div><div class="col-md-6"><label>MCQ options (only for MCQ)</label><input name="optionA" placeholder="Option A" class="form-control mb-1"/><input name="optionB" placeholder="Option B" class="form-control mb-1"/><input name="optionC" placeholder="Option C" class="form-control mb-1"/><input name="optionD" placeholder="Option D" class="form-control mb-1"/></div><div class="col-md-4"><label>Correct MCQ option</label><select name="correctOption" class="form-select"><option value="">Not applicable</option><option>A</option><option>B</option><option>C</option><option>D</option></select></div><div class="col-12"><button class="btn btn-primary">Add Question</button></div></form></div></div>}
+@{ 
+    var a = (InternalAssessment)ViewBag.Assessment; 
+    var selected = a.Type.Split(','); 
+    var total = Model.Sum(q => q.Marks); 
+    ViewData["Title"] = $"{a.Title} — Manage Questions"; 
+}
+<div class="container-fluid py-4">
+    <a asp-action="FacultyDashboard" class="btn btn-outline-secondary mb-3">
+        <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+    <h2>@a.Title — Manage Questions</h2>
+    <div class="alert @(total == a.MaxMarks ? "alert-success" : "alert-warning")">
+        Question marks: <strong>@total / @a.MaxMarks</strong>. Total must equal maximum marks before publishing.
+    </div>
+    @if (a.IsPublished)
+    {
+        <div class="alert alert-info">Unpublish assessment to edit questions.</div>
+    }
+
+    @foreach (var q in Model)
+    {
+        <div class="card mb-3 shadow-sm border-0">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-primary">@q.Type</span>
+                        <strong>@q.Marks marks</strong>
+                        @if (q.Type != "MCQ")
+                        {
+                            @if (!string.IsNullOrWhiteSpace(q.ExpectedAnswer) || !string.IsNullOrWhiteSpace(q.Rubric))
+                            {
+                                <span class="badge bg-success-subtle text-success border border-success">
+                                    <i class="bi bi-check2-circle me-1"></i>Rubric Configured
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning-subtle text-dark border border-warning">
+                                    <i class="bi bi-exclamation-circle me-1"></i>Rubric Pending
+                                </span>
+                            }
+                        }
+                    </div>
+                    <span class="text-muted small">Question #@q.Id</span>
+                </div>
+                <p style="white-space:pre-wrap" class="mb-2">@q.Text</p>
+
+                @if (q.Type == "MCQ")
+                {
+                    <div class="p-2 rounded bg-light border small mb-2">
+                        <strong>Options:</strong> A. @q.OptionA | B. @q.OptionB | C. @q.OptionC | D. @q.OptionD<br/>
+                        <strong>Correct:</strong> <span class="badge bg-success">@q.CorrectOption</span>
+                    </div>
+                }
+                else if (!string.IsNullOrWhiteSpace(q.ExpectedAnswer) || !string.IsNullOrWhiteSpace(q.Rubric))
+                {
+                    <details class="mb-2 small">
+                        <summary class="text-primary cursor-pointer">View Reference & Rubric</summary>
+                        <div class="row g-2 mt-1 p-2 rounded bg-light border">
+                            @if (!string.IsNullOrWhiteSpace(q.ExpectedAnswer))
+                            {
+                                <div class="col-md-6">
+                                    <strong>Expected Answer / Key Concepts:</strong>
+                                    <div style="white-space:pre-wrap">@q.ExpectedAnswer</div>
+                                </div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(q.Rubric))
+                            {
+                                <div class="col-md-6">
+                                    <strong>Marking Rubric:</strong>
+                                    <div style="white-space:pre-wrap">@q.Rubric</div>
+                                </div>
+                            }
+                        </div>
+                    </details>
+                }
+
+                @if (!a.IsPublished)
+                {
+                    <details class="mt-2">
+                        <summary class="btn btn-sm btn-outline-secondary">Edit question</summary>
+                        <form asp-action="SaveQuestion" method="post" class="row g-2 mt-2 p-3 bg-light rounded border">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="assessmentId" value="@a.Id"/>
+                            <input type="hidden" name="questionId" value="@q.Id"/>
+                            <div class="col-md-3">
+                                <label class="small fw-semibold">Type</label>
+                                <select name="type" class="form-select edit-question-type" data-qid="@q.Id">
+                                    @foreach (var t in selected)
+                                    {
+                                        if (t == q.Type)
+                                        {
+                                            <option selected>@t</option>
+                                        }
+                                        else
+                                        {
+                                            <option>@t</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="small fw-semibold">Marks</label>
+                                <input type="number" name="marks" class="form-control" step="0.01" min="0.01" value="@q.Marks" required/>
+                            </div>
+                            <div class="col-md-6 edit-mcq-field-@q.Id @(q.Type == "MCQ" ? "" : "d-none")">
+                                <label class="small fw-semibold">MCQ Correct Option</label>
+                                <select name="correctOption" class="form-select">
+                                    <option value="">Not applicable</option>
+                                    @foreach (var c in new[]{"A","B","C","D"})
+                                    {
+                                        if (q.CorrectOption == c)
+                                        {
+                                            <option selected>@c</option>
+                                        }
+                                        else
+                                        {
+                                            <option>@c</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="small fw-semibold">Question / Task Prompt</label>
+                                <textarea name="text" class="form-control" required maxlength="4000" rows="3">@q.Text</textarea>
+                            </div>
+                            <div class="col-md-12 edit-mcq-field-@q.Id @(q.Type == "MCQ" ? "" : "d-none")">
+                                <label class="small fw-semibold">MCQ Options</label>
+                                <div class="row g-2">
+                                    <div class="col-md-6"><input name="optionA" value="@q.OptionA" placeholder="Option A" class="form-control form-control-sm"/></div>
+                                    <div class="col-md-6"><input name="optionB" value="@q.OptionB" placeholder="Option B" class="form-control form-control-sm"/></div>
+                                    <div class="col-md-6"><input name="optionC" value="@q.OptionC" placeholder="Option C" class="form-control form-control-sm"/></div>
+                                    <div class="col-md-6"><input name="optionD" value="@q.OptionD" placeholder="Option D" class="form-control form-control-sm"/></div>
+                                </div>
+                            </div>
+                            <div class="col-md-12 edit-rubric-field-@q.Id @(q.Type == "MCQ" ? "d-none" : "")">
+                                <label class="small fw-semibold">Reference & Evaluation Criteria (for Subjective/Written/Project)</label>
+                                <div class="row g-2">
+                                    <div class="col-md-6"><textarea name="expectedAnswer" placeholder="Expected Answer / Key Concepts..." class="form-control form-control-sm" rows="2">@q.ExpectedAnswer</textarea></div>
+                                    <div class="col-md-6"><textarea name="rubric" placeholder="Marking Rubric / Criteria..." class="form-control form-control-sm" rows="2">@q.Rubric</textarea></div>
+                                </div>
+                            </div>
+                            <div class="col-12 text-end">
+                                <button class="btn btn-primary btn-sm">Save Changes</button>
+                            </div>
+                        </form>
+                    </details>
+                    <form asp-action="DeleteQuestion" method="post" class="mt-2 d-inline-block">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@q.Id"/>
+                        <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete question?')">Delete</button>
+                    </form>
+                }
+            </div>
+        </div>
+    }
+
+    @if (!a.IsPublished)
+    {
+        <div class="card shadow-sm border-0 mt-4">
+            <div class="card-body">
+                <h4 class="card-title fw-bold">Add Question</h4>
+                <form asp-action="SaveQuestion" method="post" class="row g-3">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="assessmentId" value="@a.Id"/>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Section / Type</label>
+                        <select name="type" id="addQuestionType" class="form-select" required>
+                            @foreach (var t in selected)
+                            {
+                                <option>@t</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Marks for this question</label>
+                        <input type="number" name="marks" step="0.01" min="0.01" max="@a.MaxMarks" class="form-control" required/>
+                    </div>
+                    <div class="col-md-4 add-mcq-field d-none" id="addCorrectOptionContainer">
+                        <label class="form-label fw-semibold">Correct MCQ option</label>
+                        <select name="correctOption" class="form-select">
+                            <option value="">Not applicable</option>
+                            <option>A</option>
+                            <option>B</option>
+                            <option>C</option>
+                            <option>D</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Question / Task Prompt</label>
+                        <textarea name="text" maxlength="4000" class="form-control" required rows="3" placeholder="Enter question text here..."></textarea>
+                    </div>
+                    <div class="col-12 add-mcq-field d-none" id="addMcqOptionsContainer">
+                        <label class="form-label fw-semibold">MCQ Options (only for MCQ questions)</label>
+                        <div class="row g-2">
+                            <div class="col-md-6"><input name="optionA" placeholder="Option A" class="form-control"/></div>
+                            <div class="col-md-6"><input name="optionB" placeholder="Option B" class="form-control"/></div>
+                            <div class="col-md-6"><input name="optionC" placeholder="Option C" class="form-control"/></div>
+                            <div class="col-md-6"><input name="optionD" placeholder="Option D" class="form-control"/></div>
+                        </div>
+                    </div>
+                    <div class="col-12" id="addRubricContainer">
+                        <label class="form-label fw-semibold">Reference & Rubric (for Written / Subjective questions)</label>
+                        <div class="row g-2">
+                            <div class="col-md-6"><textarea name="expectedAnswer" placeholder="Expected Answer / Key Concepts..." class="form-control" rows="2"></textarea></div>
+                            <div class="col-md-6"><textarea name="rubric" placeholder="Marking Rubric / Criteria..." class="form-control" rows="2"></textarea></div>
+                        </div>
+                    </div>
+                    <div class="col-12 text-end">
+                        <button class="btn btn-primary px-4">
+                            <i class="bi bi-plus-circle me-1"></i>Add Question
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
 </div>
+
+@section Scripts {
+    <script>
+        $(function() {
+            function syncMcqVisibility(typeSelect, mcqSelector, rubricSelector) {
+                const val = $(typeSelect).val();
+                const isMcq = (val === 'MCQ');
+                if (isMcq) {
+                    $(mcqSelector).removeClass('d-none');
+                    if (rubricSelector) $(rubricSelector).addClass('d-none');
+                } else {
+                    $(mcqSelector).addClass('d-none');
+                    if (rubricSelector) $(rubricSelector).removeClass('d-none');
+                }
+            }
+
+            $('#addQuestionType').on('change', function() {
+                syncMcqVisibility(this, '.add-mcq-field', '#addRubricContainer');
+            });
+            // Initial check for add form
+            syncMcqVisibility('#addQuestionType', '.add-mcq-field', '#addRubricContainer');
+
+            $(document).on('change', '.edit-question-type', function() {
+                const qid = $(this).data('qid');
+                syncMcqVisibility(this, '.edit-mcq-field-' + qid, '.edit-rubric-field-' + qid);
+            });
+        });
+    </script>
+}

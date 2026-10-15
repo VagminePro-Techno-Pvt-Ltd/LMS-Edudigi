@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
+using TMS.Common;
 using System;
 using System.Threading.Tasks;
 
@@ -13,6 +15,23 @@ namespace TMS.Repository
             if (!disposableDatabaseConfirmed)
                 throw new InvalidOperationException(
                     "Database initialization is disabled unless a disposable database was explicitly verified.");
+
+            string? adminPassword = Environment.GetEnvironmentVariable("TMS_BOOTSTRAP_ADMIN_PASSWORD");
+            string? facultyPassword = Environment.GetEnvironmentVariable("TMS_BOOTSTRAP_FACULTY_PASSWORD");
+            string? studentPassword = Environment.GetEnvironmentVariable("TMS_BOOTSTRAP_STUDENT_PASSWORD");
+
+            if (string.IsNullOrWhiteSpace(adminPassword) ||
+                string.IsNullOrWhiteSpace(facultyPassword) ||
+                string.IsNullOrWhiteSpace(studentPassword))
+            {
+                throw new InvalidOperationException(
+                    "Disposable database initialization requires TMS_BOOTSTRAP_ADMIN_PASSWORD, " +
+                    "TMS_BOOTSTRAP_FACULTY_PASSWORD, and TMS_BOOTSTRAP_STUDENT_PASSWORD environment variables.");
+            }
+
+            string adminPasswordHash = SecurityUtility.HashPassword(adminPassword);
+            string facultyPasswordHash = SecurityUtility.HashPassword(facultyPassword);
+            string studentPasswordHash = SecurityUtility.HashPassword(studentPassword);
 
             try
             {
@@ -36,7 +55,7 @@ BEGIN
         [UpdatedOn] [datetime2](7) NULL,
         CONSTRAINT [PK_LectureVideoProgress] PRIMARY KEY CLUSTERED ([Id] ASC)
     );
-    CREATE UNIQUE NONCLUSTERED INDEX [IX_LectureVideoProgress_Student_Material] 
+    CREATE UNIQUE NONCLUSTERED INDEX [IX_LectureVideoProgress_Student_Material]
     ON [dbo].[LectureVideoProgress]([StudentId], [LectureMaterialId]);
 END
 
@@ -64,7 +83,7 @@ END
 -- ─── KEEP ONLY BBA & BCA PROGRAMS & COURSES ───
 -- 1. Identify or create primary BCA category
 DECLARE @BcaId INT = (
-    SELECT TOP 1 [Id] FROM [dbo].[CourseCategoryMaster] 
+    SELECT TOP 1 [Id] FROM [dbo].[CourseCategoryMaster]
     WHERE [Name] LIKE '%Computer Application%' OR [Name] LIKE '%BCA%'
     ORDER BY [Id] ASC
 );
@@ -84,7 +103,7 @@ END
 
 -- 2. Identify or create primary BBA category
 DECLARE @BbaId INT = (
-    SELECT TOP 1 [Id] FROM [dbo].[CourseCategoryMaster] 
+    SELECT TOP 1 [Id] FROM [dbo].[CourseCategoryMaster]
     WHERE [Name] LIKE '%Business Administration%' OR [Name] LIKE '%BBA%' OR [Name] LIKE '%Bussiness%'
     ORDER BY [Id] ASC
 );
@@ -213,7 +232,7 @@ DECLARE @StudentRoleId INT = (SELECT TOP 1 [Id] FROM [dbo].[RoleMaster] WHERE [N
 IF NOT EXISTS (SELECT 1 FROM [dbo].[UserMaster] WHERE [Email] = 'newadmin@edudigi.com')
 BEGIN
     INSERT INTO [dbo].[UserMaster] ([Name], [Email], [Password], [RoleId], [IsActive], [ForcePasswordChange], [CreatedOn], [CreatedBy])
-    VALUES ('Edudigi Super Admin', 'newadmin@edudigi.com', 'Admin@123', ISNULL(@AdminRoleId, 1), 1, 0, GETDATE(), 1);
+    VALUES ('Edudigi Super Admin', 'newadmin@edudigi.com', @AdminPasswordHash, ISNULL(@AdminRoleId, 1), 1, 1, GETDATE(), 1);
 END
 ELSE
 BEGIN
@@ -226,7 +245,7 @@ END
 IF NOT EXISTS (SELECT 1 FROM [dbo].[UserMaster] WHERE [Email] = 'newfaculty@edudigi.com')
 BEGIN
     INSERT INTO [dbo].[UserMaster] ([Name], [Email], [Password], [RoleId], [IsActive], [ForcePasswordChange], [CreatedOn], [CreatedBy])
-    VALUES ('Edudigi Faculty', 'newfaculty@edudigi.com', 'Admin@123', ISNULL(@FacultyRoleId, 2), 1, 0, GETDATE(), 1);
+    VALUES ('Edudigi Faculty', 'newfaculty@edudigi.com', @FacultyPasswordHash, ISNULL(@FacultyRoleId, 2), 1, 1, GETDATE(), 1);
 END
 ELSE
 BEGIN
@@ -272,13 +291,13 @@ END
 IF NOT EXISTS (SELECT 1 FROM [dbo].[UserMaster] WHERE [Email] = 'newstudent@edudigi.com')
 BEGIN
     INSERT INTO [dbo].[UserMaster] ([Name], [Email], [Password], [RoleId], [IsActive], [ForcePasswordChange], [CreatedOn], [CreatedBy])
-    VALUES ('Edudigi Student', 'newstudent@edudigi.com', 'Admin@123', ISNULL(@StudentRoleId, 3), 1, 0, GETDATE(), 1);
+    VALUES ('Edudigi Student', 'newstudent@edudigi.com', @StudentPasswordHash, ISNULL(@StudentRoleId, 3), 1, 1, GETDATE(), 1);
 END
 ELSE
 BEGIN
     UPDATE [dbo].[UserMaster]
-    SET [RoleId] = ISNULL(@StudentRoleId, [RoleId]), 
-        [IsActive] = 1, 
+    SET [RoleId] = ISNULL(@StudentRoleId, [RoleId]),
+        [IsActive] = 1,
         [ForcePasswordChange] = 0
     WHERE [Email] = 'newstudent@edudigi.com';
 END
@@ -349,7 +368,7 @@ BEGIN
                 INSERT INTO [dbo].[QuizOption] ([QuizQuestionId], [OptionText], [IsCorrectOption], [IsActive], [CreatedBy], [CreatedOn]) VALUES (@Q1Id, '404 Not Found', 0, 1, ISNULL(@FacultyUserId, 1), GETDATE());
                 INSERT INTO [dbo].[QuizOption] ([QuizQuestionId], [OptionText], [IsCorrectOption], [IsActive], [CreatedBy], [CreatedOn]) VALUES (@Q1Id, '500 Internal Server Error', 0, 1, ISNULL(@FacultyUserId, 1), GETDATE());
                 INSERT INTO [dbo].[QuizOption] ([QuizQuestionId], [OptionText], [IsCorrectOption], [IsActive], [CreatedBy], [CreatedOn]) VALUES (@Q1Id, '301 Moved Permanently', 0, 1, ISNULL(@FacultyUserId, 1), GETDATE());
-                
+
                 UPDATE [dbo].[QuizQuestion] SET [CorrectOptionId] = @CorrectOptId WHERE [Id] = @Q1Id;
             END
 
@@ -364,14 +383,18 @@ BEGIN
                 INSERT INTO [dbo].[QuizOption] ([QuizQuestionId], [OptionText], [IsCorrectOption], [IsActive], [CreatedBy], [CreatedOn]) VALUES (@Q2Id, 'FOREIGN KEY', 0, 1, ISNULL(@FacultyUserId, 1), GETDATE());
                 INSERT INTO [dbo].[QuizOption] ([QuizQuestionId], [OptionText], [IsCorrectOption], [IsActive], [CreatedBy], [CreatedOn]) VALUES (@Q2Id, 'CHECK', 0, 1, ISNULL(@FacultyUserId, 1), GETDATE());
                 INSERT INTO [dbo].[QuizOption] ([QuizQuestionId], [OptionText], [IsCorrectOption], [IsActive], [CreatedBy], [CreatedOn]) VALUES (@Q2Id, 'DEFAULT', 0, 1, ISNULL(@FacultyUserId, 1), GETDATE());
-                
+
                 UPDATE [dbo].[QuizQuestion] SET [CorrectOptionId] = @CorrectOpt2Id WHERE [Id] = @Q2Id;
             END
         END
     END
 END
 ";
-                await context.Database.ExecuteSqlRawAsync(sql);
+                await context.Database.ExecuteSqlRawAsync(
+                    sql,
+                    new SqlParameter("@AdminPasswordHash", adminPasswordHash),
+                    new SqlParameter("@FacultyPasswordHash", facultyPasswordHash),
+                    new SqlParameter("@StudentPasswordHash", studentPasswordHash));
             }
             catch (Exception ex)
             {

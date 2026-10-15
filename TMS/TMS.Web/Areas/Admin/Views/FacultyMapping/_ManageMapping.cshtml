@@ -90,7 +90,7 @@
                 <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa fa-search"></i></span>
                 <input type="text" id="facultySearchInput" class="form-control border-start-0 bg-light" placeholder="Search instructor or email..." />
             </div>
-            
+
             <div class="d-flex align-items-center gap-2">
                 <div class="d-flex gap-1">
                     <button type="button" class="modal-filter-btn active" data-filter="all">All</button>
@@ -199,7 +199,7 @@
                 var name = $(this).find(".faculty-name").text().toLowerCase();
                 var email = $(this).find(".faculty-email").text().toLowerCase();
                 var isChecked = $(this).find(".faculty-checkbox").is(":checked");
-                
+
                 var matchesQuery = name.indexOf(q) > -1 || email.indexOf(q) > -1;
                 var matchesFilter = (filter === "all") ||
                                     (filter === "selected" && isChecked) ||
@@ -223,7 +223,7 @@
             var isChecked = $(this).is(":checked");
             var row = $(this).closest(".faculty-row");
             var badge = $(".status-badge-" + val);
-            
+
             row.attr("data-selected", isChecked ? "true" : "false");
 
             if (isChecked) {
