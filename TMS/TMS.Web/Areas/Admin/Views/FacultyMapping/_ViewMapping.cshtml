@@ -99,7 +99,7 @@
                         <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1 rounded-pill small">
                             <i class="fa fa-check-circle me-1"></i> Active
                         </span>
-                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1" 
+                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1"
                                 onclick="unassignSingleInstructorModal(@courseId, @item.FacultyId, '@name.Replace("'", "\\'")')">
                             <i class="fa fa-trash-can me-1"></i> Unassign
                         </button>
@@ -128,8 +128,8 @@
                 var msg = (res && (res.message || res.Message || res.msg || res.Msg)) || (isSuccess ? "Instructor unassigned successfully." : "Failed to unassign instructor.");
 
                 if (isSuccess) {
-                    $('.faculty-item-' + facultyId).fadeOut(250, function() { 
-                        $(this).remove(); 
+                    $('.faculty-item-' + facultyId).fadeOut(250, function() {
+                        $(this).remove();
                         var current = parseInt($('#viewAssignedNum').text()) || 1;
                         var newCount = Math.max(0, current - 1);
                         $('#viewAssignedNum').text(newCount);

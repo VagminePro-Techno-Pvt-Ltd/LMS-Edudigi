@@ -189,6 +189,3 @@ namespace TMS.Repository.Managers.Implementations.Masters
         }
     }
 }
-
-
-

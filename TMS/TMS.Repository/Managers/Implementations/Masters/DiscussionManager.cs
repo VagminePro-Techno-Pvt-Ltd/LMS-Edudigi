@@ -90,7 +90,7 @@ namespace TMS.Repository.Managers.Implementations.Masters
             {
                 thread.ViewCount++;
                 await _context.SaveChangesAsync();
-                
+
                 // Build tree structure for replies
                 if (thread.Replies != null)
                 {
@@ -166,7 +166,7 @@ namespace TMS.Repository.Managers.Implementations.Masters
             var existingAccepted = await _context.DiscussionReplies
                 .Where(r => r.ThreadId == reply.ThreadId && r.IsAccepted)
                 .ToListAsync();
-            
+
             foreach (var r in existingAccepted) r.IsAccepted = false;
 
             reply.IsAccepted = true;
@@ -177,7 +177,7 @@ namespace TMS.Repository.Managers.Implementations.Masters
         public async Task<bool> CanUserAccessForumAsync(int programId, int userId, string userRole)
         {
             if (string.IsNullOrEmpty(userRole)) return false;
-            
+
             userRole = userRole.ToUpper();
 
             if (userRole.Contains("ADMIN") || userRole.Contains("MANAGEMENT") || userRole.Contains("EXAM COORDINATOR") || userRole.Contains("COORDINATOR")) return true;
@@ -186,7 +186,7 @@ namespace TMS.Repository.Managers.Implementations.Masters
             {
                 var isMapped = await _context.CourseFacultyMaps
                     .Include(m => m.Course)
-                    .AnyAsync(m => m.FacultyId == userId && 
+                    .AnyAsync(m => m.FacultyId == userId &&
                                    m.Course.CourseCategoryId == programId);
                 if (isMapped) return true;
 
@@ -197,8 +197,8 @@ namespace TMS.Repository.Managers.Implementations.Masters
             {
                 return await _context.CourseEnrollments
                     .Include(e => e.Course)
-                    .AnyAsync(e => e.StudentId == userId && 
-                                   e.Status == 1 && 
+                    .AnyAsync(e => e.StudentId == userId &&
+                                   e.Status == 1 &&
                                    e.Course.CourseCategoryId == programId);
             }
 
@@ -225,4 +225,3 @@ namespace TMS.Repository.Managers.Implementations.Masters
         }
     }
 }
-

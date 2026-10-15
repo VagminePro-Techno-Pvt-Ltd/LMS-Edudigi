@@ -20,9 +20,10 @@ public class InternalAssessmentController : BaseController
 {
     private readonly ApplicationDBContext db;
     private readonly IWebHostEnvironment environment;
+    private readonly IAiEvaluationService aiService;
     private static readonly string[] Types = { "Assignment", "Written", "Practical", "Project", "Presentation", "Viva", "MCQ" };
-    public InternalAssessmentController(ApplicationDBContext db, IWebHostEnvironment environment)
-    { this.db = db; this.environment = environment; }
+    public InternalAssessmentController(ApplicationDBContext db, IWebHostEnvironment environment, IAiEvaluationService aiService)
+    { this.db = db; this.environment = environment; this.aiService = aiService; }
 
     private IActionResult IaNotice(string action, string message, string kind = "warning", object? route = null)
     {
@@ -582,7 +583,7 @@ public class InternalAssessmentController : BaseController
         return View(await db.InternalAssessmentQuestions.Where(q=>q.AssessmentId==id).OrderBy(q=>q.SortOrder).ThenBy(q=>q.Id).ToListAsync());
     }
     [HttpPost,ValidateAntiForgeryToken]
-    public async Task<IActionResult> SaveQuestion(int assessmentId,int? questionId,string type,string text,decimal marks,string? optionA,string? optionB,string? optionC,string? optionD,string? correctOption)
+    public async Task<IActionResult> SaveQuestion(int assessmentId,int? questionId,string type,string text,decimal marks,string? optionA,string? optionB,string? optionC,string? optionD,string? correctOption,string? expectedAnswer = null,string? rubric = null)
     {
         if (!Staff) return Forbid();
         var a=await db.InternalAssessments.FindAsync(assessmentId);
@@ -596,7 +597,9 @@ public class InternalAssessmentController : BaseController
         var other=await db.InternalAssessmentQuestions.Where(x=>x.AssessmentId==assessmentId && (!questionId.HasValue || x.Id!=questionId.Value)).SumAsync(x=>(decimal?)x.Marks) ?? 0;
         if (other+marks>a.MaxMarks) return BadRequest("Total question marks exceed assessment maximum.");
         if (q==null) { q=new InternalAssessmentQuestion { AssessmentId=assessmentId,SortOrder=await db.InternalAssessmentQuestions.CountAsync(x=>x.AssessmentId==assessmentId)+1 };db.InternalAssessmentQuestions.Add(q); }
+        else if (q.ExpectedAnswer != expectedAnswer?.Trim() || q.Rubric != rubric?.Trim()) { q.RubricVersion += 1; }
         q.Type=type;q.Text=text.Trim();q.Marks=marks;q.OptionA=type=="MCQ"?optionA:null;q.OptionB=type=="MCQ"?optionB:null;q.OptionC=type=="MCQ"?optionC:null;q.OptionD=type=="MCQ"?optionD:null;q.CorrectOption=type=="MCQ"?correctOption:null;
+        q.ExpectedAnswer=type=="MCQ"?null:expectedAnswer?.Trim();q.Rubric=type=="MCQ"?null:rubric?.Trim();
         await db.SaveChangesAsync();return RedirectToAction(nameof(Questions),new{id=assessmentId});
     }
     [HttpPost,ValidateAntiForgeryToken]
@@ -620,31 +623,214 @@ public class InternalAssessmentController : BaseController
         ViewBag.Assessment=a;
         return View(await db.InternalAssessmentQuestions.Where(q=>q.AssessmentId==id).OrderBy(q=>q.SortOrder).ThenBy(q=>q.Id).ToListAsync());
     }
-    [HttpPost,ValidateAntiForgeryToken]
-    public async Task<IActionResult> SubmitAnswers(int id,Dictionary<int,string> answers)
+    [HttpPost, ValidateAntiForgeryToken, RequestSizeLimit(33554432)]
+    public async Task<IActionResult> SubmitAnswers(int id, Dictionary<int, string>? answers)
     {
         if (!Student) return Forbid();
-        var a=await db.InternalAssessments.FindAsync(id);if(a==null||a.IsDeleted||!a.IsPublished)return NotFound();
-        if(!await Enrolled(a.CourseId))return Forbid();
-        if(!a.WindowId.HasValue)return BadRequest("No schedule.");
-        var w=await db.InternalAssessmentWindows.FindAsync(a.WindowId.Value);
-        if(w==null||!w.IsActive||DateTime.Now<w.StartsOn||DateTime.Now>w.EndsOn||(DateTime.Now>a.DueDate&&!a.AllowLateSubmission))return BadRequest("Assessment is not open.");
-        var qs=await db.InternalAssessmentQuestions.Where(q=>q.AssessmentId==id).ToListAsync();if(qs.Count==0)return BadRequest("No questions.");
-        if(answers==null||qs.Any(q=>!answers.TryGetValue(q.Id,out var v)||string.IsNullOrWhiteSpace(v)||v.Length>10000||(q.Type=="MCQ"&&!new[]{"A","B","C","D"}.Contains(v))))return BadRequest("Answer every question (max 10000 characters per answer).");
-        if(await db.InternalAssessmentSubmissions.AnyAsync(x=>x.AssessmentId==id&&x.StudentId==GetUserId()))return Conflict("Already submitted.");
+        var a = await db.InternalAssessments.FindAsync(id);
+        if (a == null || a.IsDeleted || !a.IsPublished) return NotFound();
+        if (!await Enrolled(a.CourseId)) return Forbid();
+        if (!a.WindowId.HasValue) return BadRequest("No schedule.");
+        var w = await db.InternalAssessmentWindows.FindAsync(a.WindowId.Value);
+        if (w == null || !w.IsActive || DateTime.Now < w.StartsOn || DateTime.Now > w.EndsOn || (DateTime.Now > a.DueDate && !a.AllowLateSubmission))
+            return BadRequest("Assessment is not open.");
+
+        var qs = await db.InternalAssessmentQuestions.Where(q => q.AssessmentId == id).OrderBy(q => q.SortOrder).ThenBy(q => q.Id).ToListAsync();
+        if (qs.Count == 0) return BadRequest("No questions.");
+
+        if (await db.InternalAssessmentSubmissions.AnyAsync(x => x.AssessmentId == id && x.StudentId == GetUserId()))
+            return Conflict("Already submitted.");
+
+        var temporaryPaths = new List<string>();
+        var finalPaths = new List<string>();
+        var folder = Path.Combine(environment.ContentRootPath, "InternalAssessmentUploads");
+        Directory.CreateDirectory(folder);
+
         try
         {
+            var questionFiles = new Dictionary<int, string>();
+            string? firstUploadedFile = null;
+
+            // Optional overall attachment
+            var generalFile = Request.Form.Files["generalAttachment"] ?? Request.Form.Files["attachment"];
+            if (generalFile != null && generalFile.Length > 0)
+            {
+                var ext = Path.GetExtension(generalFile.FileName).ToLowerInvariant();
+                if (!new[] { ".pdf", ".docx", ".pptx", ".jpg", ".jpeg", ".png" }.Contains(ext) || generalFile.Length > InternalAssessmentUploadValidator.MaximumBytes)
+                    return BadRequest("Overall attachment exceeds 8MB or is not an allowed format (.pdf, .docx, .pptx, .jpg, .png).");
+
+                await using (var input = generalFile.OpenReadStream())
+                {
+                    if (!await InternalAssessmentUploadValidator.IsValidAsync(input, generalFile.Length, ext, HttpContext.RequestAborted))
+                        return BadRequest("Overall attachment content is invalid or corrupted.");
+                }
+
+                var genName = Guid.NewGuid().ToString("N") + ext;
+                var tmpPath = Path.Combine(folder, genName + ".tmp");
+                var finPath = Path.Combine(folder, genName);
+                await using (var stream = System.IO.File.Create(tmpPath))
+                {
+                    await generalFile.CopyToAsync(stream, HttpContext.RequestAborted);
+                }
+                temporaryPaths.Add(tmpPath);
+                finalPaths.Add(finPath);
+                firstUploadedFile = genName;
+            }
+
+            // Validate answers and process per-question document uploads
+            answers ??= new Dictionary<int, string>();
+            foreach (var q in qs)
+            {
+                answers.TryGetValue(q.Id, out var textVal);
+                textVal = textVal?.Trim();
+
+                var qFile = Request.Form.Files[$"attachment_{q.Id}"]
+                         ?? Request.Form.Files[$"attachments[{q.Id}]"];
+
+                if (qFile != null && qFile.Length > 0)
+                {
+                    var ext = Path.GetExtension(qFile.FileName).ToLowerInvariant();
+                    if (!new[] { ".pdf", ".docx", ".pptx", ".jpg", ".jpeg", ".png" }.Contains(ext) || qFile.Length > InternalAssessmentUploadValidator.MaximumBytes)
+                        return BadRequest($"Uploaded file for Question #{q.SortOrder} exceeds 8MB or is not an allowed format (.pdf, .docx, .pptx, .jpg, .png).");
+
+                    await using (var input = qFile.OpenReadStream())
+                    {
+                        if (!await InternalAssessmentUploadValidator.IsValidAsync(input, qFile.Length, ext, HttpContext.RequestAborted))
+                            return BadRequest($"File content for Question #{q.SortOrder} is invalid or corrupted.");
+                    }
+
+                    var safeName = Guid.NewGuid().ToString("N") + ext;
+                    var tmpPath = Path.Combine(folder, safeName + ".tmp");
+                    var finPath = Path.Combine(folder, safeName);
+                    await using (var stream = System.IO.File.Create(tmpPath))
+                    {
+                        await qFile.CopyToAsync(stream, HttpContext.RequestAborted);
+                    }
+                    temporaryPaths.Add(tmpPath);
+                    finalPaths.Add(finPath);
+                    questionFiles[q.Id] = safeName;
+                    firstUploadedFile ??= safeName;
+                }
+
+                if (q.Type == "MCQ")
+                {
+                    if (string.IsNullOrWhiteSpace(textVal) || !new[] { "A", "B", "C", "D" }.Contains(textVal))
+                        return BadRequest($"Please select an answer (A, B, C, or D) for MCQ Question #{q.SortOrder}.");
+                }
+                else if (string.Equals(q.Type, "Project", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(q.Type, "Presentation", StringComparison.OrdinalIgnoreCase))
+                {
+                    var hasFile = questionFiles.ContainsKey(q.Id) || !string.IsNullOrEmpty(firstUploadedFile);
+                    var hasText = !string.IsNullOrWhiteSpace(textVal);
+
+                    if (!hasFile && !hasText)
+                    {
+                        return BadRequest($"Please upload a project/presentation document or enter notes for Question #{q.SortOrder}.");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(textVal) && hasFile)
+                    {
+                        textVal = $"[Document Uploaded: {qFile?.FileName ?? "Attachment"}]";
+                        answers[q.Id] = textVal;
+                    }
+                }
+                else
+                {
+                    if (string.IsNullOrWhiteSpace(textVal) && !questionFiles.ContainsKey(q.Id))
+                        return BadRequest($"Please provide an answer for Question #{q.SortOrder} (max 10000 characters).");
+
+                    if ((textVal?.Length ?? 0) > 10000)
+                        return BadRequest($"Answer for Question #{q.SortOrder} exceeds 10000 characters.");
+                }
+            }
+
             await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
-            if(await db.InternalAssessmentSubmissions.AnyAsync(x=>x.AssessmentId==id&&x.StudentId==GetUserId()))return Conflict("Already submitted.");
-            var submission=new InternalAssessmentSubmission { AssessmentId=id,StudentId=GetUserId(),SubmittedOn=DateTime.UtcNow,IsLate=DateTime.Now>a.DueDate };
-            db.InternalAssessmentSubmissions.Add(submission);await db.SaveChangesAsync();
-            foreach(var q in qs) db.InternalAssessmentQuestionAnswers.Add(new InternalAssessmentQuestionAnswer {SubmissionId=submission.Id,QuestionId=q.Id,AnswerText=answers[q.Id],Marks=q.Type=="MCQ"?(answers[q.Id]==q.CorrectOption?q.Marks:0):null});
-            await db.SaveChangesAsync();await transaction.CommitAsync();TempData["IA_Message"]="Assessment submitted successfully.";return RedirectToAction(nameof(StudentDashboard));
+            if (await db.InternalAssessmentSubmissions.AnyAsync(x => x.AssessmentId == id && x.StudentId == GetUserId()))
+            {
+                foreach (var p in temporaryPaths) DeleteUploadIfPresent(p);
+                return Conflict("Already submitted.");
+            }
+
+            var submission = new InternalAssessmentSubmission
+            {
+                AssessmentId = id,
+                StudentId = GetUserId(),
+                SubmittedOn = DateTime.UtcNow,
+                IsLate = DateTime.Now > a.DueDate,
+                FilePath = firstUploadedFile
+            };
+            db.InternalAssessmentSubmissions.Add(submission);
+            await db.SaveChangesAsync();
+
+            foreach (var q in qs)
+            {
+                answers.TryGetValue(q.Id, out var ansText);
+                questionFiles.TryGetValue(q.Id, out var qFilePath);
+
+                db.InternalAssessmentQuestionAnswers.Add(new InternalAssessmentQuestionAnswer
+                {
+                    SubmissionId = submission.Id,
+                    QuestionId = q.Id,
+                    AnswerText = ansText,
+                    FilePath = qFilePath,
+                    Marks = q.Type == "MCQ" ? (ansText == q.CorrectOption ? q.Marks : 0) : null
+                });
+            }
+
+            await db.SaveChangesAsync();
+
+            for (var i = 0; i < temporaryPaths.Count; i++)
+            {
+                if (System.IO.File.Exists(temporaryPaths[i]))
+                {
+                    System.IO.File.Move(temporaryPaths[i], finalPaths[i]);
+                }
+            }
+
+            await transaction.CommitAsync();
+            TempData["IA_Message"] = "Assessment submitted successfully.";
+            return RedirectToAction(nameof(StudentDashboard));
         }
         catch (Exception ex) when (IsConcurrentSubmissionException(ex))
         {
+            foreach (var p in temporaryPaths) DeleteUploadIfPresent(p);
+            foreach (var p in finalPaths) DeleteUploadIfPresent(p);
             return Conflict("A submission already exists or another submission is being processed.");
         }
+        catch
+        {
+            foreach (var p in temporaryPaths) DeleteUploadIfPresent(p);
+            foreach (var p in finalPaths) DeleteUploadIfPresent(p);
+            throw;
+        }
+    }
+
+    public async Task<IActionResult> DownloadAnswerFile(int answerId)
+    {
+        var ans = await db.InternalAssessmentQuestionAnswers.FindAsync(answerId);
+        if (ans == null || string.IsNullOrEmpty(ans.FilePath)) return NotFound();
+        var s = await db.InternalAssessmentSubmissions.FindAsync(ans.SubmissionId);
+        if (s == null) return NotFound();
+        var a = await db.InternalAssessments.FindAsync(s.AssessmentId);
+        if (a == null || a.IsDeleted) return NotFound();
+
+        if (s.StudentId == GetUserId())
+        {
+            if (!Student || !await db.CourseEnrollments.AnyAsync(e => e.StudentId == GetUserId() && e.CourseId == a.CourseId && e.Status == 1))
+                return Forbid();
+        }
+        else if (!Staff || !await CanManage(a))
+        {
+            return Forbid();
+        }
+
+        var path = Path.Combine(environment.ContentRootPath, "InternalAssessmentUploads", Path.GetFileName(ans.FilePath));
+        if (!System.IO.File.Exists(path)) return NotFound();
+
+        var q = await db.InternalAssessmentQuestions.FindAsync(ans.QuestionId);
+        var qType = q?.Type ?? "Question";
+        var downloadName = $"{qType}_Q{ans.QuestionId}_{s.StudentId}{Path.GetExtension(path)}";
+        return PhysicalFile(path, "application/octet-stream", downloadName);
     }
     public async Task<IActionResult> GradeQuestions(int submissionId)
     {
@@ -675,6 +861,294 @@ public class InternalAssessmentController : BaseController
         s.Marks=rows.Sum(x=>x.Marks??0);s.EvaluatedBy=GetUserId();s.EvaluatedOn=DateTime.UtcNow;
         a.ResultApproved=false;a.ResultApprovalRequested=false;a.ResultApprovedBy=null;a.ResultApprovedOn=null;
         await db.SaveChangesAsync();return RedirectToAction(nameof(Submissions),new{id=a.Id});
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> EvaluateQuestionAi(int submissionId, int questionId, System.Threading.CancellationToken cancellationToken)
+    {
+        if (!Staff) return Forbid();
+        var s = await db.InternalAssessmentSubmissions.FindAsync(submissionId);
+        if (s == null) return NotFound();
+        var a = await db.InternalAssessments.FindAsync(s.AssessmentId);
+        if (a == null || a.IsDeleted) return NotFound();
+        if (!await CanManage(a)) return Forbid();
+
+        var q = await db.InternalAssessmentQuestions.FirstOrDefaultAsync(x => x.Id == questionId && x.AssessmentId == a.Id);
+        if (q == null) return NotFound();
+
+        var r = await db.InternalAssessmentQuestionAnswers.FirstOrDefaultAsync(x => x.SubmissionId == submissionId && x.QuestionId == questionId);
+        if (r == null) return NotFound();
+
+        var req = new AiEvaluationRequest
+        {
+            QuestionId = q.Id,
+            QuestionType = q.Type,
+            QuestionText = q.Text,
+            MaxMarks = q.Marks,
+            ExpectedAnswer = q.ExpectedAnswer,
+            Rubric = q.Rubric,
+            RubricVersion = q.RubricVersion,
+            StudentAnswer = r.AnswerText
+        };
+
+        var eval = await aiService.EvaluateQuestionAsync(req, cancellationToken);
+
+        if (eval.Success)
+        {
+            r.AiConceptualMatchPercentage = eval.ConceptualMatchPercentage;
+            r.AiSuggestedMarks = eval.SuggestedMarks;
+            r.AiThresholdMet = eval.ThresholdMet;
+            r.AiFeedback = eval.Feedback;
+            r.AiStrengths = eval.Strengths;
+            r.AiMissingConcepts = eval.MissingConcepts;
+            r.AiConfidence = eval.Confidence;
+            r.AiModel = eval.Model;
+            r.AiEvaluatedOn = eval.EvaluatedOn;
+            r.AiRubricVersion = q.RubricVersion;
+            r.AiEvaluationMetadata = eval.RawResponseJson;
+            await db.SaveChangesAsync();
+        }
+
+        return Json(new
+        {
+            success = eval.Success,
+            rubricRequired = eval.RubricRequired,
+            errorMessage = eval.ErrorMessage,
+            questionId = q.Id,
+            evaluation = eval
+        });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> EvaluateAllQuestionsAi(int submissionId, System.Threading.CancellationToken cancellationToken)
+    {
+        if (!Staff) return Forbid();
+        var s = await db.InternalAssessmentSubmissions.FindAsync(submissionId);
+        if (s == null) return NotFound();
+        var a = await db.InternalAssessments.FindAsync(s.AssessmentId);
+        if (a == null || a.IsDeleted) return NotFound();
+        if (!await CanManage(a)) return Forbid();
+
+        var questions = await db.InternalAssessmentQuestions
+            .Where(q => q.AssessmentId == a.Id)
+            .OrderBy(q => q.SortOrder)
+            .ThenBy(q => q.Id)
+            .ToListAsync();
+
+        var answers = await db.InternalAssessmentQuestionAnswers
+            .Where(x => x.SubmissionId == submissionId)
+            .ToDictionaryAsync(x => x.QuestionId);
+
+        var results = new List<object>();
+        var totalEvaluated = 0;
+        var totalRubricRequired = 0;
+        var totalErrors = 0;
+
+        foreach (var q in questions)
+        {
+            if (q.Type == "MCQ")
+                continue;
+
+            if (!answers.TryGetValue(q.Id, out var r))
+                continue;
+
+            var req = new AiEvaluationRequest
+            {
+                QuestionId = q.Id,
+                QuestionType = q.Type,
+                QuestionText = q.Text,
+                MaxMarks = q.Marks,
+                ExpectedAnswer = q.ExpectedAnswer,
+                Rubric = q.Rubric,
+                RubricVersion = q.RubricVersion,
+                StudentAnswer = r.AnswerText
+            };
+
+            var eval = await aiService.EvaluateQuestionAsync(req, cancellationToken);
+            if (eval.Success)
+            {
+                r.AiConceptualMatchPercentage = eval.ConceptualMatchPercentage;
+                r.AiSuggestedMarks = eval.SuggestedMarks;
+                r.AiThresholdMet = eval.ThresholdMet;
+                r.AiFeedback = eval.Feedback;
+                r.AiStrengths = eval.Strengths;
+                r.AiMissingConcepts = eval.MissingConcepts;
+                r.AiConfidence = eval.Confidence;
+                r.AiModel = eval.Model;
+                r.AiEvaluatedOn = eval.EvaluatedOn;
+                r.AiRubricVersion = q.RubricVersion;
+                r.AiEvaluationMetadata = eval.RawResponseJson;
+                totalEvaluated++;
+            }
+            else if (eval.RubricRequired)
+            {
+                totalRubricRequired++;
+            }
+            else
+            {
+                totalErrors++;
+            }
+
+            results.Add(new
+            {
+                questionId = q.Id,
+                success = eval.Success,
+                rubricRequired = eval.RubricRequired,
+                errorMessage = eval.ErrorMessage,
+                evaluation = eval
+            });
+        }
+
+        await db.SaveChangesAsync();
+
+        return Json(new
+        {
+            success = true,
+            totalQuestions = questions.Count(q => q.Type != "MCQ"),
+            totalEvaluated,
+            totalRubricRequired,
+            totalErrors,
+            results
+        });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveQuestionRubric(int submissionId, int questionId, string? expectedAnswer, string? rubric)
+    {
+        if (!Staff) return Forbid();
+        var s = await db.InternalAssessmentSubmissions.FindAsync(submissionId);
+        if (s == null) return NotFound();
+        var a = await db.InternalAssessments.FindAsync(s.AssessmentId);
+        if (a == null || a.IsDeleted) return NotFound();
+        if (!await CanManage(a)) return Forbid();
+
+        var q = await db.InternalAssessmentQuestions.FirstOrDefaultAsync(x => x.Id == questionId && x.AssessmentId == a.Id);
+        if (q == null) return NotFound();
+
+        q.ExpectedAnswer = expectedAnswer?.Trim();
+        q.Rubric = rubric?.Trim();
+        q.RubricVersion += 1;
+
+        await db.SaveChangesAsync();
+
+        return Json(new
+        {
+            success = true,
+            questionId = q.Id,
+            rubricVersion = q.RubricVersion,
+            message = "Rubric saved successfully."
+        });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> AcceptAiMarks(int submissionId, int questionId)
+    {
+        if (!Staff) return Forbid();
+        var s = await db.InternalAssessmentSubmissions.FindAsync(submissionId);
+        if (s == null) return NotFound();
+        var a = await db.InternalAssessments.FindAsync(s.AssessmentId);
+        if (a == null || a.IsDeleted) return NotFound();
+        if (!await CanManage(a)) return Forbid();
+
+        if ((a.ResultsPublished && s.Marks.HasValue) || a.ResultApprovalRequested || a.ResultApproved)
+            return BadRequest("This result is already published or under review. Hide results before changing an existing grade.");
+
+        var r = await db.InternalAssessmentQuestionAnswers.FirstOrDefaultAsync(x => x.SubmissionId == submissionId && x.QuestionId == questionId);
+        if (r == null) return NotFound();
+
+        if (!r.AiSuggestedMarks.HasValue)
+            return BadRequest("No evaluated marks available to apply.");
+
+        var q = await db.InternalAssessmentQuestions.FirstOrDefaultAsync(x => x.Id == questionId && x.AssessmentId == a.Id);
+        if (q == null) return NotFound();
+
+        var marks = Math.Clamp(r.AiSuggestedMarks.Value, 0m, q.Marks);
+        r.Marks = marks;
+        if (!string.IsNullOrWhiteSpace(r.AiFeedback))
+        {
+            r.Feedback = r.AiFeedback.Length > 1000 ? r.AiFeedback.Substring(0, 997) + "..." : r.AiFeedback;
+        }
+        r.AiAccepted = true;
+
+        var allAnswers = await db.InternalAssessmentQuestionAnswers.Where(x => x.SubmissionId == submissionId).ToListAsync();
+        s.Marks = allAnswers.Sum(x => x.Marks ?? 0m);
+        s.EvaluatedBy = GetUserId();
+        s.EvaluatedOn = DateTime.UtcNow;
+
+        a.ResultApproved = false;
+        a.ResultApprovalRequested = false;
+        a.ResultApprovedBy = null;
+        a.ResultApprovedOn = null;
+
+        await db.SaveChangesAsync();
+
+        return Json(new
+        {
+            success = true,
+            questionId = q.Id,
+            marks = r.Marks,
+            feedback = r.Feedback,
+            submissionTotal = s.Marks
+        });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> AcceptAllAiMarks(int submissionId)
+    {
+        if (!Staff) return Forbid();
+        var s = await db.InternalAssessmentSubmissions.FindAsync(submissionId);
+        if (s == null) return NotFound();
+        var a = await db.InternalAssessments.FindAsync(s.AssessmentId);
+        if (a == null || a.IsDeleted) return NotFound();
+        if (!await CanManage(a)) return Forbid();
+
+        if ((a.ResultsPublished && s.Marks.HasValue) || a.ResultApprovalRequested || a.ResultApproved)
+            return BadRequest("This result is already published or under review. Hide results before changing an existing grade.");
+
+        var qs = await db.InternalAssessmentQuestions.Where(q => q.AssessmentId == a.Id).ToDictionaryAsync(q => q.Id);
+        var rows = await db.InternalAssessmentQuestionAnswers.Where(x => x.SubmissionId == submissionId).ToListAsync();
+
+        var acceptedCount = 0;
+        foreach (var r in rows)
+        {
+            if (qs.TryGetValue(r.QuestionId, out var q))
+            {
+                if (q.Type == "MCQ")
+                {
+                    r.Marks = r.AnswerText == q.CorrectOption ? q.Marks : 0;
+                    continue;
+                }
+
+                if (r.AiSuggestedMarks.HasValue)
+                {
+                    r.Marks = Math.Clamp(r.AiSuggestedMarks.Value, 0m, q.Marks);
+                    if (!string.IsNullOrWhiteSpace(r.AiFeedback))
+                    {
+                        r.Feedback = r.AiFeedback.Length > 1000 ? r.AiFeedback.Substring(0, 997) + "..." : r.AiFeedback;
+                    }
+                    r.AiAccepted = true;
+                    acceptedCount++;
+                }
+            }
+        }
+
+        s.Marks = rows.Sum(x => x.Marks ?? 0m);
+        s.EvaluatedBy = GetUserId();
+        s.EvaluatedOn = DateTime.UtcNow;
+
+        a.ResultApproved = false;
+        a.ResultApprovalRequested = false;
+        a.ResultApprovedBy = null;
+        a.ResultApprovedOn = null;
+
+        await db.SaveChangesAsync();
+
+        return Json(new
+        {
+            success = true,
+            acceptedCount,
+            submissionTotal = s.Marks
+        });
     }
 
 }

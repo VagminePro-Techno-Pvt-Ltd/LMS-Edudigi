@@ -25,7 +25,7 @@ x86/
 [Aa]rm64/
 bld/
 [Bb]in/
-[Ob]j/
+[Oo]bj/
 [Ll]og/
 [Ll]ogs/
 
@@ -134,10 +134,19 @@ Desktop.ini
 # Log files
 *.log
 
-# Deployment & publish artifacts
-publish/
-publish_framework_win64/
-*.zip
-.runtime/
+##---------------------------------------------------------------------
+## 4. Local publish, runtime, backup, and uploaded content
+##---------------------------------------------------------------------
+/publish/
+/publish_framework_win64/
+/edudigi_publish.zip
+/.runtime/
+**/DataProtection-Keys/
+**/wwwroot/uploads/**
+.env.*
+*.bak
+*.bak-*
 *.backup
-*.bak*
+*.bacpac
+*.bkp
+*.zip

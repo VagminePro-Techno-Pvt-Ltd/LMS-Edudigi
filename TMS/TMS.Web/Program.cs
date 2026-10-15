@@ -56,6 +56,11 @@ builder.Services.AddScoped<TMS.Web.Services.IViewRenderService, TMS.Web.Services
 builder.Services.AddSingleton<TMS.Web.Services.IWebHostEnvironmentAccessor, TMS.Web.Services.WebHostEnvironmentAccessor>();
 builder.Services.AddScoped<TMS.Web.Services.IInteractivePPTService, TMS.Web.Services.InteractivePPTService>();
 builder.Services.AddScoped<TMS.Web.Services.IStudentLearningService, TMS.Web.Services.StudentLearningService>();
+builder.Services.AddHttpClient<TMS.Web.Services.IAiEvaluationService, TMS.Web.Services.GeminiAiEvaluationService>(client =>
+{
+    var timeoutSeconds = builder.Configuration.GetValue<int>("Gemini:TimeoutSeconds", 45);
+    client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+});
 
 
 // Reverse-proxy / ngrok: honor X-Forwarded-Proto, X-Forwarded-Host so Request.Scheme and Request.Host

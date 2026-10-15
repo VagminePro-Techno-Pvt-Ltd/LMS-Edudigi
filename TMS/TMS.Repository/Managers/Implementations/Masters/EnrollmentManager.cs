@@ -375,7 +375,8 @@ namespace TMS.Repository.Managers.Implementations.Masters
                             Email = row.Email.Trim(),
                             ContactNo = string.IsNullOrWhiteSpace(row.ContactNo) ? null : row.ContactNo.Trim(),
                             RoleId = studentRole.Id,
-                            Password = SecurityUtility.HashPassword("Welcome@123"), // Default Password
+                            Password = SecurityUtility.HashPassword(Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))),
+                            ForcePasswordChange = true,
                             PasswordLastChanged = DateTime.Now,
                             IsActive = true,
                             CreatedOn = DateTime.Now,

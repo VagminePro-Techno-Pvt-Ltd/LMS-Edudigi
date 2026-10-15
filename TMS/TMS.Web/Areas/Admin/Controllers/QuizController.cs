@@ -118,7 +118,7 @@ namespace TMS.Web.Areas.Admin.Controllers
 
             // Validate duplicate quiz per course/quadrant
             if (model.Id == 0)
-            { 
+            {
                 bool duplicate = await ValidateModel(model);
                 if (duplicate)
                 {
@@ -146,7 +146,7 @@ namespace TMS.Web.Areas.Admin.Controllers
         public async Task<IActionResult> Delete(int id)
         {
             var quiz = await _quizManager.GetAsync(id);
-            if (quiz == null) 
+            if (quiz == null)
                 return Json(new { success = false, message = "Quiz not found." });
 
             if (IsFacultyRole())

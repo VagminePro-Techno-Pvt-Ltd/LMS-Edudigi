@@ -62,9 +62,9 @@ namespace TMS.Web.Controllers
             int userId = GetUserId();
             string userRole = GetUserRole() ?? "Student";
             bool isFaculty = IsFacultyRole();
-            bool isAdmin = userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase) || 
-                           userRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase) || 
-                           userRole.Equals("Management", StringComparison.OrdinalIgnoreCase) || 
+            bool isAdmin = userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase) ||
+                           userRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase) ||
+                           userRole.Equals("Management", StringComparison.OrdinalIgnoreCase) ||
                            userRole.Equals("Exam Coordinator", StringComparison.OrdinalIgnoreCase);
 
             var model = new ClassroomCalendarViewModel
@@ -188,9 +188,9 @@ namespace TMS.Web.Controllers
             int userId = GetUserId();
             string userRole = GetUserRole() ?? "Student";
             bool isFaculty = IsFacultyRole();
-            bool isAdmin = userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase) || 
-                           userRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase) || 
-                           userRole.Equals("Management", StringComparison.OrdinalIgnoreCase) || 
+            bool isAdmin = userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase) ||
+                           userRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase) ||
+                           userRole.Equals("Management", StringComparison.OrdinalIgnoreCase) ||
                            userRole.Equals("Exam Coordinator", StringComparison.OrdinalIgnoreCase);
 
             var allCoursesData = await _courseManager.GetAsync(new[] { "Semester" });
@@ -405,7 +405,7 @@ namespace TMS.Web.Controllers
                 var existingInstances = await _instanceManager.GetAsync(null, i => i.IsActive && i.Status != 3);
                 foreach (var inst in instances)
                 {
-                    var conflict = existingInstances.FirstOrDefault(i => 
+                    var conflict = existingInstances.FirstOrDefault(i =>
                         ((i.FacultyId == model.FacultyId) || (i.CourseId == model.CourseId)) &&
                         (inst.ScheduledStart < i.ScheduledEnd && inst.ScheduledEnd > i.ScheduledStart)
                     );
@@ -413,9 +413,9 @@ namespace TMS.Web.Controllers
                     if (conflict != null)
                     {
                         var conflictType = conflict.FacultyId == model.FacultyId ? "Faculty" : "Course/Students";
-                        return Json(new { 
-                            success = false, 
-                            message = $"Time Conflict on {inst.ScheduledStart:dd MMM yyyy}! {conflictType} is already scheduled with '{conflict.Title}' from {conflict.ScheduledStart:hh:mm tt} to {conflict.ScheduledEnd:hh:mm tt}." 
+                        return Json(new {
+                            success = false,
+                            message = $"Time Conflict on {inst.ScheduledStart:dd MMM yyyy}! {conflictType} is already scheduled with '{conflict.Title}' from {conflict.ScheduledStart:hh:mm tt} to {conflict.ScheduledEnd:hh:mm tt}."
                         });
                     }
                 }
@@ -443,7 +443,7 @@ namespace TMS.Web.Controllers
                     inst.FacultyId = model.FacultyId;
                     inst.CourseId = model.CourseId;
                     inst.SubjectId = model.SubjectId;
-                    
+
                     // Create Zoom meeting only if provider is Zoom
                     if (inst.MeetingProvider == "Zoom")
                     {
@@ -474,8 +474,8 @@ namespace TMS.Web.Controllers
             catch (Exception ex)
             {
                 var innerMsg = ex.InnerException != null ? " -> " + ex.InnerException.Message : "";
-                return Json(new { 
-                    success = false, 
+                return Json(new {
+                    success = false,
                     message = $"Server Error: {ex.Message}{innerMsg}"
                 });
             }
@@ -588,10 +588,10 @@ namespace TMS.Web.Controllers
                 .OrderBy(s => s.studentName)
                 .ToList();
 
-            return Json(new { 
-                success = true, 
-                students, 
-                sessionTitle = instance.Title, 
+            return Json(new {
+                success = true,
+                students,
+                sessionTitle = instance.Title,
                 courseName = instance.CourseName ?? "Course Session",
                 scheduledDate = instance.ScheduledStart.ToString("dd MMM yyyy (hh:mm tt)")
             });
@@ -692,7 +692,7 @@ namespace TMS.Web.Controllers
                 // Get course to find its semester
                 var course = await _courseManager.GetAsync(courseId, new[] { "Semester" });
                 List<SubjectMasterViewModel> subjects = new();
-                
+
                 if (course?.SemesterId != null && course.SemesterId > 0)
                 {
                     subjects = allSubjects.Where(s => s.SemesterId == course.SemesterId.Value).ToList();

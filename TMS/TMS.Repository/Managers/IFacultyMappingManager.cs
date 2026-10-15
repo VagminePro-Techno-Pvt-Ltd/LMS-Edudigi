@@ -7,7 +7,7 @@ namespace TMS.Repository.Managers
     public interface IFacultyMappingManager : IMasterBaseManager<CourseFacultyMapViewModel>
     {
         /// <summary>
-        /// Smart sync for faculty mapping. 
+        /// Smart sync for faculty mapping.
         /// - New faculties -> INSERT
         /// - Removed faculties -> Soft delete (IsActive = false)
         /// - Already mapped -> Reactivate if inactive
@@ -25,4 +25,3 @@ namespace TMS.Repository.Managers
         Task<int> UnassignAllAsync(int courseId, int userId);
     }
 }
-

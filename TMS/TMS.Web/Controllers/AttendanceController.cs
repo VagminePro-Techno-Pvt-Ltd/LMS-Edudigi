@@ -23,7 +23,7 @@ namespace TMS.Web.Controllers
         {
             var role = User.Claims.FirstOrDefault(c => c.Type == "role")?.Value?.ToLower() ?? "";
             bool isStaff = role.Contains("admin") || role.Contains("faculty") || role.Contains("teacher") || role.Contains("management") || role.Contains("coordinator") || User.IsInRole("Admin") || User.IsInRole("Faculty");
-            
+
             if (!isStaff)
             {
                 return RedirectToAction(nameof(MyAttendance));
@@ -53,12 +53,12 @@ namespace TMS.Web.Controllers
         {
             var userId = Convert.ToInt32(User.Claims.FirstOrDefault(c => c.Type == "userId")?.Value);
             DailyAttendanceViewModel? record = null;
-            
+
             if (id > 0)
             {
                 record = await _attendanceManager.GetAsync(id);
             }
-            
+
             if (record == null)
             {
                 record = new DailyAttendanceViewModel
@@ -76,7 +76,7 @@ namespace TMS.Web.Controllers
             {
                 record.LoginTime = DateTime.Now;
             }
-            
+
             var result = await _attendanceManager.AddUpdateAsync(record, userId);
             return Json(new { success = result });
         }

@@ -40,7 +40,7 @@ namespace TMS.Web.Controllers
 
         private readonly IMasterBaseManager<CourseEnrollmentViewModel> _enrollmentManager;
         private readonly IMasterBaseManager<LectureMaterialViewModel> _lectureMaterialManager;
-        private readonly IMasterManager<UserViewModel> _userManager; 
+        private readonly IMasterManager<UserViewModel> _userManager;
         private readonly IMasterBaseManager<CourseFacultyMapViewModel> _facultyMapManager;
         private readonly IMasterBaseManager<StudentQuizAttemptViewModel> _studentQuizManager;
         private readonly IAnnouncementManager _announcementManager;
@@ -118,7 +118,7 @@ namespace TMS.Web.Controllers
             {
                 var userRole = GetUserRole()?.ToLower() ?? "";
                 var userId = GetUserId();
-                
+
                 string userName = "User";
                 try
                 {
@@ -141,7 +141,7 @@ namespace TMS.Web.Controllers
                         .CountAsync(u => u.IsActive && u.Role != null && u.Role.Name.ToLower() == "student");
                     viewModel.TotalFaculty = await _db.UserMasters.AsNoTracking().Include(u => u.Role)
                         .CountAsync(u => u.IsActive && u.Role != null && (u.Role.Name.ToLower() == "faculty" || u.Role.Name.ToLower() == "teacher"));
-                    
+
                     var recentUsers = await _db.UserMasters.AsNoTracking()
                         .Include(u => u.Role)
                         .Where(u => u.IsActive)
@@ -283,7 +283,7 @@ namespace TMS.Web.Controllers
                         .Where(e => e.IsActive && courseIds.Contains(e.CourseId))
                         .ToListAsync();
                     totalExams = activeExams.Count;
-                    
+
                     totalQuizzes = await _db.QuizMaster.AsNoTracking()
                         .CountAsync(q => q.IsActive && (courseIds.Contains(q.CourseId) || q.CourseId == 0));
                     if (totalQuizzes == 0)
@@ -294,7 +294,7 @@ namespace TMS.Web.Controllers
                     var userExamAttempts = await _db.StudentExamAttempts.AsNoTracking()
                         .Where(r => r.StudentId == userId && r.IsSubmitted)
                         .ToListAsync();
-                    
+
                     var quizAttempts = await _db.StudentQuizAttempt.AsNoTracking()
                         .Where(q => q.StudentId == userId && q.IsSubmitted)
                         .ToListAsync();
@@ -306,17 +306,17 @@ namespace TMS.Web.Controllers
 
                     int totalEvaluated = 0;
                     int passedCount = 0;
-                    
+
                     foreach (var r in userExamAttempts)
                     {
                         totalEvaluated++;
-                        if (r.ResultStatus == "Pass" || (r.Percentage.HasValue && r.Percentage.Value >= 40)) 
+                        if (r.ResultStatus == "Pass" || (r.Percentage.HasValue && r.Percentage.Value >= 40))
                             passedCount++;
                     }
                     foreach (var q in quizAttempts)
                     {
                         totalEvaluated++;
-                        if ((q.Score ?? 0) > 0) 
+                        if ((q.Score ?? 0) > 0)
                             passedCount++;
                     }
 
@@ -329,7 +329,7 @@ namespace TMS.Web.Controllers
                 .Where(e => e.StartDate.Date <= DateTime.Today && e.EndDate.Date >= DateTime.Today)
                 .Select(e => $"{e.Title} ({e.StartDate:hh:mm tt} - {e.EndDate:hh:mm tt})")
                 .ToList();
-            var todayVirtualClasses = new List<string>(); 
+            var todayVirtualClasses = new List<string>();
             if (courseIds.Any())
             {
                 var today = DateTime.Today;
@@ -349,7 +349,7 @@ namespace TMS.Web.Controllers
             }
 
             // Fetch visible announcements (limit to top 3 for dashboard)
-            var visibleAnnouncements = await _announcementManager.GetVisibleAnnouncementsAsync(userId, roleId, courseIds); 
+            var visibleAnnouncements = await _announcementManager.GetVisibleAnnouncementsAsync(userId, roleId, courseIds);
             var recentAnnouncements = visibleAnnouncements.Take(3).ToList();
 
             var recentDocs = new List<StudentDashboardDocumentItem>();
@@ -410,7 +410,7 @@ namespace TMS.Web.Controllers
                 var dailyAtt = await _db.DailyAttendances.AsNoTracking()
                     .Where(a => a.StudentId == userId)
                     .ToListAsync();
-                
+
                 var classAtt = await _db.ClassAttendances.AsNoTracking()
                     .Where(a => a.StudentId == userId && a.IsActive)
                     .ToListAsync();
@@ -531,7 +531,7 @@ namespace TMS.Web.Controllers
             //        {
             //            switch ((FormDefination)form.Id)
             //            {
-                        
+
             //                case FormDefination.CourseCategoryMaster:
             //                    {
             //                        form.RecordCountActive = await _courseCategoryManager.CountAsync(t => t.IsActive);
@@ -546,8 +546,8 @@ namespace TMS.Web.Controllers
             //                        list.Add(form);
             //                        break;
             //                    }
-                        
-                        
+
+
 
 
             //                //case FormDefination.RankingMasternew:

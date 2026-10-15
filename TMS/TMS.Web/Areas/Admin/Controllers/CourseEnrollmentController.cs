@@ -508,6 +508,11 @@ namespace TMS.Web.Areas.Admin.Controllers
 
             req.Email = req.Email.Trim();
 
+            if (string.IsNullOrWhiteSpace(req.Password))
+            {
+                return Json(new { success = false, message = "An initial password is required for a new student account." });
+            }
+
             var existingUser = (await _userManager.GetAsync(null, u => u.Email == req.Email)).FirstOrDefault();
             int studentId;
 
@@ -526,7 +531,8 @@ namespace TMS.Web.Areas.Admin.Controllers
                     Name = req.Name.Trim(),
                     Email = req.Email,
                     ContactNo = req.ContactNo?.Trim(),
-                    Password = string.IsNullOrWhiteSpace(req.Password) ? "Welcome@123" : req.Password.Trim(),
+                    Password = req.Password.Trim(),
+                    ForcePasswordChange = true,
                     RoleId = roleId,
                     IsActive = true
                 };
