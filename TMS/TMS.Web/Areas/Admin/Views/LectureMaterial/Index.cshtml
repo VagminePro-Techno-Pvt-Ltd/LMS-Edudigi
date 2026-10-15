@@ -228,7 +228,10 @@
                 <text>$('#globalLibraryBtn').click();</text>
             }
 
-            // ═══════ COURSE SELECTION (AJAX) ═══════
+            // Browse Central Library button inside course board
+            $(document).on('click', '#browseLibraryForCourseBtn', function () {
+                $('#globalLibraryBtn').click();
+            });
             $(document).on('click', '.cl-course-item', function () {
                 var courseId = $(this).data('course-id');
                 $('.cl-course-item').removeClass('active');
@@ -521,6 +524,41 @@
                         } else {
                             alert(res.message);
                         }
+                    });
+                }
+            });
+
+            // ═══════ DELETE MATERIAL ═══════
+            $(document).on('click', '.delete-material-btn', function (e) {
+                e.stopPropagation();
+                var materialId = $(this).data('material-id');
+                var title = $(this).data('title') || 'this content';
+                var $btn = $(this);
+
+                if (confirm(`Are you sure you want to permanently delete "${title}"? This will remove all course assignments and delete the material from Central Library.`)) {
+                    $btn.prop('disabled', true);
+                    $.post('@Url.Action("DeleteMaterial")', { id: materialId }, function (res) {
+                        if (res.success) {
+                            var $item = $btn.closest('.gl-item, .cl-file-item');
+                            $item.fadeOut(300, function() {
+                                $(this).remove();
+                            });
+                            // If on course board or global library, update sidebar count if available
+                            var $activeCourse = $('.cl-course-item.active');
+                            if ($('#globalLibraryBtn').hasClass('active')) {
+                                var count = parseInt($('#globalLibraryBtn .cl-global-count').text()) || 1;
+                                $('#globalLibraryBtn .cl-global-count').text(Math.max(0, count - 1));
+                            } else if ($activeCourse.length) {
+                                var count = parseInt($activeCourse.find('.item-count').text()) || 1;
+                                $activeCourse.find('.item-count').text(Math.max(0, count - 1));
+                            }
+                        } else {
+                            alert(res.message || 'Failed to delete material.');
+                            $btn.prop('disabled', false);
+                        }
+                    }).fail(function () {
+                        alert('Network error while deleting material.');
+                        $btn.prop('disabled', false);
                     });
                 }
             });

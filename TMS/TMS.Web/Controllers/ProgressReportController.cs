@@ -21,13 +21,27 @@ namespace TMS.Web.Controllers
             _db = db;
         }
 
-        public async Task<IActionResult> Index(string type = "all")
+        public async Task<IActionResult> Index(int? programId, int? courseId, int? studentId, string type = "all")
         {
-            int studentId = GetUserId();
-            if (studentId == 0)
+            var role = (GetUserRole() ?? "").ToLower().Trim();
+            bool isStaff = role.Contains("admin") || role.Contains("faculty") || role.Contains("teacher") || role.Contains("management") || role.Contains("coordinator") || User.IsInRole("Admin") || User.IsInRole("Faculty");
+
+            // If staff is requesting the overview dashboard (no specific student drilldown)
+            if (isStaff && !studentId.HasValue)
+            {
+                var adminModel = await GetAdminDashboardData(programId, courseId);
+                ViewBag.Programs = await _db.CourseCategoryMasters.Where(c => c.IsActive).OrderBy(c => c.Name).ToListAsync();
+                ViewBag.Courses = await _db.CourseMasters.Where(c => c.IsActive).OrderBy(c => c.Name).ToListAsync();
+                ViewBag.SelectedProgramId = programId;
+                ViewBag.SelectedCourseId = courseId;
+                return View("AdminDashboard", adminModel);
+            }
+
+            int targetStudentId = studentId ?? GetUserId();
+            if (targetStudentId == 0)
                 return RedirectToAction("Login", "Auth");
 
-            var student = await _db.UserMasters.FirstOrDefaultAsync(u => u.Id == studentId);
+            var student = await _db.UserMasters.FirstOrDefaultAsync(u => u.Id == targetStudentId);
             if (student == null)
                 return NotFound();
 
@@ -39,23 +53,23 @@ namespace TMS.Web.Controllers
 
             // Get student's enrolled courses
             var enrolledCourseIds = await _db.CourseEnrollments
-                .Where(e => e.StudentId == studentId && e.IsActive)
+                .Where(e => e.StudentId == targetStudentId && e.IsActive)
                 .Select(e => e.CourseId)
                 .ToListAsync();
 
             if (enrolledCourseIds.Any())
             {
                 // Calculate Quiz Progress
-                model.QuizProgress = await CalculateQuizProgress(studentId, enrolledCourseIds);
+                model.QuizProgress = await CalculateQuizProgress(targetStudentId, enrolledCourseIds);
 
                 // Calculate Assignment Progress
-                model.AssignmentProgress = await CalculateAssignmentProgress(studentId, enrolledCourseIds);
+                model.AssignmentProgress = await CalculateAssignmentProgress(targetStudentId, enrolledCourseIds);
 
                 // Calculate Study Material Progress
-                model.StudyMaterialProgress = await CalculateStudyMaterialProgress(studentId, enrolledCourseIds);
+                model.StudyMaterialProgress = await CalculateStudyMaterialProgress(targetStudentId, enrolledCourseIds);
 
                 // Calculate E-Content Progress
-                model.EContentProgress = await CalculateEContentProgress(studentId, enrolledCourseIds);
+                model.EContentProgress = await CalculateEContentProgress(targetStudentId, enrolledCourseIds);
 
                 // Calculate Overall Progress
                 var progressValues = new[] {
@@ -67,7 +81,102 @@ namespace TMS.Web.Controllers
                 model.OverallProgress = progressValues.Any() ? progressValues.Average() : 0;
             }
 
-            return View(model);
+            ViewBag.IsStaffView = isStaff && studentId.HasValue;
+            return View("Index", model);
+        }
+
+        private async Task<AdminProgressDashboardViewModel> GetAdminDashboardData(int? programId, int? courseId)
+        {
+            var model = new AdminProgressDashboardViewModel
+            {
+                SelectedProgramId = programId,
+                SelectedCourseId = courseId
+            };
+
+            var enrollmentsQuery = _db.CourseEnrollments
+                .Include(e => e.Student)
+                .Include(e => e.Course).ThenInclude(c => c.CourseCategory)
+                .Where(e => e.IsActive && e.Status == 1 && e.Student != null && e.Course != null);
+
+            if (programId.HasValue && programId.Value > 0)
+            {
+                enrollmentsQuery = enrollmentsQuery.Where(e => e.Course.CourseCategoryId == programId.Value);
+            }
+
+            if (courseId.HasValue && courseId.Value > 0)
+            {
+                enrollmentsQuery = enrollmentsQuery.Where(e => e.CourseId == courseId.Value);
+            }
+
+            var enrollments = await enrollmentsQuery.ToListAsync();
+            var distinctStudents = enrollments
+                .GroupBy(e => e.StudentId)
+                .Select(g => g.First())
+                .ToList();
+
+            model.TotalStudents = distinctStudents.Count;
+
+            var studentSummaries = new List<StudentProgressSummaryItem>();
+            decimal sumProgress = 0;
+            decimal sumVideo = 0;
+            decimal sumStudy = 0;
+            decimal sumQuiz = 0;
+            decimal sumAssignment = 0;
+
+            foreach (var enr in distinctStudents)
+            {
+                var sId = enr.StudentId;
+                var studentCourseIds = enrollments.Where(e => e.StudentId == sId).Select(e => e.CourseId).Distinct().ToList();
+
+                var quizData = await CalculateQuizProgress(sId, studentCourseIds);
+                var assignData = await CalculateAssignmentProgress(sId, studentCourseIds);
+                var studyData = await CalculateStudyMaterialProgress(sId, studentCourseIds);
+                var eContentData = await CalculateEContentProgress(sId, studentCourseIds);
+
+                var overall = Math.Round((quizData.CompletionPercentage + assignData.CompletionPercentage + studyData.CompletionPercentage + eContentData.CompletionPercentage) / 4m, 2);
+
+                string statusBadge = "On Track";
+                if (overall >= 80) statusBadge = "Excellent";
+                else if (overall <= 25) statusBadge = "Needs Attention";
+                else if (overall == 0) statusBadge = "Not Started";
+
+                var summaryItem = new StudentProgressSummaryItem
+                {
+                    StudentId = sId,
+                    StudentName = enr.Student?.Name ?? "Student",
+                    EnrollmentNo = $"STU-{sId:D5}",
+                    Email = enr.Student?.Email ?? "",
+                    ProgramName = enr.Course?.CourseCategory?.Name ?? "Program",
+                    CourseName = enr.Course?.Name ?? "Course",
+                    VideoProgressPct = eContentData.CompletionPercentage,
+                    StudyProgressPct = studyData.CompletionPercentage,
+                    QuizProgressPct = quizData.CompletionPercentage,
+                    AssignmentProgressPct = assignData.CompletionPercentage,
+                    OverallProgressPct = overall,
+                    StatusBadge = statusBadge
+                };
+
+                studentSummaries.Add(summaryItem);
+
+                sumProgress += overall;
+                sumVideo += eContentData.CompletionPercentage;
+                sumStudy += studyData.CompletionPercentage;
+                sumQuiz += quizData.CompletionPercentage;
+                sumAssignment += assignData.CompletionPercentage;
+            }
+
+            model.StudentSummaries = studentSummaries.OrderByDescending(s => s.OverallProgressPct).ToList();
+            if (model.TotalStudents > 0)
+            {
+                model.AverageProgress = Math.Round(sumProgress / model.TotalStudents, 2);
+                model.VideoWatchRate = Math.Round(sumVideo / model.TotalStudents, 2);
+                model.StudyMaterialReadRate = Math.Round(sumStudy / model.TotalStudents, 2);
+                model.QuizAttemptRate = Math.Round(sumQuiz / model.TotalStudents, 2);
+                model.AssignmentCompletionRate = Math.Round(sumAssignment / model.TotalStudents, 2);
+                model.ActiveStudentsCount = studentSummaries.Count(s => s.OverallProgressPct > 0);
+            }
+
+            return model;
         }
 
         private async Task<QuizProgressData> CalculateQuizProgress(int studentId, System.Collections.Generic.List<int> courseIds)
@@ -171,28 +280,117 @@ namespace TMS.Web.Controllers
         {
             var data = new StudyMaterialProgressData();
 
-            // Get all study materials for enrolled courses
-            var allMaterials = await _db.LectureMaterials
-                .Where(m => m.CourseId.HasValue && courseIds.Contains(m.CourseId.Value) && m.IsActive)
-                .ToListAsync();
-
-            data.TotalMaterials = allMaterials.Count();
-
-            if (data.TotalMaterials > 0)
+            try
             {
-                // For now, assume 50% completion as we don't have direct tracking
-                data.ReadMaterials = (int)(data.TotalMaterials * 0.5);
-                data.PendingMaterials = data.TotalMaterials - data.ReadMaterials;
-                data.CompletionPercentage = Math.Round((decimal)data.ReadMaterials / data.TotalMaterials * 100, 2);
+                var unitsDict = await _db.UnitMasters
+                    .AsNoTracking()
+                    .Where(u => u.IsActive)
+                    .ToDictionaryAsync(u => u.Id, u => u.Name ?? $"Unit {u.Id}");
 
-                // Simple unit-wise progress
-                data.UnitWiseProgress.Add(new UnitProgress
+                // 1. Fetch mapped study materials for enrolled courses
+                var mappings = await _db.CourseMaterialMappings
+                    .Include(m => m.LectureMaterial)
+                    .Where(m => courseIds.Contains(m.CourseId) && m.IsActive && m.LectureMaterial != null && m.LectureMaterial.IsActive)
+                    .ToListAsync();
+
+                var studyMaterialsList = new List<(LectureMaterial Material, int CourseId, int? UnitId, string UnitName)>();
+                var seenMaterialIds = new HashSet<int>();
+
+                foreach (var m in mappings)
                 {
-                    UnitName = "All Units",
-                    Total = data.TotalMaterials,
-                    Completed = data.ReadMaterials,
-                    Percentage = data.CompletionPercentage
-                });
+                    var mat = m.LectureMaterial;
+                    if (mat == null || seenMaterialIds.Contains(mat.Id)) continue;
+
+                    string mType = (mat.MaterialType ?? "").ToLowerInvariant();
+                    string fPath = (mat.FilePath ?? "").ToLowerInvariant();
+                    string fExt = string.IsNullOrEmpty(fPath) ? "" : System.IO.Path.GetExtension(fPath).ToLowerInvariant();
+
+                    bool isVideo = mType == "video" 
+                                || mType == "videourl"
+                                || new[] { ".mp4", ".webm", ".ogg", ".avi", ".mov" }.Contains(fExt)
+                                || fPath.Contains("youtu") 
+                                || fPath.Contains("vimeo");
+
+                    if (!isVideo)
+                    {
+                        string unitName = m.UnitId.HasValue && unitsDict.TryGetValue(m.UnitId.Value, out var uName) ? uName : "General Unit";
+                        studyMaterialsList.Add((mat, m.CourseId, m.UnitId, unitName));
+                        seenMaterialIds.Add(mat.Id);
+                    }
+                }
+
+                // 2. Direct materials fallback
+                var directMaterials = await _db.LectureMaterials
+                    .Where(m => m.CourseId.HasValue && courseIds.Contains(m.CourseId.Value) && m.IsActive && !seenMaterialIds.Contains(m.Id))
+                    .ToListAsync();
+
+                foreach (var mat in directMaterials)
+                {
+                    string mType = (mat.MaterialType ?? "").ToLowerInvariant();
+                    string fPath = (mat.FilePath ?? "").ToLowerInvariant();
+                    string fExt = string.IsNullOrEmpty(fPath) ? "" : System.IO.Path.GetExtension(fPath).ToLowerInvariant();
+
+                    bool isVideo = mType == "video" 
+                                || mType == "videourl"
+                                || new[] { ".mp4", ".webm", ".ogg", ".avi", ".mov" }.Contains(fExt)
+                                || fPath.Contains("youtu") 
+                                || fPath.Contains("vimeo");
+
+                    if (!isVideo && mat.CourseId.HasValue)
+                    {
+                        studyMaterialsList.Add((mat, mat.CourseId.Value, null, "General Unit"));
+                        seenMaterialIds.Add(mat.Id);
+                    }
+                }
+
+                data.TotalMaterials = studyMaterialsList.Count;
+
+                if (data.TotalMaterials > 0)
+                {
+                    var studyMaterialIds = studyMaterialsList.Select(s => s.Material.Id).ToList();
+
+                    // 3. Fetch progress records for student
+                    var viewedRecords = await _db.LectureVideoProgresses
+                        .Where(p => p.StudentId == studentId && studyMaterialIds.Contains(p.LectureMaterialId) && p.IsActive)
+                        .ToListAsync();
+
+                    var viewedSet = new HashSet<int>(viewedRecords
+                        .Where(p => p.IsCompleted || p.ProgressPercentage >= 75 || p.WatchedSeconds > 0)
+                        .Select(p => p.LectureMaterialId));
+
+                    data.ReadMaterials = studyMaterialsList.Count(s => viewedSet.Contains(s.Material.Id));
+                    data.PendingMaterials = Math.Max(0, data.TotalMaterials - data.ReadMaterials);
+                    data.CompletionPercentage = Math.Round((decimal)data.ReadMaterials / data.TotalMaterials * 100, 2);
+
+                    // 4. Unit-wise progress
+                    var unitGroups = studyMaterialsList
+                        .GroupBy(s => string.IsNullOrWhiteSpace(s.UnitName) ? "General Unit" : s.UnitName)
+                        .OrderBy(g => g.Key)
+                        .ToList();
+
+                    foreach (var group in unitGroups)
+                    {
+                        int uTotal = group.Count();
+                        int uCompleted = group.Count(s => viewedSet.Contains(s.Material.Id));
+                        decimal uPct = uTotal > 0 ? Math.Round((decimal)uCompleted / uTotal * 100, 2) : 0;
+
+                        data.UnitWiseProgress.Add(new UnitProgress
+                        {
+                            UnitName = group.Key,
+                            Total = uTotal,
+                            Completed = uCompleted,
+                            Percentage = uPct
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"CalculateStudyMaterialProgress error: {ex.Message}");
+                data.TotalMaterials = 0;
+                data.ReadMaterials = 0;
+                data.PendingMaterials = 0;
+                data.CompletionPercentage = 0;
             }
 
             return data;

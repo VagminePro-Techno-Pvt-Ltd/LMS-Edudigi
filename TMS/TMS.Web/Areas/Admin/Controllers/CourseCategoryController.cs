@@ -12,10 +12,41 @@ namespace TMS.Web.Areas.Admin.Controllers
     public class CourseCategoryController
         : MastersAjaxController<CourseCategoryMasterViewModel>
     {
+        private readonly IMasterManager<SemesterMasterViewModel> _semesterManager;
+
         public CourseCategoryController(
-            IMasterManager<CourseCategoryMasterViewModel> manager)
+            IMasterManager<CourseCategoryMasterViewModel> manager,
+            IMasterManager<SemesterMasterViewModel> semesterManager)
             : base(manager, "Programs Offered", "Programs Offered")
         {
+            _semesterManager = semesterManager;
+        }
+
+        [HttpPost]
+        public override async Task<IActionResult> Item(CourseCategoryMasterViewModel model)
+        {
+            var res = await base.Item(model);
+
+            if (model.NoOfSemester.HasValue && model.NoOfSemester.Value > 0)
+            {
+                var allSemesters = await _semesterManager.GetAsync(null, t => t.IsActive);
+                int count = Math.Min(model.NoOfSemester.Value, 12);
+                for (int i = 1; i <= count; i++)
+                {
+                    string semName = $"Semester {i}";
+                    if (!allSemesters.Any(s => s.Name != null && s.Name.Trim().Equals(semName, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        var newSem = new SemesterMasterViewModel
+                        {
+                            Name = semName,
+                            IsActive = true
+                        };
+                        await _semesterManager.AddUpdateAsync(newSem, GetUserId());
+                    }
+                }
+            }
+
+            return res;
         }
 
         protected override async Task<AppResultViewModel> IsValidModel(

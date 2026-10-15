@@ -1,18 +1,182 @@
-﻿@model IEnumerable<TMS.ViewModels.Masters.CourseFacultyMapViewModel>
-
-<h6>@ViewBag.CourseName</h6>
-<hr />
-
-@if (!Model.Any())
-{
-    <p class="text-muted">No faculty mapped yet.</p>
+@model IEnumerable<TMS.ViewModels.Masters.CourseFacultyMapViewModel>
+@{
+    int courseId = ViewBag.CourseId ?? 0;
+    int count = Model.Count();
 }
-else
-{
-    <ul class="list-group">
-        @foreach (var item in Model)
-        {
-            <li class="list-group-item">@item.Faculty?.Name</li>
-        }
-    </ul>
-}
+
+<style>
+    .view-fmap-shell {
+        color: #1e293b;
+    }
+    .view-fmap-header {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 16px 20px;
+        margin-bottom: 16px;
+    }
+    .fmap-view-avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: #ffffff;
+        font-weight: 700;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+    }
+    .fmap-item-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 14px 18px;
+        margin-bottom: 8px;
+        transition: all 0.2s ease;
+    }
+    .fmap-item-card:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+        transform: translateX(2px);
+    }
+</style>
+
+<div class="view-fmap-shell p-1">
+    @Html.AntiForgeryToken()
+    <div class="view-fmap-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div>
+            <span class="badge bg-indigo bg-opacity-10 text-primary border border-primary border-opacity-25 px-2 py-1 mb-1 font-monospace" style="font-size: 0.8rem;">
+                @(ViewBag.CourseCode ?? "COURSE")
+            </span>
+            <h5 class="mb-0 fw-bold text-dark">@ViewBag.CourseName</h5>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 py-2 px-3 rounded-pill fw-bold" id="viewCountBadge">
+                <i class="fa fa-users me-1"></i> <span id="viewAssignedNum">@count</span> Assigned
+            </span>
+            @if (Model.Any())
+            {
+                <button type="button" class="btn btn-sm btn-outline-danger px-3 py-1 rounded-pill fw-semibold" onclick="unassignAllInstructorsModal(@courseId)">
+                    <i class="fa fa-user-xmark me-1"></i> Unassign All
+                </button>
+            }
+        </div>
+    </div>
+
+    <div id="unassignAlert"></div>
+
+    @if (!Model.Any())
+    {
+        <div class="text-center py-5 text-muted">
+            <div class="mb-3" style="font-size: 42px; opacity: 0.4;">👨‍🏫</div>
+            <h6 class="fw-bold text-dark">No Instructors Assigned</h6>
+            <p class="small mb-0 text-muted">Use the "Assign Faculty" button to link instructors to this course.</p>
+        </div>
+    }
+    else
+    {
+        <div class="fmap-list" style="max-height: 380px; overflow-y: auto;">
+            @foreach (var item in Model)
+            {
+                var name = item.Faculty?.Name ?? "Instructor";
+                var email = item.Faculty?.Email ?? "No email available";
+                var initials = name.Length >= 2 ? name.Substring(0, 2).ToUpper() : "FC";
+
+                <div class="fmap-item-card d-flex justify-content-between align-items-center flex-wrap gap-2 faculty-item-@item.FacultyId">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="fmap-view-avatar">
+                            @initials
+                        </div>
+                        <div>
+                            <h6 class="mb-0 fw-bold text-dark">@name</h6>
+                            <small class="text-muted"><i class="fa fa-envelope me-1 opacity-75"></i>@email</small>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1 rounded-pill small">
+                            <i class="fa fa-check-circle me-1"></i> Active
+                        </span>
+                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1" 
+                                onclick="unassignSingleInstructorModal(@courseId, @item.FacultyId, '@name.Replace("'", "\\'")')">
+                            <i class="fa fa-trash-can me-1"></i> Unassign
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<script>
+    function unassignSingleInstructorModal(courseId, facultyId, facultyName) {
+        if (!confirm(`Are you sure you want to unassign ${facultyName} from this course?`)) return;
+
+        var token = $('input[name="__RequestVerificationToken"]').val();
+
+        $.ajax({
+            url: '/Admin/FacultyMapping/UnassignFaculty',
+            method: 'POST',
+            data: { courseId: courseId, facultyId: facultyId, __RequestVerificationToken: token },
+            success: function (res) {
+                if (typeof res === 'string') {
+                    try { res = JSON.parse(res); } catch (e) {}
+                }
+                var isSuccess = res && (res.success === true || res.Success === true || res.status === true || res.Status === true);
+                var msg = (res && (res.message || res.Message || res.msg || res.Msg)) || (isSuccess ? "Instructor unassigned successfully." : "Failed to unassign instructor.");
+
+                if (isSuccess) {
+                    $('.faculty-item-' + facultyId).fadeOut(250, function() { 
+                        $(this).remove(); 
+                        var current = parseInt($('#viewAssignedNum').text()) || 1;
+                        var newCount = Math.max(0, current - 1);
+                        $('#viewAssignedNum').text(newCount);
+                        if (newCount === 0) {
+                            setTimeout(function() { location.reload(); }, 400);
+                        }
+                    });
+                    $('#unassignAlert').html('<div class="alert alert-success py-2 d-flex align-items-center gap-2"><i class="fa fa-check-circle"></i><span>' + msg + '</span></div>');
+                } else {
+                    $('#unassignAlert').html('<div class="alert alert-danger py-2">' + msg + '</div>');
+                }
+            },
+            error: function () {
+                $('#unassignAlert').html('<div class="alert alert-danger py-2">Error unassigning instructor.</div>');
+            }
+        });
+    }
+
+    function unassignAllInstructorsModal(courseId) {
+        if (!confirm('Are you sure you want to unassign ALL instructors from this course?')) return;
+
+        var token = $('input[name="__RequestVerificationToken"]').val();
+
+        $.ajax({
+            url: '/Admin/FacultyMapping/UnassignAll',
+            method: 'POST',
+            data: { courseId: courseId, __RequestVerificationToken: token },
+            success: function (res) {
+                if (typeof res === 'string') {
+                    try { res = JSON.parse(res); } catch (e) {}
+                }
+                var isSuccess = res && (res.success === true || res.Success === true || res.status === true || res.Status === true);
+                var msg = (res && (res.message || res.Message || res.msg || res.Msg)) || (isSuccess ? "All instructors unassigned successfully." : "Failed to unassign instructors.");
+
+                if (isSuccess) {
+                    $('#unassignAlert').html('<div class="alert alert-success py-2 d-flex align-items-center gap-2"><i class="fa fa-check-circle"></i><span>' + msg + '</span></div>');
+                    setTimeout(function() {
+                        $('#mappingModal').modal('hide');
+                        location.reload();
+                    }, 600);
+                } else {
+                    $('#unassignAlert').html('<div class="alert alert-danger py-2">' + msg + '</div>');
+                }
+            },
+            error: function () {
+                $('#unassignAlert').html('<div class="alert alert-danger py-2">Error unassigning instructors.</div>');
+            }
+        });
+    }
+</script>

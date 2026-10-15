@@ -627,7 +627,7 @@ namespace TMS.Repository.Managers.Implementations.Masters
                                     if (correctOption != null && ansVm.SelectedOptionId == correctOption.Id)
                                     {
                                         ansEntity.IsCorrect = true;
-                                        calculatedScore++;
+                                        calculatedScore += (question.MaxMarks ?? 1);
                                     }
                                     else
                                     {

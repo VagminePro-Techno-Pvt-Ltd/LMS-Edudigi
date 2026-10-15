@@ -4,9 +4,7 @@
 @{
     var controller = Convert.ToString(ViewContext.RouteData.Values["controller"]);
 
-    // IMPORTANT: keep the quadrant selected/saved in CourseMaterialMapping.
-    // Do not infer a quadrant from MaterialType or file extension.
-    var semesterGroups = Model?.GroupedMaterials
+    var semesterGroups = Model?.GroupedMaterials?
         .SelectMany(g => g.Materials.Select(m => new
         {
             Semester = m.Course?.Semester?.Name ?? "General",
@@ -18,182 +16,277 @@
         .GroupBy(x => new { x.SemesterId, x.Semester })
         .OrderBy(g => g.Key.SemesterId)
         .ThenBy(g => g.Key.Semester)
-        .ToList();
+        .ToList() ?? new();
 
-    var availableQuadrants = Model?.GroupedMaterials
+    var availableQuadrants = Model?.GroupedMaterials?
         .Where(g => g.Materials.Any())
         .GroupBy(g => new { g.QuadrantId, g.QuadrantName })
         .Select(g => g.Key)
         .OrderBy(g => g.QuadrantId)
-        .ToList();
+        .ToList() ?? new();
+
+    var totalMaterialsCount = Model?.GroupedMaterials?.Sum(g => g.Materials.Count) ?? 0;
+    var allQuadrants = Model?.GroupedMaterials?.Select(g => new { g.QuadrantId, g.QuadrantName }).Distinct().ToList() ?? new();
 }
 
 @if (Model?.Course != null)
 {
-    <div class="cl-board-header">
+    <!-- Course Header Banner -->
+    <div class="cl-board-header d-flex justify-content-between align-items-center flex-wrap gap-2 pb-3 mb-3 border-bottom">
         <div>
-            <div class="cl-board-heading">@Model.Course.Name</div>
-            <div class="cl-board-meta">
-                Code: @Model.Course.CourseCode • 
-                @Model.GroupedMaterials.Sum(g => g.Materials.Count) materials
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-indigo bg-opacity-10 text-primary border border-primary border-opacity-25 px-2 py-1 font-monospace" style="font-size:0.82rem;">
+                    @(Model.Course.CourseCode ?? "COURSE")
+                </span>
+                <h4 class="fw-bold mb-0 text-dark">@Model.Course.Name</h4>
+            </div>
+            <div class="cl-board-meta text-muted small">
+                <i class="fa fa-layer-group text-primary me-1"></i> Program: <strong>@(Model.Course.CourseCategory?.Name ?? "General")</strong> • 
+                <i class="fa fa-file-lines text-secondary me-1 ms-2"></i> <strong>@totalMaterialsCount</strong> content resource(s)
             </div>
         </div>
-        <div>
-            <span class="cl-pill">@Model.Course.CourseCategory?.Name</span>
+        <div class="d-flex gap-2 align-items-center">
+            <a href="@Url.Action("Item", "LectureMaterial", new { area = "Admin", courseId = Model.Course.Id })" class="cl-upload-btn btn-sm">
+                <i class="fa fa-plus"></i> Upload New
+            </a>
+            <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" id="browseLibraryForCourseBtn" style="border-radius:var(--cl-radius-sm);">
+                <i class="fa fa-box-archive me-1"></i> From Library
+            </button>
         </div>
     </div>
 
-    @* Learning Quadrants Selector *@
-    <div class="cl-quadrant-selector">
-        <div class="cl-quadrant-selector-header">
-            <i class="fa fa-layer-group" style="color:#6366f1;"></i>
-            <span>Learning Quadrants</span>
-            <span class="cl-quadrant-hint">Select a quadrant to filter content</span>
+    @* Learning Quadrants Filter Selector *@
+    <div class="cl-quadrant-selector mb-3 p-3 bg-light rounded-3 border">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fa fa-layer-group text-primary"></i>
+                <span class="fw-bold small text-dark">Learning Quadrants</span>
+                <span class="text-muted small ms-2">Filter by quadrant view</span>
+            </div>
+            <span class="badge bg-white text-muted border px-2 py-1 small">4 Quadrants Architecture</span>
         </div>
-        <div class="cl-quadrant-chips">
+        <div class="cl-quadrant-chips d-flex flex-wrap gap-2">
             <button class="cl-quad-chip active" data-quadrant="0">
                 <i class="fa fa-th"></i>
-                <span>All Content</span>
+                <span>All Content (@totalMaterialsCount)</span>
             </button>
-            @if (availableQuadrants != null)
+            @if (Model.GroupedMaterials != null)
             {
-                foreach (var quadrant in availableQuadrants)
+                foreach (var quadrant in Model.GroupedMaterials)
                 {
-                    <button class="cl-quad-chip" data-quadrant="@quadrant.QuadrantId">
-                        <i class="fa fa-layer-group"></i>
+                    var count = quadrant.Materials.Count;
+                    <button class="cl-quad-chip @(count == 0 ? "opacity-75" : "")" data-quadrant="@quadrant.QuadrantId">
+                        <i class="fa fa-folder-open"></i>
                         <span>@quadrant.QuadrantName</span>
+                        <span class="badge bg-white text-dark border ms-1" style="font-size:10px;">@count</span>
                     </button>
                 }
             }
         </div>
     </div>
 
-    @if (!semesterGroups.Any())
+    @if (!semesterGroups.Any() || totalMaterialsCount == 0)
     {
-        <div class="cl-loading">
-            <p class="text-muted">No content uploaded for this course yet.</p>
+        <!-- Rich Empty State with Action Cards -->
+        <div class="p-4 text-center bg-white rounded-4 border my-3 shadow-sm">
+            <div class="mb-3" style="font-size: 50px;">📚</div>
+            <h5 class="fw-bold text-dark mb-1">No content assigned to this course yet</h5>
+            <p class="text-muted small mb-4 mx-auto" style="max-width: 480px;">
+                You can upload new files directly or reuse any of the <strong>600+ items</strong> available in your Central Library.
+            </p>
+            <div class="d-flex justify-content-center gap-3 flex-wrap">
+                <button type="button" class="btn btn-primary px-4 py-2 fw-semibold" onclick="$('#globalLibraryBtn').click();" style="border-radius:10px; background: linear-gradient(135deg, #3b82f6, #2563eb); border:none;">
+                    <i class="fa fa-box-archive me-1"></i> Browse Central Library
+                </button>
+                <a href="@Url.Action("Item", "LectureMaterial", new { area = "Admin" })" class="btn btn-outline-secondary px-4 py-2 fw-semibold" style="border-radius:10px;">
+                    <i class="fa fa-cloud-arrow-up me-1"></i> Upload New File
+                </a>
+            </div>
         </div>
-    }
 
-    @foreach (var semGroup in semesterGroups)
-    {
-        <div class="mb-4 cl-semester-group" data-semester="@semGroup.Key.SemesterId">
-            <h5 class="mb-3 d-flex align-items-center gap-2" style="font-weight:700; color:var(--cl-text);">
-                <i class="fa fa-graduation-cap text-primary"></i>
-                @semGroup.Key.Semester
-            </h5>
-            
-            @{
-                // Get all unique quadrants present in this semester group
-                var quadrantsInGroup = semGroup
-                    .GroupBy(x => new { x.QuadrantId, x.QuadrantName })
-                    .OrderBy(g => g.Key.QuadrantId)
-                    .ToList();
-            }
-
-            <div class="cl-quadrants">
-                @foreach (var qGroup in quadrantsInGroup)
-                {
-                    var quadrantMaterials = qGroup.Select(x => x.Material).ToList();
-                    var qId = qGroup.Key.QuadrantId;
-                    
-                    var qName = string.IsNullOrWhiteSpace(qGroup.Key.QuadrantName)
-                        ? $"Quadrant {qId}"
-                        : qGroup.Key.QuadrantName;
-                    var colorIndex = ((Math.Abs(qId) - 1) % 4) + 1;
-                    var icon = "📚";
-
-                    <article class="cl-quadrant-card" data-q="@colorIndex" data-quadrant-id="@qId">
-                        <div class="cl-quadrant-tag">@qName</div>
-                        <div class="cl-quadrant-title">
-                            <span class="cl-q-icon">@icon</span>
-                            @qName
-                            <span class="cl-file-count">@quadrantMaterials.Count</span>
+        <!-- Quadrant Framework Preview -->
+        <div class="mt-4">
+            <h6 class="fw-bold text-muted small text-uppercase mb-3" style="letter-spacing:0.04em;">Four Quadrant Structure</h6>
+            <div class="row g-3">
+                <div class="col-md-6 col-lg-3">
+                    <div class="p-3 bg-light rounded-3 border h-100 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 mb-2">Quadrant I</div>
+                            <h6 class="fw-bold text-dark mb-1">E-Tutorial</h6>
+                            <p class="text-muted small mb-0">Video and Audio Content in an organized form, Animation, simulations.</p>
                         </div>
-
-                        @if (quadrantMaterials.Any())
-                        {
-                            <ul class="cl-file-list">
-                                @foreach (var mat in quadrantMaterials)
-                                {
-                                    var fileExtension = !string.IsNullOrEmpty(mat.FilePath)
-                                        ? System.IO.Path.GetExtension(mat.FilePath).TrimStart('.').ToUpperInvariant()
-                                        : string.Empty;
-                                    var ext = mat.MaterialType == "VideoURL"
-                                        ? "VIDEO URL"
-                                        : (!string.IsNullOrWhiteSpace(fileExtension) ? fileExtension : "LINK");
-
-                                    var sourceIcon = (mat.Source ?? "Local") switch
-                                    {
-                                        "GoogleDrive" => "☁️",
-                                        "OneDrive" => "📘",
-                                        _ => ""
-                                    };
-
-                                    <li class="cl-file-item" data-title="@mat.Title?.ToLower()">
-                                        <div style="flex:1;">
-                                            <div class="cl-file-name">
-                                                @if (!string.IsNullOrEmpty(sourceIcon))
-                                                {
-                                                    <span>@sourceIcon</span>
-                                                }
-                                                @mat.Title
-                                            </div>
-                                            <div class="cl-file-meta">@ext</div>
-                                        </div>
-                                        <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
-                                            @if (!string.IsNullOrEmpty(mat.FilePath))
-                                            {
-                                                <a href="javascript:void(0);"
-                                                   class="cl-file-action view-file-link noclick"
-                                                   data-filepath="@mat.FilePath"
-                                                   data-material-type="@mat.MaterialType"
-                                                   data-title="@mat.Title">View</a>
-                                            }
-                                            <button class="cl-edit-btn quick-assign-btn" 
-                                                    data-material-id="@mat.Id" 
-                                                    title="Assign to another course">
-                                                <i class="fa fa-plus-circle"></i>
-                                            </button>
-                                            <a asp-area="Admin"
-                                               asp-action="Item"
-                                               asp-controller="@controller"
-                                               asp-route-iId="@EncriptorUtility.Encrypt(mat.Id.ToString(), true)"
-                                               class="cl-edit-btn"
-                                               title="Edit">
-                                                <i class="fa fa-edit"></i>
-                                            </a>
-                                            @if (mat.MaterialType == "Video" || mat.MaterialType == "VideoURL")
-                                            {
-                                                <a href="/Admin/VideoQuiz/Manage?materialId=@mat.Id"
-                                                   class="cl-edit-btn"
-                                                   title="Manage Video Quiz"
-                                                   style="background:#fdf4ff;color:#a855f7;">
-                                                    <i class="fa fa-film"></i>
-                                                </a>
-                                            }
-                                        </div>
-                                    </li>
-                                }
-                            </ul>
-                        }
-                        else
-                        {
-                            <div class="cl-empty-state">No materials.</div>
-                        }
-                    </article>
-                }
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="p-3 bg-light rounded-3 border h-100 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 mb-2">Quadrant II</div>
+                            <h6 class="fw-bold text-dark mb-1">E-Content</h6>
+                            <p class="text-muted small mb-0">Digital Text, E-Books, Illustrations, Documents and PDF summaries.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="p-3 bg-light rounded-3 border h-100 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 mb-2">Quadrant III</div>
+                            <h6 class="fw-bold text-dark mb-1">Discussion & Web</h6>
+                            <p class="text-muted small mb-0">Discussion forum for clarification of doubts, supplementary links.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="p-3 bg-light rounded-3 border h-100 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="badge bg-purple bg-opacity-10 text-purple border border-purple border-opacity-25 mb-2" style="background:#f3e8ff;color:#9333ea;">Quadrant IV</div>
+                            <h6 class="fw-bold text-dark mb-1">Self-Assessment</h6>
+                            <p class="text-muted small mb-0">MCQs, Quizzes, Assignments, short answer questions.</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     }
+    else
+    {
+        @foreach (var semGroup in semesterGroups)
+        {
+            <div class="mb-4 cl-semester-group" data-semester="@semGroup.Key.SemesterId">
+                <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+                    <i class="fa fa-graduation-cap text-primary fs-5"></i>
+                    <h5 class="fw-bold text-dark mb-0">@semGroup.Key.Semester</h5>
+                </div>
+                
+                @{
+                    var quadrantsInGroup = semGroup
+                        .GroupBy(x => new { x.QuadrantId, x.QuadrantName })
+                        .OrderBy(g => g.Key.QuadrantId)
+                        .ToList();
+                }
 
-    <div class="cl-board-footer">
-        <span>Mapped Program: @Model.Course.CourseCategory?.Name</span>
-    </div>
+                <div class="cl-quadrants">
+                    @foreach (var qGroup in quadrantsInGroup)
+                    {
+                        var quadrantMaterials = qGroup.Select(x => x.Material).ToList();
+                        var qId = qGroup.Key.QuadrantId;
+                        
+                        var qName = string.IsNullOrWhiteSpace(qGroup.Key.QuadrantName)
+                            ? $"Quadrant {qId}"
+                            : qGroup.Key.QuadrantName;
+                        var colorIndex = ((Math.Abs(qId) - 1) % 4) + 1;
+                        var icon = colorIndex switch { 1 => "🎥", 2 => "📄", 3 => "💬", _ => "📝" };
+
+                        <article class="cl-quadrant-card shadow-sm" data-q="@colorIndex" data-quadrant-id="@qId">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="cl-quadrant-tag">@qName</div>
+                                <span class="badge rounded-pill bg-light text-muted border px-2 py-1" style="font-size:11px;">
+                                    @quadrantMaterials.Count file(s)
+                                </span>
+                            </div>
+
+                            <div class="cl-quadrant-title">
+                                <span class="cl-q-icon">@icon</span>
+                                <span>@qName</span>
+                            </div>
+
+                            @if (quadrantMaterials.Any())
+                            {
+                                <ul class="cl-file-list">
+                                    @foreach (var mat in quadrantMaterials)
+                                    {
+                                        var fileExtension = !string.IsNullOrEmpty(mat.FilePath)
+                                            ? System.IO.Path.GetExtension(mat.FilePath).TrimStart('.').ToUpperInvariant()
+                                            : string.Empty;
+                                        var ext = mat.MaterialType == "VideoURL"
+                                            ? "VIDEO URL"
+                                            : (!string.IsNullOrWhiteSpace(fileExtension) ? fileExtension : "LINK");
+
+                                        var sourceIcon = (mat.Source ?? "Local") switch
+                                        {
+                                            "GoogleDrive" => "☁️",
+                                            "OneDrive" => "📘",
+                                            _ => "📁"
+                                        };
+
+                                        <li class="cl-file-item" data-title="@mat.Title?.ToLower()">
+                                            <div style="flex:1; min-width:0; padding-right:8px;">
+                                                <div class="cl-file-name text-truncate" title="@mat.Title">
+                                                    <span>@sourceIcon</span>
+                                                    @mat.Title
+                                                </div>
+                                                <div class="cl-file-meta d-flex gap-2">
+                                                    <span class="badge bg-light text-muted border" style="font-size:9px;">@ext</span>
+                                                    @if (mat.FileSizeBytes.HasValue)
+                                                    {
+                                                        var sizeFormatted = mat.FileSizeBytes.Value > 1048576 
+                                                            ? $"{mat.FileSizeBytes.Value / 1048576.0:F1} MB" 
+                                                            : $"{mat.FileSizeBytes.Value / 1024.0:F0} KB";
+                                                        <span class="badge bg-light text-muted border" style="font-size:9px;">@sizeFormatted</span>
+                                                    }
+                                                </div>
+                                            </div>
+                                            <div class="d-flex gap-1 align-items-center flex-shrink-0">
+                                                @if (!string.IsNullOrEmpty(mat.FilePath))
+                                                {
+                                                    <a href="javascript:void(0);"
+                                                       class="cl-file-action view-file-link"
+                                                       data-filepath="@mat.FilePath"
+                                                       data-material-type="@mat.MaterialType"
+                                                       data-title="@mat.Title">
+                                                        <i class="fa fa-eye me-1"></i>View
+                                                    </a>
+                                                }
+                                                <button class="cl-edit-btn quick-assign-btn" 
+                                                        data-material-id="@mat.Id" 
+                                                        title="Assign to another course">
+                                                    <i class="fa fa-link"></i>
+                                                </button>
+                                                <a asp-area="Admin"
+                                                   asp-action="Item"
+                                                   asp-controller="@controller"
+                                                   asp-route-iId="@EncriptorUtility.Encrypt(mat.Id.ToString(), true)"
+                                                   class="cl-edit-btn"
+                                                   title="Edit content">
+                                                    <i class="fa fa-edit"></i>
+                                                </a>
+                                                @if (mat.MaterialType == "Video" || mat.MaterialType == "VideoURL")
+                                                {
+                                                    <a href="/Admin/VideoQuiz/Manage?materialId=@mat.Id"
+                                                       class="cl-edit-btn"
+                                                       title="Manage Video Quiz"
+                                                       style="background:#fdf4ff;color:#a855f7;">
+                                                        <i class="fa fa-film"></i>
+                                                    </a>
+                                                }
+                                                <button class="cl-edit-btn delete-material-btn text-danger"
+                                                        data-material-id="@mat.Id"
+                                                        data-title="@mat.Title"
+                                                        title="Delete content"
+                                                        style="background:#fef2f2;color:#ef4444;">
+                                                    <i class="fa fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                            else
+                            {
+                                <div class="cl-empty-state text-center py-3">
+                                    <span class="text-muted small">No items in this quadrant.</span>
+                                </div>
+                            }
+                        </article>
+                    }
+                </div>
+            </div>
+        }
+    }
 }
 else
 {
-    <div class="cl-loading">
-        <p>No course data available.</p>
+    <div class="cl-loading text-center py-5">
+        <div class="spinner-border text-primary mb-2" role="status"></div>
+        <p class="text-muted">Select a course from the sidebar to view its content board.</p>
     </div>
 }

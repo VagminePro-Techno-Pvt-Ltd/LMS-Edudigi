@@ -1,30 +1,48 @@
+
 @model TMS.ViewModels.Account.UserPermissions
+
 @{
     var hasAdmin = false;
     if (ViewBag.HasAdmin != null)
+    {
         hasAdmin = (bool)ViewBag.HasAdmin;
+    }
+
     var iIndex = 0;
 
-    var badgeColors = new[] {
-        new { bg = "#eff6ff", text = "#3b82f6" }, // Blue
-        new { bg = "#fef3c7", text = "#d97706" }, // Amber
-        new { bg = "#ecfdf5", text = "#10b981" }, // Emerald
-        new { bg = "#f5f3ff", text = "#8b5cf6" }, // Purple
-        new { bg = "#fff1f2", text = "#f43f5e" }, // Rose
-        new { bg = "#fef9c3", text = "#ca8a04" }, // Yellow
-        new { bg = "#f0fdf4", text = "#16a34a" }, // Green
-        new { bg = "#fff7ed", text = "#ea580c" }, // Orange
-        new { bg = "#e0f2fe", text = "#0284c7" }, // Sky
-        new { bg = "#fdf4ff", text = "#a855f7" }  // Fuchsia
+    var badgeColors = new[]
+    {
+        new { bg = "#eff6ff", text = "#3b82f6" },
+        new { bg = "#fef3c7", text = "#d97706" },
+        new { bg = "#ecfdf5", text = "#10b981" },
+        new { bg = "#f5f3ff", text = "#8b5cf6" },
+        new { bg = "#fff1f2", text = "#f43f5e" },
+        new { bg = "#fef9c3", text = "#ca8a04" },
+        new { bg = "#f0fdf4", text = "#16a34a" },
+        new { bg = "#fff7ed", text = "#ea580c" },
+        new { bg = "#e0f2fe", text = "#0284c7" },
+        new { bg = "#fdf4ff", text = "#a855f7" }
     };
+
     int colorCount = badgeColors.Length;
 
-    var sectionDotColors = new[] { "#3b82f6", "#f59e0b", "#10b981", "#8b5cf6", "#f43f5e", "#0ea5e9", "#ea580c", "#16a34a" };
+    var sectionDotColors = new[]
+    {
+        "#3b82f6",
+        "#f59e0b",
+        "#10b981",
+        "#8b5cf6",
+        "#f43f5e",
+        "#0ea5e9",
+        "#ea580c",
+        "#16a34a"
+    };
+
     int sectionColorCount = sectionDotColors.Length;
     int sectionIndex = 0;
 
-    // Fallback modern FA6 icons for known admin forms
-    var iconFallbacks = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    var iconFallbacks = new Dictionary<string, string>(
+        StringComparer.OrdinalIgnoreCase)
     {
         { "Programs Offered", "fa-solid fa-graduation-cap" },
         { "Course", "fa-solid fa-book-open" },
@@ -42,108 +60,222 @@
         { "Dashboard", "fa-solid fa-gauge-high" },
         { "Notification", "fa-solid fa-bell" },
         { "Calendar", "fa-solid fa-calendar" },
-        { "Training Schedule", "fa-solid fa-clock" },
+        { "Training Schedule", "fa-solid fa-clock" }
     };
 
-    // Resolve icon: use fallback if IconClass is missing or uses old FA5 prefix
-    string ResolveIcon(string name, string iconClass)
+    string ResolveIcon(string? name, string? iconClass)
     {
-        if (string.IsNullOrWhiteSpace(iconClass) 
-            || iconClass.StartsWith("fas ") 
-            || iconClass.StartsWith("fab ") 
+        if (string.IsNullOrWhiteSpace(iconClass)
+            || iconClass.StartsWith("fas ")
+            || iconClass.StartsWith("fab ")
             || iconClass.StartsWith("far "))
         {
-            if (iconFallbacks.ContainsKey(name))
-                return iconFallbacks[name];
-            return "fa-solid fa-circle-dot"; // generic fallback
+            if (!string.IsNullOrWhiteSpace(name)
+                && iconFallbacks.TryGetValue(name, out var fallback))
+            {
+                return fallback;
+            }
+
+            return "fa-solid fa-circle-dot";
         }
+
         return iconClass;
     }
+
+    var navigationRole = User?.Claims?
+        .FirstOrDefault(c => c.Type == "role")?
+        .Value?
+        .Trim()
+        .ToLowerInvariant() ?? "";
+
+    var navigationIsFaculty =
+        navigationRole == "faculty"
+        || navigationRole == "co faculty"
+        || navigationRole == "co-faculty"
+        || navigationRole == "teacher"
+        || navigationRole == "instructor";
+
+    var navigationIsAdmin =
+        navigationRole == "admin"
+        || navigationRole == "super admin"
+        || navigationRole == "exam coordinator"
+        || navigationRole == "management";
 }
 
 @if (Model != null)
 {
-    @* ── Dashboard Link (Hardcoded at top) ── *@
     <li class="sidebar-list">
-        <a asp-area="" asp-controller="Home" asp-action="Index">
-            <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#3b82f6;">
+        <a asp-area=""
+           asp-controller="Home"
+           asp-action="Index">
+            <span class="icon-badge"
+                  style="--ibg:#eff6ff; --iclr:#3b82f6;">
                 <i class="fa-solid fa-gauge-high"></i>
             </span>
             <span>Dashboard</span>
         </a>
     </li>
+
     <li class="sidebar-list">
-        <a asp-area="" asp-controller="Assignment" asp-action="Index">
-            <span class="icon-badge" style="--ibg:#f5f3ff; --iclr:#8b5cf6;">
+        <a asp-area=""
+           asp-controller="Assignment"
+           asp-action="Index">
+            <span class="icon-badge"
+                  style="--ibg:#f5f3ff; --iclr:#8b5cf6;">
                 <i class="fa-solid fa-file-signature"></i>
             </span>
             <span>Assignments</span>
         </a>
     </li>
 
-    @* ── Top-level forms (no parent menu) ── *@
-    @foreach (var form in Model.Forms.Where(t => !t.MenuId.HasValue).ToList())
+    @if (navigationIsFaculty || navigationIsAdmin)
+    {
+        var assessmentAction = navigationIsFaculty
+            ? "FacultyDashboard"
+            : "AdminDashboard";
+
+        var isAssessmentActive =
+            string.Equals(
+                ViewContext.RouteData.Values["controller"]?.ToString(),
+                "InternalAssessment",
+                StringComparison.OrdinalIgnoreCase);
+
+        <li class="sidebar-list">
+            <a asp-area=""
+               asp-controller="InternalAssessment"
+               asp-action="@assessmentAction"
+               class="@(isAssessmentActive ? "active" : "")">
+
+                <span class="icon-badge"
+                      style="--ibg:#eef2ff; --iclr:#4f46e5;">
+                    <i class="fa-solid fa-file-circle-check"></i>
+                </span>
+
+                <span>Internal Assessments</span>
+            </a>
+        </li>
+    }
+
+    @foreach (var form in Model.Forms.Where(
+        t => !t.MenuId.HasValue).ToList())
     {
         var color = badgeColors[iIndex % colorCount];
         var icon = ResolveIcon(form.Name, form.IconClass);
+
         <li>
-            <a asp-area="@form.Area" asp-controller="@form.Controller" asp-action="@form.Action">
-                <span class="icon-badge" style="--ibg:@color.bg; --iclr:@color.text;">
+            <a asp-area="@form.Area"
+               asp-controller="@form.Controller"
+               asp-action="@form.Action">
+
+                <span class="icon-badge"
+                      style="--ibg:@color.bg; --iclr:@color.text;">
                     <i class="@icon"></i>
                 </span>
+
                 <span>@form.Name</span>
             </a>
         </li>
+
         iIndex++;
     }
 
-    @* ── Menu groups rendered as section headers + flat items ── *@
     @foreach (var mainMenu in Model.Menus)
     {
-        var menuForms = Model?.Forms?.Where(t => t.MenuId.HasValue && t.MenuId.Value == mainMenu.Id)?.ToList();
-        if (menuForms != null && menuForms.Count > 0)
-        {
-            var dotColor = sectionDotColors[sectionIndex % sectionColorCount];
+        var menuForms = Model.Forms
+            .Where(t => t.MenuId.HasValue
+                && t.MenuId.Value == mainMenu.Id)
+            .ToList();
 
-            @* Section Header (like "ACADEMICS", "USER MANAGEMENT") *@
+        if (menuForms.Count > 0)
+        {
+            var dotColor =
+                sectionDotColors[sectionIndex % sectionColorCount];
+
             <li class="menu-section-header">
-                <span class="section-dot" style="background:@dotColor;"></span>
-                <span class="section-label">@mainMenu.Name</span>
+                <span class="section-dot"
+                      style="background:@dotColor;"></span>
+                <span class="section-label">
+                    @mainMenu.Name
+                </span>
             </li>
 
-            @* Sorting logic for ACADEMICS section *@
-            if (mainMenu.Name.Equals("ACADEMICS", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(
+                mainMenu.Name,
+                "ACADEMICS",
+                StringComparison.OrdinalIgnoreCase))
             {
-                var orderedAcademics = new List<string> { "Course Categories", "Course", "Course Structure", "Faculty Mapping", "Course Enrollment" };
+                var orderedAcademics = new List<string>
+                {
+                    "Course Categories",
+                    "Programs Offered",
+                    "Course",
+                    "Semester",
+                    "Quadrant",
+                    "Course Content",
+                    "Faculty Mapping",
+                    "Course Enrollment",
+                    "Quiz Master",
+                    "Quiz Assessment",
+                    "Interactive PPT"
+                };
+
                 menuForms = menuForms
-                    .OrderBy(f => {
-                        var index = orderedAcademics.IndexOf(f.Name ?? "");
+                    .OrderBy(f =>
+                    {
+                        var index =
+                            orderedAcademics.IndexOf(f.Name ?? "");
+
                         return index == -1 ? 99 : index;
                     })
                     .ToList();
             }
 
-            @* Flat list of items under this section *@
             foreach (var form in menuForms)
             {
                 var color = badgeColors[iIndex % colorCount];
                 var displayName = form.Name;
-                
-                // Overrides
-                if (displayName == "Course Categories") displayName = "Program Categories";
-                if (displayName == "Faculty Mapping") displayName = "Program Faculty Mapping";
-                
-                var icon = ResolveIcon(form.Name, form.IconClass);
+
+                if (displayName == "Course Categories")
+                {
+                    displayName = "Program Categories";
+                }
+
+                if (displayName == "Faculty Mapping")
+                {
+                    displayName = "Program Faculty Mapping";
+                }
+
+                if (displayName == "Quiz Master")
+                {
+                    displayName = "Quiz Management";
+                }
+
+                if (displayName == "Quiz Assessment")
+                {
+                    displayName = "Quiz Assessments";
+                }
+
+                var icon = ResolveIcon(
+                    form.Name,
+                    form.IconClass);
+
                 <li>
-                    <a asp-area="@form.Area" asp-controller="@form.Controller" asp-action="@form.Action">
-                        <span class="icon-badge" style="--ibg:@color.bg; --iclr:@color.text;">
+                    <a asp-area="@form.Area"
+                       asp-controller="@form.Controller"
+                       asp-action="@form.Action">
+
+                        <span class="icon-badge"
+                              style="--ibg:@color.bg; --iclr:@color.text;">
                             <i class="@icon"></i>
                         </span>
+
                         <span>@displayName</span>
                     </a>
                 </li>
+
                 iIndex++;
             }
+
             sectionIndex++;
         }
     }

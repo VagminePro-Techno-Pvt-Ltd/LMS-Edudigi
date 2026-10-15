@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TMS.Web.Services;
 
@@ -8,6 +9,7 @@ namespace TMS.Web.Controllers
     /// Displays Unit info + 4 Quadrant Cards with material counts.
     /// Part of the new Unit-first hierarchy.
     /// </summary>
+    [Authorize]
     public class StudentUnitController : BaseController
     {
         private readonly IStudentLearningService _learningService;
@@ -26,10 +28,14 @@ namespace TMS.Web.Controllers
             int studentId = GetUserId();
 
             // Security: Verify enrollment
-            bool enrolled = await _learningService.IsStudentEnrolledAsync(studentId, courseId);
-            if (!enrolled)
+            bool isStaff = User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("Faculty") || User.IsInRole("Exam Coordinator");
+            if (!isStaff)
             {
-                return RedirectToAction("Index", "StudentCourse");
+                bool enrolled = await _learningService.IsStudentEnrolledAsync(studentId, courseId);
+                if (!enrolled)
+                {
+                    return Forbid();
+                }
             }
 
             var model = await _learningService.GetUnitDetailsAsync(studentId, courseId, unitId);

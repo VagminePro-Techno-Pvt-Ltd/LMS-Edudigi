@@ -1,426 +1,681 @@
 @model TMS.ViewModels.Academics.VirtualClassroomViewModel
 @{
-    ViewBag.Title = "Virtual Classroom";
+    ViewBag.Title = "Virtual Classroom & Live Zoom Sessions";
     Layout = "_Layout";
 }
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
     :root {
-        --primary: #6366f1;
-        --primary-dark: #4f46e5;
-        --secondary: #64748b;
-        --success: #10b981;
-        --danger: #ef4444;
-        --warning: #f59e0b;
-        --bg-main: #f8fafc;
-        --card-bg: #ffffff;
-        --text-main: #1e293b;
-        --text-muted: #64748b;
+        --zoom-blue: #0b5cff;
+        --zoom-dark: #0044cc;
+        --primary-gradient: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        --zoom-gradient: linear-gradient(135deg, #0b5cff 0%, #1e40af 100%);
+        --success-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        --bg-surface: #f8fafc;
+        --card-border: #e2e8f0;
+        --text-dark: #0f172a;
+        --text-sub: #64748b;
     }
 
-    .vc-body {
+    .vc-page-container {
         font-family: 'Inter', sans-serif;
-        background-color: var(--bg-main);
-        color: var(--text-main);
-        min-height: 100vh;
-        padding: 2rem;
+        color: var(--text-dark);
+        padding-bottom: 3rem;
     }
 
-    .vc-glass-card {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
+    /* ── Hero Banner ────────────────────────────────────────── */
+    .vc-hero {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
         border-radius: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
-        padding: 2rem;
-        margin-bottom: 2rem;
-    }
-
-    /* Header Section */
-    .vc-header {
+        padding: 28px 32px;
+        color: white;
+        margin-bottom: 28px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.15);
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 2.5rem;
+        flex-wrap: wrap;
+        gap: 20px;
     }
 
-    .vc-title-group h1 {
-        font-size: 2.25rem;
-        font-weight: 800;
-        margin: 0;
-        background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }
-
-    .vc-title-group p {
-        color: var(--text-muted);
-        margin-top: 0.5rem;
-    }
-
-    /* Controls */
-    .vc-controls {
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-    }
-
-    .vc-search-wrapper {
-        position: relative;
-        width: 300px;
-    }
-
-    .vc-search-input {
-        width: 100%;
-        padding: 0.75rem 1rem 0.75rem 2.5rem;
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
-        outline: none;
-        transition: all 0.2s;
-    }
-
-    .vc-search-input:focus {
-        border-color: var(--primary);
-        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
-    }
-
-    .vc-search-icon {
-        position: absolute;
-        left: 0.75rem;
-        top: 50%;
-        transform: translateY(-50%);
-        color: var(--text-muted);
-    }
-
-    .btn-schedule {
-        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-        color: white;
-        padding: 0.75rem 1.5rem;
-        border-radius: 12px;
-        font-weight: 600;
-        border: none;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        transition: transform 0.2s, box-shadow 0.2s;
-        box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
-    }
-
-    .btn-schedule:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
-    }
-
-    /* Tabs */
-    .vc-tabs {
-        display: flex;
-        gap: 1rem;
-        border-bottom: 2px solid #e2e8f0;
-        margin-bottom: 2rem;
-    }
-
-    .vc-tab {
-        padding: 1rem 1.5rem;
-        cursor: pointer;
-        font-weight: 600;
-        color: var(--text-muted);
-        position: relative;
-        transition: color 0.2s;
-    }
-
-    .vc-tab.active {
-        color: var(--primary);
-    }
-
-    .vc-tab.active::after {
+    .vc-hero::before {
         content: '';
         position: absolute;
-        bottom: -2px;
-        left: 0;
-        width: 100%;
-        height: 2px;
-        background-color: var(--primary);
+        width: 320px;
+        height: 320px;
+        background: radial-gradient(circle, rgba(37,99,235,0.3) 0%, rgba(37,99,235,0) 70%);
+        top: -100px;
+        right: 15%;
+        border-radius: 50%;
+        pointer-events: none;
     }
 
-    /* Session Cards Grid */
-    .vc-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 1.5rem;
-    }
-
-    .session-card {
-        background: white;
-        border-radius: 16px;
-        border: 1px solid #e2e8f0;
-        overflow: hidden;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
-    }
-
-    .session-card:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
-        border-color: var(--primary);
-    }
-
-    .card-banner {
-        height: 120px;
-        background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+    .vc-hero-content h1 {
+        font-family: 'Outfit', sans-serif;
+        font-size: 26px;
+        font-weight: 800;
+        margin: 0 0 6px 0;
         display: flex;
         align-items: center;
-        justify-content: center;
-        position: relative;
+        gap: 12px;
+        letter-spacing: -0.5px;
     }
 
-    .course-badge {
-        position: absolute;
-        top: 1rem;
-        left: 1rem;
+    .vc-hero-content p {
+        color: #94a3b8;
+        font-size: 14px;
+        margin: 0;
+        max-width: 580px;
+    }
+
+    .vc-hero-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        z-index: 2;
+    }
+
+    .btn-schedule-main {
+        background: var(--zoom-gradient);
+        color: white !important;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 14px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 4px 14px rgba(11, 92, 255, 0.35);
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+
+    .btn-schedule-main:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(11, 92, 255, 0.5);
+    }
+
+    /* ── Controls & Search ──────────────────────────────────── */
+    .vc-filter-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .vc-tabs-pills {
+        display: flex;
+        gap: 8px;
+        background: #f1f5f9;
+        padding: 4px;
+        border-radius: 12px;
+    }
+
+    .vc-tab-pill {
+        padding: 8px 18px;
+        border-radius: 8px;
+        font-size: 13.5px;
+        font-weight: 600;
+        color: #64748b;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+        background: transparent;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .vc-tab-pill.active {
         background: white;
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 700;
-        color: var(--primary);
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        color: #0f172a;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
     }
 
-    .card-content {
-        padding: 1.5rem;
+    .vc-search-box {
+        position: relative;
+        min-width: 280px;
     }
 
-    .session-title {
-        font-size: 1.15rem;
-        font-weight: 700;
-        margin-bottom: 0.75rem;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
+    .vc-search-box input {
+        width: 100%;
+        padding: 9px 14px 9px 38px;
+        border-radius: 10px;
+        border: 1.5px solid var(--card-border);
+        font-size: 13.5px;
+        outline: none;
+        background: white;
+        transition: border-color 0.2s;
+    }
+
+    .vc-search-box input:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    }
+
+    .vc-search-box i {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        font-size: 14px;
+    }
+
+    /* ── Class Cards Grid ───────────────────────────────────── */
+    .vc-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 22px;
+    }
+
+    .vc-card {
+        background: white;
+        border-radius: 18px;
+        border: 1.5px solid var(--card-border);
         overflow: hidden;
-        min-height: 2.8rem;
-    }
-
-    .session-meta {
+        transition: all 0.25s ease;
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
-        margin-bottom: 1.5rem;
+        justify-content: space-between;
+        position: relative;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
     }
 
-    .meta-item {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.875rem;
-        color: var(--text-muted);
+    .vc-card:hover {
+        transform: translateY(-5px);
+        border-color: #93c5fd;
+        box-shadow: 0 16px 30px rgba(37, 99, 235, 0.08);
     }
 
-    .live-indicator {
+    .vc-card-header {
+        padding: 18px 20px 14px 20px;
+        border-bottom: 1px solid #f1f5f9;
         display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        color: var(--success);
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .vc-course-badge {
+        font-size: 11px;
         font-weight: 700;
-        font-size: 0.75rem;
+        color: #2563eb;
+        background: #eff6ff;
+        padding: 4px 10px;
+        border-radius: 6px;
         text-transform: uppercase;
-        margin-bottom: 0.5rem;
+        letter-spacing: 0.4px;
+        display: inline-block;
+        max-width: 220px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
-    .pulse {
+    .vc-zoom-badge {
+        background: #0b5cff;
+        color: white;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        letter-spacing: 0.4px;
+    }
+
+    .vc-card-body {
+        padding: 18px 20px;
+    }
+
+    .vc-live-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        background: #ecfdf5;
+        color: #059669;
+        font-size: 11.5px;
+        font-weight: 800;
+        padding: 4px 10px;
+        border-radius: 20px;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border: 1px solid #a7f3d0;
+    }
+
+    .vc-pulse-dot {
         width: 8px;
         height: 8px;
-        background-color: var(--success);
+        background-color: #10b981;
         border-radius: 50%;
         box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-        animation: pulse 2s infinite;
+        animation: pulseLive 1.8s infinite;
     }
 
-    @@keyframes pulse {
+    @@keyframes pulseLive {
         0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-        70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+        70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
         100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
 
-    .btn-join {
-        width: 100%;
-        padding: 0.875rem;
+    .vc-class-title {
+        font-size: 16.5px;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0 0 14px 0;
+        line-height: 1.35;
+    }
+
+    .vc-meta-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        font-size: 13px;
+        color: #475569;
+        background: #f8fafc;
         border-radius: 10px;
-        border: none;
-        background: #f1f5f9;
-        color: var(--text-main);
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-        text-decoration: none;
-        display: block;
+        padding: 12px 14px;
+        border: 1px solid #f1f5f9;
+        margin-bottom: 16px;
+    }
+
+    .vc-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .vc-meta-item i {
+        color: #3b82f6;
+        width: 16px;
         text-align: center;
     }
 
-    .btn-join.active {
-        background: var(--success);
-        color: white;
+    .vc-card-footer {
+        padding: 16px 20px 20px 20px;
+        background: #ffffff;
+        border-top: 1px solid #f1f5f9;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
     }
 
-    .btn-join.active:hover {
-        background: #059669;
+    .btn-join-zoom {
+        background: var(--zoom-gradient);
+        color: white !important;
+        font-weight: 700;
+        font-size: 14px;
+        padding: 11px 16px;
+        border-radius: 10px;
+        text-align: center;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 10px rgba(11, 92, 255, 0.25);
+        border: none;
+        width: 100%;
     }
 
-    /* Modal Styling */
-    .modal-overlay {
+    .btn-join-zoom:hover {
+        background: linear-gradient(135deg, #0044cc 0%, #172554 100%);
+        box-shadow: 0 6px 16px rgba(11, 92, 255, 0.35);
+        transform: translateY(-1px);
+    }
+
+    .btn-join-disabled {
+        background: #f1f5f9;
+        color: #94a3b8;
+        font-weight: 600;
+        font-size: 13.5px;
+        padding: 10px 16px;
+        border-radius: 10px;
+        text-align: center;
+        border: 1px solid #e2e8f0;
+        cursor: not-allowed;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .vc-secondary-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .btn-copy-link {
+        background: #eff6ff;
+        color: #2563eb;
+        border: 1px solid #dbeafe;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 6px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: all 0.18s ease;
+    }
+
+    .btn-copy-link:hover {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .btn-cancel-session {
+        background: transparent;
+        color: #ef4444;
+        border: none;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 6px 10px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: opacity 0.2s;
+    }
+
+    .btn-cancel-session:hover {
+        text-decoration: underline;
+        color: #b91c1c;
+    }
+
+    /* ── Empty State ────────────────────────────────────────── */
+    .vc-empty-state {
+        background: white;
+        border: 2px dashed #e2e8f0;
+        border-radius: 20px;
+        padding: 60px 24px;
+        text-align: center;
+        max-width: 540px;
+        margin: 30px auto;
+    }
+
+    .vc-empty-icon {
+        width: 72px;
+        height: 72px;
+        background: #eff6ff;
+        color: #3b82f6;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 30px;
+        margin: 0 auto 16px;
+    }
+
+    /* ── Schedule Modal ─────────────────────────────────────── */
+    .vc-modal-backdrop {
         display: none;
         position: fixed;
         inset: 0;
-        background: rgba(15, 23, 42, 0.75);
-        backdrop-filter: blur(8px);
-        z-index: 9999;
+        background: rgba(15, 23, 42, 0.7);
+        backdrop-filter: blur(6px);
+        z-index: 99999;
         align-items: center;
         justify-content: center;
-        padding: 1.5rem;
+        padding: 20px;
     }
 
-    .modal-card {
+    .vc-modal-box {
         background: white;
         width: 100%;
-        max-width: 550px;
-        border-radius: 24px;
+        max-width: 580px;
+        border-radius: 20px;
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
         overflow: hidden;
+        animation: modalIn 0.2s ease-out;
     }
 
-    .modal-header {
-        background: #f8fafc;
-        padding: 1.5rem 2rem;
+    @@keyframes modalIn {
+        from { opacity: 0; transform: scale(0.96) translateY(10px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .vc-modal-head {
+        padding: 20px 24px;
+        background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
         border-bottom: 1px solid #e2e8f0;
         display: flex;
         justify-content: space-between;
         align-items: center;
     }
 
-    .modal-header h3 { margin: 0; font-weight: 700; }
+    .vc-modal-head h3 {
+        font-size: 18px;
+        font-weight: 800;
+        margin: 0;
+        color: #0f172a;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
 
-    .modal-body { padding: 2rem; }
+    .vc-modal-head .btn-close-modal {
+        background: none;
+        border: none;
+        font-size: 20px;
+        color: #94a3b8;
+        cursor: pointer;
+        padding: 4px;
+        line-height: 1;
+    }
 
-    .form-grid {
+    .vc-modal-head .btn-close-modal:hover { color: #0f172a; }
+
+    .vc-modal-body {
+        padding: 24px;
+    }
+
+    .vc-form-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 1.5rem;
+        gap: 16px;
     }
 
-    .full-width { grid-column: span 2; }
+    .vc-form-col-2 { grid-column: span 2; }
 
-    .input-group {
+    .vc-form-group {
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
+        gap: 6px;
     }
 
-    .input-group label {
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: var(--secondary);
+    .vc-form-group label {
+        font-size: 12.5px;
+        font-weight: 700;
+        color: #334155;
     }
 
-    .vc-input, .vc-select {
-        padding: 0.75rem 1rem;
+    .vc-form-control {
+        padding: 10px 14px;
         border-radius: 10px;
-        border: 1px solid #e2e8f0;
+        border: 1.5px solid #cbd5e1;
+        font-size: 13.5px;
         outline: none;
+        transition: border-color 0.2s;
     }
 
-    .modal-footer {
-        padding: 1.5rem 2rem;
+    .vc-form-control:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    }
+
+    .vc-modal-foot {
+        padding: 16px 24px;
         background: #f8fafc;
         border-top: 1px solid #e2e8f0;
         display: flex;
         justify-content: flex-end;
-        gap: 1rem;
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 4rem 2rem;
+        gap: 10px;
     }
 </style>
 
-<div class="vc-body">
-    <div class="vc-header">
-        <div class="vc-title-group">
-            <h1>Virtual Classroom</h1>
-            <p>Connect, Learn, and Grow together in real-time.</p>
+<div class="vc-page-container">
+
+    <!-- ── Hero Banner ────────────────────────────────────── -->
+    <div class="vc-hero">
+        <div class="vc-hero-content">
+            <h1>
+                <span style="background: #0b5cff; width: 40px; height: 40px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; font-size: 20px;">
+                    <i class="fa-solid fa-video"></i>
+                </span>
+                Virtual Classroom &amp; Live Zoom Sessions
+            </h1>
+            <p>Connect with professors, attend scheduled interactive Zoom lectures, and collaborate in real time.</p>
         </div>
-        
-        <div class="vc-controls">
-            <div class="vc-search-wrapper">
-                <span class="vc-search-icon">🔍</span>
-                <input type="text" id="vcSearch" class="vc-search-input" placeholder="Search sessions..." onkeyup="filterSessions()">
-            </div>
-            
+
+        <div class="vc-hero-actions">
             @if (Model.IsFaculty)
             {
-                <button class="btn-schedule" onclick="toggleModal(true)">
-                    <span>+</span> Schedule Session
+                <button type="button" class="btn-schedule-main" onclick="openScheduleModal()">
+                    <i class="fa-solid fa-calendar-plus"></i> Schedule Zoom Class
                 </button>
+            }
+            else
+            {
+                <span class="badge" style="background: rgba(255,255,255,0.15); font-size: 13px; padding: 8px 14px; border-radius: 30px;">
+                    <i class="fa-solid fa-user-graduate me-1 text-info"></i> Student Enrolled View
+                </span>
             }
         </div>
     </div>
 
-    @if (TempData["AppResult"] != null)
-    {
-        var result = (TMS.Web.Models.AppResultViewModel)TempData["AppResult"];
-        <div class="vc-glass-card" style="background: @(result.Status ? "#ecfdf5" : "#fef2f2"); color: @(result.Status ? "#065f46" : "#991b1b"); border: 1px solid @(result.Status ? "#10b981" : "#ef4444");">
-            <b>@(result.Status ? "Success!" : "Notice:")</b> @result.Message
+    <!-- ── Filter & Search Bar ────────────────────────────── -->
+    <div class="vc-filter-bar">
+        <div class="vc-tabs-pills">
+            <button class="vc-tab-pill active" id="tabUpcomingBtn" onclick="switchVcTab('upcoming')">
+                <i class="fa-solid fa-tower-broadcast text-danger"></i> Upcoming &amp; Live
+                <span class="badge bg-primary ms-1" style="font-size: 10.5px; border-radius: 10px;">@(Model.UpcomingSessions?.Count ?? 0)</span>
+            </button>
+            <button class="vc-tab-pill" id="tabPastBtn" onclick="switchVcTab('past')">
+                <i class="fa-solid fa-clock-rotate-left"></i> Past Sessions
+                <span class="badge bg-secondary ms-1" style="font-size: 10.5px; border-radius: 10px;">@(Model.PastSessions?.Count ?? 0)</span>
+            </button>
         </div>
-    }
 
-    <div class="vc-tabs">
-        <div id="tabUpcoming" class="vc-tab active" onclick="switchTab('upcoming')">Upcoming Sessions</div>
-        <div id="tabPast" class="vc-tab" onclick="switchTab('past')">Past Sessions</div>
+        <div class="vc-search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="vcSearchInput" placeholder="Search sessions by title or course..." onkeyup="filterLiveSessions()" />
+        </div>
     </div>
 
-    <!-- Upcoming Sessions -->
-    <div id="upcomingSection">
+    <!-- ── Upcoming & Live Sessions Tab ──────────────────── -->
+    <div id="sectionUpcoming">
         @if (Model.UpcomingSessions != null && Model.UpcomingSessions.Any())
         {
-            <div class="vc-grid">
+            <div class="vc-cards-grid">
                 @foreach (var session in Model.UpcomingSessions)
                 {
-                    var isLive = (DateTime.Now >= session.ScheduledAt.AddMinutes(-5) && DateTime.Now <= session.ScheduledAt.AddMinutes(session.Duration));
-                    bool isCalendar = session.Description == "Calendar";
-                    
-                    <div class="session-card" data-title="@session.MeetingTitle">
-                        <div class="card-banner">
-                            <span class="course-badge">@session.CourseName</span>
-                            @if (isCalendar)
-                            {
-                                <span class="badge bg-primary position-absolute" style="top:1rem; right:1rem; font-size: 0.65rem; border-radius: 10px; background-color: #6366f1 !important;">CALENDAR</span>
-                            }
-                            <span style="font-size: 3rem;">🎓</span>
-                        </div>
-                        <div class="card-content">
-                            @if (isLive)
-                            {
-                                <div class="live-indicator">
-                                    <div class="pulse"></div>
-                                    Live Now
-                                </div>
-                            }
-                            <h3 class="session-title">@session.MeetingTitle</h3>
-                            <div class="session-meta">
-                                <div class="meta-item"><span>📅</span> @session.ScheduledAt.ToString("ddd, MMM d yyyy")</div>
-                                <div class="meta-item"><span>⏰</span> @session.ScheduledAt.ToString("hh:mm tt") (@session.Duration mins)</div>
+                    var isLiveNow = (DateTime.Now >= session.ScheduledAt.AddMinutes(-10) && DateTime.Now <= session.ScheduledAt.AddMinutes(session.Duration));
+                    var startsSoon = (!isLiveNow && session.ScheduledAt > DateTime.Now && (session.ScheduledAt - DateTime.Now).TotalMinutes <= 60);
+                    var minutesUntil = (int)Math.Max(0, (session.ScheduledAt - DateTime.Now).TotalMinutes);
+
+                    <div class="vc-card session-item" data-title="@session.MeetingTitle" data-course="@session.CourseName">
+                        <div>
+                            <div class="vc-card-header">
+                                <span class="vc-course-badge" title="@session.CourseName">
+                                    <i class="fa-solid fa-graduation-cap me-1"></i> @session.CourseName
+                                </span>
+                                <span class="vc-zoom-badge">
+                                    <i class="fa-solid fa-video"></i> ZOOM
+                                </span>
                             </div>
-                            @if (isLive || DateTime.Now >= session.ScheduledAt.AddMinutes(-15))
+
+                            <div class="vc-card-body">
+                                @if (isLiveNow)
+                                {
+                                    <div class="vc-live-indicator">
+                                        <span class="vc-pulse-dot"></span>
+                                        LIVE NOW &bull; Session Active
+                                    </div>
+                                }
+                                else if (startsSoon)
+                                {
+                                    <div class="vc-live-indicator" style="background: #fffbeb; color: #b45309; border-color: #fde68a;">
+                                        <i class="fa-solid fa-stopwatch"></i> Starting in @minutesUntil mins
+                                    </div>
+                                }
+
+                                <h3 class="vc-class-title">@session.MeetingTitle</h3>
+
+                                <div class="vc-meta-list">
+                                    <div class="vc-meta-item">
+                                        <i class="fa-solid fa-calendar-day"></i>
+                                        <strong>@session.ScheduledAt.ToString("ddd, dd MMM yyyy")</strong>
+                                    </div>
+                                    <div class="vc-meta-item">
+                                        <i class="fa-solid fa-clock"></i>
+                                        <span>@session.ScheduledAt.ToString("hh:mm tt") (@session.Duration minutes)</span>
+                                    </div>
+                                    <div class="vc-meta-item">
+                                        <i class="fa-solid fa-shield-halved"></i>
+                                        <span style="font-size: 11.5px; color: #64748b;">Direct Zoom Encrypted Meeting</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="vc-card-footer">
+                            @{
+                                var launchUrl = Model.IsFaculty && !string.IsNullOrWhiteSpace(session.HostUrl) ? session.HostUrl : session.MeetingUrl;
+                            }
+                            @if (isLiveNow || DateTime.Now >= session.ScheduledAt.AddMinutes(-15))
                             {
-                                <a href="@session.MeetingUrl" target="_blank" class="btn-join active">Join Session Now</a>
+                                <a href="@launchUrl" target="_blank" rel="noopener noreferrer" class="btn-join-zoom" title="@(Model.IsFaculty ? "Direct Host Start URL (No Waiting Room / Host Permission Required)" : "Join Zoom Class")">
+                                    <i class="fa-solid fa-video"></i>
+                                    @(Model.IsFaculty ? "Start Zoom Class (Host)" : "Join Zoom Class Now")
+                                </a>
                             }
                             else
                             {
-                                <button class="btn-join" disabled title="Button will activate 15 mins before start">Join in @((int)(session.ScheduledAt - DateTime.Now).TotalMinutes) mins</button>
+                                <button class="btn-join-disabled" disabled>
+                                    <i class="fa-regular fa-clock"></i>
+                                    Join activates in @minutesUntil mins
+                                </button>
                             }
+
+                            <div class="vc-secondary-actions">
+                                <button type="button" class="btn-copy-link" onclick="copyMeetingLink('@session.MeetingUrl', this)" title="Copy student join link">
+                                    <i class="fa-regular fa-copy"></i> @(Model.IsFaculty ? "Copy Student Link" : "Copy Link")
+                                </button>
+
+                                @if (Model.IsFaculty && !string.IsNullOrWhiteSpace(session.HostUrl))
+                                {
+                                    <button type="button" class="btn-copy-link" style="background:#fef3c7; color:#b45309; border-color:#fde68a;" onclick="copyMeetingLink('@session.HostUrl', this)" title="Copy Host start URL">
+                                        <i class="fa-solid fa-crown"></i> Copy Host Link
+                                    </button>
+                                }
+
+                                @if (Model.IsFaculty)
+                                {
+                                    <form asp-action="DeleteMeeting" asp-controller="VirtualClassroom" method="post" style="display:inline;" onsubmit="return confirm('Are you sure you want to cancel this scheduled Zoom class?');">
+                                        <input type="hidden" name="id" value="@session.Id" />
+                                        <button type="submit" class="btn-cancel-session">
+                                            <i class="fa-regular fa-trash-can"></i> Cancel
+                                        </button>
+                                    </form>
+                                }
+                            </div>
                         </div>
                     </div>
                 }
@@ -428,29 +683,62 @@
         }
         else
         {
-            <div class="empty-state"><h3>No upcoming sessions</h3></div>
+            <div class="vc-empty-state">
+                <div class="vc-empty-icon">
+                    <i class="fa-solid fa-video-slash"></i>
+                </div>
+                <h4 style="font-weight: 700; color: #1e293b; margin-bottom: 8px;">No Live Sessions Scheduled</h4>
+                <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">
+                    @(Model.IsFaculty 
+                        ? "You haven't scheduled any live virtual classes yet. Click 'Schedule Zoom Class' above to host a new session." 
+                        : "There are no live classes scheduled right now. Check back later or review the course calendar.")
+                </p>
+                @if (Model.IsFaculty)
+                {
+                    <button type="button" class="btn-schedule-main" style="margin: 0 auto;" onclick="openScheduleModal()">
+                        <i class="fa-solid fa-plus"></i> Schedule First Live Class
+                    </button>
+                }
+            </div>
         }
     </div>
 
-    <!-- Past Sessions -->
-    <div id="pastSection" style="display: none;">
+    <!-- ── Past Sessions Tab ──────────────────────────────── -->
+    <div id="sectionPast" style="display: none;">
         @if (Model.PastSessions != null && Model.PastSessions.Any())
         {
-            <div class="vc-grid">
+            <div class="vc-cards-grid">
                 @foreach (var session in Model.PastSessions)
                 {
-                    <div class="session-card" style="opacity: 0.8;" data-title="@session.MeetingTitle">
-                        <div class="card-banner" style="filter: grayscale(0.5);">
-                            <span class="course-badge">@session.CourseName</span>
-                            <span style="font-size: 3rem;">📹</span>
-                        </div>
-                        <div class="card-content">
-                            <h3 class="session-title">@session.MeetingTitle</h3>
-                            <div class="session-meta">
-                                <div class="meta-item"><span>📅</span> @session.ScheduledAt.ToString("MMM d, yyyy")</div>
-                                <div class="meta-item"><span>⏰</span> Ended at @session.ScheduledAt.AddMinutes(session.Duration).ToString("hh:mm tt")</div>
+                    <div class="vc-card session-item" style="opacity: 0.85;" data-title="@session.MeetingTitle" data-course="@session.CourseName">
+                        <div>
+                            <div class="vc-card-header">
+                                <span class="vc-course-badge" style="background:#f1f5f9; color:#64748b;">
+                                    @session.CourseName
+                                </span>
+                                <span class="badge bg-secondary" style="font-size: 11px;">CONCLUDED</span>
                             </div>
-                            <button class="btn-join" disabled>Session Ended</button>
+
+                            <div class="vc-card-body">
+                                <h3 class="vc-class-title" style="color: #475569;">@session.MeetingTitle</h3>
+
+                                <div class="vc-meta-list">
+                                    <div class="vc-meta-item">
+                                        <i class="fa-regular fa-calendar-check text-muted"></i>
+                                        <span>@session.ScheduledAt.ToString("dd MMM yyyy, hh:mm tt")</span>
+                                    </div>
+                                    <div class="vc-meta-item">
+                                        <i class="fa-regular fa-clock text-muted"></i>
+                                        <span>Duration: @session.Duration mins</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="vc-card-footer">
+                            <button class="btn-join-disabled" disabled style="background:#f8fafc;">
+                                <i class="fa-solid fa-check"></i> Session Completed
+                            </button>
                         </div>
                     </div>
                 }
@@ -458,59 +746,97 @@
         }
         else
         {
-            <div class="empty-state"><h3>No past sessions found</h3></div>
+            <div class="vc-empty-state">
+                <div class="vc-empty-icon" style="background: #f1f5f9; color: #64748b;">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                </div>
+                <h4 style="font-weight: 700; color: #1e293b; margin-bottom: 8px;">No Past Sessions</h4>
+                <p style="color: #64748b; font-size: 14px; margin: 0;">Concluded class sessions and recordings will appear here.</p>
+            </div>
         }
     </div>
+
 </div>
 
-<!-- Modal -->
+<!-- ── Schedule Modal (Faculty/Admin) ──────────────────────── -->
 @if (Model.IsFaculty)
 {
-    <div id="vcModal" class="modal-overlay">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3>Schedule New Session</h3>
-                <button onclick="toggleModal(false)" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+    <div id="scheduleModalBackdrop" class="vc-modal-backdrop" onclick="if(event.target === this) closeScheduleModal();">
+        <div class="vc-modal-box">
+            <div class="vc-modal-head">
+                <h3>
+                    <span style="background: #0b5cff; color: white; width: 28px; height: 28px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px;">
+                        <i class="fa-solid fa-video"></i>
+                    </span>
+                    Schedule Live Zoom Session
+                </h3>
+                <button type="button" class="btn-close-modal" onclick="closeScheduleModal()">&times;</button>
             </div>
-            <form asp-action="CreateMeeting" method="post">
-                <div class="modal-body">
-                    <div class="form-grid">
-                        <div class="input-group full-width">
-                            <label>Meeting Title</label>
-                            <input type="text" name="MeetingTitle" class="vc-input" placeholder="e.g. Weekly Review Session" required />
+
+            <form asp-action="CreateMeeting" asp-controller="VirtualClassroom" method="post">
+                <div class="vc-modal-body">
+                    <div class="vc-form-grid">
+                        
+                        <!-- Meeting Title -->
+                        <div class="vc-form-group vc-form-col-2">
+                            <label>Session Title *</label>
+                            <input type="text" name="MeetingTitle" class="vc-form-control" placeholder="e.g. Chapter 4: Case Study Discussion & Q&A" required />
                         </div>
-                        <div class="input-group">
-                            <label>Course</label>
-                            <select name="CourseId" class="vc-select" required>
+
+                        <!-- Course Selection -->
+                        <div class="vc-form-group vc-form-col-2">
+                            <label>Target Course *</label>
+                            <select name="CourseId" class="vc-form-control" required>
                                 <option value="">-- Select Course --</option>
-                                @foreach (var c in Model.AvailableCourses) { <option value="@c.Id">@c.Name</option> }
+                                @foreach (var c in Model.AvailableCourses)
+                                {
+                                    <option value="@c.Id">@c.Name (@c.CourseCode)</option>
+                                }
                             </select>
                         </div>
-                        <div class="input-group">
-                            <label>Meeting Provider</label>
-                            <select name="MeetingProvider" id="meetingProvider" class="vc-select" onchange="handleProviderChange()">
-                                <option value="Zoom">Zoom (Auto-Generate)</option>
-                                <option value="External">External Link (Manual)</option>
+
+                        <!-- Date & Time -->
+                        <div class="vc-form-group">
+                            <label>Date &amp; Start Time *</label>
+                            <input type="datetime-local" name="ScheduledAt" id="scheduledAtInput" class="vc-form-control" required />
+                        </div>
+
+                        <!-- Duration -->
+                        <div class="vc-form-group">
+                            <label>Duration (Minutes) *</label>
+                            <select name="Duration" class="vc-form-control" required>
+                                <option value="30">30 minutes</option>
+                                <option value="45">45 minutes</option>
+                                <option value="60" selected>60 minutes (1 hour)</option>
+                                <option value="90">90 minutes (1.5 hours)</option>
+                                <option value="120">120 minutes (2 hours)</option>
                             </select>
                         </div>
-                        <div class="input-group">
-                            <label>Start Time</label>
-                            <input type="datetime-local" name="ScheduledAt" class="vc-input" required />
+
+                        <!-- Provider -->
+                        <div class="vc-form-group vc-form-col-2">
+                            <label>Meeting Platform</label>
+                            <select name="MeetingProvider" id="modalProviderSelect" class="vc-form-control" onchange="toggleUrlField()">
+                                <option value="Zoom">🎥 Zoom Meeting (Auto-Generate Instant Secure Link)</option>
+                                <option value="External">🔗 Custom External Link (Google Meet / MS Teams / Webex)</option>
+                            </select>
                         </div>
-                        <div class="input-group">
-                            <label>Duration (mins)</label>
-                            <input type="number" name="Duration" class="vc-input" value="60" required />
+
+                        <!-- Custom URL Field -->
+                        <div class="vc-form-group vc-form-col-2" id="modalUrlGroup" style="display: none;">
+                            <label>Meeting URL *</label>
+                            <input type="url" name="MeetingUrl" id="modalUrlInput" class="vc-form-control" placeholder="https://meet.google.com/xyz or https://teams.microsoft.com/..." />
                         </div>
-                        <div class="input-group full-width" id="urlGroup" style="display:none;">
-                            <label>External Meeting URL</label>
-                            <input type="url" name="MeetingUrl" class="vc-input" placeholder="https://..." />
-                        </div>
+
                         <input type="hidden" name="CourseQuadrantId" value="1" />
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn-schedule" style="background:#e2e8f0; color:#475569;" onclick="toggleModal(false)">Cancel</button>
-                    <button type="submit" class="btn-schedule">Create Session</button>
+
+                <div class="vc-modal-foot">
+                    <button type="button" class="btn btn-light" style="font-weight:600; border-radius:10px;" onclick="closeScheduleModal()">Cancel</button>
+                    <button type="submit" class="btn-schedule-main">
+                        <i class="fa-solid fa-check"></i> Create Live Class
+                    </button>
                 </div>
             </form>
         </div>
@@ -519,34 +845,72 @@
 
 @section Scripts {
     <script>
-        function toggleModal(show) { document.getElementById('vcModal').style.display = show ? 'flex' : 'none'; }
-        function switchTab(type) {
-            document.getElementById('tabUpcoming').classList.toggle('active', type === 'upcoming');
-            document.getElementById('tabPast').classList.toggle('active', type === 'past');
-            document.getElementById('upcomingSection').style.display = type === 'upcoming' ? 'block' : 'none';
-            document.getElementById('pastSection').style.display = type === 'past' ? 'block' : 'none';
-        }
-        function filterSessions() {
-            const query = document.getElementById('vcSearch').value.toLowerCase();
-            const cards = document.querySelectorAll('.session-card');
-            cards.forEach(card => {
-                const title = card.getAttribute('data-title').toLowerCase();
-                card.style.display = title.includes(query) ? '' : 'none';
-            });
-        }
-        function handleProviderChange() {
-            const provider = document.getElementById('meetingProvider').value;
-            const urlGroup = document.getElementById('urlGroup');
-            const urlInput = urlGroup.querySelector('input');
-            
-            if (provider === 'Zoom') {
-                urlGroup.style.display = 'none';
-                urlInput.required = false;
-            } else {
-                urlGroup.style.display = 'flex';
-                urlInput.required = true;
+        function openScheduleModal() {
+            var modal = document.getElementById('scheduleModalBackdrop');
+            if (modal) {
+                // Set default datetime to now + 5 minutes
+                var now = new Date();
+                now.setMinutes(now.getMinutes() + 10);
+                now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                var dateInput = document.getElementById('scheduledAtInput');
+                if (dateInput && !dateInput.value) {
+                    dateInput.value = now.toISOString().slice(0, 16);
+                }
+                modal.style.display = 'flex';
             }
         }
-        document.addEventListener('DOMContentLoaded', handleProviderChange);
+
+        function closeScheduleModal() {
+            var modal = document.getElementById('scheduleModalBackdrop');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function switchVcTab(tab) {
+            var isUpcoming = tab === 'upcoming';
+            document.getElementById('tabUpcomingBtn').classList.toggle('active', isUpcoming);
+            document.getElementById('tabPastBtn').classList.toggle('active', !isUpcoming);
+            document.getElementById('sectionUpcoming').style.display = isUpcoming ? 'block' : 'none';
+            document.getElementById('sectionPast').style.display = !isUpcoming ? 'block' : 'none';
+        }
+
+        function toggleUrlField() {
+            var provider = document.getElementById('modalProviderSelect').value;
+            var urlGroup = document.getElementById('modalUrlGroup');
+            var urlInput = document.getElementById('modalUrlInput');
+            if (provider === 'External') {
+                urlGroup.style.display = 'flex';
+                urlInput.required = true;
+            } else {
+                urlGroup.style.display = 'none';
+                urlInput.required = false;
+            }
+        }
+
+        function filterLiveSessions() {
+            var query = (document.getElementById('vcSearchInput').value || '').toLowerCase().trim();
+            var items = document.querySelectorAll('.session-item');
+            items.forEach(function(card) {
+                var title = (card.getAttribute('data-title') || '').toLowerCase();
+                var course = (card.getAttribute('data-course') || '').toLowerCase();
+                if (title.indexOf(query) !== -1 || course.indexOf(query) !== -1) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        function copyMeetingLink(url, btn) {
+            if (!url) return;
+            navigator.clipboard.writeText(url).then(function() {
+                var originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-check text-success"></i> Copied!';
+                setTimeout(function() {
+                    btn.innerHTML = originalHtml;
+                }, 2000);
+            }).catch(function() {
+                prompt("Copy this Zoom Meeting URL:", url);
+            });
+        }
     </script>
 }

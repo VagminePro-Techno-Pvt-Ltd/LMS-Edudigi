@@ -323,16 +323,16 @@
                             <label asp-for="NoofCredit" class="course-label">
                                 Credits <span class="course-required">*</span>
                             </label>
-                            <input asp-for="NoofCredit" type="number" min="1" class="course-control" required />
+                            <input asp-for="NoofCredit" type="number" min="1" class="course-control" placeholder="e.g. 4" required />
                         </div>
                     </div>
 
                     <div class="col-12 col-md-6">
                         <div class="course-field">
                             <label asp-for="CourseDurationMonths" class="course-label">
-                                Duration (Days) <span class="course-required">*</span>
+                                Duration (Months) <span class="course-required">*</span>
                             </label>
-                            <input asp-for="CourseDurationMonths" type="number" min="1" class="course-control" required />
+                            <input asp-for="CourseDurationMonths" type="number" min="1" class="course-control" placeholder="e.g. 6" required />
                         </div>
                     </div>
                 </div>
@@ -445,6 +445,7 @@
                                min="1"
                                class="course-control js-course-credit"
                                placeholder="e.g. 4"
+                               value="4"
                                required />
                     </div>
                 </div>
@@ -452,12 +453,13 @@
                 <div class="col-12 col-md-6">
                     <div class="course-field">
                         <label class="course-label">
-                            Duration (Days) <span class="course-required">*</span>
+                            Duration (Months) <span class="course-required">*</span>
                         </label>
                         <input type="number"
                                min="1"
                                class="course-control js-course-duration"
-                               placeholder="e.g. 180"
+                               placeholder="e.g. 6"
+                               value="6"
                                required />
                     </div>
                 </div>

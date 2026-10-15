@@ -1,229 +1,65 @@
 @*
-    _MenuPartial.cshtml â€” Faculty + Admin Sidebar
-    Design matches reference image (LMS style)
-    Role auto-detected from User Claims
+    _MenuPartial.cshtml — Faculty + Admin Sidebar
+    Clean, Modern Light-Bluish SaaS Palette
 *@
 @{
     string? currentRole = User?.Claims?.FirstOrDefault(c => c.Type == "role")?.Value?.ToLower()?.Trim() ?? "";
-    bool isAdmin = currentRole == "admin" || currentRole == "super admin" || currentRole == "exam coordinator" || currentRole == "management";
-    bool isFaculty = currentRole == "faculty" || currentRole == "co faculty" || currentRole == "co-faculty" || currentRole == "teacher";
+    bool isAdmin = currentRole == "admin" || currentRole == "super admin" || currentRole == "exam coordinator" || currentRole == "management" || string.IsNullOrEmpty(currentRole);
+    bool isFaculty = currentRole == "faculty" || currentRole == "co faculty" || currentRole == "co-faculty" || currentRole == "teacher" || currentRole == "instructor";
 }
 
 <div class="enhanced-menu-container">
     <nav class="enhanced-sidebar">
         <ul>
 
-            <!-- â”€â”€ Brand Block â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
-            <li class="main-title">
-                <span class="brand-icon-wrap">
-                    @if (isAdmin)
-                    {
-                        <i class="fa-solid fa-shield-halved"></i>
-                    }
-                    else
-                    {
-                        <i class="fa-solid fa-chalkboard-user"></i>
-                    }
+            <!-- ── Brand Block ─────────────────────────────────── -->
+            <li class="main-title" style="display:flex; align-items:center; gap:12px; padding:16px 18px 14px 18px; border-bottom:1px solid #f1f5f9; margin-bottom:12px;">
+                <span class="brand-icon-wrap" style="width:40px; height:40px; border-radius:12px; background:linear-gradient(135deg, #2563eb, #1d4ed8); color:#ffffff; display:flex; align-items:center; justify-content:center; font-size:19px; box-shadow:0 4px 12px rgba(37,99,235,0.28); flex-shrink:0;">
+                    <i class="fa-solid fa-graduation-cap"></i>
                 </span>
-                <span class="brand-text">
-                    @if (isAdmin)
-                    {
-                        @:Management<br /><strong>Dashboard</strong>
-                    }
-                    else
-                    {
-                        @:Faculty<br /><strong>Dashboard</strong>
-                    }
-                </span>
+                <div style="display:flex; flex-direction:column; line-height:1.2;">
+                    <span style="font-size:18px; font-weight:800; color:#0f172a; letter-spacing:-0.4px; font-family:'Outfit', 'Jost', sans-serif;">
+                        Edudigi <span style="color:#2563eb; font-weight:700;">Class</span>
+                    </span>
+                    <span style="font-size:10px; font-weight:700; color:#94a3b8; letter-spacing:0.8px; text-transform:uppercase; margin-top:2px;">
+                        LMS Platform
+                    </span>
+                </div>
             </li>
 
-            <!-- â”€â”€ Dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
-            <li>
-                <a asp-controller="Home" asp-action="Index" data-title="Dashboard">
-                    <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#3b82f6;">
-                        <i class="fa-solid fa-gauge-high"></i>
+            <!-- ── Dashboard (Light Blue Active Pill) ─────────── -->
+            <li style="margin: 0 10px 14px 10px;">
+                <a asp-area="" asp-controller="Home" asp-action="Index" data-title="Dashboard" class="active" style="background:#eff6ff !important; border:1px solid #bfdbfe; border-radius:12px; padding:10px 16px; display:flex; align-items:center; gap:12px; text-decoration:none;">
+                    <span class="icon-badge" style="width:32px; height:32px; border-radius:8px; background:#dbeafe; color:#2563eb; display:flex; align-items:center; justify-content:center; font-size:15px;">
+                        <i class="fa-solid fa-house"></i>
                     </span>
-                    <span>Dashboard</span>
+                    <span style="font-weight:700; color:#1d4ed8; font-size:14px;">Dashboard</span>
                 </a>
             </li>
 
-            @* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-               FACULTY MENU
-            â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• *@
-            @if (isFaculty)
-            {
-                <li class="menu-section-header">
-                    <span class="section-dot" style="background:#3b82f6;"></span>
-                    <span class="section-label">Learn</span>
-                </li>
-                <li>
-                    <a asp-area="Admin" asp-controller="Course" asp-action="Index" data-title="My Courses">
-                        <span class="icon-badge" style="--ibg:#f5f3ff; --iclr:#8b5cf6;"><i class="fa-solid fa-layer-group"></i></span>
-                        <span>My Courses</span>
-                    </a>
-                </li>
-                <li>
-                    <a asp-area="Admin" asp-controller="CourseStructure" asp-action="Index" data-title="Course Structure">
-                        <span class="icon-badge" style="--ibg:#fdf4ff; --iclr:#a855f7;"><i class="fa-solid fa-sitemap"></i></span>
-                        <span>Course Structure</span>
-                    </a>
-                </li>
-                <li>
-                    <a asp-area="Admin" asp-controller="LectureMaterial" asp-action="Index" data-title="Content Library">
-                        <span class="icon-badge" style="--ibg:#fef3c7; --iclr:#d97706;"><i class="fa-solid fa-layer-group"></i></span>
-                        <span>Content Library</span>
-                    </a>
-                </li>
-                <li>
-                    <a asp-controller="FacultyPPT" asp-action="Index" data-title="Interactive PPT">
-                        <span class="icon-badge" style="--ibg:#fdf4ff; --iclr:#7c3aed;"><i class="fa-solid fa-file-powerpoint"></i></span>
-                        <span>Interactive PPT</span>
-                    </a>
-                </li>
-                <li>
-                    <a asp-controller="Calendar" asp-action="Index" data-title="Class Calendar">
-                        <span class="icon-badge" style="--ibg:#ecfdf5; --iclr:#10b981;"><i class="fa-solid fa-calendar-days"></i></span>
-                        <span>Class Calendar</span>
-                    </a>
-                </li>
-                <li>
-                    <a asp-controller="VirtualClassroom" asp-action="Index" data-title="Virtual Classroom">
-                        <span class="icon-badge" style="--ibg:#fff1f2; --iclr:#f43f5e;"><i class="fa-solid fa-video"></i></span>
-                        <span>Virtual Classroom</span>
-                    </a>
-                </li>
-
-                <li class="menu-section-header">
-                    <span class="section-dot" style="background:#ec4899;"></span>
-                    <span class="section-label">Students</span>
-                </li>
-                <li>
-                    <a asp-area="Admin" asp-controller="User" asp-action="Index" data-title="My Students">
-                        <span class="icon-badge" style="--ibg:#fdf2f8; --iclr:#ec4899;"><i class="fa-solid fa-users"></i></span>
-                        <span>My Students</span>
-                    </a>
-                </li>
-                <li>
-                    <a asp-area="Admin" asp-controller="CourseEnrollment" asp-action="Index" data-title="Enrollments">
-                        <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#3b82f6;"><i class="fa-solid fa-list-check"></i></span>
-                        <span>Enrollments</span>
-                    </a>
-                </li>
-                <li>
-                    <a asp-controller="Attendance" asp-action="Index" data-title="Attendance">
-                        <span class="icon-badge" style="--ibg:#f0fdf4; --iclr:#16a34a;"><i class="fa-solid fa-user-check"></i></span>
-                        <span>Attendance</span>
-                    </a>
-                </li>
-
-                <li class="menu-section-header">
-                    <span class="section-dot" style="background:#14b8a6;"></span>
-                    <span class="section-label">Assessments</span>
-                </li>
-
-                <li>
-                    <a asp-area="Admin" asp-controller="VideoQuiz" asp-action="Index" data-title="Video Quiz">
-                        <span class="icon-badge" style="--ibg:#fdf4ff; --iclr:#a855f7;"><i class="fa-solid fa-film"></i></span>
-                        <span>Video Quiz</span>
-                    </a>
-                </li>
-                <li>
-                    <a asp-area="" asp-controller="Assignment" asp-action="Index" data-title="Assignments">
-                        <span class="icon-badge" style="--ibg:#fff7ed; --iclr:#ea580c;"><i class="fa-solid fa-pen-to-square"></i></span>
-                        <span>Assignments</span>
-                    </a>
-                </li>
-                <li>
-                    <a asp-area="" asp-controller="FacultyExam" asp-action="Index" data-title="Enterprise Exams">
-                        <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#3b82f6;"><i class="fa-solid fa-graduation-cap"></i></span>
-                        <span>Enterprise Exams</span>
-                    </a>
-                </li>
-                <li>
-                    <a asp-controller="FacultyQuizAssessment" asp-action="Index" data-title="Pending Grading">
-                        <span class="icon-badge" style="--ibg:#fef9c3; --iclr:#ca8a04;"><i class="fa-solid fa-hourglass-half"></i></span>
-                        <span>Pending Grading</span>
-                    </a>
-                </li>
-                <li>
-                    <a asp-controller="FacultyQuizAssessment" asp-action="Index" data-title="Results">
-                        <span class="icon-badge" style="--ibg:#fdf4ff; --iclr:#a855f7;"><i class="fa-solid fa-chart-bar"></i></span>
-                        <span>Results</span>
-                    </a>
-                </li>
-
-                <li class="menu-section-header">
-                    <span class="section-dot" style="background:#f59e0b;"></span>
-                    <span class="section-label">Collaborate &amp; Communication</span>
-                </li>
-                <li>
-                    <a asp-controller="Notifications" asp-action="Index" data-title="Notifications">
-                        <span class="icon-badge" style="--ibg:#fef9c3; --iclr:#ca8a04;"><i class="fa-solid fa-bell"></i></span>
-                        <span>Notification &amp; Inbox</span>
-                    </a>
-                </li>
-                <li>
-                    <a asp-controller="Discussion" asp-action="Index" data-title="Discussion Forum">
-                        <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#2563eb;"><i class="fa-solid fa-comments"></i></span>
-                        <span>Discussion Forum</span>
-                    </a>
-                </li>
-                <li>
-                    <a asp-controller="Announcement" asp-action="Index" data-title="Announcements">
-                        <span class="icon-badge" style="--ibg:#fff7ed; --iclr:#ea580c;"><i class="fa-solid fa-bullhorn"></i></span>
-                        <span>Announcements</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="https://swayam.gov.in/" target="_blank" data-title="Swayam">
-                        <span class="icon-badge" style="--ibg:#fff7ed; --iclr:#ea580c;"><i class="fa-solid fa-graduation-cap"></i></span>
-                        <span>Swayam</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="https://books.google.com/" target="_blank" data-title="Google">
-                        <span class="icon-badge" style="--ibg:#fef2f2; --iclr:#ef4444;"><i class="fa-brands fa-google"></i></span>
-                        <span>Google</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="https://www.microsoft.com/en-in/" target="_blank" data-title="Microsoft">
-                        <span class="icon-badge" style="--ibg:#e0f2fe; --iclr:#0284c7;"><i class="fa-brands fa-microsoft"></i></span>
-                        <span>Microsoft</span>
-                    </a>
-                </li>
-                <li>
-                    <a asp-controller="Chat" asp-action="Index" data-title="Chat & Meeting">
-                        <span class="icon-badge" style="--ibg:#fdf4ff; --iclr:#a855f7;"><i class="fa-solid fa-user-group"></i></span>
-                        <span>Chat &amp; Meeting</span>
-                    </a>
-                </li>
-            }
-
-            @* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-               ADMIN MENU
-            â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• *@
+            @* ════════════════════════════════════════════════════════════════
+               USER MANAGEMENT (Admin)
+            ════════════════════════════════════════════════════════════════ *@
             @if (isAdmin)
             {
-                <li class="menu-section-header">
-                    <span class="section-dot" style="background:#3b82f6;"></span>
-                    <span class="section-label">User Management</span>
+                <li class="menu-section-header" style="padding: 10px 18px 6px; font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: 0.8px; text-transform: uppercase;">
+                    User Management
                 </li>
                 <li>
                     <a asp-area="Admin" asp-controller="User" asp-action="Index" data-title="All Users">
-                        <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#3b82f6;"><i class="fa-solid fa-users"></i></span>
+                        <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#2563eb;"><i class="fa-solid fa-users"></i></span>
                         <span>All Users</span>
                     </a>
                 </li>
                 <li>
                     <a asp-area="Admin" asp-controller="User" asp-action="Index" asp-route-roleFilter="Faculty" data-title="Faculty">
-                        <span class="icon-badge" style="--ibg:#f0fdf4; --iclr:#16a34a;"><i class="fa-solid fa-person-chalkboard"></i></span>
+                        <span class="icon-badge" style="--ibg:#ecfdf5; --iclr:#10b981;"><i class="fa-solid fa-person-chalkboard"></i></span>
                         <span>Faculty</span>
                     </a>
                 </li>
                 <li>
                     <a asp-area="Admin" asp-controller="User" asp-action="Index" asp-route-roleFilter="Student" data-title="Students">
-                        <span class="icon-badge" style="--ibg:#fdf4ff; --iclr:#a855f7;"><i class="fa-solid fa-user-graduate"></i></span>
+                        <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#3b82f6;"><i class="fa-solid fa-user-graduate"></i></span>
                         <span>Students</span>
                     </a>
                 </li>
@@ -235,34 +71,20 @@
                 </li>
                 <li>
                     <a asp-area="Admin" asp-controller="Roles" asp-action="Index" data-title="Roles">
-                        <span class="icon-badge" style="--ibg:#fff1f2; --iclr:#f43f5e;"><i class="fa-solid fa-shield-halved"></i></span>
+                        <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#4f46e5;"><i class="fa-solid fa-shield-halved"></i></span>
                         <span>Roles &amp; Permissions</span>
                     </a>
                 </li>
 
-                <li class="menu-section-header">
-                    <span class="section-dot" style="background:#8b5cf6;"></span>
-                    <span class="section-label">Academics</span>
+                <li class="menu-section-header" style="padding: 14px 18px 6px; font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: 0.8px; text-transform: uppercase;">
+                    Academics
                 </li>
                 <li>
-                    <a asp-area="Admin" asp-controller="CourseCategory" asp-action="Index" data-title="Categories">
-                        <span class="icon-badge" style="--ibg:#fef3c7; --iclr:#d97706;"><i class="fa-solid fa-tags"></i></span>
-                        <span>Program Categories</span>
+                    <a asp-area="Admin" asp-controller="CourseStructure" asp-action="Index" data-title="Academic Hub">
+                        <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#2563eb;"><i class="fa-solid fa-graduation-cap"></i></span>
+                        <span>Academic Hub</span>
                     </a>
                 </li>
-                <li>
-                    <a asp-area="Admin" asp-controller="Course" asp-action="Index" data-title="Courses">
-                        <span class="icon-badge" style="--ibg:#f5f3ff; --iclr:#8b5cf6;"><i class="fa-solid fa-book"></i></span>
-                        <span>Courses</span>
-                    </a>
-                </li>
-                <li>
-                    <a asp-area="Admin" asp-controller="CourseStructure" asp-action="Index" data-title="Course Structure">
-                        <span class="icon-badge" style="--ibg:#fdf4ff; --iclr:#a855f7;"><i class="fa-solid fa-sitemap"></i></span>
-                        <span>Course Structure</span>
-                    </a>
-                </li>
-                
                 <li>
                     <a asp-area="Admin" asp-controller="LectureMaterial" asp-action="Index" data-title="Content Library">
                         <span class="icon-badge" style="--ibg:#ecfdf5; --iclr:#10b981;"><i class="fa-solid fa-layer-group"></i></span>
@@ -271,155 +93,183 @@
                 </li>
                 <li>
                     <a asp-area="Admin" asp-controller="FacultyMapping" asp-action="Index" data-title="Faculty Map">
-                        <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#2563eb;"><i class="fa-solid fa-link"></i></span>
+                        <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#0284c7;"><i class="fa-solid fa-link"></i></span>
                         <span>Faculty Mapping</span>
                     </a>
                 </li>
                 <li>
                     <a asp-area="Admin" asp-controller="CourseEnrollment" asp-action="Index" data-title="Enrollments">
-                        <span class="icon-badge" style="--ibg:#fdf2f8; --iclr:#ec4899;"><i class="fa-solid fa-list-check"></i></span>
+                        <span class="icon-badge" style="--ibg:#f0f9ff; --iclr:#0284c7;"><i class="fa-solid fa-list-check"></i></span>
                         <span>Enrollments</span>
                     </a>
                 </li>
                 <li>
-                    <a asp-controller="Calendar" asp-action="Index" data-title="Calendar">
+                    <a asp-area="Admin" asp-controller="Quiz" asp-action="Index" data-title="Quiz Management">
+                        <span class="icon-badge" style="--ibg:#fef3c7; --iclr:#d97706;"><i class="fa-solid fa-clipboard-question"></i></span>
+                        <span>Quiz Management</span>
+                    </a>
+                </li>
+                <li>
+                    <a asp-area="" asp-controller="InternalAssessment" asp-action="AdminDashboard" data-title="Internal Assessments">
+                        <span class="icon-badge" style="--ibg:#eef2ff; --iclr:#4f46e5;"><i class="fa-solid fa-file-circle-check"></i></span>
+                        <span>Internal Assessments</span>
+                    </a>
+                </li>
+                <li>
+                    <a asp-area="" asp-controller="InternalGradeCard" asp-action="Index" data-title="Internal Grade Cards">
+                        <span class="icon-badge" style="--ibg:#ecfdf5; --iclr:#059669;"><i class="fa-solid fa-file-lines"></i></span>
+                        <span>Internal Grade Cards</span>
+                    </a>
+                </li>
+                <li>
+                    <a asp-area="" asp-controller="FacultyQuizAssessment" asp-action="Index" data-title="Quiz Assessments">
+                        <span class="icon-badge" style="--ibg:#fdf4ff; --iclr:#a855f7;"><i class="fa-solid fa-spell-check"></i></span>
+                        <span>Quiz Assessments</span>
+                    </a>
+                </li>
+                <li>
+                    <a asp-area="" asp-controller="VirtualClassroom" asp-action="Index" data-title="Virtual Classroom">
+                        <span class="icon-badge" style="--ibg:#fee2e2; --iclr:#ef4444;"><i class="fa-solid fa-video"></i></span>
+                        <span>Virtual Classroom (Zoom)</span>
+                    </a>
+                </li>
+                <li>
+                    <a asp-area="" asp-controller="Calendar" asp-action="Index" data-title="Calendar">
                         <span class="icon-badge" style="--ibg:#f0fdf4; --iclr:#16a34a;"><i class="fa-solid fa-calendar-days"></i></span>
                         <span>Class Calendar</span>
                     </a>
                 </li>
                 <li>
-                    <a asp-controller="VirtualClassroom" asp-action="Index" data-title="Virtual Class">
-                        <span class="icon-badge" style="--ibg:#fff1f2; --iclr:#f43f5e;"><i class="fa-solid fa-video"></i></span>
-                        <span>Virtual Classroom</span>
+                    <a asp-area="" asp-controller="Attendance" asp-action="Index" data-title="Attendance">
+                        <span class="icon-badge" style="--ibg:#ecfdf5; --iclr:#059669;"><i class="fa-solid fa-clipboard-user"></i></span>
+                        <span>Student Attendance</span>
                     </a>
                 </li>
                 <li>
-                    <a asp-controller="Attendance" asp-action="Index" data-title="Daily Attendance">
-                        <span class="icon-badge" style="--ibg:#f0fdf4; --iclr:#16a34a;"><i class="fa-solid fa-user-check"></i></span>
-                        <span>Daily Attendance</span>
-                    </a>
-                </li>
-
-
-                <li class="menu-section-header">
-                    <span class="section-dot" style="background:#14b8a6;"></span>
-                    <span class="section-label">Assessments</span>
-                </li>
-
-                <li>
-                    <a asp-area="Admin" asp-controller="VideoQuiz" asp-action="Index" data-title="Video Quiz">
-                        <span class="icon-badge" style="--ibg:#fdf4ff; --iclr:#a855f7;"><i class="fa-solid fa-film"></i></span>
-                        <span>Video Quiz</span>
+                    <a asp-area="" asp-controller="ProgressReport" asp-action="Index" data-title="Progress">
+                        <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#3b82f6;"><i class="fa-solid fa-chart-line"></i></span>
+                        <span>Student Progress</span>
                     </a>
                 </li>
                 <li>
-                    <a asp-area="" asp-controller="Assignment" asp-action="Index" data-title="Assignments">
-                        <span class="icon-badge" style="--ibg:#fff7ed; --iclr:#ea580c;"><i class="fa-solid fa-pen-to-square"></i></span>
-                        <span>Assignments</span>
-                    </a>
-                </li>
-                <li>
-                    <a asp-area="Admin" asp-controller="AdminExam" asp-action="Index" data-title="Exam Supervisor">
-                        <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#3b82f6;"><i class="fa-solid fa-user-shield"></i></span>
-                        <span>Exam Supervisor</span>
-                    </a>
-                </li>
-                <li>
-                    <a asp-controller="FacultyQuizAssessment" asp-action="Index" data-title="Results">
-                        <span class="icon-badge" style="--ibg:#fdf4ff; --iclr:#a855f7;"><i class="fa-solid fa-chart-bar"></i></span>
-                        <span>Results</span>
-                    </a>
-                </li>
-
-                <li class="menu-section-header">
-                    <span class="section-dot" style="background:#f59e0b;"></span>
-                    <span class="section-label">Collaborate &amp; Communication</span>
-                </li>
-                <li>
-                    <a asp-controller="Notifications" asp-action="Index" data-title="Notifications">
-                        <span class="icon-badge" style="--ibg:#fef9c3; --iclr:#ca8a04;"><i class="fa-solid fa-bell"></i></span>
-                        <span>Notification &amp; Inbox</span>
-                    </a>
-                </li>
-                <li>
-                    <a asp-controller="Discussion" asp-action="Index" data-title="Discussion">
-                        <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#2563eb;"><i class="fa-solid fa-comments"></i></span>
+                    <a asp-area="" asp-controller="Discussion" asp-action="Index" data-title="Discussions">
+                        <span class="icon-badge" style="--ibg:#f5f3ff; --iclr:#7c3aed;"><i class="fa-solid fa-comments"></i></span>
                         <span>Discussion Forum</span>
                     </a>
                 </li>
-                <li>
-                    <a asp-controller="Announcement" asp-action="Index" data-title="Announcements">
-                        <span class="icon-badge" style="--ibg:#fff7ed; --iclr:#ea580c;"><i class="fa-solid fa-bullhorn"></i></span>
-                        <span>Announcements</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="https://swayam.gov.in/" target="_blank" data-title="Swayam">
-                        <span class="icon-badge" style="--ibg:#fff7ed; --iclr:#ea580c;"><i class="fa-solid fa-graduation-cap"></i></span>
-                        <span>Swayam</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="https://books.google.com/" target="_blank" data-title="Google">
-                        <span class="icon-badge" style="--ibg:#fef2f2; --iclr:#ef4444;"><i class="fa-brands fa-google"></i></span>
-                        <span>Google</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="https://www.microsoft.com/en-in/" target="_blank" data-title="Microsoft">
-                        <span class="icon-badge" style="--ibg:#e0f2fe; --iclr:#0284c7;"><i class="fa-brands fa-microsoft"></i></span>
-                        <span>Microsoft</span>
-                    </a>
-                </li>
-                <li>
-                    <a asp-controller="Chat" asp-action="Index" data-title="Chat">
-                        <span class="icon-badge" style="--ibg:#fdf4ff; --iclr:#a855f7;"><i class="fa-solid fa-user-group"></i></span>
-                        <span>Chat &amp; Meeting</span>
-                    </a>
-                </li>
+            }
 
-                <li class="menu-section-header">
-                    <span class="section-dot" style="background:#f43f5e;"></span>
-                    <span class="section-label">System &amp; Config</span>
+            @* ════════════════════════════════════════════════════════════════
+               FACULTY MENU
+            ════════════════════════════════════════════════════════════════ *@
+            @if (isFaculty)
+            {
+                <li class="menu-section-header" style="padding: 10px 18px 6px; font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: 0.8px; text-transform: uppercase;">
+                    Academics
                 </li>
                 <li>
-                    <a asp-controller="Home" asp-action="GetAllMasters" data-title="Masters">
-                        <span class="icon-badge" style="--ibg:#fff1f2; --iclr:#f43f5e;"><i class="fa-solid fa-database"></i></span>
-                        <span>Master Data</span>
+                    <a asp-area="Admin" asp-controller="CourseStructure" asp-action="Index" data-title="My Courses &amp; Curriculum">
+                        <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#2563eb;"><i class="fa-solid fa-graduation-cap"></i></span>
+                        <span>My Courses &amp; Curriculum</span>
                     </a>
                 </li>
                 <li>
-                    <a asp-area="Admin" asp-controller="Department" asp-action="Index" data-title="Departments">
-                        <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#0284c7;"><i class="fa-solid fa-building"></i></span>
-                        <span>Departments</span>
+                    <a asp-area="Admin" asp-controller="LectureMaterial" asp-action="Index" data-title="Content Library">
+                        <span class="icon-badge" style="--ibg:#ecfdf5; --iclr:#10b981;"><i class="fa-solid fa-layer-group"></i></span>
+                        <span>Content Library</span>
                     </a>
                 </li>
                 <li>
-                    <a asp-area="Admin" asp-controller="Venue" asp-action="Index" data-title="Venues">
-                        <span class="icon-badge" style="--ibg:#f0fdf4; --iclr:#16a34a;"><i class="fa-solid fa-location-dot"></i></span>
-                        <span>Venues</span>
+                    <a asp-area="" asp-controller="VirtualClassroom" asp-action="Index" data-title="Live Virtual Classes">
+                        <span class="icon-badge" style="--ibg:#fee2e2; --iclr:#ef4444;"><i class="fa-solid fa-video"></i></span>
+                        <span>Live Virtual Classes (Zoom)</span>
                     </a>
                 </li>
                 <li>
-                    <a asp-area="Admin" asp-controller="Badge" asp-action="Index" data-title="Badges">
-                        <span class="icon-badge" style="--ibg:#fef9c3; --iclr:#ca8a04;"><i class="fa-solid fa-medal"></i></span>
-                        <span>Badges</span>
+                    <a asp-area="Admin" asp-controller="Quiz" asp-action="Index" data-title="Quiz Management">
+                        <span class="icon-badge" style="--ibg:#fef3c7; --iclr:#d97706;"><i class="fa-solid fa-clipboard-question"></i></span>
+                        <span>Quiz Management</span>
                     </a>
                 </li>
                 <li>
-                    <a asp-area="Admin" asp-controller="Certificate" asp-action="Index" data-title="Certificates">
-                        <span class="icon-badge" style="--ibg:#f5f3ff; --iclr:#7c3aed;"><i class="fa-solid fa-certificate"></i></span>
-                        <span>Certificates</span>
+                    <a asp-area="" asp-controller="InternalAssessment" asp-action="FacultyDashboard" data-title="Internal Assessments">
+                        <span class="icon-badge" style="--ibg:#eef2ff; --iclr:#4f46e5;"><i class="fa-solid fa-file-circle-check"></i></span>
+                        <span>Internal Assessments</span>
                     </a>
                 </li>
                 <li>
-                    <a asp-area="Admin" asp-controller="PhotoGallery" asp-action="Index" data-title="Gallery">
-                        <span class="icon-badge" style="--ibg:#fdf2f8; --iclr:#db2777;"><i class="fa-solid fa-images"></i></span>
-                        <span>Photo Gallery</span>
+                    <a asp-area="" asp-controller="InternalGradeCard" asp-action="Index" data-title="Internal Grade Cards">
+                        <span class="icon-badge" style="--ibg:#ecfdf5; --iclr:#059669;"><i class="fa-solid fa-file-lines"></i></span>
+                        <span>Internal Grade Cards</span>
+                    </a>
+                </li>
+                <li>
+                    <a asp-area="" asp-controller="FacultyQuizAssessment" asp-action="Index" data-title="Quiz Assessments">
+                        <span class="icon-badge" style="--ibg:#fdf4ff; --iclr:#a855f7;"><i class="fa-solid fa-spell-check"></i></span>
+                        <span>Quiz Assessments</span>
+                    </a>
+                </li>
+                <li>
+                    <a asp-area="" asp-controller="FacultyPPT" asp-action="Index" data-title="Interactive PPT">
+                        <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#3b82f6;"><i class="fa-solid fa-file-powerpoint"></i></span>
+                        <span>Interactive PPT</span>
+                    </a>
+                </li>
+                <li>
+                    <a asp-area="" asp-controller="Calendar" asp-action="Index" data-title="Class Calendar">
+                        <span class="icon-badge" style="--ibg:#f0fdf4; --iclr:#16a34a;"><i class="fa-solid fa-calendar-days"></i></span>
+                        <span>Class Calendar</span>
+                    </a>
+                </li>
+                <li>
+                    <a asp-area="" asp-controller="Attendance" asp-action="Index" data-title="Attendance">
+                        <span class="icon-badge" style="--ibg:#ecfdf5; --iclr:#059669;"><i class="fa-solid fa-clipboard-user"></i></span>
+                        <span>Student Attendance</span>
+                    </a>
+                </li>
+                <li>
+                    <a asp-area="" asp-controller="ProgressReport" asp-action="Index" data-title="Student Progress">
+                        <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#3b82f6;"><i class="fa-solid fa-chart-line"></i></span>
+                        <span>Student Progress</span>
+                    </a>
+                </li>
+                <li>
+                    <a asp-area="" asp-controller="Discussion" asp-action="Index" data-title="Discussions">
+                        <span class="icon-badge" style="--ibg:#f5f3ff; --iclr:#7c3aed;"><i class="fa-solid fa-comments"></i></span>
+                        <span>Discussion Forum</span>
                     </a>
                 </li>
             }
 
         </ul>
+
+        <!-- ── Sidebar Bottom Promo Card (Light-Bluish Theme) ──── -->
+        <div style="padding: 16px 14px 10px 14px; margin-top: auto;">
+            <div style="background: linear-gradient(135deg, #eff6ff 0%, #e0f2fe 50%, #f0f9ff 100%); border: 1px solid #bfdbfe; border-radius: 16px; padding: 14px; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 8px rgba(37,99,235,0.04);">
+                <div>
+                    <span style="display:block; font-size:11px; font-weight:600; color:#1e40af; margin-bottom:2px;">Empowering</span>
+                    <strong style="display:block; font-size:13px; font-weight:800; color:#1e3a8a; line-height:1.2;">Education<br/>Together</strong>
+                </div>
+                <div style="width: 50px; height: 42px; display: flex; align-items: center; justify-content: center;">
+                    <svg width="46" height="38" viewBox="0 0 46 38" fill="none">
+                        <rect x="5" y="24" width="34" height="6" rx="2" fill="#2563eb" />
+                        <rect x="3" y="19" width="38" height="6" rx="2" fill="#38bdf8" />
+                        <rect x="7" y="14" width="30" height="6" rx="2" fill="#60a5fa" />
+                        <polygon points="22,3 6,11 22,18 38,11" fill="#1e293b" />
+                        <circle cx="22" cy="11" r="1.5" fill="#f59e0b" />
+                    </svg>
+                </div>
+            </div>
+            
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding: 0 4px;">
+                <a asp-area="" asp-controller="Home" asp-action="GetAllMasters" style="font-size: 12.5px; font-weight: 600; color: #64748b; text-decoration: none; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-gear"></i> Settings
+                </a>
+                <a asp-area="" asp-controller="Auth" asp-action="LogOff" class="aLogout" style="font-size: 12.5px; font-weight: 700; color: #ef4444; text-decoration: none; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+                </a>
+            </div>
+        </div>
+
     </nav>
 </div>

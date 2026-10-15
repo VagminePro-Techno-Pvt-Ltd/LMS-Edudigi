@@ -67,13 +67,13 @@ namespace TMS.Web.Areas.Admin.Controllers
             ViewData["Title"] = "Content Library";
 
             int userId = GetUserId();
-            string? userRole = User.FindFirstValue(ClaimTypes.Role);
+            bool isFaculty = IsFacultyRole();
 
             // 1. Fetch all courses (filtered by faculty role if needed)
             List<CourseMasterViewModel> allCourses;
-            if (userRole?.Equals("Faculty", StringComparison.OrdinalIgnoreCase) == true)
+            if (isFaculty)
             {
-                var facultyMaps = await _courseFacultyMapManager.GetAsync(null, x => x.FacultyId == userId);
+                var facultyMaps = await _courseFacultyMapManager.GetAsync(null, x => x.FacultyId == userId && x.IsActive);
                 var facultyCourseIds = facultyMaps.Select(m => m.CourseId).Distinct().ToList();
                 var dbCourses = await _courseManager.GetAsync(new[] { "Semester", "CourseCategory" }, t => t.IsActive);
                 allCourses = dbCourses.Where(c => facultyCourseIds.Contains(c.Id)).ToList();
@@ -125,7 +125,8 @@ namespace TMS.Web.Areas.Admin.Controllers
             int selectedCourseId = 0;
             if (!showGlobalLibrary)
             {
-                selectedCourseId = courseId ?? filteredGroups.FirstOrDefault()?.CourseIds.FirstOrDefault() ?? 0;
+                var groupWithContent = filteredGroups.OrderByDescending(g => g.TotalMaterials).FirstOrDefault(g => g.TotalMaterials > 0);
+                selectedCourseId = courseId ?? groupWithContent?.CourseIds.FirstOrDefault() ?? filteredGroups.FirstOrDefault()?.CourseIds.FirstOrDefault() ?? 0;
             }
 
             // 7. Build selected course board (grouped by Semester)
@@ -318,12 +319,12 @@ namespace TMS.Web.Areas.Admin.Controllers
         public async Task<IActionResult> GetAssignableCourses()
         {
             int userId = GetUserId();
-            string? userRole = User.FindFirstValue(ClaimTypes.Role);
+            bool isFaculty = IsFacultyRole();
 
             List<CourseMasterViewModel> courses;
-            if (userRole?.Equals("Faculty", StringComparison.OrdinalIgnoreCase) == true)
+            if (isFaculty)
             {
-                var mappings = await _courseFacultyMapManager.GetAsync(null, x => x.FacultyId == userId);
+                var mappings = await _courseFacultyMapManager.GetAsync(null, x => x.FacultyId == userId && x.IsActive);
                 var courseIds = mappings.Select(m => m.CourseId).Distinct().ToList();
                 var all = await _courseManager.GetAsync(new[] { "Semester" }, t => t.IsActive);
                 courses = all.Where(c => courseIds.Contains(c.Id)).ToList();
@@ -340,6 +341,26 @@ namespace TMS.Web.Areas.Admin.Controllers
                 courses = courses.Select(c => new { id = c.Id, name = c.Name, semester = c.Semester?.Name ?? "General" }),
                 quadrants = quadrants.OrderBy(q => q.QuadrantNumber).Select(q => new { id = q.Id, name = q.Name })
             });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> DeleteMaterial(int id)
+        {
+            if (id <= 0) return Json(new { success = false, message = "Invalid content ID." });
+
+            // 1. Delete associated mappings
+            var mappings = await _courseMaterialMappingManager.GetAsync(null, x => x.LectureMaterialId == id);
+            if (mappings != null && mappings.Any())
+            {
+                foreach (var map in mappings)
+                {
+                    await _courseMaterialMappingManager.DeleteAsync(map.Id);
+                }
+            }
+
+            // 2. Delete material
+            var res = await _lectureMaterialManager.DeleteAsync(id);
+            return Json(new { success = res, message = res ? "Content deleted successfully." : "Failed to delete content." });
         }
 
 
@@ -632,29 +653,49 @@ namespace TMS.Web.Areas.Admin.Controllers
 
         /// <summary>
         /// Resolves a valid active quadrant on the server.
-        /// Document -> Q1; Video/VideoURL/URL/Link -> Q2.
-        /// Other material types retain a valid explicitly selected quadrant.
+        /// If a valid quadrant is explicitly selected, it is preserved.
+        /// Otherwise falls back to UGC-DEB 4-Quadrant standards:
+        /// Video/VideoURL -> Quadrant 1 (e-Tutorial)
+        /// Document/PDF/PPT -> Quadrant 2 (e-Content)
         /// </summary>
         private async Task<CourseQuadrantViewModel?> ResolveQuadrantAsync(
             string? materialType,
             int? requestedQuadrantId)
         {
             var activeQuadrants = await _quadrantManager.GetAsync(null, q => q.IsActive);
-            var normalizedType = (materialType ?? string.Empty).Trim().ToLowerInvariant();
 
-            if (normalizedType == "document")
-                return activeQuadrants.FirstOrDefault(q => q.QuadrantNumber == 1);
+            // 1. If explicit quadrant is requested and valid, use it directly
+            if (requestedQuadrantId.HasValue && requestedQuadrantId.Value > 0)
+            {
+                var explicitMatch = activeQuadrants.FirstOrDefault(q => q.Id == requestedQuadrantId.Value);
+                if (explicitMatch != null) return explicitMatch;
+            }
+
+            // 2. Otherwise fallback based on UGC 4-Quadrant definitions
+            var normalizedType = (materialType ?? string.Empty).Trim().ToLowerInvariant();
 
             if (normalizedType == "video" ||
                 normalizedType == "videourl" ||
                 normalizedType == "url" ||
                 normalizedType == "link")
-                return activeQuadrants.FirstOrDefault(q => q.QuadrantNumber == 2);
+            {
+                return activeQuadrants.FirstOrDefault(q => q.QuadrantNumber == 1) ?? activeQuadrants.FirstOrDefault();
+            }
 
-            if (!requestedQuadrantId.HasValue || requestedQuadrantId.Value <= 0)
-                return null;
+            if (normalizedType == "document" ||
+                normalizedType == "pdf" ||
+                normalizedType == "ppt" ||
+                normalizedType == "pptx" ||
+                normalizedType == "doc" ||
+                normalizedType == "docx" ||
+                normalizedType == "text" ||
+                normalizedType == "xlsx" ||
+                normalizedType == "xls")
+            {
+                return activeQuadrants.FirstOrDefault(q => q.QuadrantNumber == 2) ?? activeQuadrants.FirstOrDefault();
+            }
 
-            return activeQuadrants.FirstOrDefault(q => q.Id == requestedQuadrantId.Value);
+            return activeQuadrants.FirstOrDefault();
         }
 
 

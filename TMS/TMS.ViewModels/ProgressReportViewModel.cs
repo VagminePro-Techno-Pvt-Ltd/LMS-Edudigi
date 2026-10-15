@@ -80,4 +80,40 @@ namespace TMS.ViewModels
         public int Completed { get; set; }
         public decimal Percentage { get; set; }
     }
+
+    public class AdminProgressDashboardViewModel
+    {
+        public int TotalStudents { get; set; }
+        public int ActiveStudentsCount { get; set; }
+        public decimal AverageProgress { get; set; }
+        public decimal VideoWatchRate { get; set; }
+        public decimal StudyMaterialReadRate { get; set; }
+        public decimal QuizAttemptRate { get; set; }
+        public decimal AssignmentCompletionRate { get; set; }
+
+        public int? SelectedProgramId { get; set; }
+        public int? SelectedCourseId { get; set; }
+        public string? SearchKeyword { get; set; }
+
+        public List<StudentProgressSummaryItem> StudentSummaries { get; set; } = new List<StudentProgressSummaryItem>();
+    }
+
+    public class StudentProgressSummaryItem
+    {
+        public int StudentId { get; set; }
+        public string StudentName { get; set; } = "";
+        public string EnrollmentNo { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string ProgramName { get; set; } = "";
+        public string CourseName { get; set; } = "";
+
+        public decimal VideoProgressPct { get; set; }
+        public decimal StudyProgressPct { get; set; }
+        public decimal QuizProgressPct { get; set; }
+        public decimal AssignmentProgressPct { get; set; }
+        public decimal OverallProgressPct { get; set; }
+
+        public System.DateTime? LastActiveAt { get; set; }
+        public string StatusBadge { get; set; } = "On Track";
+    }
 }

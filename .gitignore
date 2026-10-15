@@ -133,3 +133,11 @@ Desktop.ini
 
 # Log files
 *.log
+
+# Deployment & publish artifacts
+publish/
+publish_framework_win64/
+*.zip
+.runtime/
+*.backup
+*.bak*

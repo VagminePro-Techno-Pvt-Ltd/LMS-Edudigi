@@ -68,18 +68,18 @@ namespace TMS.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateThread(DiscussionThread thread, string CommentText, List<IFormFile> attachments)
         {
-            if (ModelState.IsValid)
+            if (!string.IsNullOrWhiteSpace(thread.Title) && !string.IsNullOrWhiteSpace(CommentText) && (thread.ProgramId ?? 0) > 0)
             {
                 var threadId = await _discussionManager.CreateThreadAsync(thread, CommentText, GetUserId());
                 if (attachments != null && attachments.Any())
                 {
                     await HandleAttachments(attachments, threadId, null);
                 }
-                SetApplicationResult(true, "Question posted successfully.");
+                SetApplicationResult(true, "Discussion created successfully.");
             }
             else
             {
-                SetApplicationResult(false, "Failed to post question. Please check the form.");
+                SetApplicationResult(false, "Failed to create discussion. Please provide a title, message, and program.");
             }
             return RedirectToAction(nameof(Index), new { programId = thread.ProgramId });
         }
@@ -88,7 +88,7 @@ namespace TMS.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Reply(DiscussionReply reply, List<IFormFile> attachments)
         {
-            if (ModelState.IsValid)
+            if (!string.IsNullOrWhiteSpace(reply.CommentText) && reply.ThreadId > 0)
             {
                 var replyId = await _discussionManager.AddReplyAsync(reply, GetUserId());
                 if (attachments != null && attachments.Any())
@@ -99,7 +99,7 @@ namespace TMS.Web.Controllers
             }
             else
             {
-                SetApplicationResult(false, "Failed to post reply.");
+                SetApplicationResult(false, "Please enter your answer text.");
             }
             return RedirectToAction(nameof(Details), new { id = reply.ThreadId });
         }

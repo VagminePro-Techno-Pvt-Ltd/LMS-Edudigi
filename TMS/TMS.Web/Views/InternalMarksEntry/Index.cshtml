@@ -1,0 +1,146 @@
+@model List<TMS.Web.Controllers.MarksEntryStudentRow>
+@using TMS.Models.Academics
+@{
+    ViewData["Title"] = "Faculty Internal Marks Entry";
+    var assessments = (List<InternalAssessment>)ViewBag.Assessments;
+    var courses = (Dictionary<int,string>)ViewBag.Courses;
+    var selected = ViewBag.Selected as InternalAssessment;
+    bool hasQuestions = ViewBag.HasQuestions is bool value && value;
+    var semesters = (List<int>)ViewBag.Semesters;
+    var courseSemesters = (Dictionary<int,int?>)ViewBag.CourseSemesters;
+    int? selectedSemesterId = ViewBag.SelectedSemesterId;
+    int? selectedCourseId = ViewBag.SelectedCourseId;
+}
+<style>
+    .ime-wrap{max-width:1200px;margin:20px auto;padding:20px;background:white;border:1px solid #dfe7f0;border-radius:14px}
+    .ime-wrap h2{font-weight:750;margin-bottom:6px}.ime-muted{color:#64748b}
+    .ime-select,.ime-number{padding:9px;border:1px solid #cbd5e1;border-radius:8px;max-width:100%}
+    .ime-table{width:100%;border-collapse:collapse;margin-top:18px}.ime-table th,.ime-table td{padding:12px;border-bottom:1px solid #e2e8f0;text-align:left}
+    .ime-table th{background:#f1f5fb}.ime-btn{border:0;background:#155bb7;color:#fff;border-radius:7px;padding:9px 16px;cursor:pointer}
+    .ime-btn:disabled{opacity:.45}.ime-note{background:#f1f5fb;border-radius:8px;padding:12px;margin-top:14px}
+    @@media(max-width:700px){.ime-wrap{padding:12px}.ime-table{font-size:12px}.ime-table th,.ime-table td{padding:7px}}
+</style>
+<div class="ime-wrap">
+    <h2>Internal Assessment — Faculty Marks Entry</h2>
+    <p class="ime-muted">Choose an assessment. Faculty evaluation is followed by an approval request, Admin review, and Admin publication.</p>
+    @if (TempData["MarksEntryMessage"] != null) { <div class="alert alert-success">@TempData["MarksEntryMessage"]</div> }
+    <form method="get" asp-controller="InternalMarksEntry" asp-action="Index">
+        <label for="semesterId"><strong>Semester</strong></label>
+        <select class="ime-select" id="semesterId" name="semesterId">
+            <option value="">All semesters</option>
+            @foreach (var semester in semesters)
+            {
+                <option value="@semester" selected="@(selectedSemesterId == semester)">Semester @semester</option>
+            }
+        </select>
+        <label for="courseId"><strong>Subject / Course</strong></label>
+        <select class="ime-select" id="courseId" name="courseId">
+            <option value="">All assigned subjects</option>
+            @foreach (var course in courses.OrderBy(c => c.Value))
+            {
+                var semester = courseSemesters.TryGetValue(course.Key, out var sem) ? sem : null;
+                <option value="@course.Key" data-semester="@semester" selected="@(selectedCourseId == course.Key)">@course.Value</option>
+            }
+        </select>
+        <label for="assessmentId"><strong>Assessment</strong></label>
+        <select class="ime-select" id="assessmentId" name="assessmentId" required>
+            <option value="">Select assessment</option>
+            @foreach (var a in assessments)
+            {
+                var name = courses.TryGetValue(a.CourseId, out var courseName) ? courseName : $"Course {a.CourseId}";
+                <option value="@a.Id" data-course="@a.CourseId" selected="@(selected?.Id == a.Id)">@name — @a.Title (Max @a.MaxMarks.ToString("0.##"))</option>
+            }
+        </select>
+        <button class="ime-btn" type="submit">Load Students</button>
+        <a asp-controller="InternalAssessment" asp-action="FacultyDashboard" style="margin-left:10px">Assessment Dashboard</a>
+    </form>
+    @if (selected != null)
+    {
+        <div class="ime-note"><strong>@selected.Title</strong> | Maximum: @selected.MaxMarks.ToString("0.##") | Result: @(selected.ResultsPublished ? "Published (locked)" : "Not published") | Passing: 33%</div>
+        @if (hasQuestions)
+        {
+            <p class="ime-note">This is a question-based assessment. Student submissions must be graded question-wise to preserve answer-level marks and publishing checks. For marks without online submissions, create a separate non-question Internal Assessment and use manual entry there.</p>
+            <a asp-controller="InternalAssessment" asp-action="Submissions" asp-route-id="@selected.Id">Open Submissions / Grading</a>
+            <div style="overflow-x:auto"><table class="ime-table"><thead><tr><th>Student ID</th><th>Student</th><th>Submission</th><th>Evaluation</th></tr></thead><tbody>
+            @foreach (var row in Model)
+            {
+                <tr><td>@row.StudentId</td><td>@row.StudentName</td><td>@(row.HasSubmission ? "Submitted" : "Not submitted")</td><td>@(row.Evaluated ? "Evaluated" : "PENDING")</td></tr>
+            }
+            </tbody></table></div>
+            @if (Model.Count == 0) { <p>No active enrolled students found for this course.</p> }
+        }
+        else
+        {
+            <div style="overflow-x:auto"><table class="ime-table"><thead><tr><th>Student ID</th><th>Name</th><th>Marks / @selected.MaxMarks.ToString("0.##")</th><th>Status</th><th>Action</th></tr></thead><tbody>
+            @foreach (var row in Model)
+            {
+                var formId = "marks-" + row.StudentId;
+                var status = !row.HasSubmission ? "NO SUBMISSION" : row.Evaluated && row.Marks.HasValue ? (row.Marks.Value * 100m >= selected.MaxMarks * 33m ? "PASS" : "FAIL") : "PENDING";
+                <tr>
+                    <td>@row.StudentId</td><td>@row.StudentName</td>
+                    <td>
+                        @if (row.HasSubmission)
+                        {
+                            <input class="ime-number" type="number" step="0.01" min="0" max="@selected.MaxMarks.ToString(System.Globalization.CultureInfo.InvariantCulture)" name="marks" value="@(row.Marks?.ToString(System.Globalization.CultureInfo.InvariantCulture))" required form="@formId" style="width:110px" />
+                        }
+                        else
+                        {
+                            <span class="ime-muted">Not entered</span>
+                        }
+                    </td>
+                    <td><strong style="color:@(status == "FAIL" ? "#b42318" : status == "PASS" ? "#087443" : "#9a6700")">@status</strong></td>
+                    <td>
+                        @if (row.HasSubmission)
+                        {
+                            <form id="@formId" method="post" asp-controller="InternalMarksEntry" asp-action="Save">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="assessmentId" value="@selected.Id" />
+                                <input type="hidden" name="studentId" value="@row.StudentId" />
+                                <button class="ime-btn" type="submit" disabled="@(selected.ResultsPublished || selected.ResultApprovalRequested || selected.ResultApproved)">Save</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <span class="ime-muted">ABSENT after publication</span>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody></table></div>
+            @if (Model.Count == 0) { <p>No active enrolled students found.</p> }
+            <p class="ime-muted" style="margin-top:12px">Go to Internal Assessment - Submissions to request approval after grading. Admin review and publication are required before students see results.</p>
+        }
+    }
+</div>
+
+<script>
+(function () {
+    const semester = document.getElementById('semesterId');
+    const course = document.getElementById('courseId');
+    const assessment = document.getElementById('assessmentId');
+    if (!semester || !course || !assessment) return;
+    function filterCourses() {
+        const sem = semester.value;
+        for (const option of course.options) {
+            option.hidden = !!option.value && !!sem && option.dataset.semester !== sem;
+        }
+        if (course.selectedOptions[0]?.hidden) course.value = '';
+        filterAssessments();
+    }
+    function filterAssessments() {
+        const selectedCourse = course.value;
+        const sem = semester.value;
+        const courseSemesters = Object.fromEntries(Array.from(course.options)
+            .filter(o => o.value).map(o => [o.value, o.dataset.semester || '']));
+        for (const option of assessment.options) {
+            option.hidden = !!option.value &&
+                ((!!selectedCourse && option.dataset.course !== selectedCourse) ||
+                 (!!sem && courseSemesters[option.dataset.course] !== sem));
+        }
+        if (assessment.selectedOptions[0]?.hidden) assessment.value = '';
+    }
+    semester.addEventListener('change', filterCourses);
+    course.addEventListener('change', filterAssessments);
+    filterCourses();
+})();
+</script>

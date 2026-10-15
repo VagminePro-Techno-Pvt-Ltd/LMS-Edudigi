@@ -1,261 +1,382 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using TMS.Models.Academics;
 using TMS.Models.Masters;
-using TMS.Repository.Managers;
-using TMS.ViewModels;
+using TMS.Repository;
 using TMS.ViewModels.Academics;
-using TMS.ViewModels.Masters;
 
 namespace TMS.Web.Controllers
 {
     [ValidateFormAccess(Common.FormDefination.QuizAssemement)]
     public class FacultyQuizAssessmentController : BaseController
     {
-        private readonly IMasterBaseManager<StudentQuizAttemptViewModel> _attemptManager;
-        private readonly IMasterBaseManager<StudentQuizAnswerViewModel> _answerManager;
-        private readonly IMasterBaseManager<CourseFacultyMapViewModel> _facultyMapManager;
-        private readonly IMasterBaseManager<QuizMasterViewModel> _quizManager;
-        private readonly IMasterManager<CourseMasterViewModel> _courseManager;
-        private readonly IMasterBaseManager<CourseQuadrantViewModel> _quadrantManager;
-        private readonly IMasterManager<UserViewModel> _userManager;
-        private readonly IMasterBaseManager<FacultyQuizAssessmentViewModel> _facultyQuizAssessmentManager;
+        private readonly ApplicationDBContext _db;
 
-        public FacultyQuizAssessmentController(
-            IMasterBaseManager<StudentQuizAttemptViewModel> attemptManager,
-            IMasterBaseManager<StudentQuizAnswerViewModel> answerManager,
-            IMasterBaseManager<CourseFacultyMapViewModel> facultyMapManager,
-            IMasterBaseManager<QuizMasterViewModel> quizManager,
-            IMasterManager<CourseMasterViewModel> courseManager,
-            IMasterBaseManager<CourseQuadrantViewModel> quadrantManager,
-            IMasterManager<UserViewModel> userManager,
-            IMasterBaseManager<FacultyQuizAssessmentViewModel> facultyQuizAssessmentManager)
+        public FacultyQuizAssessmentController(ApplicationDBContext db)
         {
-            _attemptManager = attemptManager;
-            _answerManager = answerManager;
-            _facultyMapManager = facultyMapManager;
-            _quizManager = quizManager;
-            _courseManager = courseManager;
-            _quadrantManager = quadrantManager;
-            _userManager = userManager;
-            _facultyQuizAssessmentManager = facultyQuizAssessmentManager;
+            _db = db;
         }
 
-        // GET: List of student attempts for faculty courses
+        // GET: List of student attempts for faculty or admin
         public async Task<IActionResult> Index()
         {
-            int facultyId = GetUserId();
+            int userId = GetUserId();
+            bool isFaculty = IsFacultyRole();
 
-            var facultyCourses = await _facultyMapManager.GetAsync(null, f => f.IsActive && f.FacultyId == facultyId);
-            var courseIds = facultyCourses.Select(f => f.CourseId).ToList();
-
-            var allAttempts = await _attemptManager.GetAsync(null, a => a.IsActive);
-            var attempts = allAttempts.Where(a => courseIds.Contains(a.CourseId)).ToList();
-
-            var allCourses = await _courseManager.GetAsync(null, c => c.IsActive);
-            var courses = allCourses.Where(c => courseIds.Contains(c.Id)).ToList();
-
-            //var allCourses = await _courseManager.GetAsync(null, c => courseIds.Contains(c.Id));
-            var quadrants = await _quadrantManager.GetAsync(null, q => q.IsActive);
-            var users = await _userManager.GetAsync(null, u => u.IsActive);
-
-            var model = attempts.Select(a =>
+            // 1. Determine course filter if faculty
+            List<int> facultyCourseIds = new();
+            if (isFaculty)
             {
-                var course = courses.FirstOrDefault(c => c.Id == a.CourseId);
-                var quadrant = quadrants.FirstOrDefault(q => q.Id == a.CourseQuadrantId);
-                var student = users.FirstOrDefault(u => u.Id == a.StudentId);
-                var quiz = _quizManager.GetAsync(null, q => q.Id == a.QuizId).Result.FirstOrDefault();
+                facultyCourseIds = await _db.CourseFacultyMaps.AsNoTracking()
+                    .Where(f => f.IsActive && f.FacultyId == userId)
+                    .Select(f => f.CourseId)
+                    .Distinct()
+                    .ToListAsync();
+            }
+
+            // 2. Query attempts
+            var attemptsQuery = _db.StudentQuizAttempt.AsNoTracking()
+                .Include(a => a.Quiz)
+                .Where(a => a.IsActive);
+
+            if (isFaculty && facultyCourseIds.Any())
+            {
+                attemptsQuery = attemptsQuery.Where(a => facultyCourseIds.Contains(a.CourseId ?? 0) || a.CourseId == null || a.CourseId == 0);
+            }
+
+            var allAttempts = await attemptsQuery.OrderByDescending(a => a.AttemptDate).ThenByDescending(a => a.Id).ToListAsync();
+
+            if (!allAttempts.Any())
+            {
+                ViewBag.IsAdmin = !isFaculty;
+                return View(new List<FacultyQuizAssessmentViewModel>());
+            }
+
+            // 3. Fetch lookups for fast in-memory display
+            var courses = await _db.CourseMasters.AsNoTracking().Where(c => c.IsActive).ToDictionaryAsync(c => c.Id, c => c.Name);
+            var quadrants = await _db.CourseQuadrantMasters.AsNoTracking().Where(q => q.IsActive).ToDictionaryAsync(q => q.Id, q => q.Name);
+            var users = await _db.UserMasters.AsNoTracking().Where(u => u.IsActive).ToDictionaryAsync(u => u.Id, u => u.Name);
+            var assessments = await _db.FacultyQuizAssessment.AsNoTracking()
+                .Where(f => f.IsActive)
+                .GroupBy(f => f.AttemptId)
+                .Select(g => g.OrderByDescending(x => x.Id).First())
+                .ToDictionaryAsync(f => f.AttemptId, f => f.TotalScore);
+
+            // 4. Map to view models
+            var model = allAttempts.Select(a =>
+            {
+                decimal? totalScore = assessments.ContainsKey(a.Id) ? assessments[a.Id] : a.Score;
+                string courseName = (a.CourseId.HasValue && courses.ContainsKey(a.CourseId.Value)) ? courses[a.CourseId.Value] : (a.Quiz?.CourseId > 0 && courses.ContainsKey(a.Quiz.CourseId) ? courses[a.Quiz.CourseId] : "N/A");
+                string quadName = (a.CourseQuadrantId.HasValue && quadrants.ContainsKey(a.CourseQuadrantId.Value)) ? quadrants[a.CourseQuadrantId.Value] : (a.Quiz?.CourseQuadrantId > 0 && quadrants.ContainsKey(a.Quiz.CourseQuadrantId) ? quadrants[a.Quiz.CourseQuadrantId] : "N/A");
+                string studentName = users.ContainsKey(a.StudentId) ? users[a.StudentId] : $"Student #{a.StudentId}";
+                string quizTitle = a.Quiz?.Title ?? "Quiz #" + a.QuizId;
 
                 return new FacultyQuizAssessmentViewModel
                 {
                     AttemptId = a.Id,
                     StudentId = a.StudentId,
-                    StudentName = student?.Name ?? "N/A",
-                    CourseId = a.CourseId,
-                    CourseName = course?.Name ?? "N/A",
-                    QuadrantId = a.CourseQuadrantId,
-                    QuadrantName = quadrant?.Name ?? "N/A",
+                    StudentName = studentName,
+                    CourseId = a.CourseId ?? 0,
+                    CourseName = courseName,
+                    QuadrantId = a.CourseQuadrantId ?? 0,
+                    QuadrantName = quadName,
                     QuizId = a.QuizId,
-                    QuizName = quiz?.Title ?? "N/A",
-                    AttemptedOn = a.CreatedOn,
-                    TotalScore = a.Score
+                    QuizName = quizTitle,
+                    AttemptedOn = a.AttemptDate != default ? a.AttemptDate : a.CreatedOn,
+                    TotalScore = totalScore
                 };
             }).ToList();
 
+            ViewBag.IsAdmin = !isFaculty;
             return View(model);
         }
 
         [HttpGet]
         public async Task<IActionResult> Details(int attemptId)
         {
-            // 1️⃣ Fetch attempt and related quiz
-            var attempt = (await _attemptManager.GetAsync(null, a => a.Id == attemptId)).FirstOrDefault();
-            if (attempt == null) return NotFound();
-
-            var quiz = (await _quizManager.GetAsync(new[] { "Questions", "Questions.Options" }, q => q.Id == attempt.QuizId))
-                .FirstOrDefault();
-            if (quiz == null) return NotFound("Quiz not found");
-
-            var answers = await _answerManager.GetAsync(null, a => a.StudentQuizAttemptId == attemptId);
-
-            // 2️⃣ Check if faculty assessment already exists
-            var existingAssessment = (await _facultyQuizAssessmentManager
-                .GetAsync(new[] { "Questions" }, f => f.AttemptId == attemptId))
-                .FirstOrDefault();
-
-            bool isAssessed = existingAssessment != null;
-
-            // 3️⃣ Prepare Question list (either from existing assessment or attempt)
-            List<FacultyQuizQuestionAssessmentViewModel> questionAssessments;
-
-            if (isAssessed)
+            try
             {
-                // ✅ Use saved assessment data but include student answers
-                questionAssessments = existingAssessment.Questions.Select(q =>
+                // 1️⃣ Fetch attempt and quiz
+                var attempt = await _db.StudentQuizAttempt.AsNoTracking()
+                    .Include(a => a.Quiz)
+                    .FirstOrDefaultAsync(a => a.Id == attemptId);
+
+                if (attempt == null)
+                    return Content("<div class='p-4 text-center text-danger'>Attempt not found.</div>", "text/html");
+
+                var quiz = await _db.QuizMasters.AsNoTracking()
+                    .Include(q => q.Questions)
+                        .ThenInclude(qq => qq.Options)
+                    .Include(q => q.Course)
+                    .Include(q => q.CourseQuadrant)
+                    .FirstOrDefaultAsync(q => q.Id == attempt.QuizId);
+
+                if (quiz == null)
+                    return Content("<div class='p-4 text-center text-danger'>Quiz details not found.</div>", "text/html");
+
+                // 2️⃣ Fetch student's submitted answers
+                var answers = await _db.StudentQuizAnswer.AsNoTracking()
+                    .Include(a => a.SelectedOption)
+                    .Where(a => a.StudentQuizAttemptId == attemptId)
+                    .ToListAsync();
+
+                // 3️⃣ Check if faculty evaluation already exists
+                var existingAssessment = await _db.FacultyQuizAssessment.AsNoTracking()
+                    .Include(f => f.Questions)
+                    .Where(f => f.AttemptId == attemptId && f.IsActive)
+                    .OrderByDescending(f => f.Id)
+                    .FirstOrDefaultAsync();
+
+                bool isAssessed = existingAssessment != null && existingAssessment.Questions != null && existingAssessment.Questions.Any();
+
+                var quizQuestions = quiz.Questions?.Where(q => q.IsActive).OrderBy(q => q.Id).ToList() ?? new List<QuizQuestion>();
+                var questionAssessments = new List<FacultyQuizQuestionAssessmentViewModel>();
+
+                if (isAssessed && existingAssessment?.Questions != null)
                 {
-                    var quizQuestion = quiz.Questions.FirstOrDefault(qq => qq.Id == q.QuestionId);
-                    var answer = answers.FirstOrDefault(a => a.QuizQuestionId == q.QuestionId);
-
-                    string? selectedOptionText = null;
-                    string? writtenAnswer = null;
-
-                    if (quizQuestion != null && quizQuestion.QuestionType == QuestionType.Objective)
+                    foreach (var qEval in existingAssessment.Questions)
                     {
-                        var selectedOption = quizQuestion.Options.FirstOrDefault(o => o.Id == answer?.SelectedOptionId);
-                        selectedOptionText = selectedOption?.OptionText;
-                    }
-                    else if (quizQuestion != null && quizQuestion.QuestionType == QuestionType.Subjective)
-                    {
-                        writtenAnswer = answer?.WrittenAnswer;
-                    }
+                        var originalQ = quizQuestions.FirstOrDefault(qq => qq.Id == qEval.QuestionId);
+                        var answer = answers.FirstOrDefault(a => a.QuizQuestionId == qEval.QuestionId);
 
-                    return new FacultyQuizQuestionAssessmentViewModel
-                    {
-                        Id = q.Id,
-                        FacultyQuizAssessmentId = existingAssessment.Id,
-                        QuestionId = q.QuestionId,
-                        QuestionText = q.QuestionText,
-                        MaxScore = quizQuestion?.MaxMarks ?? q.MaxScore,
-                        StudentScore = q.StudentScore,
-                        QuestionType = quizQuestion?.QuestionType ?? QuestionType.Subjective,
-                        SelectedOptionText = selectedOptionText,
-                        WrittenAnswer = writtenAnswer
-                    };
-                }).ToList();
-            }
-            else
-            {
-                // 🟡 Build new dynamic evaluation data from quiz + answers
-                questionAssessments = quiz.Questions?.Select(q =>
-                {
-                    var answer = answers.FirstOrDefault(a => a.QuizQuestionId == q.Id);
-                    decimal studentScore = 0;
-                    string? selectedOptionText = null;
-                    string? writtenAnswer = null;
+                        string? selectedOptionText = null;
+                        string? correctOptionText = null;
+                        bool? isOptionCorrect = null;
+                        string? writtenAnswer = null;
 
-                    if (answer != null)
-                    {
-                        if (q.QuestionType == QuestionType.Objective && q.Options != null)
+                        if (originalQ != null && originalQ.QuestionType == QuestionType.Objective)
                         {
-                            var selectedOption = q.Options.FirstOrDefault(o => o.Id == answer.SelectedOptionId);
-                            selectedOptionText = selectedOption?.OptionText;
+                            var selectedOpt = originalQ.Options?.FirstOrDefault(o => o.Id == answer?.SelectedOptionId) ?? answer?.SelectedOption;
+                            selectedOptionText = selectedOpt?.OptionText;
 
-                            // ✅ Fix: Use IsCorrectOption instead of CorrectOptionId
-                            var correctOption = q.Options.FirstOrDefault(o => o.IsCorrectOption == true);
-                            if (correctOption != null && selectedOption?.Id == correctOption.Id)
+                            var correctOpt = originalQ.Options?.FirstOrDefault(o => o.IsCorrectOption == true);
+                            correctOptionText = correctOpt?.OptionText;
+                            if (selectedOpt != null && correctOpt != null)
                             {
-                                studentScore = q.MaxMarks ?? 0;
+                                isOptionCorrect = selectedOpt.Id == correctOpt.Id;
                             }
                         }
-                        else if (q.QuestionType == QuestionType.Subjective)
+                        else
                         {
-                            writtenAnswer = answer.WrittenAnswer;
+                            writtenAnswer = answer?.WrittenAnswer;
                         }
+
+                        questionAssessments.Add(new FacultyQuizQuestionAssessmentViewModel
+                        {
+                            Id = qEval.Id,
+                            FacultyQuizAssessmentId = existingAssessment.Id,
+                            QuestionId = qEval.QuestionId,
+                            QuestionText = string.IsNullOrWhiteSpace(qEval.QuestionText) ? (originalQ?.QuestionText ?? "Question") : qEval.QuestionText,
+                            MaxScore = qEval.MaxScore > 0 ? qEval.MaxScore : (originalQ?.MaxMarks ?? 1),
+                            StudentScore = qEval.StudentScore,
+                            QuestionType = originalQ?.QuestionType ?? QuestionType.Subjective,
+                            SelectedOptionText = selectedOptionText,
+                            CorrectOptionText = correctOptionText,
+                            IsOptionCorrect = isOptionCorrect,
+                            WrittenAnswer = writtenAnswer
+                        });
                     }
-
-                    return new FacultyQuizQuestionAssessmentViewModel
+                }
+                else
+                {
+                    foreach (var q in quizQuestions)
                     {
-                        QuestionId = q.Id,
-                        QuestionText = q.QuestionText,
-                        MaxScore = q.MaxMarks ?? 0,
-                        StudentScore = studentScore,
-                        SelectedOptionText = selectedOptionText,
-                        WrittenAnswer = writtenAnswer,
-                        QuestionType = q.QuestionType
-                    };
-                }).ToList() ?? new List<FacultyQuizQuestionAssessmentViewModel>();
+                        var answer = answers.FirstOrDefault(a => a.QuizQuestionId == q.Id);
+                        decimal studentScore = 0;
+                        string? selectedOptionText = null;
+                        string? correctOptionText = null;
+                        bool? isOptionCorrect = null;
+                        string? writtenAnswer = null;
+
+                        if (answer != null)
+                        {
+                            if (q.QuestionType == QuestionType.Objective && q.Options != null)
+                            {
+                                var selectedOpt = q.Options.FirstOrDefault(o => o.Id == answer.SelectedOptionId) ?? answer.SelectedOption;
+                                selectedOptionText = selectedOpt?.OptionText;
+
+                                var correctOpt = q.Options.FirstOrDefault(o => o.IsCorrectOption == true);
+                                correctOptionText = correctOpt?.OptionText;
+                                if (correctOpt != null && selectedOpt != null)
+                                {
+                                    isOptionCorrect = (selectedOpt.Id == correctOpt.Id);
+                                    if (isOptionCorrect == true)
+                                    {
+                                        studentScore = q.MaxMarks ?? 1;
+                                    }
+                                }
+                            }
+                            else if (q.QuestionType == QuestionType.Subjective)
+                            {
+                                writtenAnswer = answer.WrittenAnswer;
+                            }
+                        }
+
+                        questionAssessments.Add(new FacultyQuizQuestionAssessmentViewModel
+                        {
+                            QuestionId = q.Id,
+                            QuestionText = q.QuestionText,
+                            MaxScore = q.MaxMarks ?? 1,
+                            StudentScore = studentScore,
+                            SelectedOptionText = selectedOptionText,
+                            CorrectOptionText = correctOptionText,
+                            IsOptionCorrect = isOptionCorrect,
+                            WrittenAnswer = writtenAnswer,
+                            QuestionType = q.QuestionType
+                        });
+                    }
+                }
+
+                // 4️⃣ Resolve user / course info
+                var student = await _db.UserMasters.AsNoTracking().FirstOrDefaultAsync(u => u.Id == attempt.StudentId);
+                var course = attempt.CourseId.HasValue ? await _db.CourseMasters.AsNoTracking().FirstOrDefaultAsync(c => c.Id == attempt.CourseId.Value) : quiz.Course;
+                var quadrant = attempt.CourseQuadrantId.HasValue ? await _db.CourseQuadrantMasters.AsNoTracking().FirstOrDefaultAsync(qd => qd.Id == attempt.CourseQuadrantId.Value) : quiz.CourseQuadrant;
+
+                decimal? totalScore = isAssessed ? (existingAssessment?.TotalScore ?? questionAssessments.Sum(q => q.StudentScore)) : questionAssessments.Sum(q => q.StudentScore);
+
+                var model = new FacultyQuizAssessmentViewModel
+                {
+                    Id = existingAssessment?.Id ?? 0,
+                    AttemptId = attempt.Id,
+                    StudentId = attempt.StudentId,
+                    StudentName = student?.Name ?? $"Student #{attempt.StudentId}",
+                    CourseId = course?.Id ?? attempt.CourseId ?? 0,
+                    CourseName = course?.Name ?? "General Course",
+                    QuadrantId = quadrant?.Id ?? attempt.CourseQuadrantId ?? 0,
+                    QuadrantName = quadrant?.Name ?? "Quadrant",
+                    QuizId = quiz.Id,
+                    QuizName = quiz.Title,
+                    AttemptedOn = attempt.AttemptDate != default ? attempt.AttemptDate : attempt.CreatedOn,
+                    TotalScore = totalScore,
+                    Questions = questionAssessments,
+                    IsAssessed = isAssessed
+                };
+
+                return PartialView("_FacultyQuizAssessmentModal", model);
             }
-
-            // 4️⃣ Resolve student/course info
-            var student = (await _userManager.GetAsync(null, u => u.Id == attempt.StudentId)).FirstOrDefault();
-            var course = (await _courseManager.GetAsync(null, c => c.Id == attempt.CourseId)).FirstOrDefault();
-            var quadrant = (await _quadrantManager.GetAsync(null, q => q.Id == attempt.CourseQuadrantId)).FirstOrDefault();
-
-            // 5️⃣ Build final ViewModel
-            var model = new FacultyQuizAssessmentViewModel
+            catch (Exception ex)
             {
-                Id = existingAssessment?.Id ?? 0,
-                AttemptId = attempt.Id,
-                StudentId = attempt.StudentId,
-                StudentName = student?.Name ?? "N/A",
-                CourseId = attempt.CourseId,
-                CourseName = course?.Name ?? "N/A",
-                QuadrantId = attempt.CourseQuadrantId,
-                QuadrantName = quadrant?.Name ?? "N/A",
-                QuizId = attempt.QuizId,
-                QuizName = quiz.Title,
-                AttemptedOn = attempt.CreatedOn,
-                TotalScore = existingAssessment?.TotalScore,
-                Questions = questionAssessments,
-                IsAssessed = isAssessed
-            };
-
-            model.IsAssessed = isAssessed;
-            return PartialView("_FacultyQuizAssessmentModal", model);
+                return Content($"<div class='p-4 text-center text-danger'><strong>Failed to load assessment details:</strong><br/>{ex.Message}</div>", "text/html");
+            }
         }
-
-
-
 
         // POST: Save assessment (faculty can update subjective scores)
         [HttpPost]
         public async Task<IActionResult> SaveAssessment(FacultyQuizAssessmentViewModel model)
         {
-            if (!ModelState.IsValid) return BadRequest();
+            if (model == null || model.AttemptId <= 0)
+                return BadRequest(new { success = false, message = "Invalid assessment data." });
 
-            decimal totalScore = model.Questions.Sum(q => q.StudentScore);
+            int currentUserId = GetUserId();
+            decimal totalScore = model.Questions?.Sum(q => q.StudentScore) ?? 0;
 
-            // Create new assessment record
-            var assessment = new FacultyQuizAssessmentViewModel
+            try
             {
-                AttemptId = model.AttemptId,
-                StudentId = model.StudentId,
-                StudentName = model.StudentName,
-                CourseId = model.CourseId,
-                CourseName = model.CourseName,
-                QuadrantId = model.QuadrantId,
-                QuadrantName = model.QuadrantName,
-                QuizId = model.QuizId,
-                QuizName = model.QuizName,
-                AttemptedOn = model.AttemptedOn,
-                TotalScore = totalScore,
-                Questions = model.Questions.Select(q => new FacultyQuizQuestionAssessmentViewModel
+                var existingAssessment = await _db.FacultyQuizAssessment
+                    .Include(f => f.Questions)
+                    .FirstOrDefaultAsync(f => f.AttemptId == model.AttemptId && f.IsActive);
+
+                if (existingAssessment == null)
                 {
-                    QuestionId = q.QuestionId,
-                    QuestionText = q.QuestionText,
-                    MaxScore = q.MaxScore,
-                    StudentScore = q.StudentScore,
-                    SelectedOptionText = q.SelectedOptionText,
-                    WrittenAnswer = q.WrittenAnswer,
-                    QuestionType = q.QuestionType
-                }).ToList()
-            };
+                    var newAssessment = new FacultyQuizAssessment
+                    {
+                        AttemptId = model.AttemptId,
+                        QuizId = model.QuizId,
+                        StudentId = model.StudentId,
+                        StudentName = model.StudentName ?? "",
+                        CourseId = model.CourseId,
+                        CourseName = model.CourseName ?? "",
+                        QuadrantId = model.QuadrantId,
+                        QuadrantName = model.QuadrantName ?? "",
+                        QuizName = model.QuizName ?? "",
+                        AttemptedOn = model.AttemptedOn != default ? model.AttemptedOn : DateTime.Now,
+                        TotalScore = totalScore,
+                        CreatedBy = currentUserId,
+                        CreatedOn = DateTime.Now,
+                        IsActive = true,
+                        Questions = new List<FacultyQuizQuestionAssessment>()
+                    };
 
-            await _facultyQuizAssessmentManager.AddUpdateQuizAssessmentAsync(assessment, GetUserId());
-            return Json(new { success = true, totalScore });
+                    if (model.Questions != null)
+                    {
+                        foreach (var q in model.Questions)
+                        {
+                            newAssessment.Questions.Add(new FacultyQuizQuestionAssessment
+                            {
+                                QuestionId = q.QuestionId,
+                                QuestionText = q.QuestionText ?? "",
+                                MaxScore = q.MaxScore,
+                                StudentScore = q.StudentScore,
+                                CreatedBy = currentUserId,
+                                CreatedOn = DateTime.Now,
+                                IsActive = true
+                            });
+                        }
+                    }
+
+                    await _db.FacultyQuizAssessment.AddAsync(newAssessment);
+                }
+                else
+                {
+                    existingAssessment.TotalScore = totalScore;
+                    existingAssessment.UpdatedBy = currentUserId;
+                    existingAssessment.UpdatedOn = DateTime.Now;
+
+                    if (existingAssessment.Questions == null)
+                        existingAssessment.Questions = new List<FacultyQuizQuestionAssessment>();
+
+                    if (model.Questions != null)
+                    {
+                        foreach (var qVm in model.Questions)
+                        {
+                            var existingQ = existingAssessment.Questions.FirstOrDefault(eq => eq.QuestionId == qVm.QuestionId);
+                            if (existingQ != null)
+                            {
+                                existingQ.StudentScore = qVm.StudentScore;
+                                existingQ.MaxScore = qVm.MaxScore;
+                                existingQ.QuestionText = qVm.QuestionText ?? existingQ.QuestionText;
+                                existingQ.UpdatedBy = currentUserId;
+                                existingQ.UpdatedOn = DateTime.Now;
+                            }
+                            else
+                            {
+                                existingAssessment.Questions.Add(new FacultyQuizQuestionAssessment
+                                {
+                                    FacultyQuizAssessmentId = existingAssessment.Id,
+                                    QuestionId = qVm.QuestionId,
+                                    QuestionText = qVm.QuestionText ?? "",
+                                    MaxScore = qVm.MaxScore,
+                                    StudentScore = qVm.StudentScore,
+                                    CreatedBy = currentUserId,
+                                    CreatedOn = DateTime.Now,
+                                    IsActive = true
+                                });
+                            }
+                        }
+                    }
+                }
+
+                // Also update StudentQuizAttempt score
+                var studentAttempt = await _db.StudentQuizAttempt.FirstOrDefaultAsync(a => a.Id == model.AttemptId);
+                if (studentAttempt != null)
+                {
+                    studentAttempt.Score = (int)Math.Round(totalScore);
+                    studentAttempt.UpdatedBy = currentUserId;
+                    studentAttempt.UpdatedOn = DateTime.Now;
+                }
+
+                await _db.SaveChangesAsync();
+
+                return Json(new { success = true, totalScore });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
         }
-
     }
 }

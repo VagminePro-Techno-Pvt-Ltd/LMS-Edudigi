@@ -1,226 +1,400 @@
-﻿@using TMS
+@using TMS
 @model TMS.ViewModels.Masters.QuizMasterViewModel
 
 @{
-    ViewData["Title"] = Model.Id > 0 ? "Edit Quiz" : "Create Quiz";
+    ViewData["Title"] = Model.Id > 0 ? "Edit Quiz" : "Create New Quiz";
     var isEdit = Model.Id > 0;
 }
 
-<hr />
-
-<form asp-action="Item" method="post" id="quizForm">
-    @Html.AntiForgeryToken()
-    <input asp-for="Id" type="hidden" />
-
-    <div class="row mb-3">
-        <div class="col-md-4">
-            <label asp-for="CourseId" class="form-label"></label>
-            <select asp-for="CourseId" class="form-select" id="courseDropdown"
-                    asp-items="@(new SelectList(ViewBag.CourseId, "Id", "Name", Model.CourseId))">
-                <option value="">-- Select Course --</option>
-            </select>
-            <span asp-validation-for="CourseId" class="text-danger"></span>
+<div class="container-fluid px-0 py-3">
+    <!-- Breadcrumb & Header -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3 bg-white p-4 rounded-4 shadow-sm border">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 small text-muted">
+                    <li class="breadcrumb-item"><a asp-action="Index" class="text-decoration-none text-primary"><i class="fa-solid fa-book-open me-1"></i>Quizzes</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">@(isEdit ? "Edit Quiz" : "Create Quiz")</li>
+                </ol>
+            </nav>
+            <h3 class="fw-bold text-dark mb-0">
+                <i class="fa-solid @(isEdit ? "fa-pen-to-square text-warning" : "fa-plus-circle text-primary") me-2"></i>
+                @(isEdit ? "Edit Quiz: " + Model.Title : "Create New Quiz")
+            </h3>
+            <p class="text-muted small mb-0 mt-1">Configure quiz metadata, scoring rules, questions, and correct choices.</p>
         </div>
-
-        <div class="col-md-4">
-            <label asp-for="CourseQuadrantId" class="form-label"></label>
-            <select asp-for="CourseQuadrantId" class="form-select" id="quadrantDropdown"
-                    asp-items="@(new SelectList(ViewBag.QuadrantId, "Id", "Name", Model.CourseQuadrantId))">
-                <option value="">-- Select Quadrant --</option>
-            </select>
-            <span asp-validation-for="CourseQuadrantId" class="text-danger"></span>
-        </div>
-
-        <div class="col-md-4">
-            <label asp-for="Title" class="form-label"></label>
-            <input asp-for="Title" class="form-control" />
-            <span asp-validation-for="Title" class="text-danger"></span>
+        <div class="d-flex gap-2">
+            <a asp-action="Index" class="btn btn-outline-secondary rounded-pill px-4">
+                <i class="fa-solid fa-arrow-left me-1"></i> Back to Quizzes
+            </a>
+            <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm" onclick="$('#quizForm').submit();">
+                <i class="fa-solid fa-cloud-arrow-up me-1"></i> @(isEdit ? "Save Changes" : "Publish Quiz")
+            </button>
         </div>
     </div>
-    <div class="row mb-3">
-     
-        <div class="col-md-4">
-            <label asp-for="PassingMarks" class="form-label"></label>
-            <input asp-for="PassingMarks" class="form-control" />
-            <span asp-validation-for="PassingMarks" class="text-danger"></span>
-        </div>
-        <div class="col-md-4">
-            <label class="form-label"><strong>Total Quiz Score</strong></label>
-            <input type="number"
-                   id="totalQuizMarks"
-                   name="TotalMarks"
-                   class="form-control fw-bold"
-                   value="0"
-                   readonly />
-        </div>
-    </div>
-    <hr />
-    <h5>Questions</h5>
-    <div id="questionContainer">
-        @if (Model.Questions != null)
-        {
-            for (int i = 0; i < Model.Questions.Count; i++)
-            {
-                <partial name="_QuestionTemplate" model="Model.Questions[i]"
-                         view-data='new ViewDataDictionary(ViewData) { { "qIndex", i } }' />
-            }
-        }
-    </div>
 
-    <button type="button" id="addQuestion" class="btn btn-secondary mt-3">+ Add Question</button>
+    <form asp-action="Item" method="post" id="quizForm">
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
 
-    <div class="mt-4">
-        <button type="submit" class="btn btn-success">Save Quiz</button>
-        <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
-    </div>
-</form>
+        <div class="row g-4">
+            <!-- Left Column: Quiz Master Settings -->
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm rounded-4 sticky-top" style="top: 20px; z-index: 10;">
+                    <div class="card-header bg-white border-0 pt-4 px-4 pb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="bg-primary bg-opacity-10 text-primary p-2 rounded-3">
+                                <i class="fa-solid fa-sliders"></i>
+                            </div>
+                            <div>
+                                <h5 class="fw-bold mb-0 text-dark">Quiz Settings</h5>
+                                <small class="text-muted">Target course & evaluation rules</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body px-4 pb-4">
+                        <div class="mb-3">
+                            <label asp-for="CourseId" class="form-label fw-bold small text-muted text-uppercase">
+                                Course <span class="text-danger">*</span>
+                            </label>
+                            <select asp-for="CourseId" class="form-select form-select-lg rounded-3" id="courseDropdown"
+                                    asp-items="@(new SelectList(ViewBag.CourseId, "Id", "Name", Model.CourseId))" required>
+                                <option value="">-- Select Course --</option>
+                            </select>
+                            <span asp-validation-for="CourseId" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="CourseQuadrantId" class="form-label fw-bold small text-muted text-uppercase">
+                                Quadrant / Module <span class="text-danger">*</span>
+                            </label>
+                            <select asp-for="CourseQuadrantId" class="form-select form-select-lg rounded-3" id="quadrantDropdown"
+                                    asp-items="@(new SelectList(ViewBag.QuadrantId, "Id", "Name", Model.CourseQuadrantId))" required>
+                                <option value="">-- Select Quadrant --</option>
+                            </select>
+                            <span asp-validation-for="CourseQuadrantId" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Title" class="form-label fw-bold small text-muted text-uppercase">
+                                Quiz Title <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="Title" class="form-control form-control-lg rounded-3" placeholder="e.g., Mid-Term Assessment - Module 1" required />
+                            <span asp-validation-for="Title" class="text-danger small"></span>
+                        </div>
+
+                        <hr class="my-4 text-muted opacity-25" />
+
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label fw-bold small text-muted text-uppercase">Total Marks</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-0"><i class="fa-solid fa-award text-primary"></i></span>
+                                    <input type="number" id="totalQuizMarks" name="TotalMarks"
+                                           class="form-control fw-bold fs-5 text-primary text-center bg-light"
+                                           value="@(Model.TotalMarks ?? 0)" readonly />
+                                </div>
+                                <small class="text-muted" style="font-size: 0.75rem;">Auto-calculated</small>
+                            </div>
+                            <div class="col-6">
+                                <label asp-for="PassingMarks" class="form-label fw-bold small text-muted text-uppercase">
+                                    Pass Marks <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-0"><i class="fa-solid fa-check-double text-success"></i></span>
+                                    <input asp-for="PassingMarks" type="number" min="0" step="1"
+                                           class="form-control fw-bold fs-5 text-center"
+                                           placeholder="e.g. 5" required />
+                                </div>
+                                <span asp-validation-for="PassingMarks" class="text-danger small"></span>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-light border rounded-3 p-3 mt-4 mb-0 small text-muted">
+                            <i class="fa-solid fa-circle-info text-info me-1"></i>
+                            <strong>Tip:</strong> Students will instantly see their result upon submitting objective quizzes.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Questions List -->
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm rounded-4 mb-4">
+                    <div class="card-header bg-white border-0 pt-4 px-4 pb-2 d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="bg-success bg-opacity-10 text-success p-2 rounded-3">
+                                <i class="fa-solid fa-list-check"></i>
+                            </div>
+                            <div>
+                                <h5 class="fw-bold mb-0 text-dark">Questions & Answer Choices</h5>
+                                <small class="text-muted">Create MCQs or subjective questions</small>
+                            </div>
+                        </div>
+                        <button type="button" id="addQuestion" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold">
+                            <i class="fa-solid fa-plus me-1"></i> Add Question
+                        </button>
+                    </div>
+
+                    <div class="card-body px-4 pb-4">
+                        <div id="questionContainer" class="d-flex flex-column gap-3">
+                            @if (Model.Questions != null && Model.Questions.Any())
+                            {
+                                for (int i = 0; i < Model.Questions.Count; i++)
+                                {
+                                    <partial name="_QuestionTemplate" model="Model.Questions[i]"
+                                             view-data='new ViewDataDictionary(ViewData) { { "qIndex", i } }' />
+                                }
+                            }
+                            else
+                            {
+                                <div class="text-center py-5 empty-questions-state text-muted">
+                                    <i class="fa-solid fa-clipboard-question fa-3x text-secondary opacity-50 mb-3"></i>
+                                    <h6>No questions added yet</h6>
+                                    <p class="small text-muted">Click "+ Add Question" below to add your first question.</p>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="d-grid mt-4">
+                            <button type="button" id="addQuestionBottom" class="btn btn-outline-primary py-3 rounded-3 border-2 border-dashed fw-bold">
+                                <i class="fa-solid fa-plus-circle me-1"></i> Add Another Question
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Bar -->
+                <div class="card border-0 shadow-sm rounded-4 p-3 bg-white d-flex flex-row justify-content-between align-items-center">
+                    <div class="text-muted small">
+                        Ensure all required fields marked <span class="text-danger">*</span> are populated.
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a asp-action="Index" class="btn btn-outline-secondary rounded-pill px-4">
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-success rounded-pill px-5 fw-bold shadow-sm">
+                            <i class="fa-solid fa-check me-1"></i> Save Quiz
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
 
 @section Scripts {
-    <!-- Load jQuery first -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-    <!-- Then load validation scripts -->
     <partial name="_ValidationScriptsPartial" />
 
-    <!-- Custom Quiz JS -->
     <script>
-        // Load quadrants based on course
-        $('#courseDropdown').change(function () {
-            var courseId = $(this).val();
-            $.getJSON('/Admin/Quiz/GetQuadrantsByCourse', { courseId: courseId }, function (data) {
-                var dropdown = $('#quadrantDropdown');
-                dropdown.empty().append('<option value="">-- Select Quadrant --</option>');
-                $.each(data, function (i, item) {
-                    dropdown.append($('<option>', { value: item.id, text: item.name }));
-                });
-            });
-        });
-
-        // Add question dynamically
-        $('#addQuestion').click(function () {
-            var index = $('.question-block').length;
-            var url = '@Url.Action("RenderQuestionPartial", "Quiz", new { area = "Admin" })';
-            $.get(url, { index: index })
-                .done(function (html) {
-                    $('#questionContainer').append(html);
-                    reindexQuestions();
-                    toggleRemoveButtons();
-                })
-                .fail(function () { alert('Unable to load question.'); });
-        });
-
-        // Remove question
-        $(document).on('click', '.remove-question', function () {
-            $(this).closest('.question-block').remove();
-              calculateTotalMarks();
-               $('#questionsContainer .question-block').each(function(index) {
-                    $(this).find('h6').text('Question ' + (index + 1));
-                    $(this).find('.question-marks').attr('data-qindex', index);
-                });
-            reindexQuestions();
-            toggleRemoveButtons();
-        });
-
-        // Add option dynamically
-        // $(document).on('click', '.add-option', function () {
-        //     var $qBlock = $(this).closest('.question-block');
-        //     var qIndex = $('#questionContainer .question-block').index($qBlock);
-        //     var $optionsList = $qBlock.find('.options-list');
-        //     var optIndex = $optionsList.children('.option-item').length;
-
-        //     var optionHtml = `
-        //         <div class="option-item mb-2">
-        //             <input type="text" name="Questions[${qIndex}].Options[${optIndex}].OptionText" class="form-control mb-1" placeholder="Option text" required />
-        //             <label><input type="radio" name="Questions[${qIndex}].CorrectOptionId" value="${optIndex}" /> Correct</label>
-        //         </div>`;
-        //     $optionsList.append(optionHtml);
-        // });
-             $(document).on('click', '.add-option', function () {
-            var $qBlock = $(this).closest('.question-block');
-            var qIndex = $('#questionContainer .question-block').index($qBlock);
-            var $optionsList = $qBlock.find('.options-list');
-            var optIndex = $optionsList.children('.option-item').length;
-
-            var optionHtml = `
-                <div class="option-item mb-2">
-                    <input type="text"
-                           name="Questions[${qIndex}].Options[${optIndex}].OptionText"
-                           class="form-control mb-1"
-                           placeholder="Option text" required />
-
-                    <div class="form-check">
-                        <input type="checkbox"
-                               class="form-check-input correct-option"
-                               name="Questions[${qIndex}].Options[${optIndex}].IsCorrectOption"
-                               value="true"
-                               data-qindex="${qIndex}" />
-                        <label class="form-check-label">Correct Option</label>
-                        <input type="hidden"
-                               name="Questions[${qIndex}].Options[${optIndex}].IsCorrectOption"
-                               value="false" />
-                    </div>
-                </div>`;
-
-            $optionsList.append(optionHtml);
-        });
-        // Show/hide options for subjective type
-        $(document).on('change', '.question-type', function () {
-            var $qBlock = $(this).closest('.question-block');
-            var val = $(this).val();
-            var $optionsContainer = $qBlock.find('.options-container');
-            if (val == "2") $optionsContainer.hide();
-            else $optionsContainer.show();
-        });
-
-        // Reindex model binding names after adding/removing
-        function reindexQuestions() {
-            $('#questionContainer .question-block').each(function (qIndex) {
-                $(this).find('input, select, textarea').each(function () {
-                    var name = $(this).attr('name');
-                    if (name)
-                        $(this).attr('name', name.replace(/Questions\[\d+\]/g, 'Questions[' + qIndex + ']'));
-                });
-                $(this).find('.options-list .option-item').each(function (optIndex) {
-                    $(this).find('input[type="text"]').attr('name', `Questions[${qIndex}].Options[${optIndex}].OptionText`);
-                    $(this).find('input[type="radio"]').attr('name', `Questions[${qIndex}].CorrectOptionId`).val(optIndex);
-                });
-            });
-        }
-
-        function toggleRemoveButtons() {
-            var total = $('#questionContainer .question-block').length;
-            $('.remove-question').toggle(total > 1);
-        }
-
         $(document).ready(function () {
-            reindexQuestions();
-            toggleRemoveButtons();
-        });
-             $(document).on('change', '.correct-option', function () {
-            var qIndex = $(this).data('qindex');
-            var $current = $(this);
-                        // Uncheck all other checkboxes for this question
-            $("input.correct-option[data-qindex='" + qIndex + "']").not($current).prop('checked', false);
-        });
-    </script>
-    <script>
-        // Calculate total quiz marks dynamically
-        function calculateTotalMarks() {
-            let totalMarks = 0;
-            $('.question-marks').each(function() {
-                const val = parseFloat($(this).val()) || 0;
-                totalMarks += val;
-            });
-            $('#totalQuizMarks').val(totalMarks);
-            // $('#totalQuizMarks').text(totalMarks);
-        }
+            // Load quadrants based on course dropdown
+            $('#courseDropdown').on('change', function () {
+                var courseId = $(this).val();
+                var dropdown = $('#quadrantDropdown');
+                dropdown.empty().append('<option value="">-- Loading... --</option>');
 
-        // Trigger on page load and on any marks change
-        $(document).ready(function() {
-            calculateTotalMarks();
-            $(document).on('input', '.question-marks', function() {
+                if (!courseId) {
+                    dropdown.empty().append('<option value="">-- Select Quadrant --</option>');
+                    return;
+                }
+
+                $.getJSON('@Url.Action("GetQuadrantsByCourse", "Quiz", new { area = "Admin" })', { courseId: courseId })
+                    .done(function (data) {
+                        dropdown.empty().append('<option value="">-- Select Quadrant --</option>');
+                        $.each(data, function (i, item) {
+                            dropdown.append($('<option>', { value: item.id, text: item.name }));
+                        });
+                    })
+                    .fail(function () {
+                        dropdown.empty().append('<option value="">-- Select Quadrant --</option>');
+                    });
+            });
+
+            // Add question dynamically
+            function addQuestionHandler() {
+                var index = $('#questionContainer .question-block').length;
+                var url = '@Url.Action("RenderQuestionPartial", "Quiz", new { area = "Admin" })';
+                
+                $('.empty-questions-state').remove();
+
+                $.get(url, { index: index })
+                    .done(function (html) {
+                        $('#questionContainer').append(html);
+                        reindexQuestions();
+                        calculateTotalMarks();
+                        toggleRemoveButtons();
+                    })
+                    .fail(function () {
+                        alert('Unable to load question template.');
+                    });
+            }
+
+            $('#addQuestion, #addQuestionBottom').on('click', function () {
+                addQuestionHandler();
+            });
+
+            // Remove question
+            $(document).on('click', '.remove-question', function () {
+                $(this).closest('.question-block').fadeOut(200, function() {
+                    $(this).remove();
+                    reindexQuestions();
+                    calculateTotalMarks();
+                    toggleRemoveButtons();
+                });
+            });
+
+            // Add option dynamically
+            $(document).on('click', '.add-option', function () {
+                var $qBlock = $(this).closest('.question-block');
+                var qIndex = $('#questionContainer .question-block').index($qBlock);
+                var $optionsList = $qBlock.find('.options-list');
+                var optIndex = $optionsList.children('.option-item').length;
+                var letter = String.fromCharCode(65 + optIndex);
+
+                var optionHtml = `
+                    <div class="option-item d-flex align-items-center gap-2 p-2 bg-white rounded-2 border">
+                        <span class="badge bg-light text-muted border px-2 py-1 small option-index-label">${letter}</span>
+                        <input type="text"
+                               name="Questions[${qIndex}].Options[${optIndex}].OptionText"
+                               class="form-control form-control-sm"
+                               placeholder="Option text..." required />
+                        
+                        <div class="form-check d-flex align-items-center gap-1 ms-2 me-2">
+                            <input type="checkbox"
+                                   class="form-check-input correct-option"
+                                   name="Questions[${qIndex}].Options[${optIndex}].IsCorrectOption"
+                                   value="true"
+                                   data-qindex="${qIndex}"
+                                   style="width: 18px; height: 18px; cursor:pointer;" />
+                            <label class="form-check-label small fw-bold text-success mb-0" style="cursor:pointer;">Correct</label>
+                            <input type="hidden" name="Questions[${qIndex}].Options[${optIndex}].IsCorrectOption" value="false" />
+                        </div>
+
+                        <button type="button" class="btn btn-sm btn-link text-danger remove-option p-0 ms-1" title="Delete Option">
+                            <i class="fa-solid fa-xmark fs-5"></i>
+                        </button>
+                    </div>`;
+
+                $optionsList.append(optionHtml);
+                reindexOptions($qBlock, qIndex);
+            });
+
+            // Remove option
+            $(document).on('click', '.remove-option', function () {
+                var $qBlock = $(this).closest('.question-block');
+                var $optionsList = $qBlock.find('.options-list');
+                if ($optionsList.children('.option-item').length <= 2) {
+                    alert('An objective question must have at least 2 options.');
+                    return;
+                }
+                $(this).closest('.option-item').remove();
+                var qIndex = $('#questionContainer .question-block').index($qBlock);
+                reindexOptions($qBlock, qIndex);
+            });
+
+            // Single correct option selection behavior (radio-like per question)
+            $(document).on('change', '.correct-option', function () {
+                var qIndex = $(this).data('qindex');
+                var isChecked = $(this).is(':checked');
+                if (isChecked) {
+                    $("input.correct-option[data-qindex='" + qIndex + "']").not(this).prop('checked', false);
+                }
+            });
+
+            // Toggle Question Type (Objective vs Subjective)
+            $(document).on('change', '.question-type', function () {
+                var $qBlock = $(this).closest('.question-block');
+                var val = $(this).val();
+                var $optionsContainer = $qBlock.find('.options-container');
+                if (val === "2") {
+                    $optionsContainer.slideUp(200);
+                } else {
+                    $optionsContainer.slideDown(200);
+                }
+            });
+
+            // Reindex questions and options
+            function reindexQuestions() {
+                $('#questionContainer .question-block').each(function (qIndex) {
+                    $(this).attr('data-qindex', qIndex);
+                    $(this).find('.question-num-badge').text('Q' + (qIndex + 1));
+                    $(this).find('.question-title-text').text('Question ' + (qIndex + 1));
+                    $(this).find('.question-marks').attr('data-qindex', qIndex);
+
+                    $(this).find('input, select, textarea').each(function () {
+                        var name = $(this).attr('name');
+                        if (name) {
+                            $(this).attr('name', name.replace(/Questions\[\d+\]/g, 'Questions[' + qIndex + ']'));
+                        }
+                    });
+
+                    reindexOptions($(this), qIndex);
+                });
+            }
+
+            function reindexOptions($qBlock, qIndex) {
+                $qBlock.find('.options-list .option-item').each(function (optIndex) {
+                    var letter = String.fromCharCode(65 + optIndex);
+                    $(this).find('.option-index-label').text(letter);
+
+                    $(this).find('input[name*="OptionText"]').attr('name', `Questions[${qIndex}].Options[${optIndex}].OptionText`);
+                    $(this).find('input[name*="Id"]').attr('name', `Questions[${qIndex}].Options[${optIndex}].Id`);
+                    $(this).find('input[name*="IsCorrectOption"]').attr('name', `Questions[${qIndex}].Options[${optIndex}].IsCorrectOption`);
+                    $(this).find('.correct-option').attr('data-qindex', qIndex);
+                });
+            }
+
+            function toggleRemoveButtons() {
+                var total = $('#questionContainer .question-block').length;
+                $('.remove-question').toggle(total > 1);
+            }
+
+            // Calculate total quiz marks dynamically
+            function calculateTotalMarks() {
+                var total = 0;
+                $('.question-marks').each(function () {
+                    var val = parseFloat($(this).val()) || 0;
+                    total += val;
+                });
+                $('#totalQuizMarks').val(total);
+            }
+
+            $(document).on('input', '.question-marks', function () {
                 calculateTotalMarks();
             });
+
+            // Form validation before submit
+            $('#quizForm').on('submit', function (e) {
+                var qCount = $('#questionContainer .question-block').length;
+                if (qCount === 0) {
+                    e.preventDefault();
+                    alert('Please add at least one question to the quiz.');
+                    return false;
+                }
+
+                var missingAnswers = false;
+                $('#questionContainer .question-block').each(function (idx) {
+                    var qType = $(this).find('.question-type').val();
+                    if (qType === "1") { // Objective
+                        var hasCorrect = $(this).find('.correct-option:checked').length > 0;
+                        if (!hasCorrect) {
+                            missingAnswers = true;
+                            alert('Question ' + (idx + 1) + ' is an Objective MCQ but has no Correct Option selected!');
+                            return false;
+                        }
+                    }
+                });
+
+                if (missingAnswers) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+
+            // Initial runs
+            reindexQuestions();
+            toggleRemoveButtons();
+            calculateTotalMarks();
         });
     </script>
 }

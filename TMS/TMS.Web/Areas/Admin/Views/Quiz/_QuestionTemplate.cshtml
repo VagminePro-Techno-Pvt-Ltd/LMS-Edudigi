@@ -1,79 +1,125 @@
-﻿ 
 @model TMS.ViewModels.Masters.QuizQuestionViewModel
 @{
     var qIndex = (int)ViewData["qIndex"];
 }
 
-<div class="question-block border rounded p-3 mb-3">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6>Question @(qIndex + 1)</h6>
-        <button type="button" class="btn btn-danger btn-sm remove-question">Remove</button>
+<div class="question-block p-4 mb-3 bg-white rounded-3 border shadow-sm" data-qindex="@qIndex">
+    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2 py-1 font-monospace question-num-badge">
+                Q@(qIndex + 1)
+            </span>
+            <h6 class="mb-0 fw-bold text-dark question-title-text">Question @(qIndex + 1)</h6>
+        </div>
+        <button type="button" class="btn btn-outline-danger btn-sm rounded-pill remove-question px-3">
+            <i class="fa-solid fa-trash-can me-1"></i> Remove
+        </button>
     </div>
 
-    <div class="mb-2">
-        <label class="form-label">Question Text</label>
-        <input type="text" name="Questions[@qIndex].QuestionText" class="form-control" value="@Model.QuestionText" />
+    <div class="row g-3 mb-3">
+        <div class="col-md-8">
+            <label class="form-label fw-bold small text-muted text-uppercase">Question Statement <span class="text-danger">*</span></label>
+            <input type="text" name="Questions[@qIndex].QuestionText" class="form-control" value="@Model.QuestionText" placeholder="Enter question statement..." required />
+        </div>
+        <div class="col-md-2">
+            <label class="form-label fw-bold small text-muted text-uppercase">Type</label>
+            <select name="Questions[@qIndex].QuestionType" class="form-select question-type">
+                <option value="1" selected="@(Model.QuestionType == TMS.Models.Masters.QuestionType.Objective ? "selected" : null)">Objective (MCQ)</option>
+                <option value="2" selected="@(Model.QuestionType == TMS.Models.Masters.QuestionType.Subjective ? "selected" : null)">Subjective</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label fw-bold small text-muted text-uppercase">Max Marks</label>
+            <input type="number" min="1" step="1"
+                   name="Questions[@qIndex].MaxMarks"
+                   class="form-control question-marks text-center fw-bold"
+                   value="@(Model.MaxMarks ?? 1)"
+                   data-qindex="@qIndex" />
+        </div>
     </div>
 
     <!-- Hidden IDs for Model Binding -->
     <input type="hidden" name="Questions[@qIndex].Id" value="@Model.Id" />
     <input type="hidden" name="Questions[@qIndex].QuizId" value="@Model.QuizId" />
 
-    <div class="mb-2">
-        <label class="form-label">Question Type</label>
-        <select name="Questions[@qIndex].QuestionType" class="form-select question-type">
-            <option value="1" selected="@(Model.QuestionType == TMS.Models.Masters.QuestionType.Objective)">Objective</option>
-            <option value="2" selected="@(Model.QuestionType == TMS.Models.Masters.QuestionType.Subjective)">Subjective</option>
-        </select>
-    </div>
-    <div class="mb-2">
-        <label class="form-label">Maximum Marks</label>
-        <input type="number" min="0" step="1"
-               name="Questions[@qIndex].MaxMarks"
-               class="form-control question-marks"
-               value="@(Model.MaxMarks)"
-               data-qindex="@qIndex" />
-    </div>
-    <div class="options-container" style="display:@(Model.QuestionType == TMS.Models.Masters.QuestionType.Subjective ? "none" : "block")">
-        <h6>Options</h6>
-        <div class="options-list">
-            @if (Model.Options != null)
+    <!-- Options Container for Objective MCQs -->
+    <div class="options-container p-3 bg-light rounded-3 border" style="display:@(Model.QuestionType == TMS.Models.Masters.QuestionType.Subjective ? "none" : "block")">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <label class="form-label fw-bold small text-dark mb-0 text-uppercase">Answer Choices & Correct Option</label>
+            <small class="text-muted">Select the checkbox of the correct answer</small>
+        </div>
+
+        <div class="options-list d-flex flex-column gap-2">
+            @if (Model.Options != null && Model.Options.Any())
             {
                 for (int j = 0; j < Model.Options.Count; j++)
                 {
                     var option = Model.Options[j];
-                    <div class="option-item mb-2">
+                    var isChecked = option.IsCorrectOption == true;
+                    <div class="option-item d-flex align-items-center gap-2 p-2 bg-white rounded-2 border">
                         <input type="hidden" name="Questions[@qIndex].Options[@j].Id" value="@option.Id" />
+                        <span class="badge bg-light text-muted border px-2 py-1 small option-index-label">
+                            @(Convert.ToChar(65 + j))
+                        </span>
                         <input type="text"
                                name="Questions[@qIndex].Options[@j].OptionText"
-                               class="form-control mb-1"
+                               class="form-control form-control-sm"
                                value="@option.OptionText"
-                               placeholder="Option text" />
-                        <div class="form-check">
+                               placeholder="Option text..." required />
+                        
+                        <div class="form-check d-flex align-items-center gap-1 ms-2 me-2">
                             <input type="checkbox"
                                    class="form-check-input correct-option"
                                    name="Questions[@qIndex].Options[@j].IsCorrectOption"
                                    value="true"
-                                   @(option.IsCorrectOption == true ? "checked" : "")
-                                   data-qindex="@qIndex" />
-                            <label class="form-check-label">Correct Option</label>
+                                   @(isChecked ? "checked" : "")
+                                   data-qindex="@qIndex"
+                                   style="width: 18px; height: 18px; cursor:pointer;" />
+                            <label class="form-check-label small fw-bold text-success mb-0" style="cursor:pointer;">Correct</label>
                             <input type="hidden" name="Questions[@qIndex].Options[@j].IsCorrectOption" value="false" />
                         </div>
 
-                       @*  <div class="form-check">
+                        <button type="button" class="btn btn-sm btn-link text-danger remove-option p-0 ms-1" title="Delete Option">
+                            <i class="fa-solid fa-xmark fs-5"></i>
+                        </button>
+                    </div>
+                }
+            }
+            else
+            {
+                <!-- Default 2 options if none -->
+                @for (int j = 0; j < 2; j++)
+                {
+                    <div class="option-item d-flex align-items-center gap-2 p-2 bg-white rounded-2 border">
+                        <span class="badge bg-light text-muted border px-2 py-1 small option-index-label">
+                            @(Convert.ToChar(65 + j))
+                        </span>
+                        <input type="text"
+                               name="Questions[@qIndex].Options[@j].OptionText"
+                               class="form-control form-control-sm"
+                               placeholder="Option text..." required />
+                        
+                        <div class="form-check d-flex align-items-center gap-1 ms-2 me-2">
                             <input type="checkbox"
-                                   class="form-check-input"
+                                   class="form-check-input correct-option"
                                    name="Questions[@qIndex].Options[@j].IsCorrectOption"
                                    value="true"
-                                   @(option.IsCorrectOption == true ? "checked" : "") />
-                            <label class="form-check-label">Correct Option</label>
+                                   data-qindex="@qIndex"
+                                   style="width: 18px; height: 18px; cursor:pointer;" />
+                            <label class="form-check-label small fw-bold text-success mb-0" style="cursor:pointer;">Correct</label>
                             <input type="hidden" name="Questions[@qIndex].Options[@j].IsCorrectOption" value="false" />
-                        </div> *@
+                        </div>
+
+                        <button type="button" class="btn btn-sm btn-link text-danger remove-option p-0 ms-1" title="Delete Option">
+                            <i class="fa-solid fa-xmark fs-5"></i>
+                        </button>
                     </div>
                 }
             }
         </div>
 
-        <button type="button" class="btn btn-sm btn-secondary add-option" data-qindex="@qIndex">+ Add Option</button>
+        <button type="button" class="btn btn-sm btn-outline-primary mt-2 add-option" data-qindex="@qIndex">
+            <i class="fa-solid fa-plus me-1"></i> Add Option
+        </button>
     </div>
 </div>

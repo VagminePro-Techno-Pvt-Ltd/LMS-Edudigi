@@ -155,20 +155,141 @@
                 {
                     <div class="col-12 col-md-6">
                         <div class="mb-1">
-
                             <label asp-for="Password"></label>
-
-                            <input asp-for="Password"
-                                   placeholder="Enter Password" />
-
-                            <span asp-validation-for="Password"
-                                  class="text-danger"></span>
-
+                            <input asp-for="Password" placeholder="Enter Password" />
+                            <span asp-validation-for="Password" class="text-danger"></span>
                         </div>
                     </div>
                 }
+
+                @* ── Academic Program & Course Enrollment Section ── *@
+                @{
+                    var programList = ViewBag.ProgramList as List<TMS.ViewModels.Masters.CourseCategoryMasterViewModel>;
+                    var courseList = ViewBag.CourseList as List<TMS.ViewModels.Masters.CourseMasterViewModel>;
+                    var enrolledCourseIds = (ViewBag.EnrolledCourseIds as List<int>) ?? new List<int>();
+                    bool showEnrollment = roleFilter == "Student" || (Model?.RoleId.HasValue == true && ViewBag.RoleId != null);
+                }
+
+                <div class="col-12 mt-3" id="academicEnrollmentSection" style="@(showEnrollment ? "" : "display:none;")">
+                    <div style="background: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%); border: 1px solid #bae6fd; border-radius: 14px; padding: 18px 20px;">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <i class="fas fa-graduation-cap" style="color:#0284c7; font-size:18px;"></i>
+                            <h6 class="fw-bold mb-0" style="color:#0369a1;">Academic Program & Course Enrollment</h6>
+                            <span class="badge bg-primary ms-auto" style="font-size:11px;">Instant Enrollment</span>
+                        </div>
+                        <p class="text-muted small mb-3">
+                            Select a program to automatically assign all of its courses, or customize specific courses below.
+                        </p>
+
+                        <div class="row g-2">
+                            <div class="col-12 col-md-6 mb-2">
+                                <label class="form-label fw-semibold small text-secondary">Degree / Program</label>
+                                <select asp-for="ProgramId" id="userProgramSelect" class="form-select" style="border-radius:10px;">
+                                    <option value="">-- Choose Program (Optional) --</option>
+                                    @if (programList != null)
+                                    {
+                                        foreach (var prog in programList)
+                                        {
+                                            <option value="@prog.Id">@prog.Name (@(prog.NoOfSemester ?? 0) Semesters)</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="col-12 col-md-6 mb-2 d-flex align-items-end">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="autoEnrollAllCourses" checked style="cursor:pointer;">
+                                    <label class="form-check-label fw-bold small text-dark" for="autoEnrollAllCourses" style="cursor:pointer;">
+                                        Auto-select all courses in selected program
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-2">
+                            <label class="form-label fw-semibold small text-secondary d-flex justify-content-between">
+                                <span>Courses to Enroll:</span>
+                                <span class="text-primary fw-bold" id="selectedCoursesCount">0 courses selected</span>
+                            </label>
+                            <div id="courseSelectionContainer" style="max-height: 200px; overflow-y: auto; background: white; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 14px;">
+                                @if (courseList != null && courseList.Any())
+                                {
+                                    foreach (var course in courseList)
+                                    {
+                                        var isEnrolled = enrolledCourseIds.Contains(course.Id);
+                                        <div class="form-check course-checkbox-item mb-1" data-program-id="@course.CourseCategoryId">
+                                            <input class="form-check-input course-chk" type="checkbox" name="CourseIds" value="@course.Id" id="course_@course.Id" @(isEnrolled ? "checked" : "") style="cursor:pointer;" />
+                                            <label class="form-check-label small" for="course_@course.Id" style="cursor:pointer;">
+                                                <strong class="text-dark">@course.CourseCode</strong> — @course.Name
+                                                @if (course.Semester != null)
+                                                {
+                                                    <span class="badge bg-light text-secondary border ms-1" style="font-size:10px;">@course.Semester.Name</span>
+                                                }
+                                            </label>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="text-muted small py-2 text-center">No active courses available.</div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
             </div>
         </div>
     </div>
 </form>
+
+<script>
+    function updateCourseCount() {
+        var count = $('.course-chk:checked').length;
+        $('#selectedCoursesCount').text(count + ' course(s) selected');
+    }
+
+    $(document).on('change', '.course-chk', updateCourseCount);
+
+    $('#userProgramSelect').on('change', function () {
+        var progId = $(this).val();
+        if (!progId) {
+            $('.course-checkbox-item').show();
+            return;
+        }
+
+        var autoSelect = $('#autoEnrollAllCourses').is(':checked');
+
+        $('.course-checkbox-item').each(function () {
+            var itemProg = $(this).data('program-id');
+            if (itemProg == progId) {
+                $(this).show();
+                if (autoSelect) {
+                    $(this).find('.course-chk').prop('checked', true);
+                }
+            } else {
+                if (autoSelect) {
+                    $(this).find('.course-chk').prop('checked', false);
+                }
+            }
+        });
+        updateCourseCount();
+    });
+
+    $('#autoEnrollAllCourses').on('change', function () {
+        if ($(this).is(':checked')) {
+            $('#userProgramSelect').trigger('change');
+        }
+    });
+
+    $('#RoleId').on('change', function () {
+        var roleText = $("#RoleId option:selected").text().toLowerCase();
+        if (roleText.indexOf('student') > -1) {
+            $('#academicEnrollmentSection').slideDown();
+        } else {
+            $('#academicEnrollmentSection').slideUp();
+        }
+    });
+
+    updateCourseCount();
+</script>

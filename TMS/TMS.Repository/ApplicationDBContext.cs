@@ -99,6 +99,12 @@ namespace TMS.Repository
         // ─── Announcements ───
         public DbSet<Announcement> Announcements { get; set; }
         public DbSet<AssignmentMaster> AssignmentMasters { get; set; }
+        public DbSet<InternalAssessment> InternalAssessments { get; set; }
+        public DbSet<InternalAssessmentSubmission> InternalAssessmentSubmissions { get; set; }
+        public DbSet<InternalAssessmentPolicy> InternalAssessmentPolicies { get; set; }
+        public DbSet<InternalAssessmentWindow> InternalAssessmentWindows { get; set; }
+        public DbSet<InternalAssessmentQuestion> InternalAssessmentQuestions { get; set; }
+        public DbSet<InternalAssessmentQuestionAnswer> InternalAssessmentQuestionAnswers { get; set; }
         public DbSet<AssignmentSubmission> AssignmentSubmissions { get; set; }
         public DbSet<AssignmentGrade> AssignmentGrades { get; set; }
 
@@ -151,6 +157,54 @@ namespace TMS.Repository
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
+            // Internal Assessment relational contract. Keep this model definition
+            // authoritative; deployment remains an additive, separately reviewed migration.
+            builder.Entity<InternalAssessment>(entity =>
+            {
+                entity.HasIndex(x => x.CourseId);
+                entity.HasIndex(x => x.SubjectId);
+                entity.HasIndex(x => x.WindowId);
+                entity.HasIndex(x => x.CreatedBy);
+                entity.HasOne<CourseMaster>().WithMany().HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<SubjectMaster>().WithMany().HasForeignKey(x => x.SubjectId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<InternalAssessmentWindow>().WithMany().HasForeignKey(x => x.WindowId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<UserMaster>().WithMany().HasForeignKey(x => x.CreatedBy).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<UserMaster>().WithMany().HasForeignKey(x => x.ResultApprovedBy).OnDelete(DeleteBehavior.NoAction);
+            });
+            builder.Entity<InternalAssessmentSubmission>(entity =>
+            {
+                entity.HasIndex(x => new { x.AssessmentId, x.StudentId }).IsUnique();
+                entity.HasIndex(x => x.StudentId);
+                entity.HasIndex(x => x.EvaluatedBy);
+                entity.HasOne<InternalAssessment>().WithMany().HasForeignKey(x => x.AssessmentId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<UserMaster>().WithMany().HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<UserMaster>().WithMany().HasForeignKey(x => x.EvaluatedBy).OnDelete(DeleteBehavior.NoAction);
+            });
+            builder.Entity<InternalAssessmentPolicy>(entity =>
+            {
+                entity.HasIndex(x => x.SemesterId);
+                entity.HasOne<SemesterMaster>().WithMany().HasForeignKey(x => x.SemesterId).OnDelete(DeleteBehavior.NoAction);
+            });
+            builder.Entity<InternalAssessmentWindow>(entity =>
+            {
+                entity.HasIndex(x => x.PolicyId);
+                entity.HasIndex(x => x.CourseId);
+                entity.HasOne<InternalAssessmentPolicy>().WithMany().HasForeignKey(x => x.PolicyId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<CourseMaster>().WithMany().HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.NoAction);
+            });
+            builder.Entity<InternalAssessmentQuestion>(entity =>
+            {
+                entity.HasIndex(x => new { x.AssessmentId, x.SortOrder });
+                entity.HasOne<InternalAssessment>().WithMany().HasForeignKey(x => x.AssessmentId).OnDelete(DeleteBehavior.NoAction);
+            });
+            builder.Entity<InternalAssessmentQuestionAnswer>(entity =>
+            {
+                entity.HasIndex(x => new { x.SubmissionId, x.QuestionId }).IsUnique();
+                entity.HasIndex(x => x.QuestionId);
+                entity.HasOne<InternalAssessmentSubmission>().WithMany().HasForeignKey(x => x.SubmissionId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<InternalAssessmentQuestion>().WithMany().HasForeignKey(x => x.QuestionId).OnDelete(DeleteBehavior.NoAction);
+            });
+
             foreach (var relations in builder.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
             {
                 relations.DeleteBehavior = DeleteBehavior.NoAction;
@@ -213,11 +267,16 @@ namespace TMS.Repository
                 .HasForeignKey(q => q.CorrectOptionId)
                 .OnDelete(DeleteBehavior.NoAction);
             builder.Entity<FacultyQuizQuestionAssessment>()
-        .HasOne(q => q.FacultyQuizAssessment)
-        .WithMany(a => a.Questions)
-        .HasForeignKey(q => q.FacultyQuizAssessmentId)
-        .OnDelete(DeleteBehavior.Cascade);
-        
+                .HasOne(q => q.FacultyQuizAssessment)
+                .WithMany(a => a.Questions)
+                .HasForeignKey(q => q.FacultyQuizAssessmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<StudentQuizAnswer>()
+                .HasOne(a => a.StudentQuizAttempt)
+                .WithMany(t => t.Answers)
+                .HasForeignKey(a => a.StudentQuizAttemptId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // ─── CourseEnrollment: Unique Constraint (CourseId + StudentId) ───
             builder.Entity<CourseEnrollment>()

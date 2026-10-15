@@ -317,8 +317,16 @@
 
     <!-- Header -->
     <div class="report-header">
-        <h1 class="report-title">📊 Progress Report</h1>
-        <p class="report-subtitle">Track your learning progress across all activities</p>
+        @if (ViewBag.IsStaffView == true)
+        {
+            <div class="mb-3">
+                <a href="@Url.Action("Index", "ProgressReport")" class="btn btn-outline-primary btn-sm rounded-pill px-3 font-weight-bold">
+                    <i class="fa-solid fa-arrow-left me-1"></i> Back to Student Progress Hub
+                </a>
+            </div>
+        }
+        <h1 class="report-title">📊 @(string.IsNullOrEmpty(Model.StudentName) ? "Learning" : Model.StudentName + "'s") Progress Report</h1>
+        <p class="report-subtitle">Track learning performance across quizzes, assignments, videos, and materials</p>
     </div>
 
     @if (Model.OverallProgress > 0 || Model.QuizProgress.TotalQuizzes > 0 || Model.AssignmentProgress.TotalAssignments > 0 || Model.StudyMaterialProgress.TotalMaterials > 0 || Model.EContentProgress.TotalContent > 0)

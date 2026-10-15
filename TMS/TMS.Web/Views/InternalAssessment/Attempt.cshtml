@@ -1,0 +1,6 @@
+@model IEnumerable<TMS.Models.Academics.InternalAssessmentQuestion>
+@using TMS.Models.Academics
+@{var a=(InternalAssessment)ViewBag.Assessment;ViewData["Title"]="Attempt Assessment";}
+<div class="container-fluid py-4"><h2>@a.Title</h2><p>@a.Type | Max marks: @a.MaxMarks | Due: @a.DueDate.ToString("dd MMM yyyy HH:mm")</p><p>@a.Instructions</p><form asp-action="SubmitAnswers" method="post">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@a.Id"/>
+@foreach(var q in Model){<div class="card mb-3"><div class="card-body"><h5>@q.Type — @q.Marks marks</h5><p style="white-space:pre-wrap">@q.Text</p>@if(q.Type=="MCQ"){@foreach(var o in new[]{new{K="A",V=q.OptionA},new{K="B",V=q.OptionB},new{K="C",V=q.OptionC},new{K="D",V=q.OptionD}}){<label class="d-block mb-2"><input type="radio" name="answers[@q.Id]" value="@o.K" required/> @o.K. @o.V</label>}}else{<textarea name="answers[@q.Id]" class="form-control" rows="4" maxlength="10000" required placeholder="Write your answer here"></textarea>}</div></div>}
+<button class="btn btn-primary" onclick="return confirm('Submit all answers? You cannot submit again.')">Submit Assessment</button></form></div>

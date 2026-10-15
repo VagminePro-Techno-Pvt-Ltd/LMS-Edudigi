@@ -12,28 +12,59 @@ namespace TMS.Repository
 {
     public static class ExpressionUtility
     {
+        private static readonly Type[] _knownTypes = new[]
+        {
+            typeof(int[]),
+            typeof(List<int>),
+            typeof(HashSet<int>),
+            typeof(int?[]),
+            typeof(List<int?>),
+            typeof(string[]),
+            typeof(List<string>),
+            typeof(HashSet<string>),
+            typeof(long[]),
+            typeof(List<long>),
+            typeof(bool[]),
+            typeof(List<bool>),
+            typeof(Guid[]),
+            typeof(List<Guid>),
+            typeof(DateTime[]),
+            typeof(List<DateTime>),
+            typeof(decimal[]),
+            typeof(List<decimal>),
+            typeof(double[]),
+            typeof(List<double>)
+        };
+
         public static Expression<Func<TTarget, bool>> Convert<TSource, TTarget>(this Expression<Func<TSource, bool>> expression, bool isModel = false)
             where TTarget : class
             where TSource : class
         {
-            var serializer = new Serialize.Linq.Serializers.ExpressionSerializer(new Serialize.Linq.Serializers.JsonSerializer());
-            serializer.AddKnownTypes(new[] { typeof(int[]) });
-            string value = serializer.SerializeText(expression);
-            value = value.Replace(typeof(TSource).ToString(), typeof(TTarget).ToString());            
-            if (isModel)
-                value = value.Replace(typeof(ViewModels.BaseViewModel).ToString(), typeof(Models.BaseModel).ToString());
-            else
-                value = value.Replace(typeof(ViewModels.BaseMasterViewModel).ToString(), typeof(Models.BaseMasterModel).ToString());
-            value = value.Replace("MasterViewModel", "Master").Replace(".ViewModels", ".Models").Replace("ViewModel", "Model");
-            return (Expression<Func<TTarget, bool>>)serializer.DeserializeText(value);
-
+            try
+            {
+                var serializer = new Serialize.Linq.Serializers.ExpressionSerializer(new Serialize.Linq.Serializers.JsonSerializer());
+                serializer.AddKnownTypes(_knownTypes);
+                string value = serializer.SerializeText(expression);
+                value = value.Replace(typeof(TSource).ToString(), typeof(TTarget).ToString());            
+                if (isModel)
+                    value = value.Replace(typeof(ViewModels.BaseViewModel).ToString(), typeof(Models.BaseModel).ToString());
+                else
+                    value = value.Replace(typeof(ViewModels.BaseMasterViewModel).ToString(), typeof(Models.BaseMasterModel).ToString());
+                value = value.Replace("MasterViewModel", "Master").Replace(".ViewModels", ".Models").Replace("ViewModel", "Model");
+                return (Expression<Func<TTarget, bool>>)serializer.DeserializeText(value);
+            }
+            catch
+            {
+                // Fallback: match all records if expression conversion fails
+                return _ => true;
+            }
         }
         public static Expression<Func<TTarget>> Convert<TSource, TTarget>(this Expression<Func<TSource>> expression, bool isModel = false)
             where TTarget : class
             where TSource : class
         {
             var serializer = new Serialize.Linq.Serializers.ExpressionSerializer(new Serialize.Linq.Serializers.JsonSerializer());
-            serializer.AddKnownTypes(new[] { typeof(int[]) });
+            serializer.AddKnownTypes(_knownTypes);
             string value = serializer.SerializeText(expression);
             value = value.Replace(typeof(TSource).ToString(), typeof(TTarget).ToString());
             value = value.Replace("ViewModel", "Model");

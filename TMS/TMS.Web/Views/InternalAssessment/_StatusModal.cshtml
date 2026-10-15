@@ -1,0 +1,318 @@
+
+@{
+    var message = TempData["IA_ModalMessage"]?.ToString()
+        ?? TempData["IaModalMessage"]?.ToString()
+        ?? TempData["IA_Message"]?.ToString()
+        ?? "";
+
+    var kind = TempData["IA_ModalKind"]?.ToString()
+        ?? TempData["IaModalType"]?.ToString()
+        ?? "info";
+
+    var title = TempData["IA_ModalTitle"]?.ToString()
+        ?? TempData["IaModalTitle"]?.ToString()
+        ?? "";
+
+    kind = kind.ToLowerInvariant();
+
+    if (kind != "success" &&
+        kind != "warning" &&
+        kind != "danger" &&
+        kind != "error")
+    {
+        kind = "info";
+    }
+
+    if (string.IsNullOrWhiteSpace(title))
+    {
+        title = kind switch
+        {
+            "success" => "Success",
+            "warning" => "Warning",
+            "danger" => "Error",
+            "error" => "Error",
+            _ => "Information"
+        };
+    }
+
+    var accentColor = kind switch
+    {
+        "success" => "#15803d",
+        "warning" => "#b45309",
+        "danger" => "#dc2626",
+        "error" => "#dc2626",
+        _ => "#2563eb"
+    };
+
+    var iconText = kind switch
+    {
+        "success" => "✓",
+        "warning" => "!",
+        "danger" => "!",
+        "error" => "!",
+        _ => "i"
+    };
+}
+
+<style>
+    /* Scoped to Internal Assessment modals only. */
+
+    #iaStatusModal,
+    #iaConfirmModal {
+        position: fixed !important;
+        inset: 0 !important;
+        z-index: 2147483000 !important;
+        background: transparent !important;
+    }
+
+    #iaStatusModal .modal-dialog,
+    #iaConfirmModal .modal-dialog {
+        width: calc(100% - 32px);
+        max-width: 440px;
+        margin: 1.75rem auto;
+        position: relative;
+        z-index: 1;
+        opacity: 1 !important;
+    }
+
+    #iaStatusModal .modal-content,
+    #iaConfirmModal .modal-content {
+        position: relative;
+        isolation: isolate;
+        overflow: hidden;
+        opacity: 1 !important;
+        background: #ffffff !important;
+        background-color: #ffffff !important;
+        background-image: none !important;
+        border: 1px solid #e5e7eb !important;
+        border-radius: 16px !important;
+        box-shadow: 0 20px 65px rgba(15, 23, 42, 0.25) !important;
+        color: #172b4d !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+
+    #iaStatusModal .modal-content::before,
+    #iaStatusModal .modal-content::after,
+    #iaConfirmModal .modal-content::before,
+    #iaConfirmModal .modal-content::after {
+        content: none !important;
+        display: none !important;
+    }
+
+    #iaStatusModal .modal-header,
+    #iaConfirmModal .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 24px 12px;
+        border-bottom: 0 !important;
+        background: #ffffff !important;
+        opacity: 1 !important;
+    }
+
+    #iaStatusModal .modal-title,
+    #iaConfirmModal .modal-title {
+        font-size: 19px;
+        font-weight: 700;
+        line-height: 1.4;
+        margin: 0;
+        color: #172b4d;
+    }
+
+    #iaStatusModal .modal-body,
+    #iaConfirmModal .modal-body {
+        padding: 12px 24px 22px;
+        background: #ffffff !important;
+        color: #475569 !important;
+        font-size: 14px;
+        line-height: 1.65;
+        opacity: 1 !important;
+    }
+
+    #iaStatusModal .modal-footer,
+    #iaConfirmModal .modal-footer {
+        padding: 14px 24px 20px;
+        background: #ffffff !important;
+        border-top: 1px solid #f1f5f9 !important;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        opacity: 1 !important;
+    }
+
+    #iaStatusModal .btn,
+    #iaConfirmModal .btn {
+        min-width: 90px;
+        padding: 9px 18px;
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: 8px;
+    }
+
+    #iaStatusModal .btn-primary,
+    #iaConfirmModal .btn-primary {
+        background: #2563eb !important;
+        border-color: #2563eb !important;
+        color: #ffffff !important;
+    }
+
+    #iaStatusModal .btn-close,
+    #iaConfirmModal .btn-close {
+        flex-shrink: 0;
+        opacity: 0.7;
+    }
+
+    .ia-status-heading {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .ia-status-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        font-size: 19px;
+        font-weight: 700;
+    }
+
+    #iaStatusModal .modal-body p,
+    #iaConfirmModal .modal-body p {
+        margin: 0;
+        color: #475569 !important;
+    }
+
+    /* Keep the overlay below the modal but above page content. */
+    body:has(#iaStatusModal.show) .modal-backdrop,
+    body:has(#iaConfirmModal.show) .modal-backdrop {
+        z-index: 2147482999 !important;
+        background-color: #0f172a !important;
+    }
+
+    body:has(#iaStatusModal.show) .modal-backdrop.show,
+    body:has(#iaConfirmModal.show) .modal-backdrop.show {
+        opacity: 0.5 !important;
+    }
+</style>
+
+@if (!string.IsNullOrWhiteSpace(message))
+{
+    <div class="modal fade"
+         id="iaStatusModal"
+         tabindex="-1"
+         role="dialog"
+         aria-labelledby="iaStatusTitle"
+         aria-modal="true"
+         aria-hidden="true">
+
+        <div class="modal-dialog modal-dialog-centered"
+             role="document">
+
+            <div class="modal-content">
+
+                <div class="modal-header">
+
+                    <div class="ia-status-heading">
+
+                        <span class="ia-status-icon"
+                              aria-hidden="true"
+                              style="color:@accentColor;background-color:@(accentColor + "15");">
+                            @iconText
+                        </span>
+
+                        <h5 class="modal-title"
+                            id="iaStatusTitle">
+                            @title
+                        </h5>
+
+                    </div>
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Close"></button>
+
+                </div>
+
+                <div class="modal-body">
+                    <p>@message</p>
+                </div>
+
+                <div class="modal-footer">
+
+                    <button type="button"
+                            class="btn btn-primary"
+                            data-bs-dismiss="modal">
+                        OK
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+}
+
+<div class="modal fade"
+     id="iaConfirmModal"
+     tabindex="-1"
+     role="dialog"
+     aria-labelledby="iaConfirmTitle"
+     aria-modal="true"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered"
+         role="document">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+
+                <h5 class="modal-title"
+                    id="iaConfirmTitle">
+                    Confirm Action
+                </h5>
+
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+
+            </div>
+
+            <div class="modal-body">
+
+                <p id="iaConfirmMessage">
+                    Are you sure you want to continue?
+                </p>
+
+            </div>
+
+            <div class="modal-footer">
+
+                <button type="button"
+                        class="btn btn-outline-secondary"
+                        data-bs-dismiss="modal">
+                    Cancel
+                </button>
+
+                <button type="button"
+                        class="btn btn-primary"
+                        id="iaConfirmProceed">
+                    Yes, Continue
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>

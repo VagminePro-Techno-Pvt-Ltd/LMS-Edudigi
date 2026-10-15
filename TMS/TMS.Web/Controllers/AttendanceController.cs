@@ -19,9 +19,16 @@ namespace TMS.Web.Controllers
         /// <summary>
         /// Admin/Faculty view for daily attendance records.
         /// </summary>
-        [Authorize(Roles = "Admin,Super Admin,Faculty")]
         public async Task<IActionResult> Index(DateTime? date)
         {
+            var role = User.Claims.FirstOrDefault(c => c.Type == "role")?.Value?.ToLower() ?? "";
+            bool isStaff = role.Contains("admin") || role.Contains("faculty") || role.Contains("teacher") || role.Contains("management") || role.Contains("coordinator") || User.IsInRole("Admin") || User.IsInRole("Faculty");
+            
+            if (!isStaff)
+            {
+                return RedirectToAction(nameof(MyAttendance));
+            }
+
             var selectedDate = date ?? DateTime.Today;
             var records = await _attendanceManager.GetAttendanceReport(selectedDate);
             ViewBag.SelectedDate = selectedDate;
@@ -42,15 +49,33 @@ namespace TMS.Web.Controllers
         /// Override attendance status (Admin/Faculty only).
         /// </summary>
         [HttpPost]
-        [Authorize(Roles = "Admin,Super Admin,Faculty")]
-        public async Task<IActionResult> UpdateStatus(int id, int status, string remarks)
+        public async Task<IActionResult> UpdateStatus(int id, int studentId, DateTime date, int status, string? remarks)
         {
             var userId = Convert.ToInt32(User.Claims.FirstOrDefault(c => c.Type == "userId")?.Value);
-            var record = await _attendanceManager.GetAsync(id);
-            if (record == null) return NotFound();
+            DailyAttendanceViewModel? record = null;
+            
+            if (id > 0)
+            {
+                record = await _attendanceManager.GetAsync(id);
+            }
+            
+            if (record == null)
+            {
+                record = new DailyAttendanceViewModel
+                {
+                    StudentId = studentId,
+                    Date = date == default ? DateTime.Today : date.Date,
+                    CreatedOn = DateTime.Now,
+                    CreatedBy = userId
+                };
+            }
 
             record.AttendanceStatus = status;
             record.Remarks = remarks;
+            if (status == 1 && record.LoginTime == null)
+            {
+                record.LoginTime = DateTime.Now;
+            }
             
             var result = await _attendanceManager.AddUpdateAsync(record, userId);
             return Json(new { success = result });

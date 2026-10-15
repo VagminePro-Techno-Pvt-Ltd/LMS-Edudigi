@@ -1,0 +1,535 @@
+@model IEnumerable<TMS.Models.Academics.InternalAssessment>
+@using TMS.Models.Academics
+@using TMS.Models.Masters
+@{
+    ViewData["Title"] = "Internal Assessment Monitoring";
+    var assessments = Model?.ToList() ?? new List<InternalAssessment>();
+    var submissions = ViewBag.Submissions as List<InternalAssessmentSubmission> ?? new();
+    var courses = ViewBag.Courses as Dictionary<int, string> ?? new();
+    var policies = ViewBag.Policies as List<InternalAssessmentPolicy> ?? new();
+    var windows = ViewBag.Windows as List<InternalAssessmentWindow> ?? new();
+    var facultyNames = ViewBag.FacultyNames as Dictionary<int, string> ?? new();
+    var semesterIds = ViewBag.SemesterIds as List<int> ?? new();
+    var scheduleCourses = ViewBag.ScheduleCourses as List<CourseMaster> ?? new();
+    var evaluated = submissions.Where(s => s.Marks.HasValue && s.EvaluatedOn.HasValue && s.EvaluatedBy.HasValue).ToList();
+    var assessmentLookup = assessments.ToDictionary(a => a.Id);
+}
+<style>
+    .ia-admin { color:#19314d; }
+    .ia-admin .ia-heading { font-size:clamp(22px,2vw,28px);font-weight:750;margin:0 0 3px; }
+    .ia-admin .ia-subheading { color:#718096;font-size:13px;margin-bottom:18px; }
+    .ia-admin .ia-summary-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:18px; }
+    .ia-admin .ia-stat { appearance:none;width:100%;text-align:left;background:#fff;border:1px solid #dce4f7;border-radius:13px;padding:17px 19px;min-height:112px;cursor:pointer;box-shadow:0 2px 8px rgba(30,55,90,.04);transition:border-color .15s,transform .15s,box-shadow .15s; }
+    .ia-admin .ia-stat:hover,.ia-admin .ia-stat:focus-visible { border-color:#5b83ed;box-shadow:0 5px 17px rgba(37,99,235,.12);transform:translateY(-1px);outline:none; }
+    .ia-admin .ia-stat-label { font-size:13px;font-weight:700;color:#223b59;display:block; }
+    .ia-admin .ia-stat-count { display:block;font-size:31px;line-height:1.2;font-weight:750;margin-top:8px;color:#0e2b49; }
+    .ia-admin .ia-stat-hint { display:block;color:#687f9c;font-size:11px;margin-top:4px; }
+    .ia-admin .ia-forms-grid { display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;margin-bottom:18px; }
+    .ia-admin .ia-panel { min-width:0;background:#fff;border:1px solid #dce4f7;border-radius:14px;padding:19px;box-shadow:0 2px 7px rgba(20,40,80,.04); }
+    .ia-admin .ia-panel h3 { font-size:19px;font-weight:730;margin:0 0 14px; }
+    .ia-admin .ia-form-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:end; }
+    .ia-admin .ia-field { min-width:0; }
+    .ia-admin .ia-full { grid-column:1/-1; }
+    .ia-admin .ia-field label { display:block;font-size:12px;font-weight:700;margin-bottom:5px; }
+    .ia-admin .ia-field .form-control,.ia-admin .ia-field .form-select { width:100%;min-height:39px;border-radius:7px;border:1px solid #d8e1ee;background-color:#fff;font-size:13px;color:#263a54;box-shadow:none; }
+    .ia-admin .ia-help { font-size:11px;color:#72839b;margin-top:4px;line-height:1.4; }
+    .ia-admin .ia-check { display:flex;align-items:center;gap:8px;min-height:39px;font-size:12px; }
+    .ia-admin .ia-check input { margin:0; }
+    .ia-admin .ia-panel .btn { font-size:12px;padding:9px 17px;border-radius:7px; }
+    .ia-admin .ia-policy-stack { display:flex;flex-direction:column;gap:16px;min-width:0; }
+    .ia-admin .ia-window-list { margin-top:0;padding-top:0;border-top:0; }
+    .ia-admin .ia-windows-panel { background:#fff; }
+    .ia-admin .ia-windows-heading { display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px; }
+    .ia-admin .ia-windows-heading h3 { margin:0;font-size:18px; }
+    .ia-admin .ia-windows-count { padding:4px 10px;background:#edf4ff;color:#2459a8;border-radius:999px;font-size:12px;font-weight:700; }
+    .ia-admin .ia-window-row { background:#f8fbff;border:1px solid #e4ebf6;border-radius:10px;padding:12px 13px;margin-bottom:9px; }
+    .ia-admin .ia-window-row:last-child { margin-bottom:0;border-bottom:1px solid #e4ebf6; }
+    .ia-admin .ia-window-row strong { color:#183153;font-size:13px; }
+    .ia-admin .ia-window-meta { margin-top:6px;line-height:1.6; }
+    .ia-admin .ia-window-course { display:block;color:#395473;margin-top:3px; }
+    .ia-admin .ia-window-status { display:inline-block;margin-left:7px;padding:2px 7px;border-radius:5px;background:#e7f7ec;color:#177d39;font-size:10px;font-weight:700; }
+    .ia-admin .ia-window-status.ia-inactive { background:#eef2f7;color:#64748b; }
+    .ia-admin .ia-window-title { font-size:13px;font-weight:700;margin-bottom:8px; }
+    .ia-admin .ia-window-row { padding:8px 0;border-bottom:1px solid #edf1f7;font-size:12px;line-height:1.5;overflow-wrap:anywhere; }
+    .ia-admin .ia-window-row:last-child { border-bottom:0; }
+    .ia-admin .ia-window-meta { color:#64748b;font-size:11px; }
+    .ia-admin .ia-register-head { display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px; }
+    .ia-admin .ia-register-head h3 { margin:0; }
+    .ia-admin .ia-table-scroll { width:100%;overflow-x:auto; }
+    .ia-admin .ia-table { width:100%;border-collapse:collapse;font-size:12px;margin:0; }
+    .ia-admin .ia-table th { padding:11px 10px;text-align:left;color:#1753a5;background:#f7faff;font-size:11px;font-weight:700;white-space:nowrap;border-bottom:1px solid #e4eaf3; }
+    .ia-admin .ia-table td { padding:12px 10px;vertical-align:middle;border-bottom:1px solid #edf1f6;color:#3b4b61;line-height:1.45; }
+    .ia-admin .ia-table tbody tr:last-child td { border-bottom:0; }
+    .ia-admin .ia-table .ia-name { font-weight:650;color:#233b58; }
+    .ia-admin .ia-table .ia-course { min-width:170px;max-width:235px;overflow-wrap:anywhere; }
+    .ia-admin .ia-register-review { border:0;background:transparent;color:#1753a5;font-size:12px;font-weight:650;cursor:pointer;padding:5px 0; }
+    .ia-admin .ia-register-review:hover { text-decoration:underline; }
+    .ia-admin .ia-pill { display:inline-flex;align-items:center;padding:4px 8px;border-radius:5px;font-size:11px;font-weight:700;white-space:nowrap; }
+    .ia-admin .ia-green { background:#e7f7ec;color:#177d39; }
+    .ia-admin .ia-gray { background:#eef2f7;color:#5d6b7d; }
+    .ia-admin .ia-blue { background:#e9f1ff;color:#2459a8; }
+    .ia-admin .ia-orange { background:#fff3dc;color:#99620b; }
+    .ia-admin .ia-details-backdrop { position:fixed;inset:0;background:rgba(15,30,50,.48);z-index:20000;display:none;align-items:center;justify-content:center;padding:18px; }
+    .ia-admin .ia-details-backdrop.ia-open { display:flex; }
+    .ia-admin .ia-details-dialog { width:min(920px,100%);max-height:min(84vh,820px);display:flex;flex-direction:column;background:#fff;border-radius:14px;box-shadow:0 18px 70px rgba(0,0,0,.25);overflow:hidden; }
+    .ia-admin .ia-details-head { display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:17px 20px;border-bottom:1px solid #e5eaf2; }
+    .ia-admin .ia-details-head h3 { font-size:19px;margin:0 0 4px;font-weight:750; }
+    .ia-admin .ia-details-head p { margin:0;color:#718096;font-size:12px; }
+    .ia-admin .ia-close { border:0;background:#f0f4fa;border-radius:7px;padding:5px 11px;font-size:21px;line-height:1.3;cursor:pointer;color:#45566d; }
+    .ia-admin .ia-details-body { padding:14px 20px 20px;overflow:auto; }
+    .ia-admin .ia-details-body .ia-table { min-width:680px; }
+    .ia-admin .ia-empty { text-align:center;padding:24px;color:#718096;font-size:13px; }
+    @@media(max-width:900px) { .ia-admin .ia-forms-grid { grid-template-columns:1fr; } }
+    @@media(max-width:650px) { .ia-admin .ia-summary-grid { grid-template-columns:1fr;gap:9px; } .ia-admin .ia-stat { min-height:86px;padding:13px 15px; } .ia-admin .ia-stat-count { font-size:25px;margin-top:3px; } .ia-admin .ia-form-grid { grid-template-columns:1fr; } .ia-admin .ia-panel { padding:14px; } .ia-admin .ia-register-head { flex-wrap:wrap; } }
+    .ia-admin .ia-window-top { display:flex;align-items:flex-start;justify-content:space-between;gap:12px; }
+    .ia-admin .ia-reschedule-trigger { border:1px solid #b9cdef;background:#f4f8ff;color:#1653a5;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer; }
+    .ia-admin .ia-reschedule-trigger:hover { background:#e6efff; }
+    .ia-admin .ia-reschedule-form { display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:18px 20px 20px;overflow-y:auto; }
+    .ia-admin .ia-reschedule-form label { font-size:12px;font-weight:700;display:block;margin-bottom:5px; }
+    .ia-admin .ia-reschedule-form .form-control { width:100%;min-height:42px;background:#fff; }
+    .ia-admin .ia-reschedule-form .ia-reschedule-full { grid-column:1/-1; }
+    .ia-admin .ia-reschedule-actions { display:flex;justify-content:flex-end;gap:9px; }
+    @@media(max-width:650px) { .ia-admin .ia-reschedule-form { grid-template-columns:1fr; } }
+</style>
+<div class="container-fluid py-3 ia-admin">
+    <h2 class="ia-heading">Internal Assessment Monitoring</h2>
+    <p class="ia-subheading">Course-wise assessment and evaluation status</p>
+    <partial name="_StatusModal" />
+
+    <div class="ia-summary-grid">
+        <button type="button" class="ia-stat" data-ia-detail="assessments" aria-haspopup="dialog">
+            <span class="ia-stat-label">Total Assessments</span>
+            <span class="ia-stat-count">@assessments.Count</span>
+            <span class="ia-stat-hint">Click to view assessment status →</span>
+        </button>
+        <button type="button" class="ia-stat" data-ia-detail="submissions" aria-haspopup="dialog">
+            <span class="ia-stat-label">Submissions</span>
+            <span class="ia-stat-count">@submissions.Count</span>
+            <span class="ia-stat-hint">Click to view submitted work →</span>
+        </button>
+        <button type="button" class="ia-stat" data-ia-detail="evaluated" aria-haspopup="dialog">
+            <span class="ia-stat-label">Evaluated</span>
+            <span class="ia-stat-count">@evaluated.Count</span>
+            <span class="ia-stat-hint">Click to view graded submissions →</span>
+        </button>
+    </div>
+
+    <div class="ia-forms-grid">
+        <div class="ia-policy-stack">
+        <section class="ia-panel">
+            <h3>Semester Assessment Policy</h3>
+            <form method="post" asp-controller="InternalAssessment" asp-action="SavePolicy" class="ia-form-grid">
+                @Html.AntiForgeryToken()
+                <div class="ia-field">
+                    <label for="iaAdminSemester">Select Semester</label>
+                    <select id="iaAdminSemester" name="semesterId" class="form-select" required>
+                        <option value="">Choose semester</option>
+                        @for (var semester = 1; semester <= 8; semester++)
+                        {
+                            if (semesterIds.Contains(semester))
+                            {
+                                <option value="@semester">Semester @semester</option>
+                            }
+                            else
+                            {
+                                <option value="@semester" disabled>Semester @semester</option>
+                            }
+                        }
+                    </select>
+                    <div class="ia-help">Semesters without a configured course are disabled.</div>
+                </div>
+                <div class="ia-field">
+                    <label for="iaPolicyName">Policy name</label>
+                    <input id="iaPolicyName" name="name" class="form-control" maxlength="100" required placeholder="Semester Internal Assessments" />
+                </div>
+                <div class="ia-field">
+                    <label for="iaPolicyMarks">Maximum marks per assessment</label>
+                    <input id="iaPolicyMarks" type="number" name="maxMarks" min="0.01" max="10000" step="0.01" value="100" class="form-control" required />
+                </div>
+                <div class="ia-field">
+                    <label class="ia-check" for="iaPolicyLate"><input id="iaPolicyLate" type="checkbox" name="allowLateSubmission" value="true" /> Allow late submission</label>
+                </div>
+                <div class="ia-full"><button type="submit" class="btn btn-primary">Save Policy</button></div>
+            </form>
+            @if (policies.Count > 0)
+            {
+                <hr />
+                <h4 style="font-size:15px">Edit Existing Policies</h4>
+                @foreach (var policy in policies)
+                {
+                    <form method="post" asp-controller="InternalAssessment" asp-action="EditPolicy" class="ia-form-grid border rounded p-2 mb-2">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="policyId" value="@policy.Id" />
+                        <div class="ia-field"><label>Name</label><input class="form-control" name="name" maxlength="100" required value="@policy.Name" /></div>
+                        <div class="ia-field"><label>Maximum marks</label><input class="form-control" type="number" name="maxMarks" min="0.01" max="10000" step="0.01" required value="@policy.MaxMarks" /></div>
+                        <div class="ia-field"><label class="ia-check"><input type="checkbox" name="allowLateSubmission" value="true" checked="@policy.AllowLateSubmission" /> Allow late submission</label></div>
+                        <div class="ia-field"><button class="btn btn-sm btn-outline-primary" type="submit">Save Policy</button></div>
+                    </form>
+                }
+            }
+        </section>
+
+        <section class="ia-panel ia-windows-panel">
+            <div class="ia-windows-heading">
+                <h3>Scheduled Windows</h3>
+                <span class="ia-windows-count">@windows.Count</span>
+            </div>
+            <div class="ia-window-list">
+                @if (windows.Count == 0)
+                {
+                    <div class="ia-help">No schedules created yet.</div>
+                }
+                else
+                {
+                    @foreach (var window in windows)
+                    {
+                        var windowPolicy = policies.FirstOrDefault(p => p.Id == window.PolicyId);
+                        <div class="ia-window-row">
+                            <div class="ia-window-top">
+                                <div>
+                                    <strong>@window.Name</strong>
+                                    <span class="ia-window-status @(window.IsActive ? "" : "ia-inactive")">@(window.IsActive ? "Active" : "Inactive")</span>
+                                </div>
+                                @if (window.IsActive)
+                                {
+                                    <button type="button" class="ia-reschedule-trigger"
+                                            data-window-id="@window.Id"
+                                            data-window-name="@window.Name"
+                                            data-window-start="@window.StartsOn.ToString("yyyy-MM-ddTHH:mm")"
+                                            data-window-end="@window.EndsOn.ToString("yyyy-MM-ddTHH:mm")"
+                                            data-window-course="@(window.CourseId.HasValue ? courses.GetValueOrDefault(window.CourseId.Value, "Unknown course") : "Legacy: semester-wide")">Reschedule</button>
+                                }
+                            </div>
+                            <span class="ia-window-course">@(window.CourseId.HasValue ? courses.GetValueOrDefault(window.CourseId.Value, "Unknown course") : "Legacy: semester-wide")</span>
+                            <div class="ia-window-meta">
+                                Semester @(windowPolicy?.SemesterId.ToString() ?? "?") · @window.StartsOn.ToString("dd MMM yyyy HH:mm") – @window.EndsOn.ToString("dd MMM yyyy HH:mm")
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </section>
+        </div>
+
+        <section class="ia-panel">
+            <h3>Course-wise Assessment Schedule</h3>
+            <form method="post" asp-controller="InternalAssessment" asp-action="SaveWindow" class="ia-form-grid">
+                @Html.AntiForgeryToken()
+                <div class="ia-field ia-full">
+                    <label for="iaAdminPolicy">Policy</label>
+                    <select id="iaAdminPolicy" name="policyId" class="form-select" required>
+                        <option value="">Choose policy</option>
+                        @foreach (var policy in policies.Where(p => p.IsActive))
+                        {
+                            <option value="@policy.Id" data-semester="@policy.SemesterId">@policy.Name (Semester @policy.SemesterId)</option>
+                        }
+                    </select>
+                </div>
+                <div class="ia-field ia-full">
+                    <label for="iaAdminCourse">Course</label>
+                    <select id="iaAdminCourse" name="courseId" class="form-select" required>
+                        <option value="">Choose course</option>
+                        @foreach (var course in scheduleCourses)
+                        {
+                            <option value="@course.Id" data-semester="@course.SemesterId">@course.Name (Semester @course.SemesterId)</option>
+                        }
+                    </select>
+                    <div class="ia-help">Only courses in the selected policy semester are available.</div>
+                </div>
+                <div class="ia-field ia-full">
+                    <label for="iaWindowName">Window name</label>
+                    <input id="iaWindowName" name="name" class="form-control" maxlength="120" required placeholder="Internal Test 1" />
+                </div>
+                <div class="ia-field">
+                    <label for="iaWindowStart">Start</label>
+                    <input id="iaWindowStart" type="datetime-local" name="startsOn" class="form-control" required />
+                </div>
+                <div class="ia-field">
+                    <label for="iaWindowEnd">End</label>
+                    <input id="iaWindowEnd" type="datetime-local" name="endsOn" class="form-control" required />
+                </div>
+                <div class="ia-full"><button type="submit" class="btn btn-primary">Create Schedule</button></div>
+            </form>
+        </section>
+    </div>
+
+    <section class="ia-panel">
+        <div class="ia-register-head">
+            <h3>Assessment Register</h3>
+            <a asp-controller="InternalAssessment" asp-action="FacultyDashboard" class="btn btn-primary">Manage Assessments</a>
+        </div>
+        <div class="ia-table-scroll">
+            <table class="ia-table">
+                <thead><tr><th>Assessment</th><th>Course</th><th>Semester</th><th>Type</th><th>Due</th><th>Faculty</th><th>Submitted</th><th>Evaluated</th><th>Visibility</th><th>Action</th></tr></thead>
+                <tbody>
+                    @foreach (var assessment in assessments)
+                    {
+                        var rows = submissions.Where(s => s.AssessmentId == assessment.Id).ToList();
+                        var course = scheduleCourses.FirstOrDefault(c => c.Id == assessment.CourseId);
+                        <tr>
+                            <td class="ia-name">@assessment.Title</td>
+                            <td class="ia-course">@courses.GetValueOrDefault(assessment.CourseId, "Unknown course")</td>
+                            <td>@(course?.SemesterId.ToString() ?? "—")</td>
+                            <td>@assessment.Type</td>
+                            <td>@assessment.DueDate.ToString("dd MMM yyyy")</td>
+                            <td>@facultyNames.GetValueOrDefault(assessment.CreatedBy, "Faculty #" + assessment.CreatedBy)</td>
+                            <td>@rows.Count</td>
+                            <td>@rows.Count(s => s.Marks.HasValue && s.EvaluatedOn.HasValue && s.EvaluatedBy.HasValue)</td>
+                            <td>
+                                <span class="ia-pill @(assessment.IsPublished ? "ia-green" : "ia-gray")">@(assessment.IsPublished ? "Published" : "Draft")</span>
+                                <span class="ia-pill @(assessment.ResultsPublished ? "ia-blue" : "ia-gray")">@(assessment.ResultsPublished ? "Results visible" : "Results hidden")</span>
+                            </td>
+                            <td>
+                                <button type="button" class="ia-register-review" data-ia-review="@assessment.Id">Review</button>
+                                <a asp-controller="InternalAssessment" asp-action="Submissions" asp-route-id="@assessment.Id" class="btn btn-sm btn-outline-primary">Review Results</a>
+                            </td>
+                        </tr>
+                    }
+                    @if (assessments.Count == 0)
+                    {
+                        <tr><td colspan="10" class="ia-empty">No assessments found.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <div id="iaAdminDetails" class="ia-details-backdrop" aria-hidden="true">
+        <div class="ia-details-dialog" role="dialog" aria-modal="true" aria-labelledby="iaAdminDetailsTitle" tabindex="-1">
+            <div class="ia-details-head">
+                <div><h3 id="iaAdminDetailsTitle">Details</h3><p id="iaAdminDetailsSubtitle"></p></div>
+                <button id="iaAdminDetailsClose" type="button" class="ia-close" aria-label="Close details">×</button>
+            </div>
+            <div class="ia-details-body">
+                <div class="ia-table-scroll">
+                    <table class="ia-table">
+                        <thead id="iaAdminDetailsColumns"></thead>
+                        <tbody id="iaAdminDetailsRows"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="iaRescheduleOverlay" class="ia-details-backdrop" aria-hidden="true">
+        <div class="ia-details-dialog" role="dialog" aria-modal="true" aria-labelledby="iaRescheduleTitle" tabindex="-1" style="width:min(560px,100%)">
+            <div class="ia-details-head">
+                <div><h3 id="iaRescheduleTitle">Reschedule Exam</h3><p id="iaRescheduleSubtitle">Update the existing schedule without deleting submissions.</p></div>
+                <button type="button" id="iaRescheduleClose" class="ia-close" aria-label="Close reschedule popup">×</button>
+            </div>
+            <form method="post" asp-controller="InternalAssessment" asp-action="RescheduleWindow" class="ia-reschedule-form" id="iaRescheduleForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" id="iaRescheduleId" name="windowId" />
+                <div class="ia-reschedule-full">
+                    <label for="iaRescheduleCourse">Course</label>
+                    <input type="text" id="iaRescheduleCourse" class="form-control" readonly />
+                </div>
+                <div>
+                    <label for="iaRescheduleStart">New start date &amp; time</label>
+                    <input type="datetime-local" id="iaRescheduleStart" name="startsOn" class="form-control" required />
+                </div>
+                <div>
+                    <label for="iaRescheduleEnd">New end date &amp; time</label>
+                    <input type="datetime-local" id="iaRescheduleEnd" name="endsOn" class="form-control" required />
+                </div>
+                <div class="ia-reschedule-full">
+                    <label style="display:flex;align-items:flex-start;gap:9px;font-weight:500;cursor:pointer">
+                        <input type="checkbox" name="updateAssessmentDueDates" value="true" id="iaUpdateDueDates" style="margin-top:3px" />
+                        <span>Update linked assessment deadlines to the new schedule end time</span>
+                    </label>
+                    <div class="ia-help">Leave unchecked to preserve existing due dates. If any deadline falls outside the new window, the server will reject the change. Existing submissions and marks are preserved.</div>
+                </div>
+                <div class="ia-reschedule-full ia-reschedule-actions">
+                    <button type="button" class="btn btn-outline-secondary" id="iaRescheduleCancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save New Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="iaAdminData" hidden>
+        <table id="iaDataAssessments"><tbody>
+            @foreach (var a in assessments)
+            {
+                var rows = submissions.Where(s => s.AssessmentId == a.Id).ToList();
+                <tr><td>@a.Title</td><td>@courses.GetValueOrDefault(a.CourseId, "Unknown course")</td><td>@rows.Count</td><td>@rows.Count(s => s.Marks.HasValue && s.EvaluatedOn.HasValue && s.EvaluatedBy.HasValue)</td><td>@(a.IsPublished ? "Published" : "Draft")</td><td>@(a.ResultsPublished ? "Results visible" : "Results hidden")</td></tr>
+            }
+        </tbody></table>
+        <table id="iaDataRegisterReview"><tbody>
+            @foreach (var a in assessments)
+            {
+                var rows = submissions.Where(s => s.AssessmentId == a.Id).ToList();
+                var course = scheduleCourses.FirstOrDefault(c => c.Id == a.CourseId);
+                <tr data-assessment-id="@a.Id">
+                    <td>@a.Title</td>
+                    <td>@courses.GetValueOrDefault(a.CourseId, "Unknown course")</td>
+                    <td>@(course?.SemesterId.ToString() ?? "—")</td>
+                    <td>@a.Type</td>
+                    <td>@a.DueDate.ToString("dd MMM yyyy HH:mm")</td>
+                    <td>@rows.Count</td>
+                    <td>@rows.Count(s => s.Marks.HasValue && s.EvaluatedOn.HasValue && s.EvaluatedBy.HasValue)</td>
+                    <td>@(a.IsPublished ? "Published" : "Draft")</td>
+                    <td>@(a.ResultsPublished ? "Results visible" : "Results hidden")</td>
+                </tr>
+            }
+        </tbody></table>
+        <table id="iaDataSubmissions"><tbody>
+            @foreach (var s in submissions.OrderByDescending(s => s.SubmittedOn))
+            {
+                assessmentLookup.TryGetValue(s.AssessmentId, out var a);
+                <tr><td>@(a?.Title ?? "Unknown assessment")</td><td>Student #@s.StudentId</td><td>@s.SubmittedOn.ToString("dd MMM yyyy HH:mm")</td><td>@(s.Marks.HasValue && s.EvaluatedOn.HasValue && s.EvaluatedBy.HasValue ? "Evaluated" : "Pending evaluation")</td><td>@(a?.ResultsPublished == true ? "Results visible" : "Results hidden")</td></tr>
+            }
+        </tbody></table>
+        <table id="iaDataEvaluated"><tbody>
+            @foreach (var s in evaluated.OrderByDescending(s => s.EvaluatedOn))
+            {
+                assessmentLookup.TryGetValue(s.AssessmentId, out var a);
+                <tr><td>@(a?.Title ?? "Unknown assessment")</td><td>Student #@s.StudentId</td><td>@s.Marks / @(a?.MaxMarks.ToString() ?? "?")</td><td>@s.EvaluatedOn?.ToString("dd MMM yyyy HH:mm")</td><td>@(a?.ResultsPublished == true ? "Results visible" : "Results hidden")</td></tr>
+            }
+        </tbody></table>
+    </div>
+</div>
+<script src="~/js/internal-assessment.js" asp-append-version="true"></script>
+<script>
+(() => {
+    "use strict";
+    const root = document.querySelector('.ia-admin');
+    if (!root) return;
+    const overlay = document.getElementById('iaAdminDetails');
+    const dialog = overlay.querySelector('.ia-details-dialog');
+    const heading = document.getElementById('iaAdminDetailsTitle');
+    const subtitle = document.getElementById('iaAdminDetailsSubtitle');
+    const columns = document.getElementById('iaAdminDetailsColumns');
+    const rows = document.getElementById('iaAdminDetailsRows');
+    const close = document.getElementById('iaAdminDetailsClose');
+    let lastTrigger = null;
+    const configs = {
+        assessments: { title: 'All Assessments', subtitle: 'Draft, published and results status for every assessment.', source: 'iaDataAssessments', headers: ['Assessment', 'Course', 'Submitted', 'Evaluated', 'Assessment', 'Results'] },
+        submissions: { title: 'Student Submissions', subtitle: 'Each received submission and its evaluation status.', source: 'iaDataSubmissions', headers: ['Assessment', 'Student', 'Submitted on', 'Evaluation', 'Results'] },
+        evaluated: { title: 'Evaluated Submissions', subtitle: 'Graded submissions, marks and student result visibility.', source: 'iaDataEvaluated', headers: ['Assessment', 'Student', 'Marks', 'Evaluated on', 'Results'] }
+    };
+    function openDetails(kind, trigger) {
+        const config = configs[kind];
+        if (!config) return;
+        lastTrigger = trigger;
+        heading.textContent = config.title;
+        subtitle.textContent = config.subtitle;
+        columns.replaceChildren();
+        rows.replaceChildren();
+        const tr = document.createElement('tr');
+        config.headers.forEach(label => { const th = document.createElement('th'); th.textContent = label; tr.appendChild(th); });
+        columns.appendChild(tr);
+        const source = document.querySelector('#' + config.source + ' tbody');
+        if (source && source.children.length) {
+            Array.from(source.children).forEach(row => rows.appendChild(row.cloneNode(true)));
+        } else {
+            const empty = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = config.headers.length;
+            cell.className = 'ia-empty';
+            cell.textContent = 'No records found.';
+            empty.appendChild(cell);
+            rows.appendChild(empty);
+        }
+        overlay.classList.add('ia-open');
+        overlay.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        dialog.focus();
+    }
+    function closeDetails() {
+        overlay.classList.remove('ia-open');
+        overlay.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        if (lastTrigger) lastTrigger.focus();
+    }
+    root.querySelectorAll('[data-ia-detail]').forEach(button => button.addEventListener('click', () => openDetails(button.dataset.iaDetail, button)));
+    root.querySelectorAll('[data-ia-review]').forEach(button => button.addEventListener('click', () => {
+        const source = document.querySelector('#iaDataRegisterReview tr[data-assessment-id="' + button.dataset.iaReview + '"]');
+        if (!source) return;
+        lastTrigger = button;
+        heading.textContent = 'Assessment Review';
+        subtitle.textContent = 'Assessment overview. Use Manage Assessments for unlocked metadata or Review Results for approval and publication.';
+        columns.replaceChildren();
+        rows.replaceChildren();
+        const head = document.createElement('tr');
+        ['Assessment','Course','Semester','Type','Due','Submitted','Evaluated','Assessment status','Results'].forEach(label => {
+            const th = document.createElement('th'); th.textContent = label; head.appendChild(th);
+        });
+        columns.appendChild(head);
+        rows.appendChild(source.cloneNode(true));
+        overlay.classList.add('ia-open');
+        overlay.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        dialog.focus();
+    }));
+    close.addEventListener('click', closeDetails);
+    overlay.addEventListener('click', event => { if (event.target === overlay) closeDetails(); });
+    document.addEventListener('keydown', event => {
+        if (!overlay.classList.contains('ia-open')) return;
+        if (event.key === 'Escape') { event.preventDefault(); closeDetails(); }
+        if (event.key === 'Tab') {
+            const focusables = Array.from(dialog.querySelectorAll('button:not([disabled]),a[href],input:not([disabled]),select:not([disabled])')).filter(el => el.getClientRects().length);
+            if (!focusables.length) { event.preventDefault(); dialog.focus(); return; }
+            const first = focusables[0], last = focusables[focusables.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+        }
+    });
+    const rescheduleOverlay = document.getElementById('iaRescheduleOverlay');
+    const rescheduleDialog = rescheduleOverlay.querySelector('.ia-details-dialog');
+    const rescheduleForm = document.getElementById('iaRescheduleForm');
+    const rescheduleStart = document.getElementById('iaRescheduleStart');
+    const rescheduleEnd = document.getElementById('iaRescheduleEnd');
+    let rescheduleTrigger = null;
+    function closeReschedule() {
+        rescheduleOverlay.classList.remove('ia-open');
+        rescheduleOverlay.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        if (rescheduleTrigger) rescheduleTrigger.focus();
+    }
+    root.querySelectorAll('.ia-reschedule-trigger').forEach(button => button.addEventListener('click', () => {
+        rescheduleTrigger = button;
+        document.getElementById('iaRescheduleId').value = button.dataset.windowId;
+        document.getElementById('iaRescheduleTitle').textContent = 'Reschedule: ' + button.dataset.windowName;
+        document.getElementById('iaRescheduleCourse').value = button.dataset.windowCourse;
+        rescheduleStart.value = button.dataset.windowStart;
+        rescheduleEnd.value = button.dataset.windowEnd;
+        rescheduleEnd.min = rescheduleStart.value;
+        document.getElementById('iaUpdateDueDates').checked = false;
+        rescheduleOverlay.classList.add('ia-open');
+        rescheduleOverlay.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        rescheduleDialog.focus();
+    }));
+    rescheduleStart.addEventListener('change', () => {
+        rescheduleEnd.min = rescheduleStart.value;
+        if (rescheduleEnd.value && rescheduleEnd.value <= rescheduleStart.value) rescheduleEnd.value = '';
+    });
+    rescheduleForm.addEventListener('submit', event => {
+        if (!rescheduleStart.value || !rescheduleEnd.value || rescheduleStart.value >= rescheduleEnd.value) {
+            event.preventDefault();
+            window.alert('End date must be after start date.');
+            return;
+        }
+        if (!window.confirm('Save the updated exam schedule? Existing submissions and grades will be preserved.')) event.preventDefault();
+    });
+    document.getElementById('iaRescheduleClose').addEventListener('click', closeReschedule);
+    document.getElementById('iaRescheduleCancel').addEventListener('click', closeReschedule);
+    rescheduleOverlay.addEventListener('click', event => { if (event.target === rescheduleOverlay) closeReschedule(); });
+    document.addEventListener('keydown', event => {
+        if (!rescheduleOverlay.classList.contains('ia-open')) return;
+        if (event.key === 'Escape') { event.preventDefault(); closeReschedule(); }
+        if (event.key === 'Tab') {
+            const focusables = Array.from(rescheduleDialog.querySelectorAll('button:not([disabled]),input:not([disabled])')).filter(el => el.getClientRects().length);
+            if (!focusables.length) { event.preventDefault(); rescheduleDialog.focus(); return; }
+            if (event.shiftKey && document.activeElement === focusables[0]) { event.preventDefault(); focusables[focusables.length - 1].focus(); }
+            else if (!event.shiftKey && document.activeElement === focusables[focusables.length - 1]) { event.preventDefault(); focusables[0].focus(); }
+        }
+    });
+    const start = document.getElementById('iaWindowStart');
+    const end = document.getElementById('iaWindowEnd');
+    if (start && end) {
+        start.addEventListener('change', () => { end.min = start.value; if (end.value && end.value <= start.value) end.value = ''; });
+    }
+})();
+</script>

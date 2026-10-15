@@ -1,0 +1,102 @@
+@model IEnumerable<TMS.Models.Academics.InternalAssessmentSubmission>
+@using TMS.Models.Academics
+@using TMS.Web.Services
+@{
+    ViewData["Title"] = "Evaluate Internal Assessment";
+    var assessment = (InternalAssessment)ViewBag.Assessment;
+    var names = ViewBag.StudentNames as Dictionary<int, string> ?? new();
+    var enrolled = ViewBag.EnrolledStudents as Dictionary<int, string> ?? new();
+    var hasQuestions = ViewBag.HasQuestions is bool hasQuestionValue && hasQuestionValue;
+    var isAdmin = ViewBag.IsAdmin is bool adminValue && adminValue;
+    var gradingLocked = assessment.ResultsPublished || assessment.ResultApprovalRequested || assessment.ResultApproved;
+    var submissionsByStudent = Model.GroupBy(s => s.StudentId)
+        .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.SubmittedOn).First());
+    var submittedCount = enrolled.Keys.Count(id => submissionsByStudent.ContainsKey(id));
+    var evaluatedCount = enrolled.Keys.Count(id => submissionsByStudent.TryGetValue(id, out var submission)
+        && submission.Marks.HasValue && submission.EvaluatedBy.HasValue && submission.EvaluatedOn.HasValue);
+}
+
+<div class="container-fluid py-4">
+    <a asp-action="@(isAdmin ? "AdminDashboard" : "FacultyDashboard")" class="btn btn-outline-secondary mb-3">Back</a>
+    <partial name="_StatusModal" />
+    <h2>@assessment.Title - Evaluation</h2>
+    <p>@assessment.Type | Max marks: @assessment.MaxMarks | Results: @(assessment.ResultsPublished ? "Published" : "Not published")</p>
+
+    <div class="alert alert-light border mb-3">
+        <strong>Result status:</strong>
+        <span>@(assessment.ResultsPublished ? "Published to students" : "Not published")</span>
+        @if (assessment.IsPublished)
+        {
+            <form method="post" asp-action="PublishResults" class="d-inline ms-2 ia-confirm-form"
+                  data-confirm-title="@(assessment.ResultsPublished ? "Hide results?" : "Publish results?")"
+                  data-confirm-message="@(assessment.ResultsPublished ? "Students will no longer see their marks." : "All submissions must be evaluated. Early publishing is allowed only if every actively enrolled student has submitted; otherwise wait until the deadline and schedule end. Published results become visible to students.")">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@assessment.Id" />
+                <input type="hidden" name="publish" value="@(assessment.ResultsPublished ? "false" : "true")" />
+                <button class="btn btn-sm @(assessment.ResultsPublished ? "btn-outline-danger" : "btn-success")" type="submit">
+                    @(assessment.ResultsPublished ? "Hide Results" : "Publish Results")
+                </button>
+            </form>
+        }
+        else
+        {
+            <span class="text-muted ms-2">Publish the assessment before publishing results.</span>
+        }
+    </div>
+
+    <section class="card mb-3"><div class="card-body">
+        <h4>Student-wise Submission &amp; Evaluation Tracking</h4>
+        <p class="text-muted">Enrolled for this assessment: <strong>@enrolled.Count</strong> | Submitted: <strong>@submittedCount</strong> | Not submitted: <strong>@(enrolled.Count - submittedCount)</strong> | Evaluated: <strong>@evaluatedCount</strong> | Pending evaluation: <strong>@(submittedCount - evaluatedCount)</strong></p>
+        <div class="mb-2"><label for="ia-roster-filter" class="form-label">Filter students</label>
+            <select id="ia-roster-filter" class="form-select" style="max-width:250px"><option value="all">All</option><option value="submitted">Submitted</option><option value="missing">Not submitted</option><option value="pending">Pending evaluation</option><option value="evaluated">Evaluated</option></select>
+        </div>
+        <div class="table-responsive"><table class="table table-striped table-sm align-middle"><thead><tr><th>Student ID</th><th>Student</th><th>Submission</th><th>Evaluation</th><th>Submitted On</th><th>Marks</th><th>Outcome</th><th>Action</th></tr></thead><tbody>
+        @foreach (var student in enrolled.OrderBy(x => x.Value))
+        {
+            var hasSubmission = submissionsByStudent.TryGetValue(student.Key, out var submission);
+            var isEvaluated = hasSubmission && submission!.Marks.HasValue && submission.EvaluatedBy.HasValue && submission.EvaluatedOn.HasValue;
+            var state = !hasSubmission ? "missing" : isEvaluated ? "evaluated" : "pending";
+            var submissionStatus = assessment.ResultsPublished
+                ? InternalAssessmentResultPolicy.SubmissionStatus(hasSubmission, isEvaluated)
+                : hasSubmission ? (isEvaluated ? "SUBMITTED" : "PENDING") : "NOT SUBMITTED";
+            var outcome = InternalAssessmentResultPolicy.AssessmentOutcome(assessment.ResultsPublished, hasSubmission, isEvaluated, submission?.Marks, assessment.MaxMarks);
+            var marks = assessment.ResultsPublished && !hasSubmission ? $"0 / {assessment.MaxMarks:0.##}" : isEvaluated ? $"{submission!.Marks:0.##} / {assessment.MaxMarks:0.##}" : "-";
+            <tr data-ia-state="@state">
+                <td>@student.Key</td><td>@student.Value</td><td>@submissionStatus</td><td>@(isEvaluated ? "Evaluated" : hasSubmission ? "Pending" : "No submission")</td>
+                <td>@(hasSubmission ? submission!.SubmittedOn.ToLocalTime().ToString("dd MMM yyyy HH:mm") : "-")</td><td>@marks</td><td><strong>@outcome</strong></td><td>
+                @if (hasSubmission && hasQuestions) { <a class="btn btn-sm btn-outline-primary" asp-action="GradeQuestions" asp-route-submissionId="@submission!.Id">@(gradingLocked ? "View" : isEvaluated ? "View / Edit" : "Evaluate")</a> }
+                else if (hasSubmission) { <a class="btn btn-sm btn-outline-primary" href="#ia-submission-@submission!.Id">@(gradingLocked ? "View" : isEvaluated ? "View marks" : "Evaluate")</a> }
+                else { <span class="text-muted">Recorded as ABSENT only when results are published</span> }
+                </td>
+            </tr>
+        }
+        </tbody></table></div>
+        @if (enrolled.Count == 0) { <div class="alert alert-info">No enrolled students are mapped to this course.</div> }
+        @if (!gradingLocked) { <a asp-controller="InternalMarksEntry" asp-action="Index" asp-route-assessmentId="@assessment.Id" class="btn btn-outline-primary">Open Faculty Marks Entry</a> }
+    </div></section>
+
+    <script>document.getElementById('ia-roster-filter')?.addEventListener('change',function(){var v=this.value;document.querySelectorAll('[data-ia-state]').forEach(function(r){r.hidden=!(v==='all'||r.dataset.iaState===v||(v==='submitted'&&r.dataset.iaState!=='missing'));});});</script>
+    @if (!Model.Any()) { <div class="alert alert-info">No submissions yet. Results cannot be published until at least one submission has been evaluated. Before the deadline, all enrolled students must submit to avoid premature ABSENT results.</div> }
+    @foreach (var submission in Model)
+    {
+        <div class="card mb-3" id="ia-submission-@submission.Id"><div class="card-body">
+            <div class="d-flex justify-content-between"><h5>@names.GetValueOrDefault(submission.StudentId, "Student #" + submission.StudentId)</h5><small>@submission.SubmittedOn.ToLocalTime().ToString("dd MMM yyyy HH:mm") @(submission.IsLate ? "(Late)" : "")</small></div>
+            <p style="white-space:pre-wrap">@submission.AnswerText</p>
+            @if (!string.IsNullOrWhiteSpace(submission.FilePath)) { <a asp-action="Download" asp-route-submissionId="@submission.Id" class="btn btn-sm btn-outline-primary mb-3">Download Attachment</a> }
+            @if (hasQuestions) { <a class="btn btn-outline-primary mb-2" asp-action="GradeQuestions" asp-route-submissionId="@submission.Id">@(gradingLocked ? "View Question-wise Evaluation" : "Question-wise Evaluation")</a> }
+            @if (!hasQuestions && !gradingLocked)
+            {
+                <form method="post" asp-action="Evaluate" class="row g-2 align-items-end">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="submissionId" value="@submission.Id" />
+                    <div class="col-md-2"><label>Marks / @assessment.MaxMarks</label><input type="number" name="marks" step="0.01" min="0" max="@assessment.MaxMarks" value="@submission.Marks" required class="form-control" /></div>
+                    <div class="col-md-7"><label>Feedback</label><input name="feedback" maxlength="2000" value="@submission.Feedback" class="form-control" /></div>
+                    <div class="col-md-3"><button class="btn btn-primary">Save Evaluation</button></div>
+                </form>
+            }
+            else if (!hasQuestions) { <p><strong>Marks:</strong> @(submission.Marks?.ToString("0.##") ?? "PENDING") / @assessment.MaxMarks.ToString("0.##")</p> }
+        </div></div>
+    }
+</div>
+
+<script src="~/js/internal-assessment.js" asp-append-version="true"></script>

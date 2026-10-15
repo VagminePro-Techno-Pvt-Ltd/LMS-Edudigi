@@ -138,8 +138,12 @@
                 
                 <div class="qc-row">
                     <div class="qc-row-left">
-                        <div class="qc-type-icon" style="background: @Model.QuadrantBgColor; color: @Model.QuadrantColor;">
-                            @if (mat.IsVideo)
+                        <div class="qc-type-icon" style="background: @(mat.IsCompleted ? "#ecfdf5" : Model.QuadrantBgColor); color: @(mat.IsCompleted ? "#059669" : Model.QuadrantColor);">
+                            @if (mat.IsCompleted)
+                            {
+                                <i class="fa-solid fa-circle-check"></i>
+                            }
+                            else if (mat.IsVideo)
                             {
                                 <i class="fa-solid fa-video"></i>
                             }
@@ -153,26 +157,37 @@
                             }
                         </div>
                         <div class="qc-info">
-                            <h4>@(i + 1). @mat.Title</h4>
-                            <p>@(mat.MaterialType) · @(mat.UploadedOn.ToString("MMM dd, yyyy"))</p>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <h4 class="mb-0">@(i + 1). @mat.Title</h4>
+                                @if (mat.IsCompleted)
+                                {
+                                    <span class="badge" style="background:#ecfdf5; color:#059669; font-size:11px; padding:3px 8px; border-radius:6px; font-weight:700;">
+                                        <i class="fa-solid fa-check me-1"></i>Completed
+                                    </span>
+                                }
+                            </div>
+                            <p class="mt-1">@(mat.MaterialType) · @(mat.UploadedOn.ToString("MMM dd, yyyy"))</p>
                         </div>
                     </div>
                     <div class="qc-actions">
                         @if (mat.IsVideo)
                         {
                             <button class="btn-qc btn-qc-view view-file-link"
+                                    style="@(mat.IsCompleted ? "background:#f0fdf4; color:#16a34a;" : "")"
                                     data-filepath="@previewUrl"
                                     data-filepath-fallback="@Url.Content(mat.FilePath ?? "")"
                                     data-title="@mat.Title"
                                     data-material-id="@mat.MaterialId"
                                     data-materialtype="@mat.MaterialType">
-                                <i class="fa-solid fa-play"></i> Watch
+                                <i class="fa-solid @(mat.IsCompleted ? "fa-rotate-right" : "fa-play")"></i> @(mat.IsCompleted ? "Watch Again" : "Watch")
                             </button>
                         }
                         else
                         {
-                            <a href="@Url.Action("View", "DocumentViewer", new { id = mat.MaterialId })" class="btn-qc btn-qc-view">
-                                <i class="fa-solid fa-eye"></i> View
+                            <a href="@Url.Action("View", "DocumentViewer", new { id = mat.MaterialId })" 
+                               style="@(mat.IsCompleted ? "background:#f0fdf4; color:#16a34a;" : "")"
+                               class="btn-qc btn-qc-view">
+                                <i class="fa-solid @(mat.IsCompleted ? "fa-book-open-reader" : "fa-eye")"></i> @(mat.IsCompleted ? "Re-read" : "View")
                             </a>
                         }
 

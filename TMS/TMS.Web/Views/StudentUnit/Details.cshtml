@@ -124,7 +124,15 @@
                     <span class="quadrant-stats" style="color: @q.Color;">
                         @if (q.QuadrantNumber == 3 && q.HasQuizAttempt)
                         {
-                            <span class="quiz-badge"><i class="fa-solid fa-circle-check"></i> Completed</span>
+                            <span class="quiz-badge"><i class="fa-solid fa-circle-check"></i> Attempted</span>
+                        }
+                        else if (q.MaterialCount > 0 && q.CompletedCount >= q.MaterialCount)
+                        {
+                            <span class="quiz-badge" style="background:#ecfdf5; color:#059669;"><i class="fa-solid fa-circle-check"></i> All @q.MaterialCount Completed</span>
+                        }
+                        else if (q.CompletedCount > 0)
+                        {
+                            <span style="font-weight:700;"><i class="fa-solid fa-circle-check text-success"></i> @(q.CompletedCount)/@(q.MaterialCount) Done</span>
                         }
                         else
                         {

@@ -5,6 +5,7 @@ using System;
 using System.Threading.Tasks;
 using TMS.Repository;
 using TMS.Models.Academics;
+using TMS.Web.Services;
 
 namespace TMS.Web.Controllers
 {
@@ -12,10 +13,12 @@ namespace TMS.Web.Controllers
     public class VideoProgressController : BaseController
     {
         private readonly ApplicationDBContext _db;
+        private readonly IStudentLearningService _learningService;
 
-        public VideoProgressController(ApplicationDBContext db)
+        public VideoProgressController(ApplicationDBContext db, IStudentLearningService learningService)
         {
             _db = db;
+            _learningService = learningService;
         }
 
         // GET: /VideoProgress/GetProgress?materialId=...
@@ -26,6 +29,14 @@ namespace TMS.Web.Controllers
             if (studentId == 0 || materialId <= 0)
             {
                 return Json(new { success = false, message = "Invalid parameters." });
+            }
+
+            bool isStaff = User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("Faculty") || User.IsInRole("Exam Coordinator");
+            if (!isStaff)
+            {
+                bool enrolled = await _learningService.IsStudentEnrolledInMaterialAsync(studentId, materialId);
+                if (!enrolled)
+                    return Forbid();
             }
 
             try
@@ -76,6 +87,14 @@ namespace TMS.Web.Controllers
             if (studentId == 0 || request == null || request.MaterialId <= 0)
             {
                 return Json(new { success = false, message = "Invalid parameters." });
+            }
+
+            bool isStaff = User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("Faculty") || User.IsInRole("Exam Coordinator");
+            if (!isStaff)
+            {
+                bool enrolled = await _learningService.IsStudentEnrolledInMaterialAsync(studentId, request.MaterialId);
+                if (!enrolled)
+                    return Forbid();
             }
 
             try

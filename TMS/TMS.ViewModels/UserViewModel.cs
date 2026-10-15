@@ -30,5 +30,11 @@ namespace TMS.ViewModels
         public virtual List<UserRolesViewModel> UserRoles { get; set; } = new();
         
         public virtual UserViewModel? User { get; set; }
+
+        [Display(Name = "Program / Degree")]
+        public int? ProgramId { get; set; }
+
+        [Display(Name = "Enroll in Courses")]
+        public List<int>? CourseIds { get; set; }
     }
 }

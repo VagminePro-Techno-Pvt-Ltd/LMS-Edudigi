@@ -68,6 +68,9 @@ namespace TMS.ViewModels.Academics
         public int SelectedProgramId { get; set; }
         public ProgramStructureViewModel? SelectedProgramStructure { get; set; }
         public List<CourseQuadrantViewModel> AllQuadrants { get; set; } = new();
+        public List<CourseMasterViewModel> AllCourses { get; set; } = new();
+        public List<SemesterMasterViewModel> AllSemesters { get; set; } = new();
+        public string ActiveView { get; set; } = "tree";
     }
 
     /// <summary>
@@ -101,6 +104,40 @@ namespace TMS.ViewModels.Academics
         public string CourseName { get; set; } = string.Empty;
         public string CourseCode { get; set; } = string.Empty;
         public int Credits { get; set; }
+        public int DurationMonths { get; set; }
+        public string? Description { get; set; }
+        public int? SemesterId { get; set; }
         public int ContentCount { get; set; }
+    }
+
+    /// <summary>
+    /// Course creation & structure definition model with Modules and Topics
+    /// </summary>
+    public class CourseFullStructureDto
+    {
+        public int CourseId { get; set; }
+        public int ProgramId { get; set; }
+        public int SemesterId { get; set; }
+        public string CourseCode { get; set; } = string.Empty;
+        public string CourseTitle { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public int Credits { get; set; } = 4;
+        public int DurationMonths { get; set; } = 6;
+        public List<ModuleStructureDto> Modules { get; set; } = new();
+    }
+
+    public class ModuleStructureDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int SortOrder { get; set; }
+        public List<TopicStructureDto> Topics { get; set; } = new();
+    }
+
+    public class TopicStructureDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int SortOrder { get; set; }
     }
 }

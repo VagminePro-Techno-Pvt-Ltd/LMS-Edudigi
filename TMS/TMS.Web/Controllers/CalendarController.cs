@@ -25,6 +25,8 @@ namespace TMS.Web.Controllers
         private readonly IMasterBaseManager<CourseFacultyMapViewModel> _facultyMapManager;
         private readonly IMasterManager<CourseMasterViewModel> _courseManager;
         private readonly IMasterManager<SubjectMasterViewModel> _subjectManager;
+        private readonly IMasterManager<UserViewModel> _userManager;
+        private readonly TMS.Repository.ApplicationDBContext _db;
         private readonly ZoomSettings _zoomSettings;
 
         public CalendarController(
@@ -35,6 +37,8 @@ namespace TMS.Web.Controllers
             IMasterBaseManager<CourseFacultyMapViewModel> facultyMapManager,
             IMasterManager<CourseMasterViewModel> courseManager,
             IMasterManager<SubjectMasterViewModel> subjectManager,
+            IMasterManager<UserViewModel> userManager,
+            TMS.Repository.ApplicationDBContext db,
             IOptions<ZoomSettings> zoomSettings)
         {
             _seriesManager = seriesManager;
@@ -44,6 +48,8 @@ namespace TMS.Web.Controllers
             _facultyMapManager = facultyMapManager;
             _courseManager = courseManager;
             _subjectManager = subjectManager;
+            _userManager = userManager;
+            _db = db;
             _zoomSettings = zoomSettings.Value;
         }
 
@@ -55,53 +61,67 @@ namespace TMS.Web.Controllers
         {
             int userId = GetUserId();
             string userRole = GetUserRole() ?? "Student";
+            bool isFaculty = IsFacultyRole();
+            bool isAdmin = userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase) || 
+                           userRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase) || 
+                           userRole.Equals("Management", StringComparison.OrdinalIgnoreCase) || 
+                           userRole.Equals("Exam Coordinator", StringComparison.OrdinalIgnoreCase);
 
             var model = new ClassroomCalendarViewModel
             {
                 UserId = userId,
-                UserRole = userRole
+                UserRole = isAdmin ? "Admin" : (isFaculty ? "Faculty" : "Student")
             };
 
             List<int> courseIds = new List<int>();
             var allCoursesData = await _courseManager.GetAsync(new[] { "Semester" });
             var activeCourses = allCoursesData.Where(t => t.IsActive).ToList();
 
-            if (userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase) || userRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase))
+            // Fetch faculties for assignment dropdown
+            var allUsers = await _userManager.GetAsync(new[] { "Role" }, u => u.IsActive);
+            var facultyUsers = allUsers
+                .Where(u => u.Role != null && (
+                    u.Role.Name.Contains("Faculty", StringComparison.OrdinalIgnoreCase) ||
+                    u.Role.Name.Contains("Teacher", StringComparison.OrdinalIgnoreCase) ||
+                    u.Role.Name.Contains("Instructor", StringComparison.OrdinalIgnoreCase) ||
+                    u.Role.Name.Contains("Trainer", StringComparison.OrdinalIgnoreCase) ||
+                    u.Role.Name.Contains("Admin", StringComparison.OrdinalIgnoreCase)))
+                .OrderBy(u => u.Name)
+                .ToList();
+
+            if (!facultyUsers.Any())
+            {
+                facultyUsers = allUsers.OrderBy(u => u.Name).ToList();
+            }
+            model.Faculties = facultyUsers;
+            ViewBag.FacultyList = facultyUsers;
+
+            if (isAdmin)
             {
                 model.Courses = activeCourses;
                 courseIds = activeCourses.Select(c => c.Id).ToList();
             }
-            else if (userRole.Equals("Faculty", StringComparison.OrdinalIgnoreCase))
+            else if (isFaculty)
             {
-                var maps = await _facultyMapManager.GetAsync(null, x => x.FacultyId == userId);
+                var maps = await _facultyMapManager.GetAsync(null, x => x.FacultyId == userId && x.IsActive);
                 courseIds = maps.Select(m => m.CourseId).Distinct().ToList();
-                model.Courses = activeCourses.Where(c => courseIds.Contains(c.Id)).ToList();
+                var mappedCourses = activeCourses.Where(c => courseIds.Contains(c.Id)).ToList();
+                model.Courses = mappedCourses.Any() ? mappedCourses : activeCourses;
+                if (!courseIds.Any())
+                {
+                    courseIds = activeCourses.Select(c => c.Id).ToList();
+                }
             }
             else
             {
-                var enrollments = await _enrollmentManager.GetAsync(null, x => x.IsActive);
-                var studentEnrollments = enrollments.Where(e => e.StudentId == userId).ToList();
-                courseIds = studentEnrollments.Select(e => e.CourseId).ToList();
-                model.Courses = activeCourses.Where(c => courseIds.Contains(c.Id)).ToList();
+                var enrollments = await _enrollmentManager.GetAsync(null, x => x.IsActive && x.StudentId == userId && (x.Status == 0 || x.Status == (int)EnrollmentStatus.Active));
+                courseIds = enrollments.Select(e => e.CourseId).Distinct().ToList();
+                var enrolledCourses = activeCourses.Where(c => courseIds.Contains(c.Id)).ToList();
+                model.Courses = enrolledCourses.Any() ? enrolledCourses : activeCourses;
             }
 
-            // Fetch all relevant instances
-            var allInstances = await _instanceManager.GetAsync(
-                new[] { "Course", "Subject", "Unit", "Faculty" },
-                i => i.IsActive
-            );
-
-            List<ClassInstanceViewModel> relevantInstances;
-
-            if (userRole.Equals("Faculty", StringComparison.OrdinalIgnoreCase))
-            {
-                // Faculty sees classes they teach
-                relevantInstances = allInstances.Where(i => i.FacultyId == userId).ToList();
-            }
-            else
-            {
-                relevantInstances = allInstances.Where(i => courseIds.Contains(i.CourseId)).ToList();
-            }
+            // Fetch unified synced sessions across ClassInstance + CourseMeeting
+            var relevantInstances = await GetUnifiedSessionsAsync(userId, userRole, courseIds, isFaculty, isAdmin, activeCourses, allUsers);
 
             var now = DateTime.Now;
 
@@ -111,7 +131,7 @@ namespace TMS.Web.Controllers
                 .ToList();
 
             model.UpcomingSessions = relevantInstances
-                .Where(i => i.ScheduledStart > now && i.Status == 0)
+                .Where(i => i.ScheduledStart > now && (i.Status == 0 || i.Status == 4))
                 .OrderBy(i => i.ScheduledStart)
                 .ToList();
 
@@ -125,7 +145,7 @@ namespace TMS.Web.Controllers
                 .OrderBy(i => i.ScheduledStart)
                 .ToList();
 
-            model.NextClass = model.UpcomingSessions.FirstOrDefault() ?? model.LiveSessions.FirstOrDefault();
+            model.NextClass = model.LiveSessions.FirstOrDefault() ?? model.UpcomingSessions.FirstOrDefault();
 
             // Stats
             model.TotalUpcoming = model.UpcomingSessions.Count;
@@ -133,16 +153,20 @@ namespace TMS.Web.Controllers
             model.TotalCancelled = relevantInstances.Count(i => i.Status == 3);
 
             // Faculty/Admin: load their series
-            if (!userRole.Equals("Student", StringComparison.OrdinalIgnoreCase))
+            if (!isFaculty && !isAdmin)
+            {
+                // Student: no series
+            }
+            else
             {
                 var allSeries = await _seriesManager.GetAsync(
                     new[] { "Course", "Subject", "Faculty" },
                     s => s.IsActive
                 );
 
-                if (userRole.Equals("Faculty", StringComparison.OrdinalIgnoreCase))
+                if (isFaculty && !isAdmin)
                 {
-                    model.MySeries = allSeries.Where(s => s.FacultyId == userId).ToList();
+                    model.MySeries = allSeries.Where(s => s.FacultyId == userId || courseIds.Contains(s.CourseId)).ToList();
                 }
                 else
                 {
@@ -163,35 +187,45 @@ namespace TMS.Web.Controllers
         {
             int userId = GetUserId();
             string userRole = GetUserRole() ?? "Student";
+            bool isFaculty = IsFacultyRole();
+            bool isAdmin = userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase) || 
+                           userRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase) || 
+                           userRole.Equals("Management", StringComparison.OrdinalIgnoreCase) || 
+                           userRole.Equals("Exam Coordinator", StringComparison.OrdinalIgnoreCase);
 
-            var instancesData = await _instanceManager.GetAsync(new[] { "Course", "Subject", "Faculty" });
-            var allInstances = instancesData.Where(i => i.IsActive).ToList();
+            var allCoursesData = await _courseManager.GetAsync(new[] { "Semester" });
+            var activeCourses = allCoursesData.Where(t => t.IsActive).ToList();
+            var allUsers = await _userManager.GetAsync(new[] { "Role" }, u => u.IsActive);
 
-            // Filter by role
-            List<ClassInstanceViewModel> instances;
-            if (userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase) || userRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase))
+            List<int> courseIds = new List<int>();
+            if (isAdmin)
             {
-                instances = allInstances.ToList();
+                courseIds = activeCourses.Select(c => c.Id).ToList();
             }
-            else if (userRole.Equals("Faculty", StringComparison.OrdinalIgnoreCase))
+            else if (isFaculty)
             {
-                instances = allInstances.Where(i => i.FacultyId == userId).ToList();
+                var maps = await _facultyMapManager.GetAsync(null, x => x.FacultyId == userId && x.IsActive);
+                courseIds = maps.Select(m => m.CourseId).Distinct().ToList();
+                if (!courseIds.Any())
+                {
+                    courseIds = activeCourses.Select(c => c.Id).ToList();
+                }
             }
             else
             {
-                var enrollments = await _enrollmentManager.GetAsync(null, x => x.IsActive);
-                var courseIds = enrollments.Where(e => e.StudentId == userId)
-                    .Select(e => e.CourseId).ToList();
-                instances = allInstances.Where(i => courseIds.Contains(i.CourseId)).ToList();
+                var enrollments = await _enrollmentManager.GetAsync(null, x => x.IsActive && x.StudentId == userId && (x.Status == 0 || x.Status == (int)EnrollmentStatus.Active));
+                courseIds = enrollments.Select(e => e.CourseId).Distinct().ToList();
             }
+
+            var instances = await GetUnifiedSessionsAsync(userId, userRole, courseIds, isFaculty, isAdmin, activeCourses, allUsers);
 
             // Filter by date range
             if (start.HasValue)
-                instances = instances.Where(i => i.ScheduledStart >= start.Value).ToList();
+                instances = instances.Where(i => i.ScheduledStart >= start.Value || i.ScheduledEnd >= start.Value).ToList();
             if (end.HasValue)
                 instances = instances.Where(i => i.ScheduledStart <= end.Value).ToList();
             if (courseId.HasValue && courseId > 0)
-                instances = instances.Where(i => i.CourseId == courseId).ToList();
+                instances = instances.Where(i => i.CourseId == courseId.Value).ToList();
 
             var events = instances.Select(i => new
             {
@@ -203,7 +237,7 @@ namespace TMS.Web.Controllers
                 url = i.JoinUrl ?? "",
                 extendedProps = new
                 {
-                    course = i.CourseName ?? "N/A",
+                    course = i.CourseName ?? "Academic Course",
                     subject = i.SubjectName,
                     faculty = i.FacultyName,
                     status = i.StatusText,
@@ -219,6 +253,98 @@ namespace TMS.Web.Controllers
             return Json(events);
         }
 
+        // ═══════════════════════════════════════════════════
+        //   HELPER: Get Unified Synced Sessions
+        // ═══════════════════════════════════════════════════
+        private async Task<List<ClassInstanceViewModel>> GetUnifiedSessionsAsync(
+            int userId,
+            string userRole,
+            List<int> courseIds,
+            bool isFaculty,
+            bool isAdmin,
+            List<CourseMasterViewModel> activeCourses,
+            List<UserViewModel> allUsers)
+        {
+            var coursesDict = activeCourses.ToDictionary(c => c.Id, c => c);
+            var usersDict = allUsers.ToDictionary(u => u.Id, u => u);
+
+            // 1. Fetch ClassInstances
+            var instancesData = await _instanceManager.GetAsync(new[] { "Course", "Subject", "Unit", "Faculty" }, i => i.IsActive);
+            var allInstances = instancesData.ToList();
+
+            // 2. Fetch CourseMeetings (Virtual Classroom Zoom sessions)
+            try
+            {
+                var meetings = _db.CourseMeeting.Where(m => m.IsActive).ToList();
+                foreach (var m in meetings)
+                {
+                    int duration = m.Duration > 0 ? m.Duration : 60;
+                    var scheduledEnd = m.ScheduledAt.AddMinutes(duration);
+                    var now = DateTime.Now;
+
+                    int status = 0;
+                    if (m.ScheduledAt <= now && scheduledEnd >= now) status = 1; // Live
+                    else if (scheduledEnd < now) status = 2; // Completed
+
+                    var courseObj = coursesDict.ContainsKey(m.CourseId) ? coursesDict[m.CourseId] : null;
+                    var facultyObj = usersDict.ContainsKey(m.CreatedBy) ? usersDict[m.CreatedBy] : null;
+
+                    allInstances.Add(new ClassInstanceViewModel
+                    {
+                        Id = 100000 + m.Id, // unique positive key
+                        Title = m.MeetingTitle ?? "Virtual Class",
+                        CourseId = m.CourseId,
+                        Course = courseObj,
+                        FacultyId = m.CreatedBy,
+                        Faculty = facultyObj,
+                        ScheduledStart = m.ScheduledAt,
+                        ScheduledEnd = scheduledEnd,
+                        MeetingProvider = "Zoom",
+                        JoinUrl = m.MeetingUrl,
+                        HostUrl = m.MeetingUrl,
+                        Status = status,
+                        IsActive = true
+                    });
+                }
+            }
+            catch { }
+
+            // 3. Filter by role
+            List<ClassInstanceViewModel> result;
+            if (isAdmin)
+            {
+                result = allInstances;
+            }
+            else if (isFaculty)
+            {
+                var courseIdSet = courseIds.ToHashSet();
+                result = allInstances
+                    .Where(i => i.FacultyId == userId || (i.CourseId > 0 && courseIdSet.Contains(i.CourseId)) || i.CreatedBy == userId)
+                    .ToList();
+
+                if (!result.Any())
+                {
+                    result = allInstances;
+                }
+            }
+            else
+            {
+                // Student
+                if (courseIds.Any())
+                {
+                    var courseIdSet = courseIds.ToHashSet();
+                    result = allInstances
+                        .Where(i => courseIdSet.Contains(i.CourseId) || i.CourseId == 0)
+                        .ToList();
+                }
+                else
+                {
+                    result = allInstances;
+                }
+            }
+
+            return result;
+        }
 
         // ═══════════════════════════════════════════════════
         //           CREATE CLASS (Faculty/Admin)
@@ -238,10 +364,29 @@ namespace TMS.Web.Controllers
                 if (model == null)
                     return Json(new { success = false, message = "Invalid data received." });
 
+                if (string.IsNullOrWhiteSpace(model.Title))
+                    return Json(new { success = false, message = "Please enter a class title." });
+
                 if (model.CourseId <= 0)
                     return Json(new { success = false, message = "Please select a valid course." });
 
-                model.FacultyId = userId;
+                if (model.StartDate == default)
+                    return Json(new { success = false, message = "Please select a valid start date." });
+
+                if (userRole.Equals("Faculty", StringComparison.OrdinalIgnoreCase))
+                {
+                    model.FacultyId = userId;
+                }
+                else
+                {
+                    // Admin: Use selected faculty or fallback
+                    if (model.FacultyId <= 0)
+                    {
+                        var maps = await _facultyMapManager.GetAsync(null, m => m.CourseId == model.CourseId && m.IsActive);
+                        var firstMap = maps.FirstOrDefault();
+                        model.FacultyId = firstMap != null ? firstMap.FacultyId : userId;
+                    }
+                }
 
                 // Build RRULE from selected days
                 if (model.IsRecurring && model.SelectedDays != null && model.SelectedDays.Any())
@@ -249,23 +394,30 @@ namespace TMS.Web.Controllers
                     model.RecurrenceRule = $"FREQ=WEEKLY;BYDAY={string.Join(",", model.SelectedDays)}";
                 }
 
-                // 1. Validate Time Conflict
-                var startTime = model.StartDate.Date + model.StartTime;
-                var endTime = startTime.AddMinutes(model.DurationMinutes);
-
-                var existingInstances = await _instanceManager.GetAsync(null, i => i.IsActive && i.Status != 3);
-                var conflict = existingInstances.FirstOrDefault(i => 
-                    ((i.FacultyId == model.FacultyId) || (i.CourseId == model.CourseId)) &&
-                    (startTime < i.ScheduledEnd && endTime > i.ScheduledStart)
-                );
-
-                if (conflict != null)
+                // Generate instances first
+                var instances = GenerateInstances(model);
+                if (!instances.Any())
                 {
-                    var conflictType = conflict.FacultyId == model.FacultyId ? "Faculty" : "Course/Students";
-                    return Json(new { 
-                        success = false, 
-                        message = $"Time Conflict! {conflictType} is already busy with '{conflict.Title}' from {conflict.ScheduledStart:hh:mm tt} to {conflict.ScheduledEnd:hh:mm tt}." 
-                    });
+                    return Json(new { success = false, message = "No valid class dates generated for this schedule. Please check the start/end dates and selected repeat days." });
+                }
+
+                // 1. Validate Time Conflict across all generated instances
+                var existingInstances = await _instanceManager.GetAsync(null, i => i.IsActive && i.Status != 3);
+                foreach (var inst in instances)
+                {
+                    var conflict = existingInstances.FirstOrDefault(i => 
+                        ((i.FacultyId == model.FacultyId) || (i.CourseId == model.CourseId)) &&
+                        (inst.ScheduledStart < i.ScheduledEnd && inst.ScheduledEnd > i.ScheduledStart)
+                    );
+
+                    if (conflict != null)
+                    {
+                        var conflictType = conflict.FacultyId == model.FacultyId ? "Faculty" : "Course/Students";
+                        return Json(new { 
+                            success = false, 
+                            message = $"Time Conflict on {inst.ScheduledStart:dd MMM yyyy}! {conflictType} is already scheduled with '{conflict.Title}' from {conflict.ScheduledStart:hh:mm tt} to {conflict.ScheduledEnd:hh:mm tt}." 
+                        });
+                    }
                 }
 
                 // 2. Save the series
@@ -273,10 +425,10 @@ namespace TMS.Web.Controllers
                 if (!result)
                     return Json(new { success = false, message = "Failed to save class series." });
 
-                // Fallback: If ID is still 0, fetch the latest series created by this user
+                // Fallback: If ID is still 0, fetch the latest series created
                 if (model.Id == 0)
                 {
-                    var allSeries = await _seriesManager.GetAsync(null, s => s.FacultyId == userId && s.Title == model.Title);
+                    var allSeries = await _seriesManager.GetAsync(null, s => s.FacultyId == model.FacultyId && s.Title == model.Title);
                     var latest = allSeries.OrderByDescending(s => s.Id).FirstOrDefault();
                     if (latest != null) model.Id = latest.Id;
                 }
@@ -284,11 +436,11 @@ namespace TMS.Web.Controllers
                 if (model.Id == 0)
                     return Json(new { success = false, message = "Could not retrieve the new Class ID. Please try again." });
 
-                // Generate instances
-                var instances = GenerateInstances(model);
+                // 3. Save each generated instance
                 foreach (var inst in instances)
                 {
-                    inst.FacultyId = userId;
+                    inst.SeriesId = model.Id;
+                    inst.FacultyId = model.FacultyId;
                     inst.CourseId = model.CourseId;
                     inst.SubjectId = model.SubjectId;
                     
@@ -298,17 +450,18 @@ namespace TMS.Web.Controllers
                         try
                         {
                             var zoomService = new ZoomService(_zoomSettings);
-                            var joinUrl = await zoomService.CreateMeetingAsync(
+                            var zoomResult = await zoomService.CreateZoomMeetingAsync(
                                 inst.Title,
                                 inst.ScheduledStart,
                                 inst.DurationMinutes
                             );
-                            inst.JoinUrl = joinUrl;
+                            inst.JoinUrl = zoomResult.JoinUrl;
+                            inst.HostUrl = zoomResult.HostUrl;
                         }
-                        catch (Exception ex)
+                        catch (Exception)
                         {
-                            // Log Zoom error but continue with pending status
-                            inst.JoinUrl = null; 
+                            inst.JoinUrl = null;
+                            inst.HostUrl = null;
                             inst.MeetingProvider = "Zoom (Pending)";
                         }
                     }
@@ -323,8 +476,7 @@ namespace TMS.Web.Controllers
                 var innerMsg = ex.InnerException != null ? " -> " + ex.InnerException.Message : "";
                 return Json(new { 
                     success = false, 
-                    message = $"Server Error: {ex.Message}{innerMsg}",
-                    debugInfo = $"ModelId: {model?.Id}, CourseId: {model?.CourseId}"
+                    message = $"Server Error: {ex.Message}{innerMsg}"
                 });
             }
         }
@@ -365,29 +517,89 @@ namespace TMS.Web.Controllers
                 return Json(new { success = false, message = "Session not found." });
 
             int duration = request.NewDuration ?? (int)(instance.ScheduledEnd - instance.ScheduledStart).TotalMinutes;
+            if (duration <= 0) duration = 60;
+
+            var newStart = request.NewStart;
+            var newEnd = request.NewStart.AddMinutes(duration);
+
+            // Check conflict for the rescheduled time
+            var existingInstances = await _instanceManager.GetAsync(null, i => i.IsActive && i.Id != instance.Id && i.Status != 3);
+            var conflict = existingInstances.FirstOrDefault(i =>
+                ((i.FacultyId == instance.FacultyId) || (i.CourseId == instance.CourseId)) &&
+                (newStart < i.ScheduledEnd && newEnd > i.ScheduledStart)
+            );
+
+            if (conflict != null)
+            {
+                var conflictType = conflict.FacultyId == instance.FacultyId ? "Faculty" : "Course/Students";
+                return Json(new {
+                    success = false,
+                    message = $"Conflict with '{conflict.Title}' ({conflict.ScheduledStart:hh:mm tt} - {conflict.ScheduledEnd:hh:mm tt}) for {conflictType}."
+                });
+            }
 
             instance.Status = 4; // Rescheduled
-            instance.ScheduledStart = request.NewStart;
-            instance.ScheduledEnd = request.NewStart.AddMinutes(duration);
+            instance.ScheduledStart = newStart;
+            instance.ScheduledEnd = newEnd;
 
-            // Re-create Zoom meeting
-            try
+            // Re-create Zoom meeting if applicable
+            if (instance.MeetingProvider.StartsWith("Zoom", StringComparison.OrdinalIgnoreCase))
             {
-                var zoomService = new ZoomService(_zoomSettings);
-                var joinUrl = await zoomService.CreateMeetingAsync(instance.Title, request.NewStart, duration);
-                instance.JoinUrl = joinUrl;
+                try
+                {
+                    var zoomService = new ZoomService(_zoomSettings);
+                    var joinUrl = await zoomService.CreateMeetingAsync(instance.Title, newStart, duration);
+                    instance.JoinUrl = joinUrl;
+                }
+                catch { /* keep existing link */ }
             }
-            catch { /* keep old link */ }
 
             var result = await _instanceManager.AddUpdateAsync(instance, userId);
-            return Json(new { success = result, message = result ? "Session rescheduled." : "Failed to reschedule." });
+            return Json(new { success = result, message = result ? "Session rescheduled successfully." : "Failed to reschedule." });
         }
 
         public class RescheduleRequest { public int InstanceId { get; set; } public DateTime NewStart { get; set; } public int? NewDuration { get; set; } }
 
 
         // ═══════════════════════════════════════════════════
-        //           MARK ATTENDANCE (Faculty)
+        //           GET STUDENTS FOR ATTENDANCE (AJAX)
+        // ═══════════════════════════════════════════════════
+
+        [HttpGet]
+        public async Task<IActionResult> GetStudentsForAttendance(int instanceId)
+        {
+            var instance = await _instanceManager.GetAsync(instanceId, new[] { "Course" });
+            if (instance == null)
+                return Json(new { success = false, message = "Session not found." });
+
+            var enrollments = await _enrollmentManager.GetAsync(new[] { "Student" }, e => e.CourseId == instance.CourseId && e.IsActive);
+            var existingAttendances = await _attendanceManager.GetAsync(null, a => a.ClassInstanceId == instanceId && a.IsActive);
+            var presentStudentIds = existingAttendances.Where(a => a.AttendanceStatus == 1).Select(a => a.StudentId).ToHashSet();
+
+            var students = enrollments
+                .Where(e => e.Student != null)
+                .Select(e => new
+                {
+                    studentId = e.StudentId,
+                    studentName = e.Student?.Name ?? ("Student #" + e.StudentId),
+                    studentEmail = e.Student?.Email ?? "",
+                    isPresent = presentStudentIds.Contains(e.StudentId)
+                })
+                .OrderBy(s => s.studentName)
+                .ToList();
+
+            return Json(new { 
+                success = true, 
+                students, 
+                sessionTitle = instance.Title, 
+                courseName = instance.CourseName ?? "Course Session",
+                scheduledDate = instance.ScheduledStart.ToString("dd MMM yyyy (hh:mm tt)")
+            });
+        }
+
+
+        // ═══════════════════════════════════════════════════
+        //           MARK ATTENDANCE (Faculty/Admin)
         // ═══════════════════════════════════════════════════
 
         [HttpPost]
@@ -398,23 +610,45 @@ namespace TMS.Web.Controllers
             if (instance == null)
                 return Json(new { success = false, message = "Session not found." });
 
-            foreach (var studentId in request.PresentStudentIds)
+            var enrollments = await _enrollmentManager.GetAsync(null, e => e.CourseId == instance.CourseId && e.IsActive);
+            var existingAttendances = await _attendanceManager.GetAsync(null, a => a.ClassInstanceId == request.InstanceId && a.IsActive);
+            var presentSet = (request.PresentStudentIds ?? new List<int>()).ToHashSet();
+
+            int duration = (int)(instance.ScheduledEnd - instance.ScheduledStart).TotalMinutes;
+            if (duration <= 0) duration = 60;
+
+            foreach (var enrollment in enrollments)
             {
-                var attendance = new ClassAttendanceViewModel
+                var existing = existingAttendances.FirstOrDefault(a => a.StudentId == enrollment.StudentId);
+                bool isPresent = presentSet.Contains(enrollment.StudentId);
+
+                if (existing != null)
                 {
-                    ClassInstanceId = request.InstanceId,
-                    StudentId = studentId,
-                    AttendanceStatus = 1, // Present
-                    JoinedAt = instance.ScheduledStart,
-                    LeftAt = instance.ScheduledEnd,
-                    DurationMinutes = (int)(instance.ScheduledEnd - instance.ScheduledStart).TotalMinutes,
-                    Source = "Manual",
-                    IsActive = true
-                };
-                await _attendanceManager.AddUpdateAsync(attendance, userId);
+                    existing.AttendanceStatus = isPresent ? 1 : 0;
+                    existing.JoinedAt = isPresent ? (existing.JoinedAt ?? instance.ScheduledStart) : null;
+                    existing.LeftAt = isPresent ? (existing.LeftAt ?? instance.ScheduledEnd) : null;
+                    existing.DurationMinutes = isPresent ? duration : 0;
+                    existing.Source = "Manual";
+                    await _attendanceManager.AddUpdateAsync(existing, userId);
+                }
+                else
+                {
+                    var att = new ClassAttendanceViewModel
+                    {
+                        ClassInstanceId = request.InstanceId,
+                        StudentId = enrollment.StudentId,
+                        AttendanceStatus = isPresent ? 1 : 0,
+                        JoinedAt = isPresent ? instance.ScheduledStart : null,
+                        LeftAt = isPresent ? instance.ScheduledEnd : null,
+                        DurationMinutes = isPresent ? duration : 0,
+                        Source = "Manual",
+                        IsActive = true
+                    };
+                    await _attendanceManager.AddUpdateAsync(att, userId);
+                }
             }
 
-            return Json(new { success = true, message = $"Attendance marked for {request.PresentStudentIds.Count} student(s)." });
+            return Json(new { success = true, message = $"Attendance recorded for {presentSet.Count} present student(s)." });
         }
 
         public class AttendanceRequest { public int InstanceId { get; set; } public List<int> PresentStudentIds { get; set; } = new(); }
@@ -449,26 +683,63 @@ namespace TMS.Web.Controllers
         {
             try
             {
+                var allSubjects = await _subjectManager.GetAsync(null, s => s.IsActive);
+                if (courseId <= 0)
+                {
+                    return Json(allSubjects.Select(s => new { id = s.Id, name = s.Name }));
+                }
+
                 // Get course to find its semester
                 var course = await _courseManager.GetAsync(courseId, new[] { "Semester" });
+                List<SubjectMasterViewModel> subjects = new();
                 
-                var allSubjects = await _subjectManager.GetAsync(null, s => s.IsActive);
-                
-                List<SubjectMasterViewModel> subjects;
                 if (course?.SemesterId != null && course.SemesterId > 0)
                 {
-                    // Filter subjects by the course's semester
                     subjects = allSubjects.Where(s => s.SemesterId == course.SemesterId.Value).ToList();
                 }
-                else
+
+                if (!subjects.Any())
                 {
-                    // If course has no semester, return all active subjects
                     subjects = allSubjects.ToList();
                 }
 
                 return Json(subjects.Select(s => new { id = s.Id, name = s.Name }));
             }
-            catch (Exception ex)
+            catch (Exception)
+            {
+                return Json(new List<object>());
+            }
+        }
+
+
+        // ═══════════════════════════════════════════════════
+        //           GET FACULTIES (AJAX)
+        // ═══════════════════════════════════════════════════
+
+        [HttpGet]
+        public async Task<IActionResult> GetFaculties()
+        {
+            try
+            {
+                var allUsers = await _userManager.GetAsync(new[] { "Role" }, u => u.IsActive);
+                var facultyUsers = allUsers
+                    .Where(u => u.Role != null && (
+                        u.Role.Name.Contains("Faculty", StringComparison.OrdinalIgnoreCase) ||
+                        u.Role.Name.Contains("Teacher", StringComparison.OrdinalIgnoreCase) ||
+                        u.Role.Name.Contains("Instructor", StringComparison.OrdinalIgnoreCase) ||
+                        u.Role.Name.Contains("Trainer", StringComparison.OrdinalIgnoreCase) ||
+                        u.Role.Name.Contains("Admin", StringComparison.OrdinalIgnoreCase)))
+                    .OrderBy(u => u.Name)
+                    .ToList();
+
+                if (!facultyUsers.Any())
+                {
+                    facultyUsers = allUsers.OrderBy(u => u.Name).ToList();
+                }
+
+                return Json(facultyUsers.Select(f => new { id = f.Id, name = f.Name, role = f.Role?.Name ?? "Instructor" }));
+            }
+            catch (Exception)
             {
                 return Json(new List<object>());
             }

@@ -1,355 +1,1031 @@
 @model TMS.ViewModels.Academics.ClassroomCalendarViewModel
 
 @{
-    ViewData["Title"] = "Classroom Calendar";
+    ViewData["Title"] = "Academic Classroom Calendar";
     Layout = "_Layout";
+    bool isStudent = Model.UserRole.Equals("Student", StringComparison.OrdinalIgnoreCase);
+    var facultyList = (ViewBag.FacultyList as List<TMS.ViewModels.UserViewModel>) ?? new List<TMS.ViewModels.UserViewModel>();
 }
-
-<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/main.min.css" rel="stylesheet" />
 
 <style>
     :root {
         --cal-bg: #f8fafc;
         --cal-card: #ffffff;
         --cal-border: #e2e8f0;
-        --cal-accent: #6366f1;
+        --cal-accent: #4f46e5;
+        --cal-accent-hover: #4338ca;
         --cal-accent-light: #eef2ff;
-        --cal-accent-glow: rgba(99,102,241,0.15);
+        --cal-accent-glow: rgba(79, 70, 229, 0.2);
         --cal-live: #ef4444;
-        --cal-text: #1e293b;
+        --cal-live-glow: rgba(239, 68, 68, 0.25);
+        --cal-success: #10b981;
+        --cal-amber: #f59e0b;
+        --cal-text: #0f172a;
+        --cal-text-secondary: #475569;
         --cal-muted: #64748b;
-        --cal-success: #22c55e;
-        --cal-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+        --cal-radius: 14px;
+        --cal-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.03);
+        --cal-shadow-hover: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
     }
 
-    body { background-color: var(--cal-bg); color: var(--cal-text); }
+    .cal-container {
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        padding: 1.25rem;
+        background-color: var(--cal-bg);
+        min-height: calc(100vh - 80px);
+    }
 
-    .cal-page { display:flex; gap:1.25rem; min-height:82vh; font-family:'Inter',sans-serif; padding: 1.5rem; }
-    .cal-sidebar { flex:0 0 340px; display:flex; flex-direction:column; gap:1.25rem; }
-    .cal-main { flex:1; display:flex; flex-direction:column; gap:1.25rem; }
+    /* Top Hero Header */
+    .cal-hero {
+        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+        border-radius: var(--cal-radius);
+        padding: 1.75rem 2rem;
+        color: #ffffff;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 10px 25px -5px rgba(49, 46, 129, 0.3);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1.25rem;
+        position: relative;
+        overflow: hidden;
+    }
 
-    .cal-card {
+    .cal-hero::after {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 320px;
+        height: 320px;
+        background: radial-gradient(circle, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 70%);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .cal-hero-title h2 {
+        font-size: 1.6rem;
+        font-weight: 800;
+        margin-bottom: 0.35rem;
+        letter-spacing: -0.02em;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .cal-hero-title p {
+        font-size: 0.9rem;
+        color: #c7d2fe;
+        margin: 0;
+        font-weight: 400;
+    }
+
+    .cal-role-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 9999px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #ffffff;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+    }
+
+    /* Stats Ribbon */
+    .cal-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .cal-stat-card {
         background: var(--cal-card);
         border: 1px solid var(--cal-border);
-        border-radius: 8px;
-        padding: 1.5rem;
-        color: var(--cal-text);
+        border-radius: var(--cal-radius);
+        padding: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
         box-shadow: var(--cal-shadow);
+        transition: all 0.25s ease;
     }
 
-    .cal-card h5 { 
-        font-size:.85rem; font-weight:700; text-transform:uppercase; 
-        letter-spacing:.1em; color:var(--cal-muted); margin-bottom:1.25rem; 
-        display: flex; align-items: center; gap: 8px;
+    .cal-stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--cal-shadow-hover);
+        border-color: #cbd5e1;
     }
 
-    /* Stats Row */
-    .stats-row { display:flex; gap:1rem; flex-wrap:wrap; }
-    .stat-chip {
-        flex:1; min-width:100px; text-align:center; padding:1rem .5rem;
-        background: #fff;
-        border:1px solid var(--cal-border); border-radius:8px;
-        transition: transform 0.2s;
+    .cal-stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
     }
-    .stat-chip:hover { transform: translateY(-2px); border-color: var(--cal-accent); }
-    .stat-chip .val { font-size:1.75rem; font-weight:800; color:var(--cal-accent); line-height: 1; }
-    .stat-chip .lbl { font-size:.65rem; color:var(--cal-muted); text-transform:uppercase; letter-spacing:.05em; margin-top: 4px; }
 
-    /* Session List */
-    .session-list { max-height:450px; overflow-y:auto; display:flex; flex-direction:column; gap:1rem; padding-right: 4px; }
-    .session-list::-webkit-scrollbar { width: 4px; }
-    .session-list::-webkit-scrollbar-track { background: transparent; }
-    .session-list::-webkit-scrollbar-thumb { background: var(--cal-border); border-radius: 10px; }
+    .cal-stat-icon.live { background: rgba(239, 68, 68, 0.12); color: #ef4444; }
+    .cal-stat-icon.upcoming { background: rgba(79, 70, 229, 0.12); color: #4f46e5; }
+    .cal-stat-icon.completed { background: rgba(16, 185, 129, 0.12); color: #10b981; }
+    .cal-stat-icon.cancelled { background: rgba(100, 116, 139, 0.12); color: #64748b; }
 
-    .session-item {
-        display:flex; align-items:flex-start; gap:1rem; padding:1rem;
-        border: 1px solid var(--cal-border); background: #fff; border-radius:8px;
-        transition: all .2s ease;
+    .cal-stat-info .num {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: var(--cal-text);
+        line-height: 1.1;
     }
-    .session-item:hover { border-color: var(--cal-accent); box-shadow: var(--cal-shadow); }
-    .session-item.live { border-color: var(--cal-live); background:rgba(239,68,68,.02); }
-    
-    .session-item .time { 
-        font-size:.75rem; color:var(--cal-text); font-weight: 700;
-        white-space:nowrap; min-width:80px; display: flex; flex-direction: column; align-items: center;
-        background: var(--cal-bg); padding: 8px; border-radius: 6px;
-    }
-    .session-item .time small { color: var(--cal-muted); font-weight: 500; }
-    
-    .session-item .info { flex:1; }
-    .session-item .info .title { font-weight:700; font-size:.9rem; color: var(--cal-text); margin-bottom: 2px; }
-    .session-item .info .meta { font-size:.75rem; color:var(--cal-muted); }
 
-    .badge-live {
-        display:inline-flex; align-items:center; gap:4px; font-size:.65rem; font-weight:800;
-        color:#fff; background:var(--cal-live); padding:3px 10px; border-radius:4px;
-        animation: pulse-live 1.5s infinite; text-transform: uppercase;
+    .cal-stat-info .lbl {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--cal-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-top: 2px;
     }
-    @@keyframes pulse-live { 0%,100%{transform: scale(1);} 50%{transform: scale(0.95); opacity:.8;} }
 
-    .btn-join {
-        display:inline-block; padding:6px 16px; font-size:.75rem; font-weight:700;
-        background:var(--cal-accent); color:#fff; border:none; border-radius:6px; text-decoration:none;
-        cursor:pointer; transition: all .2s; text-transform: uppercase; letter-spacing: .05em;
+    /* Main Grid Layout */
+    .cal-layout {
+        display: grid;
+        grid-template-columns: 340px 1fr;
+        gap: 1.5rem;
+        align-items: start;
     }
-    .btn-join:hover { background: #4f46e5; transform: translateY(-1px); box-shadow: 0 4px 12px var(--cal-accent-glow); color:#fff; }
 
-    /* Create Class Form */
-    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; }
-    .form-grid .full { grid-column:1/-1; }
-    .form-grid label { font-size:.75rem; font-weight: 600; color:var(--cal-text); margin-bottom:6px; display:block; }
-    .form-grid input, .form-grid select {
-        width:100%; padding:10px 12px; background: #fff; border:1px solid var(--cal-border);
-        border-radius:6px; color:var(--cal-text); font-size:.85rem; transition: border-color 0.2s;
+    @@media (max-width: 1080px) {
+        .cal-layout {
+            grid-template-columns: 1fr;
+        }
     }
-    .form-grid input:focus, .form-grid select:focus { outline:none; border-color:var(--cal-accent); background: #fff; }
 
-    .day-selector { display:flex; gap:.75rem; flex-wrap:wrap; margin-top: 8px; }
+    /* Cards */
+    .panel-card {
+        background: var(--cal-card);
+        border: 1px solid var(--cal-border);
+        border-radius: var(--cal-radius);
+        padding: 1.5rem;
+        box-shadow: var(--cal-shadow);
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+
+    .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .panel-header h5 {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--cal-text);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .panel-header h5 i {
+        color: var(--cal-accent);
+    }
+
+    /* Session List Items */
+    .session-stream {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+        max-height: 480px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+    .session-stream::-webkit-scrollbar { width: 5px; }
+    .session-stream::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+
+    .session-row {
+        background: #ffffff;
+        border: 1px solid var(--cal-border);
+        border-radius: 10px;
+        padding: 0.9rem;
+        display: flex;
+        gap: 0.85rem;
+        align-items: center;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+
+    .session-row:hover {
+        border-color: var(--cal-accent);
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.08);
+        transform: translateY(-1px);
+    }
+
+    .session-row.is-live {
+        border-color: #fca5a5;
+        background: #fff5f5;
+        box-shadow: 0 0 15px var(--cal-live-glow);
+    }
+
+    .session-date-badge {
+        flex: 0 0 65px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 6px 4px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .session-row.is-live .session-date-badge {
+        background: #fee2e2;
+        border-color: #fca5a5;
+    }
+
+    .s-day { font-size: 0.85rem; font-weight: 800; color: var(--cal-text); line-height: 1; }
+    .s-time { font-size: 0.68rem; color: var(--cal-muted); font-weight: 600; margin-top: 3px; }
+
+    .session-details {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .session-details .s-title {
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: var(--cal-text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-bottom: 2px;
+    }
+
+    .session-details .s-sub {
+        font-size: 0.75rem;
+        color: var(--cal-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .btn-launch-pill {
+        padding: 6px 14px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        border-radius: 9999px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: all 0.2s;
+        border: none;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .btn-launch-pill.primary {
+        background: var(--cal-accent);
+        color: #ffffff;
+    }
+    .btn-launch-pill.primary:hover {
+        background: var(--cal-accent-hover);
+        box-shadow: 0 4px 10px var(--cal-accent-glow);
+        color: #ffffff;
+    }
+
+    .btn-launch-pill.live-pulse {
+        background: var(--cal-live);
+        color: #ffffff;
+        animation: pulse-glow 1.8s infinite;
+    }
+    .btn-launch-pill.live-pulse:hover {
+        background: #dc2626;
+        color: #ffffff;
+    }
+
+    @@keyframes pulse-glow {
+        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+        70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
+    /* Schedule Form Styling */
+    .form-row-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+    }
+
+    .form-group-cal {
+        margin-bottom: 1rem;
+    }
+
+    .form-group-cal label {
+        display: block;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: var(--cal-text-secondary);
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .form-control-cal, .form-select-cal {
+        width: 100%;
+        padding: 9px 12px;
+        background: #ffffff;
+        border: 1px solid var(--cal-border);
+        border-radius: 8px;
+        font-size: 0.86rem;
+        color: var(--cal-text);
+        transition: all 0.2s;
+    }
+
+    .form-control-cal:focus, .form-select-cal:focus {
+        outline: none;
+        border-color: var(--cal-accent);
+        box-shadow: 0 0 0 3px var(--cal-accent-glow);
+    }
+
+    /* Day Selector Buttons */
+    .day-selector-pills {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-top: 6px;
+    }
+
     .day-btn {
-        width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
-        font-size:.75rem; font-weight:700; border:1px solid var(--cal-border);
-        background:#fff; color:var(--cal-muted); border-radius:8px; cursor:pointer; transition:.2s;
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--cal-border);
+        background: #f8fafc;
+        color: var(--cal-text-secondary);
+        border-radius: 8px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
     }
-    .day-btn.active { background:var(--cal-accent); color:#fff; border-color:var(--cal-accent); box-shadow: 0 4px 8px var(--cal-accent-glow); }
 
-    .btn-primary-cal {
-        width:100%; padding:12px; font-size:.85rem; font-weight:800; border:none; border-radius:8px;
-        background: linear-gradient(135deg, #6366f1, #4f46e5); color:#fff; cursor:pointer;
-        margin-top:1.5rem; transition: all .3s; text-transform: uppercase; letter-spacing: .1em;
+    .day-btn:hover {
+        background: #e2e8f0;
     }
-    .btn-primary-cal:hover { transform: translateY(-2px); box-shadow: 0 10px 25px var(--cal-accent-glow); }
 
-    /* Calendar Overrides */
-    #calendarBox { padding: 10px; }
-    #calendarBox .fc { color:var(--cal-text); font-size: 0.9rem; }
-    #calendarBox .fc-toolbar-title { font-size:1.25rem; font-weight:800; color: var(--cal-text); }
-    #calendarBox .fc-button { 
-        background: #fff!important; color: var(--cal-text)!important; 
-        border: 1px solid var(--cal-border)!important; font-size:.75rem; font-weight: 700;
-        text-transform: capitalize; padding: 8px 16px;
+    .day-btn.active {
+        background: var(--cal-accent);
+        color: #ffffff;
+        border-color: var(--cal-accent);
+        box-shadow: 0 4px 10px var(--cal-accent-glow);
     }
-    #calendarBox .fc-button-active { background: var(--cal-accent)!important; color: #fff!important; border-color: var(--cal-accent)!important; }
-    #calendarBox .fc-button:hover { background: var(--cal-bg)!important; }
-    
-    #calendarBox .fc-daygrid-day { background:#fff; border-color:var(--cal-border)!important; }
-    #calendarBox .fc-day-today { background: var(--cal-accent-light)!important; }
-    #calendarBox .fc-col-header-cell { background:var(--cal-bg); border-color:var(--cal-border)!important; padding: 12px 0; }
-    #calendarBox .fc-col-header-cell-cushion { font-size: .75rem; font-weight: 800; text-transform: uppercase; color: var(--cal-muted); }
-    #calendarBox .fc-scrollgrid { border-radius: 8px; overflow: hidden; border-color:var(--cal-border)!important; }
 
-    #calendarBox .fc-event { border-radius: 4px; border: none; padding: 2px 4px; font-weight: 600; }
+    .btn-create-submit {
+        width: 100%;
+        padding: 12px 20px;
+        background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+        color: #ffffff;
+        border: none;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 0.9rem;
+        letter-spacing: 0.03em;
+        cursor: pointer;
+        transition: all 0.25s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
 
-    .empty-state { text-align:center; padding:3rem; color:var(--cal-muted); font-size:.9rem; font-weight: 500; }
-    
-    /* Custom Modal */
-    .modal-content { border-radius: 12px; border: none; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); background: var(--cal-card); }
-    .modal-header { background: var(--cal-bg); border-radius: 12px 12px 0 0; padding: 1.5rem; border-bottom: 1px solid var(--cal-border); }
-    .modal-title { font-weight: 800; color: var(--cal-text); }
-    .modal-body { padding: 2rem; color: var(--cal-text); }
-    .modal-footer { border-top: 1px solid var(--cal-border); padding: 1.25rem 2rem; }
-    
-    .btn-close { filter: none; opacity: 0.8; }
-    .btn-close:hover { opacity: 1; }
+    .btn-create-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(79, 70, 229, 0.35);
+    }
+
+    /* FullCalendar Container Styling */
+    #calendarBox {
+        min-height: 580px;
+    }
+
+    .fc {
+        font-family: inherit;
+    }
+
+    .fc .fc-toolbar-title {
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: var(--cal-text);
+        letter-spacing: -0.01em;
+    }
+
+    .fc .fc-button {
+        background: #ffffff !important;
+        color: var(--cal-text-secondary) !important;
+        border: 1px solid var(--cal-border) !important;
+        border-radius: 8px !important;
+        font-size: 0.8rem !important;
+        font-weight: 700 !important;
+        text-transform: capitalize !important;
+        padding: 7px 14px !important;
+        transition: all 0.2s !important;
+        box-shadow: none !important;
+    }
+
+    .fc .fc-button:hover {
+        background: #f1f5f9 !important;
+        border-color: #cbd5e1 !important;
+    }
+
+    .fc .fc-button-active {
+        background: var(--cal-accent) !important;
+        color: #ffffff !important;
+        border-color: var(--cal-accent) !important;
+    }
+
+    .fc-theme-standard th {
+        background: #f8fafc;
+        padding: 10px 0;
+        border-color: var(--cal-border) !important;
+    }
+
+    .fc-theme-standard td {
+        border-color: var(--cal-border) !important;
+    }
+
+    .fc-col-header-cell-cushion {
+        font-size: 0.78rem;
+        font-weight: 800;
+        color: var(--cal-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .fc-day-today {
+        background: var(--cal-accent-light) !important;
+    }
+
+    .fc-event {
+        border: none !important;
+        border-radius: 6px !important;
+        padding: 3px 6px !important;
+        font-size: 0.76rem !important;
+        font-weight: 600 !important;
+        cursor: pointer;
+        transition: transform 0.15s ease;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    }
+
+    .fc-event:hover {
+        transform: scale(1.02);
+    }
+
+    /* Legend */
+    .cal-legend {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--cal-border);
+        font-size: 0.75rem;
+        color: var(--cal-muted);
+        font-weight: 600;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .legend-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+    }
+
+    /* Modal Styling */
+    .modal-content-cal {
+        border-radius: 16px;
+        border: none;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        overflow: hidden;
+    }
+
+    .modal-header-cal {
+        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+        color: #ffffff;
+        padding: 1.25rem 1.5rem;
+        border-bottom: none;
+    }
+
+    .modal-header-cal .modal-title {
+        font-weight: 800;
+        font-size: 1.15rem;
+    }
+
+    .modal-body-cal {
+        padding: 1.5rem;
+        background: #ffffff;
+    }
+
+    .modal-footer-cal {
+        padding: 1rem 1.5rem;
+        background: #f8fafc;
+        border-top: 1px solid var(--cal-border);
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+    }
 </style>
 
 @Html.AntiForgeryToken()
-<div class="cal-page">
-    <!-- ═══ SIDEBAR ═══ -->
-    <div class="cal-sidebar">
 
-        <!-- Stats -->
-        <div class="cal-card">
-            <h5>Overview</h5>
-            <div class="stats-row">
-                <div class="stat-chip">
-                    <div class="val">@Model.LiveSessions.Count</div>
-                    <div class="lbl">Live Now</div>
-                </div>
-                <div class="stat-chip">
-                    <div class="val">@Model.TotalUpcoming</div>
-                    <div class="lbl">Upcoming</div>
-                </div>
-                <div class="stat-chip">
-                    <div class="val">@Model.TotalCompleted</div>
-                    <div class="lbl">Completed</div>
-                </div>
+<div class="cal-container">
+    <!-- ═══ HERO BANNER ═══ -->
+    <div class="cal-hero">
+        <div class="cal-hero-title">
+            <h2>
+                <i class="fa-solid fa-calendar-days"></i> Classroom Schedule & Live Sessions
+            </h2>
+            <p>Real-time lecture schedules, interactive virtual meetings, and attendance management.</p>
+        </div>
+        <div>
+            <span class="cal-role-pill">
+                <i class="fa-solid fa-user-shield"></i> @Model.UserRole Mode
+            </span>
+        </div>
+    </div>
+
+    <!-- ═══ STATS RIBBON ═══ -->
+    <div class="cal-stats-grid">
+        <div class="cal-stat-card">
+            <div class="cal-stat-icon live">
+                <i class="fa-solid fa-tower-broadcast"></i>
+            </div>
+            <div class="cal-stat-info">
+                <div class="num" id="statLiveCount">@Model.LiveSessions.Count</div>
+                <div class="lbl">Live Now</div>
             </div>
         </div>
-
-        <!-- Live Sessions -->
-        @if (Model.LiveSessions.Any())
-        {
-            <div class="cal-card">
-                <h5>🔴 Live Now</h5>
-                <div class="session-list">
-                    @foreach (var s in Model.LiveSessions)
-                    {
-                        <div class="session-item live">
-                            <div class="time">
-                                <span class="badge-live">● LIVE</span>
-                            </div>
-                            <div class="info">
-                                <div class="title">@s.Title</div>
-                                <div class="meta">@s.CourseName · @s.FacultyName</div>
-                                @if (!string.IsNullOrEmpty(s.JoinUrl))
-                                {
-                                    <a href="@s.JoinUrl" target="_blank" class="btn-join mt-1">Join Now</a>
-                                }
-                                else
-                                {
-                                    <span class="text-danger d-block mt-1" style="font-size:0.7rem; font-weight:700;">Meeting Link Pending</span>
-                                }
-                            </div>
-                        </div>
-                    }
-                </div>
+        <div class="cal-stat-card">
+            <div class="cal-stat-icon upcoming">
+                <i class="fa-solid fa-clock"></i>
             </div>
-        }
-
-        <!-- Upcoming Sessions -->
-        <div class="cal-card" style="flex:1; overflow:hidden;">
-            <h5>Upcoming Sessions</h5>
-            <div class="session-list">
-                @if (!Model.UpcomingSessions.Any())
-                {
-                    <div class="empty-state">No upcoming sessions</div>
-                }
-                else
-                {
-                    @foreach (var s in Model.UpcomingSessions.Take(10))
-                    {
-                        <div class="session-item">
-                            <div class="time">@s.ScheduledStart.ToString("dd MMM")<br /><small>@s.ScheduledStart.ToString("hh:mm tt")</small></div>
-                            <div class="info">
-                                <div class="title">@s.Title</div>
-                                <div class="meta">@s.CourseName · @s.SubjectName · @s.DurationMinutes min</div>
-                                @if (s.CanJoin)
-                                {
-                                    if (!string.IsNullOrEmpty(s.JoinUrl))
-                                    {
-                                        <a href="@s.JoinUrl" target="_blank" class="btn-join mt-1">Join</a>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-danger d-block mt-1" style="font-size:0.7rem; font-weight:700;">Link Pending</span>
-                                    }
-                                }
-                            </div>
-                        </div>
-                    }
-                }
+            <div class="cal-stat-info">
+                <div class="num">@Model.TotalUpcoming</div>
+                <div class="lbl">Upcoming Sessions</div>
+            </div>
+        </div>
+        <div class="cal-stat-card">
+            <div class="cal-stat-icon completed">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <div class="cal-stat-info">
+                <div class="num">@Model.TotalCompleted</div>
+                <div class="lbl">Completed Sessions</div>
+            </div>
+        </div>
+        <div class="cal-stat-card">
+            <div class="cal-stat-icon cancelled">
+                <i class="fa-solid fa-ban"></i>
+            </div>
+            <div class="cal-stat-info">
+                <div class="num">@Model.TotalCancelled</div>
+                <div class="lbl">Cancelled</div>
             </div>
         </div>
     </div>
 
-    <!-- ═══ MAIN AREA ═══ -->
-    <div class="cal-main">
+    <!-- ═══ MAIN LAYOUT ═══ -->
+    <div class="cal-layout">
 
-        <!-- Create Class (Faculty/Admin only) -->
-        @if (!Model.UserRole.Equals("Student", StringComparison.OrdinalIgnoreCase))
-        {
-            <div class="cal-card">
-                <h5>Schedule a Class</h5>
-                <form id="createClassForm">
-                    <div class="form-grid">
-                        <div class="full">
-                            <label>Class Title</label>
-                            <input type="text" id="classTitle" placeholder="e.g. Introduction to Algorithms" required />
-                        </div>
-                        <div>
-                            <label>Course</label>
-                            <select id="classCourse">
-                                <option value="">Select Course</option>
-                                @foreach (var c in Model.Courses)
-                                {
-                                    <option value="@c.Id">@c.Name</option>
-                                }
-                            </select>
-                        </div>
-                        <div>
-                            <label>Subject</label>
-                            <select id="classSubject"><option value="">Select Subject</option></select>
-                        </div>
-                        <div>
-                            <label>Start Date</label>
-                            <input type="date" id="classStartDate" />
-                        </div>
-                        <div>
-                            <label>Start Time</label>
-                            <input type="time" id="classStartTime" value="10:00" />
-                        </div>
-                        <div>
-                            <label>Duration (min)</label>
-                            <input type="number" id="classDuration" value="60" min="15" max="300" />
-                        </div>
-                        <div>
-                            <label>Max Capacity</label>
-                            <input type="number" id="classCapacity" value="100" min="1" />
-                        </div>
-                        <div>
-                            <label>Meeting Provider</label>
-                            <select id="meetingProvider" onchange="toggleExternalLink()">
-                                <option value="Zoom">Zoom (Automatic)</option>
-                                <option value="External">External Link (Manual)</option>
-                            </select>
-                        </div>
-                        <div class="full" id="externalLinkBox" style="display:none;">
-                            <label>External Meeting Link</label>
-                            <input type="url" id="externalMeetingLink" placeholder="https://teams.microsoft.com/..." />
-                        </div>
-                        <div class="full">
-                            <label><input type="checkbox" id="isRecurring" /> Recurring Class</label>
-                        </div>
-                        <div class="full" id="recurringOptions" style="display:none;">
-                            <label>End Date</label>
-                            <input type="date" id="classEndDate" style="margin-bottom:.5rem;" />
-                            <label>Repeat On</label>
-                            <div class="day-selector">
-                                <button type="button" class="day-btn" data-day="MO">Mon</button>
-                                <button type="button" class="day-btn" data-day="TU">Tue</button>
-                                <button type="button" class="day-btn" data-day="WE">Wed</button>
-                                <button type="button" class="day-btn" data-day="TH">Thu</button>
-                                <button type="button" class="day-btn" data-day="FR">Fri</button>
-                                <button type="button" class="day-btn" data-day="SA">Sat</button>
-                            </div>
-                        </div>
+        <!-- LEFT SIDEBAR: LIVE & UPCOMING -->
+        <div class="cal-sidebar">
+
+            <!-- 🔴 Live Classes Box -->
+            @if (Model.LiveSessions.Any())
+            {
+                <div class="panel-card" style="border-color: #fca5a5; background: #fffdfd;">
+                    <div class="panel-header">
+                        <h5 style="color: #dc2626;">
+                            <i class="fa-solid fa-tower-broadcast" style="color: #dc2626;"></i> 🔴 Live Classes Now
+                        </h5>
                     </div>
-                    <button type="submit" class="btn-primary-cal" id="btnCreateClass">Create Class</button>
-                </form>
-                <div id="createResult" style="margin-top:.5rem; font-size:.8rem;"></div>
-            </div>
-        }
+                    <div class="session-stream">
+                        @foreach (var s in Model.LiveSessions)
+                        {
+                            <div class="session-row is-live">
+                                <div class="session-date-badge">
+                                    <span class="s-day" style="color: #dc2626;">LIVE</span>
+                                    <span class="s-time">NOW</span>
+                                </div>
+                                <div class="session-details">
+                                    <div class="s-title">@s.Title</div>
+                                    <div class="s-sub">@s.CourseName · @s.FacultyName</div>
+                                    <div class="mt-2">
+                                        @{
+                                            var liveUrl = (Model.IsFaculty && !string.IsNullOrEmpty(s.HostUrl)) ? s.HostUrl : s.JoinUrl;
+                                        }
+                                        @if (!string.IsNullOrEmpty(liveUrl))
+                                        {
+                                            <a href="@liveUrl" target="_blank" class="btn-launch-pill live-pulse" title="@(Model.IsFaculty ? "Start Zoom as Host (Direct Host Link)" : "Join Live Class")">
+                                                <i class="fa-solid fa-video"></i> @(Model.IsFaculty ? "Start as Host" : "Join Live Class")
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-danger" style="font-size:0.75rem; font-weight:700;">
+                                                <i class="fa-solid fa-hourglass-half"></i> Link Pending
+                                            </span>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
 
-        <!-- Calendar -->
-        <div class="cal-card" style="flex:1;">
-            <h5>Calendar</h5>
-            <div id="calendarBox"></div>
+            <!-- 📅 Upcoming Schedule Stream -->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <h5>
+                        <i class="fa-solid fa-calendar-check"></i> Upcoming Classes
+                    </h5>
+                </div>
+                <div class="session-stream">
+                    @if (!Model.UpcomingSessions.Any())
+                    {
+                        <div class="text-center py-4 text-muted" style="font-size: 0.85rem;">
+                            <i class="fa-regular fa-calendar-xmark fa-2x mb-2 d-block text-secondary"></i>
+                            No upcoming sessions scheduled.
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var s in Model.UpcomingSessions.Take(8))
+                        {
+                            <div class="session-row">
+                                <div class="session-date-badge">
+                                    <span class="s-day">@s.ScheduledStart.ToString("dd MMM")</span>
+                                    <span class="s-time">@s.ScheduledStart.ToString("hh:mm tt")</span>
+                                </div>
+                                <div class="session-details">
+                                    <div class="s-title">@s.Title</div>
+                                    <div class="s-sub">@s.CourseName · @s.SubjectName</div>
+                                    @if (s.CanJoin)
+                                    {
+                                        <div class="mt-1">
+                                            @{
+                                                var upUrl = (Model.IsFaculty && !string.IsNullOrEmpty(s.HostUrl)) ? s.HostUrl : s.JoinUrl;
+                                            }
+                                            @if (!string.IsNullOrEmpty(upUrl))
+                                            {
+                                                <a href="@upUrl" target="_blank" class="btn-launch-pill primary" style="padding: 4px 10px; font-size: 0.7rem;" title="@(Model.IsFaculty ? "Start as Host" : "Join Class")">
+                                                    <i class="fa-solid fa-arrow-up-right-from-square"></i> @(Model.IsFaculty ? "Start Host" : "Join")
+                                                </a>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+            <!-- Quick Info / Help Box -->
+            <div class="panel-card" style="background: #f1f5f9; border-style: dashed;">
+                <div style="font-size: 0.8rem; color: #475569;">
+                    <strong class="d-block mb-1 text-dark"><i class="fa-solid fa-circle-info text-primary"></i> Calendar Tips:</strong>
+                    Click on any event on the calendar to view full session details, join links, or manage schedules.
+                </div>
+            </div>
+
+        </div>
+
+        <!-- RIGHT AREA: SCHEDULE FORM & FULLCALENDAR -->
+        <div class="cal-main-content">
+
+            <!-- Schedule a Class Form (Faculty / Admin / Staff Only) -->
+            @if (!isStudent)
+            {
+                <div class="panel-card">
+                    <div class="panel-header">
+                        <h5>
+                            <i class="fa-solid fa-calendar-plus"></i> Schedule a New Class Session
+                        </h5>
+                    </div>
+
+                    <form id="createClassForm">
+                        <div class="form-row-grid">
+                            <div class="form-group-cal" style="grid-column: 1 / -1;">
+                                <label>Class Session Title <span class="text-danger">*</span></label>
+                                <input type="text" id="classTitle" class="form-control-cal" placeholder="e.g. Advanced Data Structures - Binary Trees" required />
+                            </div>
+
+                            <div class="form-group-cal">
+                                <label>Course <span class="text-danger">*</span></label>
+                                <select id="classCourse" class="form-select-cal" required>
+                                    <option value="">-- Select Course --</option>
+                                    @foreach (var c in Model.Courses)
+                                    {
+                                        <option value="@c.Id">@c.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group-cal">
+                                <label>Subject</label>
+                                <select id="classSubject" class="form-select-cal">
+                                    <option value="">-- Select Subject (or All) --</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group-cal">
+                                <label>Assign Faculty / Teacher</label>
+                                <select id="classFaculty" class="form-select-cal">
+                                    <option value="">-- Select Instructor --</option>
+                                    @foreach (var f in facultyList)
+                                    {
+                                        if (f.Id == Model.UserId)
+                                        {
+                                            <option value="@f.Id" selected="selected">@f.Name (Current User)</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@f.Id">@f.Name</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group-cal">
+                                <label>Start Date <span class="text-danger">*</span></label>
+                                <input type="date" id="classStartDate" class="form-control-cal" required min="@DateTime.Today.ToString("yyyy-MM-dd")" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                            </div>
+
+                            <div class="form-group-cal">
+                                <label>Start Time <span class="text-danger">*</span></label>
+                                <input type="time" id="classStartTime" class="form-control-cal" required value="10:00" />
+                            </div>
+
+                            <div class="form-group-cal">
+                                <label>Duration (Minutes)</label>
+                                <input type="number" id="classDuration" class="form-control-cal" value="60" min="15" max="300" />
+                            </div>
+
+                            <div class="form-group-cal">
+                                <label>Max Capacity</label>
+                                <input type="number" id="classCapacity" class="form-control-cal" value="100" min="1" max="1000" />
+                            </div>
+
+                            <div class="form-group-cal">
+                                <label>Meeting Platform</label>
+                                <select id="meetingProvider" class="form-select-cal" onchange="toggleMeetingLinkBox()">
+                                    <option value="Zoom">Zoom (Automated Room Generation)</option>
+                                    <option value="External">External Link (Google Meet / Microsoft Teams / Custom)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- External URL Box -->
+                        <div class="form-group-cal" id="externalLinkBox" style="display:none;">
+                            <label>External Meeting URL <span class="text-danger">*</span></label>
+                            <input type="url" id="externalMeetingLink" class="form-control-cal" placeholder="https://meet.google.com/xyz-abc or https://teams.microsoft.com/..." />
+                        </div>
+
+                        <!-- Recurring Options -->
+                        <div class="form-group-cal mt-2">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="isRecurring" style="cursor:pointer;" />
+                                <label class="form-check-label fw-bold text-dark" for="isRecurring" style="cursor:pointer; text-transform:none; font-size:0.88rem;">
+                                    Recurring Schedule (Weekly Class Series)
+                                </label>
+                            </div>
+                        </div>
+
+                        <div id="recurringOptions" style="display:none; background:#f8fafc; border: 1px solid #e2e8f0; border-radius:10px; padding:1.25rem; margin-bottom:1.25rem;">
+                            <div class="form-row-grid">
+                                <div class="form-group-cal">
+                                    <label>Series End Date <span class="text-danger">*</span></label>
+                                    <input type="date" id="classEndDate" class="form-control-cal" min="@DateTime.Today.AddDays(1).ToString("yyyy-MM-dd")" />
+                                </div>
+                                <div class="form-group-cal" style="grid-column: 1 / -1;">
+                                    <label>Repeat on Days of Week</label>
+                                    <div class="day-selector-pills">
+                                        <button type="button" class="day-btn" data-day="MO">Mon</button>
+                                        <button type="button" class="day-btn" data-day="TU">Tue</button>
+                                        <button type="button" class="day-btn" data-day="WE">Wed</button>
+                                        <button type="button" class="day-btn" data-day="TH">Thu</button>
+                                        <button type="button" class="day-btn" data-day="FR">Fri</button>
+                                        <button type="button" class="day-btn" data-day="SA">Sat</button>
+                                    </div>
+                                    <small class="text-muted mt-1 d-block">Click to select active lecture days.</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-create-submit" id="btnCreateClass">
+                            <i class="fa-solid fa-plus-circle"></i> Create & Publish Class
+                        </button>
+                    </form>
+
+                    <div id="createResult" class="mt-3"></div>
+                </div>
+            }
+
+            <!-- ═══ FULLCALENDAR VIEW ═══ -->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <h5>
+                        <i class="fa-solid fa-calendar"></i> Interactive Calendar
+                    </h5>
+                    <div>
+                        <select id="calendarCourseFilter" class="form-select-cal" style="width: auto; display: inline-block; padding: 5px 10px; font-size: 0.8rem;">
+                            <option value="">All Courses</option>
+                            @foreach (var c in Model.Courses)
+                            {
+                                <option value="@c.Id">@c.Name</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <div id="calendarBox"></div>
+
+                <!-- Color-Coded Status Legend -->
+                <div class="cal-legend">
+                    <div class="legend-item">
+                        <span class="legend-dot" style="background:#3b82f6;"></span> Scheduled
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot" style="background:#ef4444;"></span> Live Now
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot" style="background:#10b981;"></span> Completed
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot" style="background:#f59e0b;"></span> Rescheduled
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot" style="background:#64748b;"></span> Cancelled
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
 
-<!-- Modal for event details -->
-<div class="modal fade" id="eventModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="eventModalTitle">Session Details</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<!-- ═══════════════════════════════════════════════════ -->
+<!--           MODAL: Session Details                    -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="modal fade" id="eventModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-content-cal">
+            <div class="modal-header modal-header-cal">
+                <h5 class="modal-title" id="eventModalTitle">Class Session</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body" id="eventModalBody"></div>
-            <div class="modal-footer" id="eventModalFooter"></div>
+            <div class="modal-body modal-body-cal" id="eventModalBody">
+                <!-- Injected via JavaScript -->
+            </div>
+            <div class="modal-footer modal-footer-cal" id="eventModalFooter">
+                <!-- Buttons injected via JavaScript -->
+            </div>
         </div>
     </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════ -->
+<!--           MODAL: Reschedule Session                 -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="modal fade" id="rescheduleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-content-cal">
+            <div class="modal-header modal-header-cal" style="background: linear-gradient(135deg, #b45309 0%, #d97706 100%);">
+                <h5 class="modal-title"><i class="fa-solid fa-clock-rotate-left me-2"></i>Reschedule Class</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body modal-body-cal">
+                <input type="hidden" id="rescheduleInstanceId" />
+                <div class="form-group-cal mb-3">
+                    <label>Session</label>
+                    <input type="text" id="rescheduleTitle" class="form-control-cal bg-light" readonly />
+                </div>
+                <div class="form-group-cal mb-3">
+                    <label>New Date <span class="text-danger">*</span></label>
+                    <input type="date" id="rescheduleDate" class="form-control-cal" required min="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="form-group-cal mb-3">
+                    <label>New Start Time <span class="text-danger">*</span></label>
+                    <input type="time" id="rescheduleTime" class="form-control-cal" required />
+                </div>
+                <div class="form-group-cal mb-3">
+                    <label>Duration (Minutes)</label>
+                    <input type="number" id="rescheduleDuration" class="form-control-cal" value="60" min="15" max="300" />
+                </div>
+                <div id="rescheduleResult" class="mt-2"></div>
+            </div>
+            <div class="modal-footer modal-footer-cal">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-warning fw-bold text-dark" id="btnSubmitReschedule">
+                    <i class="fa-solid fa-check me-1"></i> Confirm Reschedule
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--           MODAL: Mark Attendance                    -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="modal fade" id="attendanceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content modal-content-cal">
+            <div class="modal-header modal-header-cal" style="background: linear-gradient(135deg, #065f46 0%, #059669 100%);">
+                <h5 class="modal-title"><i class="fa-solid fa-user-check me-2"></i>Class Attendance</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body modal-body-cal">
+                <input type="hidden" id="attendanceInstanceId" />
+                <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                    <div>
+                        <h6 class="fw-bold mb-0 text-dark" id="attSessionTitle">Session</h6>
+                        <small class="text-muted" id="attSessionDate">Date</small>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="selectAllAttendance(true)">Select All</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectAllAttendance(false)">Clear All</button>
+                    </div>
+                </div>
+
+                <div id="attendanceStudentList" style="max-height: 360px; overflow-y: auto;">
+                    <div class="text-center py-4 text-muted">
+                        <i class="fa-solid fa-spinner fa-spin fa-2x mb-2"></i>
+                        <p>Loading enrolled students...</p>
+                    </div>
+                </div>
+
+                <div id="attendanceResult" class="mt-3"></div>
+            </div>
+            <div class="modal-footer modal-footer-cal">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success fw-bold" id="btnSubmitAttendance">
+                    <i class="fa-solid fa-floppy-disk me-1"></i> Save Attendance
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- FullCalendar v6 JS -->
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const userRole = '@Model.UserRole';
+        const currentUserId = parseInt('@Model.UserId') || 0;
         const calendarEl = document.getElementById('calendarBox');
+        let currentCourseFilter = '';
 
-        // ── FullCalendar Init ──
+        // ── Check & Populate Faculty Dropdown via AJAX if empty ──
+        const facultySelect = document.getElementById('classFaculty');
+        if (facultySelect && facultySelect.options.length <= 1) {
+            fetch('/Calendar/GetFaculties')
+                .then(r => r.json())
+                .then(data => {
+                    if (data && data.length > 0) {
+                        facultySelect.innerHTML = '<option value="">-- Select Instructor --</option>';
+                        data.forEach(f => {
+                            const isSelected = f.id === currentUserId ? 'selected="selected"' : '';
+                            facultySelect.innerHTML += `<option value="${f.id}" ${isSelected}>${f.name}</option>`;
+                        });
+                    }
+                })
+                .catch(() => {});
+        }
+
+        // ── 1. FullCalendar Initialization ──
         const calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             headerToolbar: {
@@ -357,10 +1033,16 @@
                 center: 'title',
                 right: 'dayGridMonth,timeGridWeek,timeGridDay'
             },
-            height: 520,
+            height: 600,
             nowIndicator: true,
+            navLinks: true,
+            dayMaxEvents: 3,
             events: function (fetchInfo, successCallback, failureCallback) {
-                fetch(`/Calendar/GetEvents?start=${fetchInfo.startStr}&end=${fetchInfo.endStr}`)
+                let url = `/Calendar/GetEvents?start=${fetchInfo.startStr}&end=${fetchInfo.endStr}`;
+                if (currentCourseFilter) {
+                    url += `&courseId=${currentCourseFilter}`;
+                }
+                fetch(url)
                     .then(r => r.json())
                     .then(data => successCallback(data))
                     .catch(err => failureCallback(err));
@@ -368,45 +1050,74 @@
             eventClick: function (info) {
                 info.jsEvent.preventDefault();
                 const p = info.event.extendedProps;
-                document.getElementById('eventModalTitle').textContent = info.event.title;
-                document.getElementById('eventModalBody').innerHTML = `
-                    <p><strong>Course:</strong> ${p.course}</p>
-                    <p><strong>Subject:</strong> ${p.subject}</p>
-                    <p><strong>Faculty:</strong> ${p.faculty}</p>
-                    <p><strong>Status:</strong> <span style="color:${info.event.backgroundColor}">${p.status}</span></p>
-                    <p><strong>Duration:</strong> ${p.duration} min</p>
-                    ${p.recordingUrl ? `<p><a href="${p.recordingUrl}" target="_blank" class="btn-join">Watch Recording</a></p>` : ''}
+                
+                document.getElementById('eventModalTitle').innerHTML = `
+                    <div class="d-flex align-items-center gap-2">
+                        <span>${escapeHtml(info.event.title)}</span>
+                    </div>
                 `;
+
+                document.getElementById('eventModalBody').innerHTML = `
+                    <div class="mb-3">
+                        <span class="badge" style="background-color:${info.event.backgroundColor || '#4f46e5'}; font-size:0.75rem; text-transform:uppercase; padding:5px 10px;">
+                            ${p.status || 'Scheduled'}
+                        </span>
+                    </div>
+                    <table class="table table-borderless table-sm" style="font-size:0.88rem;">
+                        <tr><td class="text-muted" style="width:120px;"><strong>Course:</strong></td><td>${escapeHtml(p.course)}</td></tr>
+                        <tr><td class="text-muted"><strong>Subject:</strong></td><td>${escapeHtml(p.subject)}</td></tr>
+                        <tr><td class="text-muted"><strong>Faculty:</strong></td><td>${escapeHtml(p.faculty)}</td></tr>
+                        <tr><td class="text-muted"><strong>Duration:</strong></td><td>${p.duration} Minutes</td></tr>
+                        ${p.recordingUrl ? `<tr><td class="text-muted"><strong>Recording:</strong></td><td><a href="${p.recordingUrl}" target="_blank" class="text-primary fw-bold"><i class="fa-solid fa-play me-1"></i>Watch Lecture</a></td></tr>` : ''}
+                    </table>
+                `;
+
                 let footerHtml = '';
                 if (p.canJoin) {
                     if (p.joinUrl) {
-                        footerHtml += `<a href="${p.joinUrl}" target="_blank" class="btn-join">Join Session</a>`;
+                        footerHtml += `<a href="${p.joinUrl}" target="_blank" class="btn btn-primary fw-bold"><i class="fa-solid fa-video me-1"></i> Join Session</a>`;
                     } else {
-                        footerHtml += `<span style="color:var(--cal-live);font-size:0.85rem;margin-right:10px;">Meeting link not available</span>`;
-                        if (userRole !== 'Student') {
-                             footerHtml += `<button class="btn-join" onclick="alert('Zoom meeting could not be generated. Please edit the class and add an External Link.')">Get Link</button>`;
-                        }
+                        footerHtml += `<span class="text-danger small me-auto fw-bold"><i class="fa-solid fa-triangle-exclamation me-1"></i> Meeting Link Pending</span>`;
                     }
                 }
-                if (userRole !== 'Student' && p.statusCode === 0) {
-                    footerHtml += `<button class="btn-join" style="background:#f59e0b;" onclick="cancelSession(${p.instanceId})">Cancel</button>`;
+
+                if (userRole !== 'Student') {
+                    if (p.statusCode === 0 || p.statusCode === 4) {
+                        footerHtml += `<button type="button" class="btn btn-outline-warning" onclick="openRescheduleModal(${p.instanceId}, '${escapeHtml(info.event.title)}', '${info.event.startStr}', ${p.duration})"><i class="fa-solid fa-clock-rotate-left me-1"></i> Reschedule</button>`;
+                        footerHtml += `<button type="button" class="btn btn-outline-danger" onclick="cancelSession(${p.instanceId})"><i class="fa-solid fa-ban me-1"></i> Cancel</button>`;
+                    }
+                    footerHtml += `<button type="button" class="btn btn-outline-success" onclick="openAttendanceModal(${p.instanceId})"><i class="fa-solid fa-user-check me-1"></i> Attendance</button>`;
                 }
-                document.getElementById('eventModalFooter').innerHTML = footerHtml;
+
+                document.getElementById('eventModalFooter').innerHTML = footerHtml || `<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>`;
                 new bootstrap.Modal(document.getElementById('eventModal')).show();
             },
             eventTimeFormat: { hour: '2-digit', minute: '2-digit', meridiem: 'short' }
         });
         calendar.render();
 
-        // ── Recurring Toggle ──
+        // ── Course Filter Dropdown ──
+        const courseFilter = document.getElementById('calendarCourseFilter');
+        if (courseFilter) {
+            courseFilter.addEventListener('change', function () {
+                currentCourseFilter = this.value;
+                calendar.refetchEvents();
+            });
+        }
+
+        // ── 2. Recurring Schedule Toggle ──
         const recurCheck = document.getElementById('isRecurring');
         if (recurCheck) {
             recurCheck.addEventListener('change', function () {
                 document.getElementById('recurringOptions').style.display = this.checked ? 'block' : 'none';
+                const endDateInput = document.getElementById('classEndDate');
+                if (endDateInput) {
+                    endDateInput.required = this.checked;
+                }
             });
         }
 
-        // ── Day Selector ──
+        // ── Day Selector Pills ──
         document.querySelectorAll('.day-btn').forEach(btn => {
             btn.addEventListener('click', function (e) {
                 e.preventDefault();
@@ -414,40 +1125,37 @@
             });
         });
 
-        // ── Course → Subject cascade ──
+        // ── 3. Cascade Subject Dropdown based on Course ──
         const courseSelect = document.getElementById('classCourse');
         if (courseSelect) {
             courseSelect.addEventListener('change', function () {
                 const courseId = this.value;
                 const subjectSelect = document.getElementById('classSubject');
-                subjectSelect.innerHTML = '<option value="">Loading...</option>';
-                if (!courseId) { subjectSelect.innerHTML = '<option value="">Select Subject</option>'; return; }
-                console.log('Fetching subjects for courseId:', courseId);
-                fetch('/Calendar/GetSubjects?courseId=' + courseId)
-                    .then(r => {
-                        if (!r.ok) throw new Error('HTTP ' + r.status);
-                        return r.json();
-                    })
+                subjectSelect.innerHTML = '<option value="">Loading subjects...</option>';
+
+                fetch('/Calendar/GetSubjects?courseId=' + (courseId || '0'))
+                    .then(r => r.json())
                     .then(data => {
-                        console.log('Subjects received:', data);
-                        let html = '<option value="">Select Subject</option>';
+                        let html = '<option value="">-- Select Subject (or All) --</option>';
                         if (data && data.length > 0) {
                             data.forEach(s => {
                                 html += `<option value="${s.id}">${s.name}</option>`;
                             });
-                        } else {
-                            html = '<option value="">No subjects found</option>';
                         }
                         subjectSelect.innerHTML = html;
                     })
-                    .catch(err => {
-                        console.error('Error fetching subjects:', err);
-                        subjectSelect.innerHTML = '<option value="">Error loading subjects</option>';
+                    .catch(() => {
+                        subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
                     });
             });
+
+            // Initial load of subjects
+            if (courseSelect.value) {
+                courseSelect.dispatchEvent(new Event('change'));
+            }
         }
 
-        // ── Create Class ──
+        // ── 4. Create Class Form Submit ──
         const form = document.getElementById('createClassForm');
         if (form) {
             form.addEventListener('submit', function (e) {
@@ -455,77 +1163,266 @@
                 const selectedDays = [];
                 document.querySelectorAll('.day-btn.active').forEach(b => selectedDays.push(b.dataset.day));
 
+                const titleVal = document.getElementById('classTitle').value.trim();
+                const courseVal = parseInt(document.getElementById('classCourse').value) || 0;
+                const startDateVal = document.getElementById('classStartDate').value;
+                const startTimeVal = document.getElementById('classStartTime').value;
+
+                if (!titleVal || !courseVal || !startDateVal || !startTimeVal) {
+                    alert('Please fill all required fields.');
+                    return;
+                }
+
                 const payload = {
-                    Title: document.getElementById('classTitle').value,
-                    CourseId: parseInt(document.getElementById('classCourse').value) || 0,
+                    Title: titleVal,
+                    CourseId: courseVal,
                     SubjectId: parseInt(document.getElementById('classSubject').value) || null,
-                    StartDate: document.getElementById('classStartDate').value,
-                    StartTime: document.getElementById('classStartTime').value + ':00',
+                    FacultyId: parseInt(document.getElementById('classFaculty')?.value) || currentUserId,
+                    StartDate: startDateVal,
+                    StartTime: startTimeVal.length === 5 ? startTimeVal + ':00' : startTimeVal,
                     DurationMinutes: parseInt(document.getElementById('classDuration').value) || 60,
                     MaxCapacity: parseInt(document.getElementById('classCapacity').value) || 100,
                     IsRecurring: document.getElementById('isRecurring').checked,
                     EndDate: document.getElementById('classEndDate')?.value || null,
                     SelectedDays: selectedDays,
                     MeetingProvider: document.getElementById('meetingProvider').value,
-                    ExternalMeetingLink: document.getElementById('externalMeetingLink').value
+                    ExternalMeetingLink: document.getElementById('externalMeetingLink')?.value || ''
                 };
 
                 const resultEl = document.getElementById('createResult');
-                document.getElementById('btnCreateClass').disabled = true;
-                document.getElementById('btnCreateClass').textContent = 'Creating...';
+                const submitBtn = document.getElementById('btnCreateClass');
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Scheduling...';
 
                 fetch('/Calendar/CreateClass', {
                     method: 'POST',
-                    headers: { 
+                    headers: {
                         'Content-Type': 'application/json',
                         'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
                     },
                     body: JSON.stringify(payload)
                 })
-                .then(r => r.json().then(data => ({ status: r.status, data: data })))
+                .then(r => r.json())
                 .then(res => {
-                    const data = res.data;
-                    resultEl.innerHTML = data.success
-                        ? `<span style="color:var(--cal-success)">${data.message}</span>`
-                        : `<span style="color:var(--cal-live)">${data.message || 'Error: ' + res.status} ${data.debugInfo ? '<br/><small>' + data.debugInfo + '</small>' : ''}</span>`;
-                    if (data.success) {
+                    if (res.success) {
+                        resultEl.innerHTML = `<div class="alert alert-success py-2"><i class="fa-solid fa-circle-check me-2"></i>${res.message}</div>`;
                         calendar.refetchEvents();
                         form.reset();
-                        setTimeout(() => location.reload(), 1500);
+                        document.querySelectorAll('.day-btn.active').forEach(b => b.classList.remove('active'));
+                        document.getElementById('recurringOptions').style.display = 'none';
+                        document.getElementById('externalLinkBox').style.display = 'none';
+                        setTimeout(() => location.reload(), 1200);
+                    } else {
+                        resultEl.innerHTML = `<div class="alert alert-danger py-2"><i class="fa-solid fa-triangle-exclamation me-2"></i>${res.message || 'Failed to create session.'}</div>`;
                     }
                 })
-                .catch((err) => { 
-                    console.error(err);
-                    resultEl.innerHTML = '<span style="color:var(--cal-live)">Connection error. Please check your network or server logs.</span>'; 
+                .catch(() => {
+                    resultEl.innerHTML = `<div class="alert alert-danger py-2">Connection error. Please try again.</div>`;
                 })
                 .finally(() => {
-                    document.getElementById('btnCreateClass').disabled = false;
-                    document.getElementById('btnCreateClass').textContent = 'Create Class';
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fa-solid fa-plus-circle"></i> Create & Publish Class';
                 });
             });
         }
 
-        // ── Cancel Session ──
+        // ── 5. Cancel Session ──
         window.cancelSession = function (instanceId) {
-            if (!confirm('Cancel this session?')) return;
+            if (!confirm('Are you sure you want to cancel this class session?')) return;
             fetch('/Calendar/CancelInstance', {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
                 },
-                body: JSON.stringify({ instanceId: instanceId, reason: 'Cancelled by faculty' })
+                body: JSON.stringify({ instanceId: instanceId, reason: 'Cancelled by instructor/admin' })
             })
             .then(r => r.json())
             .then(data => {
                 alert(data.message);
-                if (data.success) { calendar.refetchEvents(); location.reload(); }
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('eventModal'))?.hide();
+                    calendar.refetchEvents();
+                    setTimeout(() => location.reload(), 800);
+                }
             });
         };
+
+        // ── 6. Reschedule Modal Handlers ──
+        window.openRescheduleModal = function (instanceId, title, startStr, duration) {
+            bootstrap.Modal.getInstance(document.getElementById('eventModal'))?.hide();
+            document.getElementById('rescheduleInstanceId').value = instanceId;
+            document.getElementById('rescheduleTitle').value = title;
+            document.getElementById('rescheduleDuration').value = duration || 60;
+            document.getElementById('rescheduleResult').innerHTML = '';
+
+            if (startStr) {
+                const parts = startStr.split('T');
+                if (parts[0]) document.getElementById('rescheduleDate').value = parts[0];
+                if (parts[1]) document.getElementById('rescheduleTime').value = parts[1].substring(0, 5);
+            }
+
+            new bootstrap.Modal(document.getElementById('rescheduleModal')).show();
+        };
+
+        document.getElementById('btnSubmitReschedule')?.addEventListener('click', function () {
+            const instanceId = parseInt(document.getElementById('rescheduleInstanceId').value);
+            const newDate = document.getElementById('rescheduleDate').value;
+            const newTime = document.getElementById('rescheduleTime').value;
+            const duration = parseInt(document.getElementById('rescheduleDuration').value) || 60;
+
+            if (!newDate || !newTime) {
+                alert('Please select both date and time.');
+                return;
+            }
+
+            const newStart = `${newDate}T${newTime}:00`;
+            const resultEl = document.getElementById('rescheduleResult');
+            this.disabled = true;
+
+            fetch('/Calendar/RescheduleInstance', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                },
+                body: JSON.stringify({ instanceId: instanceId, newStart: newStart, newDuration: duration })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    resultEl.innerHTML = `<div class="alert alert-success py-2">${data.message}</div>`;
+                    calendar.refetchEvents();
+                    setTimeout(() => {
+                        bootstrap.Modal.getInstance(document.getElementById('rescheduleModal'))?.hide();
+                        location.reload();
+                    }, 1000);
+                } else {
+                    resultEl.innerHTML = `<div class="alert alert-danger py-2">${data.message}</div>`;
+                }
+            })
+            .catch(() => {
+                resultEl.innerHTML = `<div class="alert alert-danger py-2">Error rescheduling session.</div>`;
+            })
+            .finally(() => {
+                this.disabled = false;
+            });
+        });
+
+        // ── 7. Attendance Modal Handlers ──
+        window.openAttendanceModal = function (instanceId) {
+            bootstrap.Modal.getInstance(document.getElementById('eventModal'))?.hide();
+            document.getElementById('attendanceInstanceId').value = instanceId;
+            document.getElementById('attendanceResult').innerHTML = '';
+            const listEl = document.getElementById('attendanceStudentList');
+            listEl.innerHTML = '<div class="text-center py-4 text-muted"><i class="fa-solid fa-spinner fa-spin fa-2x mb-2"></i><p>Loading students...</p></div>';
+
+            new bootstrap.Modal(document.getElementById('attendanceModal')).show();
+
+            fetch('/Calendar/GetStudentsForAttendance?instanceId=' + instanceId)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('attSessionTitle').textContent = data.sessionTitle + ' (' + data.courseName + ')';
+                        document.getElementById('attSessionDate').textContent = data.scheduledDate;
+
+                        if (!data.students || data.students.length === 0) {
+                            listEl.innerHTML = '<div class="text-center py-4 text-muted">No students currently enrolled in this course.</div>';
+                            return;
+                        }
+
+                        let html = '<div class="list-group">';
+                        data.students.forEach(s => {
+                            html += `
+                                <label class="list-group-item d-flex justify-content-between align-items-center py-2" style="cursor:pointer;">
+                                    <div>
+                                        <input class="form-check-input me-2 att-check" type="checkbox" value="${s.studentId}" ${s.isPresent ? 'checked' : ''} />
+                                        <strong>${escapeHtml(s.studentName)}</strong>
+                                        <small class="text-muted d-block ms-4">${escapeHtml(s.studentEmail)}</small>
+                                    </div>
+                                    <span class="badge ${s.isPresent ? 'bg-success' : 'bg-secondary'} att-badge-${s.studentId}">${s.isPresent ? 'Present' : 'Absent'}</span>
+                                </label>
+                            `;
+                        });
+                        html += '</div>';
+                        listEl.innerHTML = html;
+
+                        // Checkbox toggle status listener
+                        document.querySelectorAll('.att-check').forEach(cb => {
+                            cb.addEventListener('change', function () {
+                                const badge = document.querySelector('.att-badge-' + this.value);
+                                if (badge) {
+                                    badge.className = `badge ${this.checked ? 'bg-success' : 'bg-secondary'} att-badge-${this.value}`;
+                                    badge.textContent = this.checked ? 'Present' : 'Absent';
+                                }
+                            });
+                        });
+                    } else {
+                        listEl.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+                    }
+                })
+                .catch(() => {
+                    listEl.innerHTML = `<div class="alert alert-danger">Failed to fetch enrolled students.</div>`;
+                });
+        };
+
+        window.selectAllAttendance = function (check) {
+            document.querySelectorAll('.att-check').forEach(cb => {
+                cb.checked = check;
+                const badge = document.querySelector('.att-badge-' + cb.value);
+                if (badge) {
+                    badge.className = `badge ${check ? 'bg-success' : 'bg-secondary'} att-badge-${cb.value}`;
+                    badge.textContent = check ? 'Present' : 'Absent';
+                }
+            });
+        };
+
+        document.getElementById('btnSubmitAttendance')?.addEventListener('click', function () {
+            const instanceId = parseInt(document.getElementById('attendanceInstanceId').value);
+            const presentIds = [];
+            document.querySelectorAll('.att-check:checked').forEach(cb => presentIds.push(parseInt(cb.value)));
+
+            const resultEl = document.getElementById('attendanceResult');
+            this.disabled = true;
+
+            fetch('/Calendar/MarkAttendance', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                },
+                body: JSON.stringify({ instanceId: instanceId, presentStudentIds: presentIds })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    resultEl.innerHTML = `<div class="alert alert-success py-2"><i class="fa-solid fa-check me-1"></i>${data.message}</div>`;
+                    setTimeout(() => {
+                        bootstrap.Modal.getInstance(document.getElementById('attendanceModal'))?.hide();
+                    }, 1000);
+                } else {
+                    resultEl.innerHTML = `<div class="alert alert-danger py-2">${data.message}</div>`;
+                }
+            })
+            .catch(() => {
+                resultEl.innerHTML = `<div class="alert alert-danger py-2">Error saving attendance.</div>`;
+            })
+            .finally(() => {
+                this.disabled = false;
+            });
+        });
     });
 
-    function toggleExternalLink() {
+    function toggleMeetingLinkBox() {
         const provider = document.getElementById('meetingProvider').value;
-        document.getElementById('externalLinkBox').style.display = (provider === 'External') ? 'block' : 'none';
+        const box = document.getElementById('externalLinkBox');
+        if (box) {
+            box.style.display = (provider === 'External') ? 'block' : 'none';
+        }
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
 </script>

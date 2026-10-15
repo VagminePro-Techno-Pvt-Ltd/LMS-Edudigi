@@ -1,0 +1,683 @@
+@using TMS.Web.Areas.Admin.Controllers
+@model TMS.Web.Areas.Admin.Controllers.EnrollmentStudioVM
+
+@{
+    var programId = Model.ProgramId ?? 0;
+    var courseId = Model.CourseId ?? 0;
+    var courseCount = Model.ProgramCourses?.Count ?? 0;
+    var enrolledCount = Model.EnrolledStudents?.Count(s => s.Status == 1) ?? 0;
+    var totalStudents = Model.AllStudents?.Count ?? 0;
+}
+
+<style>
+    .studio-header {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        color: white;
+        padding: 24px 28px;
+        position: relative;
+    }
+    .studio-tabs {
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        padding: 0 24px;
+        display: flex;
+        gap: 8px;
+    }
+    .studio-tab-btn {
+        background: transparent;
+        border: none;
+        border-bottom: 3px solid transparent;
+        padding: 14px 18px;
+        font-weight: 700;
+        font-size: 13px;
+        color: #64748b;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+    }
+    .studio-tab-btn:hover {
+        color: #4f46e5;
+    }
+    .studio-tab-btn.active {
+        color: #4f46e5;
+        border-bottom-color: #4f46e5;
+        background: white;
+    }
+    .studio-tab-pane {
+        display: none;
+        padding: 24px;
+        animation: fadeIn 0.2s ease-in-out;
+    }
+    .studio-tab-pane.active {
+        display: block;
+    }
+    @@keyframes fadeIn {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .studio-search {
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        padding: 10px 16px;
+        width: 100%;
+        font-size: 13px;
+        transition: all 0.2s;
+    }
+    .studio-search:focus {
+        outline: none;
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    }
+    .studio-table {
+        margin: 0;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    .studio-table thead th {
+        background: #f1f5f9;
+        color: #475569;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 12px 16px;
+        border-bottom: 1px solid #e2e8f0;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+    }
+    .studio-table tbody td {
+        padding: 12px 16px;
+        font-size: 13px;
+        color: #1e293b;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+    }
+    .studio-table tbody tr:hover {
+        background: #f8fafc;
+    }
+    .btn-gradient-primary {
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        color: white;
+        border: none;
+        padding: 10px 22px;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 13px;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .btn-gradient-primary:hover {
+        color: white;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+    }
+    .progress-bar-coverage {
+        height: 6px;
+        border-radius: 3px;
+        background: #e2e8f0;
+        overflow: hidden;
+        width: 70px;
+        display: inline-block;
+    }
+    .progress-bar-coverage .fill {
+        height: 100%;
+        border-radius: 3px;
+        background: linear-gradient(90deg, #6366f1, #10b981);
+    }
+</style>
+
+<div>
+    @* ── Studio Header ── *@
+    <div class="studio-header">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="badge bg-indigo text-white px-2 py-1" style="background:#4f46e5; font-size:11px;">
+                        @(courseId > 0 ? "Course Enrollment" : "Program Enrollment")
+                    </span>
+                    <span class="badge bg-dark text-white-50 border border-secondary px-2 py-1" style="font-size:11px;">
+                        @courseCount Course(s)
+                    </span>
+                </div>
+                <h5 class="fw-bold mb-1 text-white">@Model.Title</h5>
+                <small class="text-white-50">@Model.Subtitle</small>
+            </div>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+    </div>
+
+    @* ── Studio Tabs ── *@
+    <div class="studio-tabs">
+        <button type="button" class="studio-tab-btn active" id="tab-btn-enrolled" onclick="switchStudioTab('enrolled')">
+            <i class="fas fa-users"></i>
+            Enrolled Students <span class="badge bg-primary ms-1" id="enrolledTabBadge">@enrolledCount</span>
+        </button>
+        <button type="button" class="studio-tab-btn" id="tab-btn-batch" onclick="switchStudioTab('batch')">
+            <i class="fas fa-user-plus"></i>
+            Batch Enroll Students
+        </button>
+        <button type="button" class="studio-tab-btn" id="tab-btn-quick" onclick="switchStudioTab('quick')">
+            <i class="fas fa-bolt text-warning"></i>
+            + Add & Enroll New Student
+        </button>
+    </div>
+
+    @* ── TAB 1: Enrolled Students ── *@
+    <div class="studio-tab-pane active" id="pane-enrolled">
+        @if (Model.EnrolledStudents != null && Model.EnrolledStudents.Any())
+        {
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="flex-grow-1 me-3">
+                    <input type="text" id="enrolledSearch" class="studio-search" placeholder="🔍 Search enrolled students by name or email..." />
+                </div>
+                <button type="button" class="btn btn-outline-primary btn-sm fw-bold px-3 py-2" style="border-radius:10px; white-space:nowrap;" onclick="switchStudioTab('batch')">
+                    <i class="fas fa-plus"></i> Enroll More
+                </button>
+            </div>
+
+            <div style="max-height: 420px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 12px;">
+                <table class="table studio-table">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Enrolled Date</th>
+                            <th>Course Coverage</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="enrolledTableBody">
+                        @foreach (var item in Model.EnrolledStudents)
+                        {
+                            var pct = item.TotalCourseCount > 0 ? (int)((double)item.ActiveCourseCount / item.TotalCourseCount * 100) : 0;
+                            <tr class="enrolled-row" data-name="@item.StudentName.ToLower()" data-email="@item.StudentEmail.ToLower()">
+                                <td>
+                                    <div class="fw-bold text-dark">@item.StudentName</div>
+                                    <small class="text-muted">@item.StudentEmail</small>
+                                </td>
+                                <td>
+                                    <small class="text-secondary">@item.EnrolledOn.ToString("dd-MMM-yyyy")</small>
+                                    <div style="font-size:10px; color:#94a3b8;">Source: @item.Source</div>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="progress-bar-coverage">
+                                            <div class="fill" style="width: @(pct)%;"></div>
+                                        </div>
+                                        <small class="fw-bold text-dark">@item.ActiveCourseCount / @item.TotalCourseCount</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge @item.StatusBadgeClass px-2 py-1" style="font-size:11px;">@item.StatusText</span>
+                                </td>
+                                <td class="text-end">
+                                    @if (item.Status == 1)
+                                    {
+                                        <button type="button" class="btn btn-sm btn-outline-danger me-1" onclick="dropStudentFromStudio(@programId, @courseId, @item.StudentId)" title="Drop enrollment">
+                                            <i class="fas fa-user-minus"></i> Drop
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-success" onclick="completeStudentFromStudio(@programId, @item.StudentId)" title="Mark completed">
+                                            <i class="fas fa-check"></i> Complete
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="reactivateStudentFromStudio(@programId, @courseId, @item.StudentId)" title="Reactivate enrollment">
+                                            <i class="fas fa-redo"></i> Re-enroll
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <div style="width: 70px; height: 70px; border-radius: 50%; background: #eef2ff; color: #6366f1; display: inline-flex; align-items: center; justify-content: center; font-size: 28px; margin-bottom: 16px;">
+                    <i class="fas fa-user-graduate"></i>
+                </div>
+                <h6 class="fw-bold text-dark mb-1">No Students Enrolled Yet</h6>
+                <p class="text-muted small mb-4">Enroll students into this program/course using batch enrollment or quick add.</p>
+                <div class="d-flex justify-content-center gap-2">
+                    <button type="button" class="btn-gradient-primary" onclick="switchStudioTab('batch')">
+                        <i class="fas fa-user-plus"></i> Enroll Students Now
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary px-3 fw-bold" style="border-radius:10px;" onclick="switchStudioTab('quick')">
+                        <i class="fas fa-bolt text-warning"></i> + Quick Add Student
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+
+    @* ── TAB 2: Batch Enroll Existing Students ── *@
+    <div class="studio-tab-pane" id="pane-batch">
+        @if (courseCount == 0)
+        {
+            <div class="alert alert-warning d-flex align-items-center gap-3 p-3 mb-4" style="border-radius:12px;">
+                <i class="fas fa-exclamation-triangle" style="font-size:24px;"></i>
+                <div>
+                    <strong class="d-block">This program has 0 courses assigned</strong>
+                    <small>Before enrolling students, please create or link courses to this program in Course Structure.</small>
+                </div>
+            </div>
+        }
+        else
+        {
+            @* Courses checklist (if multiple courses in program) *@
+            @if (courseCount > 1)
+            {
+                <div class="mb-3 p-3" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-bold small text-secondary">
+                            <i class="fas fa-book me-1 text-primary"></i> Courses included in this enrollment:
+                        </span>
+                        <label class="small text-primary fw-bold" style="cursor:pointer;">
+                            <input type="checkbox" id="selectAllStudioCourses" checked style="accent-color:#6366f1;"> Select All (@courseCount courses)
+                        </label>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2" id="studioCourseContainer">
+                        @foreach (var c in Model.ProgramCourses!)
+                        {
+                            <label class="badge bg-white text-dark border p-2 d-flex align-items-center gap-2" style="cursor:pointer; font-weight:500;">
+                                <input type="checkbox" class="studio-course-chk" value="@c.Id" checked style="accent-color:#6366f1;">
+                                <span><strong>@c.CourseCode</strong> — @c.Name @(c.Semester != null ? $"({c.Semester.Name})" : "")</span>
+                            </label>
+                        }
+                    </div>
+                </div>
+            }
+
+            @* Quick Filter Pills + Student Search + Select All *@
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+                <span class="small fw-bold text-secondary me-1">Filter Students:</span>
+                <button type="button" class="btn btn-sm btn-light border studio-filter-btn active" data-filter="all">All Students</button>
+                <button type="button" class="btn btn-sm btn-light border studio-filter-btn" data-filter="not-enrolled">
+                    <i class="fas fa-user-clock text-warning me-1"></i> Not Enrolled Yet
+                </button>
+                <button type="button" class="btn btn-sm btn-light border studio-filter-btn" data-filter="this-program">
+                    <i class="fas fa-check-circle text-success me-1"></i> In this Program
+                </button>
+                <button type="button" class="btn btn-sm btn-light border studio-filter-btn" data-filter="other-program">
+                    Other Programs
+                </button>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mb-3 gap-3">
+                <div class="flex-grow-1">
+                    <input type="text" id="batchStudentSearch" class="studio-search" placeholder="🔍 Search students by name, email, or course..." />
+                </div>
+                <label class="d-flex align-items-center gap-2 fw-bold small text-secondary" style="cursor:pointer; white-space:nowrap;">
+                    <input type="checkbox" id="selectAllBatchStudents" style="width:18px; height:18px; accent-color:#6366f1;">
+                    <span>Select All Visible</span>
+                </label>
+            </div>
+
+            @* Student Table *@
+            <div style="max-height: 340px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 12px;" class="mb-3">
+                <table class="table studio-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 45px;" class="text-center">Select</th>
+                            <th>Student Name</th>
+                            <th>Email</th>
+                            <th>Current Enrolled Program / Course(s)</th>
+                            <th>Status in This Program</th>
+                        </tr>
+                    </thead>
+                    <tbody id="batchStudentTableBody">
+                        @if (Model.AllStudents != null && Model.AllStudents.Any())
+                        {
+                            foreach (var s in Model.AllStudents)
+                            {
+                                var isAlreadyEnrolled = Model.ActiveEnrolledStudentIds.Contains(s.Id);
+                                List<StudentEnrolledCourseBadgeVM>? enrolledList = null;
+                                var hasEnrollments = Model.StudentEnrollments != null && Model.StudentEnrollments.TryGetValue(s.Id, out enrolledList) && enrolledList != null && enrolledList.Any();
+                                var inThisProgram = hasEnrollments && enrolledList!.Any(e => e.ProgramId == programId);
+                                var inOtherProgram = hasEnrollments && !inThisProgram;
+
+                                <tr class="batch-student-row" 
+                                    data-name="@s.Name?.ToLower()" 
+                                    data-email="@s.Email?.ToLower()"
+                                    data-enrolled="@(hasEnrollments ? "yes" : "no")"
+                                    data-this-prog="@(inThisProgram ? "yes" : "no")"
+                                    data-other-prog="@(inOtherProgram ? "yes" : "no")">
+                                    <td class="text-center">
+                                        <input type="checkbox" class="batch-student-chk" value="@s.Id" @(isAlreadyEnrolled ? "checked" : "") style="width:16px; height:16px; accent-color:#6366f1; cursor:pointer;" />
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold text-dark">@s.Name</div>
+                                    </td>
+                                    <td>@s.Email</td>
+                                    <td>
+                                        @if (hasEnrollments)
+                                        {
+                                            var progGroups = enrolledList!.GroupBy(c => c.ProgramName);
+                                            foreach (var pg in progGroups)
+                                            {
+                                                <div class="mb-1">
+                                                    <span class="badge bg-primary text-white" style="font-size:11px;">
+                                                        <i class="fas fa-graduation-cap me-1"></i>@pg.Key
+                                                    </span>
+                                                    <span class="text-secondary small ms-1">(@string.Join(", ", pg.Select(c => c.CourseCode)))</span>
+                                                </div>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-light text-muted border" style="font-size:11px;">
+                                                <i class="fas fa-minus-circle me-1"></i> Not Enrolled Yet
+                                            </span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (isAlreadyEnrolled)
+                                        {
+                                            <span class="badge bg-success" style="font-size:10px;"><i class="fas fa-check me-1"></i> Enrolled</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-light text-muted border" style="font-size:10px;">Not Enrolled</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">No student records found in system.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                <div class="fw-bold small text-secondary" id="batchSelectedCounter">
+                    0 student(s) selected
+                </div>
+                <button type="button" class="btn-gradient-primary" id="btnSaveBatchEnrollment" onclick="submitBatchEnrollment(@programId, @courseId)">
+                    <i class="fas fa-check-circle"></i> Save & Enroll Selected
+                </button>
+            </div>
+        }
+    </div>
+
+    @* ── TAB 3: Quick Add & Enroll New Student ── *@
+    <div class="studio-tab-pane" id="pane-quick">
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-10">
+                <div class="p-3 mb-3" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px;">
+                    <h6 class="fw-bold text-dark mb-1">
+                        <i class="fas fa-user-plus text-primary me-1"></i> Register & Instant-Enroll New Student
+                    </h6>
+                    <small class="text-muted">
+                        Fill in basic details. An account will be created with role <strong>Student</strong> and automatically enrolled in <strong>@Model.Title</strong>!
+                    </small>
+                </div>
+
+                <form id="quickAddForm" onsubmit="event.preventDefault(); submitQuickAddStudent(@programId, @courseId);">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold small text-secondary">Student Full Name *</label>
+                            <input type="text" id="quickName" class="form-control" placeholder="e.g. Aman Sharma" required style="border-radius:10px;" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold small text-secondary">Email Address *</label>
+                            <input type="email" id="quickEmail" class="form-control" placeholder="e.g. aman@example.com" required style="border-radius:10px;" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold small text-secondary">Contact Number (Optional)</label>
+                            <input type="tel" id="quickPhone" class="form-control" placeholder="e.g. 9876543210" style="border-radius:10px;" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold small text-secondary">Initial Password</label>
+                            <input type="text" id="quickPassword" class="form-control" value="Welcome@123" placeholder="Default: Welcome@123" style="border-radius:10px;" />
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check form-switch p-2 bg-light rounded border">
+                                <input class="form-check-input ms-0 me-2" type="checkbox" id="quickAutoEnroll" checked style="cursor:pointer;" />
+                                <label class="form-check-label fw-bold small text-dark" for="quickAutoEnroll" style="cursor:pointer;">
+                                    Enroll immediately into all courses of this @(courseId > 0 ? "course" : "program")
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-12 text-end pt-2">
+                            <button type="submit" class="btn-gradient-primary" id="btnQuickSubmit">
+                                <i class="fas fa-bolt"></i> Create Student & Enroll
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function switchStudioTab(tab) {
+        $('.studio-tab-btn').removeClass('active');
+        $('.studio-tab-pane').removeClass('active');
+        $('#tab-btn-' + tab).addClass('active');
+        $('#pane-' + tab).addClass('active');
+    }
+
+    // Filter enrolled table
+    $('#enrolledSearch').on('input', function () {
+        var q = $(this).val().toLowerCase();
+        $('.enrolled-row').each(function () {
+            var n = $(this).data('name') || '';
+            var e = $(this).data('email') || '';
+            $(this).toggle(n.indexOf(q) > -1 || e.indexOf(q) > -1);
+        });
+    });
+
+    // Category filter pills for batch table
+    var currentBatchFilter = 'all';
+    $('.studio-filter-btn').on('click', function () {
+        $('.studio-filter-btn').removeClass('active btn-primary text-white').addClass('btn-light');
+        $(this).addClass('active btn-primary text-white').removeClass('btn-light');
+        currentBatchFilter = $(this).data('filter');
+        applyBatchFilters();
+    });
+
+    // Filter batch table
+    $('#batchStudentSearch').on('input', applyBatchFilters);
+
+    function applyBatchFilters() {
+        var q = ($('#batchStudentSearch').val() || '').toLowerCase();
+        $('.batch-student-row').each(function () {
+            var n = $(this).data('name') || '';
+            var e = $(this).data('email') || '';
+            var enrolled = $(this).data('enrolled');
+            var thisProg = $(this).data('this-prog');
+            var otherProg = $(this).data('other-prog');
+
+            var matchesSearch = (n.indexOf(q) > -1 || e.indexOf(q) > -1);
+            var matchesCategory = true;
+
+            if (currentBatchFilter === 'not-enrolled') {
+                matchesCategory = (enrolled === 'no');
+            } else if (currentBatchFilter === 'this-program') {
+                matchesCategory = (thisProg === 'yes');
+            } else if (currentBatchFilter === 'other-program') {
+                matchesCategory = (otherProg === 'yes');
+            }
+
+            $(this).toggle(matchesSearch && matchesCategory);
+        });
+        updateBatchCounter();
+    }
+
+    // Select all batch students
+    $('#selectAllBatchStudents').on('change', function () {
+        var chk = $(this).is(':checked');
+        $('.batch-student-row:visible .batch-student-chk').prop('checked', chk);
+        updateBatchCounter();
+    });
+
+    // Select all studio courses
+    $('#selectAllStudioCourses').on('change', function () {
+        var chk = $(this).is(':checked');
+        $('.studio-course-chk').prop('checked', chk);
+    });
+
+    $(document).on('change', '.batch-student-chk', updateBatchCounter);
+    function updateBatchCounter() {
+        var count = $('.batch-student-chk:checked').length;
+        $('#batchSelectedCounter').text(count + ' student(s) selected');
+    }
+    updateBatchCounter();
+
+    // Submit batch enrollment via AJAX
+    function submitBatchEnrollment(progId, cId) {
+        var selectedStudents = [];
+        $('.batch-student-chk:checked').each(function () {
+            selectedStudents.push(parseInt($(this).val()));
+        });
+
+        if (selectedStudents.length === 0) {
+            alert('Please select at least one student.');
+            return;
+        }
+
+        var selectedCourses = [];
+        $('.studio-course-chk:checked').each(function () {
+            selectedCourses.push(parseInt($(this).val()));
+        });
+
+        var payload = {
+            ProgramId: progId > 0 ? progId : null,
+            CourseId: cId > 0 ? cId : null,
+            StudentIds: selectedStudents,
+            SelectedCourseIds: selectedCourses
+        };
+
+        $('#btnSaveBatchEnrollment').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Enrolling...');
+
+        $.ajax({
+            url: '/Admin/CourseEnrollment/SaveStudioMapping',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(payload),
+            success: function (res) {
+                if (res.success) {
+                    alert(res.message);
+                    reloadStudio(progId, cId);
+                } else {
+                    alert(res.message);
+                    $('#btnSaveBatchEnrollment').prop('disabled', false).html('<i class="fas fa-check-circle"></i> Save & Enroll Selected');
+                }
+            },
+            error: function () {
+                alert('An error occurred while saving enrollments.');
+                $('#btnSaveBatchEnrollment').prop('disabled', false).html('<i class="fas fa-check-circle"></i> Save & Enroll Selected');
+            }
+        });
+    }
+
+    // Submit Quick Add Student
+    function submitQuickAddStudent(progId, cId) {
+        var name = $('#quickName').val().trim();
+        var email = $('#quickEmail').val().trim();
+        var phone = $('#quickPhone').val().trim();
+        var password = $('#quickPassword').val().trim();
+        var autoEnroll = $('#quickAutoEnroll').is(':checked');
+
+        if (!name || !email) {
+            alert('Name and Email are required.');
+            return;
+        }
+
+        var selectedCourses = [];
+        if (autoEnroll) {
+            $('.studio-course-chk').each(function () {
+                selectedCourses.push(parseInt($(this).val()));
+            });
+        }
+
+        var payload = {
+            Name: name,
+            Email: email,
+            ContactNo: phone,
+            Password: password,
+            ProgramId: autoEnroll && progId > 0 ? progId : null,
+            CourseIds: autoEnroll && cId > 0 ? [cId] : (selectedCourses.length > 0 ? selectedCourses : null)
+        };
+
+        $('#btnQuickSubmit').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Creating...');
+
+        $.ajax({
+            url: '/Admin/CourseEnrollment/QuickAddAndEnroll',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(payload),
+            success: function (res) {
+                if (res.success) {
+                    alert(res.message);
+                    reloadStudio(progId, cId);
+                } else {
+                    alert(res.message);
+                    $('#btnQuickSubmit').prop('disabled', false).html('<i class="fas fa-bolt"></i> Create Student & Enroll');
+                }
+            },
+            error: function () {
+                alert('Error creating student.');
+                $('#btnQuickSubmit').prop('disabled', false).html('<i class="fas fa-bolt"></i> Create Student & Enroll');
+            }
+        });
+    }
+
+    // Drop student
+    function dropStudentFromStudio(progId, cId, sId) {
+        if (!confirm('Are you sure you want to drop this student?')) return;
+
+        var url = cId > 0 ? '/Admin/CourseEnrollment/DropSingleStudent' : '/Admin/CourseEnrollment/DropStudent';
+        var data = cId > 0 ? { courseId: cId, studentId: sId } : { programId: progId, studentId: sId };
+
+        $.post(url, data, function (res) {
+            if (res.success) {
+                reloadStudio(progId, cId);
+            } else {
+                alert(res.message);
+            }
+        });
+    }
+
+    // Reactivate student
+    function reactivateStudentFromStudio(progId, cId, sId) {
+        $.post('/Admin/CourseEnrollment/ReactivateStudent', { programId: progId, courseId: cId, studentId: sId }, function (res) {
+            if (res.success) {
+                reloadStudio(progId, cId);
+            } else {
+                alert(res.message);
+            }
+        });
+    }
+
+    // Complete student
+    function completeStudentFromStudio(progId, sId) {
+        if (!confirm('Mark enrollment as completed?')) return;
+        $.post('/Admin/CourseEnrollment/CompleteEnrollment', { programId: progId, studentId: sId }, function (res) {
+            if (res.success) {
+                reloadStudio(progId, 0);
+            } else {
+                alert(res.message);
+            }
+        });
+    }
+
+    function reloadStudio(progId, cId) {
+        var query = cId > 0 ? `courseId=${cId}` : `programId=${progId}`;
+        $('#enrollmentModalBody').load(`/Admin/CourseEnrollment/Studio?${query}`);
+    }
+</script>

@@ -1,4 +1,4 @@
-﻿@model TMS.ViewModels.Academics.ProgramStructureViewModel
+@model TMS.ViewModels.Academics.ProgramStructureViewModel
 
 @{
     bool isFaculty = ViewBag.IsFaculty ??
@@ -40,7 +40,32 @@
         </div>
 
         <div class="ps-program-info">
-            <h2>@Model.ProgramName</h2>
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <h2>@Model.ProgramName</h2>
+
+                @if (!isFaculty)
+                {
+                    <div class="ps-program-actions">
+                        <button type="button"
+                                class="btn-ps-action btn-ps-primary cb-prog-add-course-btn btn-program-add-course"
+                                data-program-id="@Model.ProgramId"
+                                data-program-name="@Model.ProgramName"
+                                title="Add Course to this Program">
+                            <i class="fa-solid fa-plus me-1"></i> Add Course
+                        </button>
+
+                        <button type="button"
+                                class="btn-ps-action btn-ps-secondary cb-prog-edit-btn cb-edit-program-btn btn-edit-program"
+                                data-program-id="@Model.ProgramId"
+                                data-program-name="@Model.ProgramName"
+                                data-semesters="@Model.NoOfSemester"
+                                data-description="@Model.ProgramDescription"
+                                title="Edit Program Details">
+                            <i class="fa-solid fa-pen-to-square me-1"></i> Edit Program
+                        </button>
+                    </div>
+                }
+            </div>
 
             @if (!string.IsNullOrWhiteSpace(Model.ProgramDescription))
             {
@@ -74,20 +99,21 @@
             <i class="fa-regular fa-folder-open"></i>
         </div>
 
-        <h4>No courses found</h4>
+        <h4>No semester structure found</h4>
 
         <p>
-            No active courses are currently assigned to
+            No semesters or courses are currently defined for
             <strong>@Model.ProgramName</strong>.
         </p>
 
         @if (!isFaculty)
         {
-            <a href="@Url.Action("Index", "Course", new { area = "Admin" })"
-               class="cb-empty-action">
-                <i class="fa-solid fa-plus"></i>
-                Manage Courses
-            </a>
+            <button type="button"
+                    class="cb-empty-action cb-prog-add-course-btn"
+                    data-program-id="@Model.ProgramId"
+                    data-program-name="@Model.ProgramName">
+                <i class="fa-solid fa-plus me-1"></i> Add First Course
+            </button>
         }
     </div>
 }
@@ -106,10 +132,12 @@ else
             <section class="ps-semester"
                      data-semester-id="@semester.SemesterId">
 
-                <button type="button"
-                        class="ps-semester-header"
-                        style="--semester-color:@color;"
-                        aria-expanded="true">
+                <div class="ps-semester-header"
+                     style="--semester-color:@color;"
+                     data-bs-toggle="collapse"
+                     data-bs-target="#sem-collapse-@semester.SemesterId"
+                     aria-expanded="true"
+                     role="button">
 
                     <span class="ps-semester-icon"
                           style="background:@color;">
@@ -129,16 +157,44 @@ else
                         </small>
                     </span>
 
-                    <span class="ps-semester-chevron">
-                        <i class="fa-solid fa-chevron-down"></i>
-                    </span>
-                </button>
+                    <div class="ps-semester-header-actions" onclick="event.stopPropagation();">
+                        @if (!isFaculty && semester.SemesterId > 0)
+                        {
+                            <button type="button"
+                                    class="ps-sem-add-btn cb-sem-add-course-btn"
+                                    data-semester-id="@semester.SemesterId"
+                                    data-semester-name="@semester.SemesterName"
+                                    title="Add Course to @semester.SemesterName">
+                                <i class="fa-solid fa-plus"></i>
+                                <span>Add Course</span>
+                            </button>
+                        }
 
-                <div class="ps-semester-body">
+                        <span class="ps-semester-chevron">
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="ps-semester-body" id="sem-collapse-@semester.SemesterId">
                     @if (!semester.Courses.Any())
                     {
-                        <div class="ps-semester-empty">
-                            No courses are assigned to this semester.
+                        <div class="ps-semester-empty-card">
+                            <div class="ps-sem-empty-icon">
+                                <i class="fa-solid fa-book-medical"></i>
+                            </div>
+                            <div class="ps-sem-empty-text">
+                                No courses added to <strong>@semester.SemesterName</strong> yet.
+                            </div>
+                            @if (!isFaculty && semester.SemesterId > 0)
+                            {
+                                <button type="button"
+                                        class="ps-sem-empty-btn cb-sem-add-course-btn"
+                                        data-semester-id="@semester.SemesterId"
+                                        data-semester-name="@semester.SemesterName">
+                                    <i class="fa-solid fa-plus me-1"></i> Add Course to @semester.SemesterName
+                                </button>
+                            }
                         </div>
                     }
                     else
@@ -160,20 +216,34 @@ else
                                         </div>
 
                                         <div class="ps-course-meta">
-
                                             @if (!string.IsNullOrWhiteSpace(course.CourseCode))
                                             {
-                                                <span>
+                                                <span class="badge-code">
                                                     <i class="fa-solid fa-hashtag"></i>
                                                     @course.CourseCode
                                                 </span>
                                             }
 
-                                            <span>
+                                            <span class="badge-credit">
                                                 <i class="fa-regular fa-star"></i>
                                                 @course.Credits Credit@(course.Credits == 1 ? "" : "s")
                                             </span>
+
+                                            @if (course.DurationMonths > 0)
+                                            {
+                                                <span class="badge-duration">
+                                                    <i class="fa-regular fa-clock"></i>
+                                                    @course.DurationMonths Mo
+                                                </span>
+                                            }
                                         </div>
+
+                                        @if (!string.IsNullOrWhiteSpace(course.Description))
+                                        {
+                                            <div class="ps-course-desc">
+                                                @course.Description
+                                            </div>
+                                        }
                                     </div>
 
                                     <div class="ps-course-actions">
@@ -185,31 +255,53 @@ else
                                                     data-course-id="@course.CourseId"
                                                     aria-expanded="false"
                                                     title="View assigned content">
-
                                                 <i class="fa-regular fa-file-lines"></i>
-
-                                                <span>@course.ContentCount</span>
-
-                                                <i class="fa-solid fa-chevron-down ps-content-chevron"></i>
+                                                <span>@course.ContentCount Content</span>
+                                                <i class="fa-solid fa-chevron-down ps-content-chevron ms-1"></i>
                                             </button>
                                         }
                                         else
                                         {
                                             <span class="ps-zero-content">
-                                                No content
+                                                0 Content
                                             </span>
                                         }
 
                                         @if (!isFaculty)
                                         {
                                             <button type="button"
+                                                    class="ps-action-btn cb-assign-faculty-btn"
+                                                    data-course-id="@course.CourseId"
+                                                    data-course-name="@course.CourseName (@course.CourseCode)"
+                                                    title="Assign Faculty / Instructors"
+                                                    aria-label="Assign Faculty for @course.CourseName">
+                                                <i class="fa-solid fa-chalkboard-user text-success"></i>
+                                            </button>
+
+                                            <button type="button"
                                                     class="ps-action-btn cb-manage-content-btn"
                                                     data-course-id="@course.CourseId"
                                                     data-course-name="@course.CourseName (@course.CourseCode)"
-                                                    title="Manage Content"
+                                                    title="Manage Content (Quadrants)"
                                                     aria-label="Manage content for @course.CourseName">
-
                                                 <i class="fa-solid fa-link"></i>
+                                            </button>
+
+                                            <button type="button"
+                                                    class="ps-action-btn cb-edit-course-btn"
+                                                    data-course-id="@course.CourseId"
+                                                    title="Edit Course Details"
+                                                    aria-label="Edit @course.CourseName">
+                                                <i class="fa-solid fa-pen-to-square"></i>
+                                            </button>
+
+                                            <button type="button"
+                                                    class="ps-action-btn ps-action-btn-danger cb-delete-course-btn"
+                                                    data-course-id="@course.CourseId"
+                                                    data-course-name="@course.CourseName"
+                                                    title="Remove Course"
+                                                    aria-label="Remove @course.CourseName">
+                                                <i class="fa-solid fa-trash-can"></i>
                                             </button>
                                         }
                                     </div>
@@ -219,6 +311,18 @@ else
                                      id="content-list-@course.CourseId"
                                      style="display:none;">
                                 </div>
+                            </div>
+                        }
+
+                        @if (!isFaculty && semester.SemesterId > 0)
+                        {
+                            <div class="ps-sem-footer">
+                                <button type="button"
+                                        class="ps-sem-footer-add-btn cb-sem-add-course-btn"
+                                        data-semester-id="@semester.SemesterId"
+                                        data-semester-name="@semester.SemesterName">
+                                    <i class="fa-solid fa-plus me-1"></i> Add Another Course to @semester.SemesterName
+                                </button>
                             </div>
                         }
                     }

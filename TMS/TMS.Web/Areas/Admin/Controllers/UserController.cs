@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System.Linq.Expressions;
 using TMS;
+using TMS.Common;
 using TMS.Repository.Managers;
 using TMS.ViewModels;
 using TMS.ViewModels.Masters;
@@ -19,6 +20,9 @@ namespace TMS.Web.Areas.Admin.Controllers
         private readonly IMasterManager<DepartmentMasterViewModel> _departmentManager;
         private readonly IMasterManager<DivisionMasterViewModel> _divisionManager;
         private readonly IMasterManager<DesignationMasterViewModel> _designationManager;
+        private readonly IEnrollmentManager _enrollmentManager;
+        private readonly IMasterManager<CourseCategoryMasterViewModel> _programManager;
+        private readonly IMasterManager<CourseMasterViewModel> _courseManager;
 
         private static readonly string[] AllowedUserRoles =
         {
@@ -34,7 +38,10 @@ namespace TMS.Web.Areas.Admin.Controllers
             IMasterManager<LocationMasterViewModel> locationManager,
             IMasterManager<DepartmentMasterViewModel> departmentManager,
             IMasterManager<DivisionMasterViewModel> divisionManager,
-            IMasterManager<DesignationMasterViewModel> designationManager)
+            IMasterManager<DesignationMasterViewModel> designationManager,
+            IEnrollmentManager enrollmentManager,
+            IMasterManager<CourseCategoryMasterViewModel> programManager,
+            IMasterManager<CourseMasterViewModel> courseManager)
             : base(manager, "User", "User", new[] { "Role" }, new[] { "UserRoles" })
         {
             _accountManager = accountManager;
@@ -43,6 +50,9 @@ namespace TMS.Web.Areas.Admin.Controllers
             _departmentManager = departmentManager;
             _divisionManager = divisionManager;
             _designationManager = designationManager;
+            _enrollmentManager = enrollmentManager;
+            _programManager = programManager;
+            _courseManager = courseManager;
         }
 
         public override async Task<IActionResult> Index()
@@ -227,6 +237,8 @@ namespace TMS.Web.Areas.Admin.Controllers
             base.RemoveFromModelState();
             ModelState.Remove("Role");
             ModelState.Remove("UserId");
+            ModelState.Remove("ProgramId");
+            ModelState.Remove("CourseIds");
         }
 
         protected override void SetEditProperties(ref UserViewModel model)
@@ -268,6 +280,41 @@ namespace TMS.Web.Areas.Admin.Controllers
                 .ToList();
 
             ViewBag.RoleId = allowedRoles.GetSelectList();
+
+            // Populate Programs and Courses for Student creation/editing
+            var programs = await _programManager.GetAsync(null, p => p.IsActive);
+            ViewBag.ProgramList = programs.OrderBy(p => p.Name).ToList();
+
+            var courses = await _courseManager.GetAsync(new[] { "Semester", "CourseCategory" }, c => c.IsActive);
+            ViewBag.CourseList = courses.OrderBy(c => c.Name).ToList();
+
+            if (model != null && model.Id > 0)
+            {
+                var enrolled = await _enrollmentManager.GetAsync(null,
+                    e => e.StudentId == model.Id && e.Status == (int)EnrollmentStatus.Active);
+                ViewBag.EnrolledCourseIds = enrolled.Select(e => e.CourseId).ToList();
+            }
+            else
+            {
+                ViewBag.EnrolledCourseIds = new List<int>();
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetCoursesByProgram(int programId)
+        {
+            var courses = await _courseManager.GetAsync(new[] { "Semester" },
+                c => c.IsActive && (programId == 0 || c.CourseCategoryId == programId));
+
+            var result = courses.Select(c => new
+            {
+                id = c.Id,
+                name = c.Name,
+                code = c.CourseCode,
+                semester = c.Semester?.Name ?? ""
+            }).OrderBy(c => c.name);
+
+            return Json(result);
         }
 
         [HttpPost]
@@ -323,6 +370,39 @@ namespace TMS.Web.Areas.Admin.Controllers
 
             if (result)
             {
+                // Auto-Enroll Student in Selected Program/Courses
+                try
+                {
+                    int targetStudentId = model.Id;
+                    if (targetStudentId == 0)
+                    {
+                        var createdUser = (await _manager.GetAsync(null, u => u.Email == model.Email)).FirstOrDefault();
+                        if (createdUser != null) targetStudentId = createdUser.Id;
+                    }
+
+                    if (targetStudentId > 0 && (model.ProgramId.HasValue || (model.CourseIds != null && model.CourseIds.Any())))
+                    {
+                        var coursesToEnroll = new HashSet<int>();
+                        if (model.ProgramId.HasValue && model.ProgramId.Value > 0)
+                        {
+                            var progCourses = await _courseManager.GetAsync(null, c => c.IsActive && c.CourseCategoryId == model.ProgramId.Value);
+                            foreach (var pc in progCourses) coursesToEnroll.Add(pc.Id);
+                        }
+                        if (model.CourseIds != null)
+                        {
+                            foreach (var cid in model.CourseIds) coursesToEnroll.Add(cid);
+                        }
+                        foreach (var cId in coursesToEnroll)
+                        {
+                            await _enrollmentManager.EnrollStudentAsync(cId, targetStudentId, this.GetUserId(), "Student Creation");
+                        }
+                    }
+                }
+                catch
+                {
+                    // Non-fatal: keep user creation successful
+                }
+
                 return Json(
                     GetResultModelSuccess(
                         $"{_masterType} {(model.Id == 0 ? "added" : "updated")} successfully"));
@@ -330,7 +410,7 @@ namespace TMS.Web.Areas.Admin.Controllers
 
             return Json(
                 GetResultModelFail(
-                    "Something went worng, please contact support"));
+                    "Something went wrong, please contact support"));
         }
     }
 }

@@ -156,10 +156,10 @@ namespace TMS.Web.Areas.Admin.Controllers
                     return Json(GetResultModelFail($"Course Title is required for {course.CourseCode}."));
 
                 if (course.NoofCredit <= 0)
-                    return Json(GetResultModelFail($"Credits must be greater than 0 for {course.CourseCode}."));
+                    course.NoofCredit = 4;
 
                 if (course.CourseDurationMonths <= 0)
-                    return Json(GetResultModelFail($"Duration must be greater than 0 for {course.CourseCode}."));
+                    course.CourseDurationMonths = 6;
 
                 if (!requestCodes.Add(course.CourseCode))
                     return Json(GetResultModelFail($"Duplicate Course Code '{course.CourseCode}' in this form."));
@@ -213,10 +213,10 @@ namespace TMS.Web.Areas.Admin.Controllers
                 return Json(GetResultModelFail("Course Title is required."));
 
             if (model.NoofCredit <= 0)
-                return Json(GetResultModelFail("Credits must be greater than 0."));
+                model.NoofCredit = 4;
 
             if (model.CourseDurationMonths <= 0)
-                return Json(GetResultModelFail("Duration must be greater than 0."));
+                model.CourseDurationMonths = 6;
 
             var modelValidation = await IsValidModel(model);
             if (!modelValidation.Status)
@@ -250,10 +250,10 @@ namespace TMS.Web.Areas.Admin.Controllers
                     return Json(GetResultModelFail($"Course Title is required for {course.CourseCode}."));
 
                 if (course.NoofCredit <= 0)
-                    return Json(GetResultModelFail($"Credits must be greater than 0 for {course.CourseCode}."));
+                    course.NoofCredit = 4;
 
                 if (course.CourseDurationMonths <= 0)
-                    return Json(GetResultModelFail($"Duration must be greater than 0 for {course.CourseCode}."));
+                    course.CourseDurationMonths = 6;
 
                 if (!requestCodes.Add(course.CourseCode))
                     return Json(GetResultModelFail($"Duplicate Course Code '{course.CourseCode}' in this form."));

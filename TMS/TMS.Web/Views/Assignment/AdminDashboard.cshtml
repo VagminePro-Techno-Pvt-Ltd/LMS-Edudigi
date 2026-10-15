@@ -5,6 +5,8 @@
     var grades = ViewBag.Grades as IEnumerable<TMS.Models.Academics.AssignmentGrade> ?? Enumerable.Empty<TMS.Models.Academics.AssignmentGrade>();
 }
 
+<div class="container-fluid pt-3"><a class="btn btn-primary" asp-controller="InternalAssessment" asp-action="AdminDashboard"><i class="fa-solid fa-list-check"></i> Open Internal Assessments</a></div>
+
 <div class="container-fluid py-4">
     <!-- Header Block -->
     <div class="mb-4">

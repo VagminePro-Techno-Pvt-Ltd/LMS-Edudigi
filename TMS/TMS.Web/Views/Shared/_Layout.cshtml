@@ -6,8 +6,8 @@
         logo = $"{_storageSettings.StorageUrl}/{_storageSettings.ContainerName}/{logo}";
 
     string? company = User?.Claims?.Where(t => t.Type == "brandingname").FirstOrDefault()?.Value;
-    if (string.IsNullOrWhiteSpace(company))
-        company = "Edudigi";
+    if (string.IsNullOrWhiteSpace(company) || company == "Edudigi")
+        company = "Edudigi Class";
 }
 <!DOCTYPE html>
 <html lang="en" class="loading white-layout" data-textdirection="ltr">
@@ -35,7 +35,7 @@
 
     <style>
         /* ================================================================
-           TOPBAR — Enhanced to match Sidebar design language
+           TOPBAR â€” Enhanced to match Sidebar design language
            ================================================================ */
 
         /* CSS Variables (shared with sidebar palette) */
@@ -54,21 +54,25 @@
             --sidebar-collapsed-width: 72px;
         }
 
-        /* ── Header Shell ─────────────────────────────────────── */
+        /* â”€â”€ Header Shell â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
         .page-header {
-            position: fixed;
-            top: 0;
-            right: 0;
-            left: 0;
-            width: 100%;
-            z-index: 999;
-            background: var(--top-bg);
-            border-bottom: 1px solid var(--top-border);
-            height: var(--top-height);
-            box-shadow: 0 1px 8px rgba(0, 0, 0, 0.05);
-            transition: all 0.25s ease;
-            padding-left: var(--sidebar-width);
-            padding-right: 24px;
+            position: fixed !important;
+            top: 0 !important;
+            right: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: var(--top-height) !important;
+            z-index: 999 !important;
+            background: var(--top-bg) !important;
+            border-bottom: 1px solid var(--top-border) !important;
+            box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04) !important;
+            transition: all 0.25s ease !important;
+            padding-left: var(--sidebar-width) !important;
+            padding-right: 24px !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            display: flex !important;
+            align-items: center !important;
         }
 
         .sidebar-wrapper {
@@ -96,86 +100,157 @@
 
         .page-header .header-wrapper {
             height: 100% !important;
+            width: 100% !important;
             padding: 0 !important;
+            margin: 0 !important;
             display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
             align-items: center !important;
             justify-content: space-between !important;
         }
 
-        /* ── Logo & Brand ─────────────────────────────────────── */
-        .header-logo-wrapper {
+        /* â”€â”€ Topbar Left & Search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+        .header-left-wrapper {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            align-items: center !important;
+            gap: 16px !important;
+            height: 100% !important;
+            flex: 1 1 auto !important;
+            min-width: 0 !important;
+        }
+
+        .topbar-search-container {
+            display: flex;
+            align-items: center;
+            position: relative;
+            max-width: 460px;
+            width: 100%;
+        }
+
+        .topbar-search-inner {
+            display: flex;
+            align-items: center;
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 8px 14px;
+            width: 100%;
+            gap: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .topbar-search-inner:focus-within {
+            background: #ffffff;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3.5px rgba(59, 130, 246, 0.12);
+        }
+
+        .topbar-search-inner input {
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 13.5px;
+            width: 100%;
+            color: #0f172a;
+            font-weight: 500;
+        }
+
+        .topbar-search-inner input::placeholder {
+            color: #94a3b8;
+            font-weight: 400;
+        }
+
+        .topbar-search-inner .search-icon {
+            color: #94a3b8;
+            font-size: 13.5px;
+            flex-shrink: 0;
+        }
+
+        .topbar-search-inner .search-kbd {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            color: #94a3b8;
+            font-size: 10.5px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 6px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+        }
+
+        /* â”€â”€ Hamburger Toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+        .header-left-wrapper .toggle-sidebar,
+        .page-header .header-wrapper .toggle-sidebar,
+        .toggle-sidebar.toggle-enhanced {
+            position: static !important;
+            top: auto !important;
+            right: auto !important;
+            left: auto !important;
+            bottom: auto !important;
+            float: none !important;
+            margin: 0 !important;
+            width: 38px !important;
+            height: 38px !important;
+            min-width: 38px !important;
+            border-radius: 10px !important;
+            background: #eff6ff !important;
+            border: 1px solid #dbeafe !important;
             display: flex !important;
             align-items: center !important;
-            gap: 12px;
-            height: 100% !important;
+            justify-content: center !important;
+            cursor: pointer !important;
+            transition: var(--transition) !important;
+            flex-shrink: 0 !important;
         }
 
-        .logo-wrapper a {
-            display: flex;
-            align-items: center;
+        .toggle-sidebar.toggle-enhanced:before {
+            display: none !important;
         }
 
-        .enhanced-logo {
-            height: 38px;
-            width: auto;
-            border-radius: 8px;
-            object-fit: contain;
+        .toggle-sidebar.toggle-enhanced i {
+            font-size: 15px !important;
+            color: var(--blue) !important;
+            transition: transform 0.2s ease !important;
         }
 
-        .brand-text-enhanced .university-name {
-            font-family: 'Jost', sans-serif;
-            font-size: 15px;
-            font-weight: 700;
-            color: var(--text-primary);
-            letter-spacing: -0.2px;
-            white-space: nowrap;
+        .toggle-sidebar.toggle-enhanced:hover {
+            background: #dbeafe !important;
+            transform: scale(1.06) !important;
         }
 
-        /* ── Hamburger Toggle ─────────────────────────────────── */
-        .toggle-enhanced {
-            width: 34px;
-            height: 34px;
-            border-radius: var(--badge-radius);
-            background: #eff6ff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: var(--transition);
+        .toggle-sidebar.toggle-enhanced:hover i {
+            transform: rotate(90deg) !important;
         }
 
-        .toggle-enhanced i {
-            font-size: 15px;
-            color: var(--blue);
-            transition: transform 0.2s ease;
-        }
-
-        .toggle-enhanced:hover {
-            background: #dbeafe;
-            transform: scale(1.06);
-        }
-
-        .toggle-enhanced:hover i {
-            transform: rotate(90deg);
-        }
-
-        /* ── Right Nav Area ───────────────────────────────────── */
+        /* â”€â”€ Right Nav Area â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
         .nav-right {
             display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
             align-items: center !important;
             height: 100% !important;
+            flex-shrink: 0 !important;
+            margin-left: auto !important;
+            padding: 0 !important;
         }
 
         .nav-enhanced {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            gap: 6px;
+            list-style: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            align-items: center !important;
+            gap: 8px !important;
+            height: 100% !important;
         }
 
-        /* ── Shared Icon Badge (same as sidebar) ──────────────── */
+        /* â”€â”€ Shared Icon Badge (same as sidebar) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
         .nav-icon-badge {
             width: 36px;
             height: 36px;
@@ -204,7 +279,7 @@
             transform: scale(1.08);
         }
 
-        /* ── Language Pill ────────────────────────────────────── */
+        /* â”€â”€ Language Pill â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
         .lang-pill {
             display: flex;
             align-items: center;
@@ -229,7 +304,7 @@
             box-shadow: 0 3px 10px rgba(22,163,74,0.12);
         }
 
-        /* ── Notification Bell ────────────────────────────────── */
+        /* â”€â”€ Notification Bell â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
         .notif-wrap {
             position: relative;
         }
@@ -252,7 +327,7 @@
             line-height: 1;
         }
 
-        /* ── Divider ──────────────────────────────────────────── */
+        /* â”€â”€ Divider â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
         .nav-divider {
             width: 1px;
             height: 24px;
@@ -261,7 +336,7 @@
             flex-shrink: 0;
         }
 
-        /* ── Profile Button ───────────────────────────────────── */
+        /* â”€â”€ Profile Button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
         .profile-nav-enhanced {
             position: relative;
         }
@@ -331,7 +406,7 @@
             transition: transform 0.2s ease;
         }
 
-        /* ── Profile Dropdown ─────────────────────────────────── */
+        /* â”€â”€ Profile Dropdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
         .profile-dropdown {
             position: absolute;
             top: calc(100% + 10px);
@@ -417,6 +492,7 @@
             color: #ef4444;
         }
     </style>
+<link rel="stylesheet" href="~/css/lms-sidebar-fix.css" asp-append-version="true" />
 </head>
 <body>
     <!-- loader starts-->
@@ -436,81 +512,42 @@
 
     <div class="page-wrapper compact-wrapper" id="pageWrapper">
 
-        <!-- ══════════════════════════════════════════════════════
-             PAGE HEADER — Enhanced Topbar
-        ══════════════════════════════════════════════════════ -->
+        <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+             PAGE HEADER â€” Enhanced Topbar
+        â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
         <div class="page-header">
-            <div class="header-wrapper row m-0 align-items-center">
+            <div class="header-wrapper">
 
-                <!-- LEFT: Logo + Brand + Toggle -->
-                <div class="header-logo-wrapper col-auto p-0">
-                    <div class="logo-wrapper">
-                        <a asp-area="" asp-controller="Home" asp-action="Index">
-                            @if (string.IsNullOrEmpty(logo))
-                            {
-                                <img src="~/images/logo.jpg" alt="@company" class="enhanced-logo" />
-                            }
-                            else
-                            {
-                                <img src="@logo" alt="@company" class="enhanced-logo" />
-                            }
-                        </a>
-                    </div>
-                    <div class="brand-text-enhanced ms-2">
-                        <span class="university-name">@company</span>
-                    </div>
-                    <div class="toggle-sidebar toggle-enhanced ms-3">
+                <!-- LEFT: Toggle & Unified Global Search -->
+                <div class="header-left-wrapper">
+                    <div class="toggle-sidebar toggle-enhanced" title="Toggle Navigation Sidebar">
                         <i class="fa-solid fa-bars-staggered"></i>
+                    </div>
+
+                    <!-- Direct Fast Search Input with Autocomplete Dropdown -->
+                    <div class="global-search-wrapper topbar-search-container d-none d-md-flex" id="globalSearchWrapper">
+                        <div class="topbar-search-inner">
+                            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                            <input type="text" id="globalSearchInput" placeholder="Search courses, curriculum, quizzes, students…" autocomplete="off" spellcheck="false" aria-label="Search modules and pages" />
+                            <kbd class="search-kbd"><span class="lms-search-shortcut">Ctrl+K</span></kbd>
+                        </div>
+                        <!-- Autocomplete Dropdown -->
+                        <div class="search-dropdown" id="globalSearchDropdown" role="listbox" aria-label="Search results"></div>
                     </div>
                 </div>
 
                 <!-- RIGHT: Nav Icons -->
-                <div class="nav-right col-auto ms-auto p-0">
+                <div class="nav-right">
                     <ul class="nav-enhanced">
-
-                        <!-- Language -->
-                        @*
-                        <li>
-                            <div class="lang-pill">
-                                <i class="fa-solid fa-earth-americas globe-icon"></i>
-                                <span>English</span>
-                                <i class="fa-solid fa-chevron-down chevron"></i>
-                            </div>
-                        </li>
-
-                        <li><div class="nav-divider"></div></li>
-                        *@
 
                         <!-- Notifications -->
                         <li class="notif-wrap">
-                            <a asp-area="" asp-controller="Notifications" asp-action="Index" style="text-decoration: none;">
+                            <a asp-area="" asp-controller="Notifications" asp-action="Index" style="text-decoration: none;" title="Notifications">
                                 <div class="nav-icon-badge" style="--ibg:#fef9c3; --iclr:#ca8a04;">
                                     <i class="fa-solid fa-bell"></i>
                                 </div>
                             </a>
                             <span class="notif-count">0</span>
-                        </li>
-
-                        <!-- Global Search -->
-                        <li>
-                            <div class="global-search-wrapper" id="globalSearchWrapper">
-                                <!-- Collapsed: icon badge -->
-                                <div class="search-icon-badge" id="globalSearchIcon" title="Search pages & modules" aria-label="Open search">
-                                    <i class="fa-solid fa-magnifying-glass"></i>
-                                </div>
-                                <!-- Expanded: search bar -->
-                                <div class="global-search-bar" id="globalSearchBar" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-controls="globalSearchDropdown">
-                                    <i class="fa-solid fa-magnifying-glass search-bar-icon"></i>
-                                    <input type="text" id="globalSearchInput" placeholder="Search courses, exams, fees…" autocomplete="off" spellcheck="false" aria-label="Search dashboard modules" aria-autocomplete="list" role="searchbox" />
-                                    <button class="search-close-btn" id="globalSearchClose" aria-label="Close search" title="Close">
-                                        <i class="fa-solid fa-xmark"></i>
-                                    </button>
-                                </div>
-                                <!-- Autocomplete Dropdown -->
-                                <div class="search-dropdown" id="globalSearchDropdown" role="listbox" aria-label="Search results">
-                                    <!-- Populated by global-search.js -->
-                                </div>
-                            </div>
                         </li>
 
                         <!-- Help & Support -->
@@ -618,14 +655,23 @@
                                     </a>
                                 </li>
                                 <li class="dp-item">
-                                    <a href="#" class="aLogout">
-                                        <span class="dp-icon">
-                                            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                                    <a asp-area="" asp-controller="Auth" asp-action="LogOff" class="aLogout">
+                                        <span class="dp-icon" style="background:#fee2e2;">
+                                            <i class="fa-solid fa-arrow-right-from-bracket" style="color:#ef4444;"></i>
                                         </span>
-                                        <span>Logout Now</span>
+                                        <span style="font-weight:700; color:#ef4444;">Logout Now</span>
                                     </a>
                                 </li>
                             </ul>
+                        </li>
+
+                        <!-- Quick Topbar Sign Out -->
+                        <li>
+                            <a asp-area="" asp-controller="Auth" asp-action="LogOff" class="aLogout" title="Sign out" style="text-decoration: none;">
+                                <div class="nav-icon-badge" style="--ibg:#fee2e2; --iclr:#ef4444;" title="Logout">
+                                    <i class="fa-solid fa-power-off"></i>
+                                </div>
+                            </a>
                         </li>
 
                     </ul>
@@ -638,8 +684,8 @@
         <div class="page-body-wrapper">
             <!-- Page Sidebar Start -->
             <div class="sidebar-wrapper">
-                <div>
-                    @* Legacy logo removed in favor of enhanced branding block in partials *@
+                <div id="sidebarToggleDock" aria-label="Sidebar controls"></div>
+                <div style="height: 100%; display: flex; flex-direction: column;">
                     @{
                         string? role = User?.Claims?.FirstOrDefault(c => c.Type == "role")?.Value;
                     }
@@ -652,12 +698,7 @@
                         <partial name="_MenuPartial" />
                     }
                 </div>
-                <footer class="footer text-center">
-                    <p class="mb-0 font-9 line-height-11"><a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy Policy</a></p>
-                    <p class="mb-1 font-9 line-height-11">Terms &amp; Conditions</p>
-                    <p class="mb-0 font-9 line-height-11">&copy; 2023 - @company.</p>
-                    <form asp-area="" asp-controller="Auth" asp-action="LogOff" id="frmLogout"></form>
-                </footer>
+                <form asp-area="" asp-controller="Auth" asp-action="LogOff" id="frmLogout" style="display:none;"></form>
             </div>
             <!-- Page Sidebar Ends -->
 
@@ -666,6 +707,11 @@
                     <section>
                         @RenderBody()
                     </section>
+                    <footer class="mt-4 pt-3 pb-2 text-center text-muted" style="font-size: 11.5px; border-top: 1px solid #e2e8f0;">
+                        <span>&copy; @DateTime.Now.Year - @company. All rights reserved.</span> &bull;
+                        <a asp-area="" asp-controller="Home" asp-action="Privacy" class="text-muted text-decoration-none ms-1">Privacy Policy</a> &bull;
+                        <span class="ms-1">Terms &amp; Conditions</span>
+                    </footer>
                 </div>
             </div>
         </div>
@@ -746,7 +792,7 @@
                 <h3>Quick Dashboard Guide</h3>
             </div>
             <div class="help-guide-body">
-                <p>Welcome to the EduDigi LMS Dashboard! Here's a quick overview of how to navigate your learning space:</p>
+                <p>Welcome to the Edudigi Class LMS Dashboard! Here's a quick overview of how to navigate your learning space:</p>
                 <div class="guide-steps">
                     <div class="guide-step">
                         <span class="step-num">1</span>
@@ -822,7 +868,69 @@
                     }
                 });
             });
+            // Dismiss loader reliably
+            function dismissLoaders() {
+                var loaders = document.querySelectorAll('.loader-wrapper');
+                loaders.forEach(function (l) {
+                    l.style.transition = 'opacity 0.3s ease';
+                    l.style.opacity = '0';
+                    setTimeout(function () {
+                        if (l.parentNode) l.parentNode.removeChild(l);
+                    }, 300);
+                });
+            }
+            dismissLoaders();
+            window.addEventListener('load', dismissLoaders);
+            setTimeout(dismissLoaders, 1200);
         });
     </script>
+
+    <script>
+        // Keep the original toggle node: existing sidebar-menu.js click handler stays attached.
+        document.addEventListener('DOMContentLoaded', function () {
+            const sidebar = document.querySelector('.sidebar-wrapper');
+            const dock = document.getElementById('sidebarToggleDock');
+            const headerLeft = document.querySelector('.page-header .header-left-wrapper');
+            const toggle = document.querySelector('.page-header .toggle-sidebar, #sidebarToggleDock .toggle-sidebar');
+            if (!sidebar || !dock || !headerLeft || !toggle) return;
+
+            // Accessible hover names for existing role-based menu links.
+            document.querySelectorAll('.enhanced-sidebar a[data-title]').forEach(function (link) {
+                if (!link.hasAttribute('title')) link.setAttribute('title', link.getAttribute('data-title'));
+            });
+
+            function syncTogglePosition() {
+                const collapsed = sidebar.classList.contains('close_icon');
+                const destination = collapsed ? headerLeft : dock;
+                if (toggle.parentElement !== destination) destination.prepend(toggle);
+                toggle.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+                toggle.setAttribute('role', 'button');
+                toggle.setAttribute('tabindex', '0');
+                toggle.setAttribute('aria-expanded', String(!collapsed));
+                toggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+            }
+
+            // Handle both mouse and keyboard without adding a duplicate mouse click listener.
+            toggle.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    toggle.click();
+                }
+            });
+            new MutationObserver(syncTogglePosition).observe(sidebar, { attributes: true, attributeFilter: ['class'] });
+            syncTogglePosition();
+        });
+    </script>
+<script src="~/js/lms-sidebar-fix.js" asp-append-version="true"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var isMac = /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
+
+    document.querySelectorAll(".lms-search-shortcut").forEach(function (el) {
+        el.textContent = isMac ? "\u2318+K" : "Ctrl+K";
+    });
+});
+</script>
 </body>
 </html>
+

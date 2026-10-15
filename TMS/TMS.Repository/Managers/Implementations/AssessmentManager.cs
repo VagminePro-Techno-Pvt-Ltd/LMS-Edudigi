@@ -319,10 +319,17 @@ namespace TMS.Repository.Managers.Implementations
                 .Distinct()
                 .ToListAsync();
 
+            var enrolledCourseIds = await _context.CourseEnrollments
+                .Where(e => e.StudentId == studentId && e.IsActive && (e.Status == 0 || e.Status == 1))
+                .Select(e => e.CourseId)
+                .Distinct()
+                .ToListAsync();
+
             return await _context.ExamMasters
                 .Include(e => e.Course)
                 .Include(e => e.Faculty)
-                .Where(e => examIds.Contains(e.Id) && e.Status == "Active" && e.StartDate <= DateTime.UtcNow && e.EndDate >= DateTime.UtcNow)
+                .Where(e => (examIds.Contains(e.Id) || enrolledCourseIds.Contains(e.CourseId)) 
+                            && e.Status == "Active")
                 .ToListAsync();
         }
 
@@ -331,9 +338,14 @@ namespace TMS.Repository.Managers.Implementations
             var exam = await _context.ExamMasters.FindAsync(examId);
             if (exam == null || exam.Status != "Active") return null;
 
-            // Check if already assigned
+            // Check if explicitly assigned or enrolled in the course
             var assigned = await _context.ExamAssignments.AnyAsync(a => a.ExamId == examId && a.StudentId == studentId);
-            if (!assigned) return null;
+            if (!assigned)
+            {
+                bool isEnrolled = await _context.CourseEnrollments
+                    .AnyAsync(e => e.StudentId == studentId && e.CourseId == exam.CourseId && e.IsActive && (e.Status == 0 || e.Status == 1));
+                if (!isEnrolled) return null;
+            }
 
             // Check attempts count
             var attemptCount = await _context.StudentExamAttempts

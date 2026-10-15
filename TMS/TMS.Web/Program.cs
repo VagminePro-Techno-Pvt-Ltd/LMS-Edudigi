@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.HttpOverrides;
 using TMS.Repository;
 using TMS.ViewModels;
+using TMS.Web.Infrastructure;
 using UoN.ExpressiveAnnotations.NetCore.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -106,7 +107,7 @@ else
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 
 // Configure static files with no-cache headers for development
 if (app.Environment.IsDevelopment())
@@ -173,8 +174,18 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
-//app.Run(async context =>
-//{
-//    context.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>().MaxRequestBodySize = 200000000;
-//});
+// Disabled by default. Enabling requires an explicit non-Production opt-in,
+// disposable-database confirmation, and an exact expected database-name match.
+if (DatabaseInitializationGuard.ShouldRun(builder.Configuration, builder.Environment))
+{
+    using var scope = app.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetService<TMS.Repository.ApplicationDBContext>();
+    if (dbContext != null)
+    {
+        await TMS.Repository.DatabaseInitializer.EnsureTablesCreatedAsync(
+            dbContext,
+            disposableDatabaseConfirmed: true);
+    }
+}
+
 app.Run();
