@@ -138,6 +138,7 @@ Desktop.ini
 ## 4. Local publish, runtime, backup, and uploaded content
 ##---------------------------------------------------------------------
 /publish/
+/publish_lms/
 /publish_framework_win64/
 /edudigi_publish.zip
 /.runtime/
