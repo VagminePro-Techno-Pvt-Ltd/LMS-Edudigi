@@ -16,6 +16,8 @@ using TMS.ViewModels.Account;
 using TMS.Models.Academics;
 using TMS.ViewModels.Academics;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace TMS.Repository
 {
@@ -25,6 +27,15 @@ namespace TMS.Repository
         {
             services.AddTransient(provider =>
             {
+                var config = provider.GetService<Microsoft.Extensions.Configuration.IConfiguration>();
+                var connectionString = config?.GetConnectionString("DefaultConnection");
+                if (!string.IsNullOrEmpty(connectionString))
+                {
+                    var builder = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<ApplicationDBContext>();
+                    builder.UseSqlServer(connectionString);
+                    return new ApplicationDBContext(builder.Options);
+                }
+
                 var factory = new ContextFactory();
                 return factory.CreateDbContext(Array.Empty<string>());
             });
