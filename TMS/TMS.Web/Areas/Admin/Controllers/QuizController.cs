@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TMS.Repository.Managers;
 using TMS.ViewModels.Masters;
@@ -33,31 +33,37 @@ namespace TMS.Web.Areas.Admin.Controllers
             ViewData["Title"] = "Quiz Management";
 
             int userId = GetUserId();
-            string? userRole = User.FindFirstValue(ClaimTypes.Role);
+            bool isFaculty = IsFacultyRole();
 
             IEnumerable<QuizMasterViewModel> quizzes;
 
-            if (userRole?.Equals("Faculty", StringComparison.OrdinalIgnoreCase) == true)
+            if (isFaculty)
             {
-                var mappings = await _courseFacultyMapManager.GetAsync(new[] { "Course" }, x => x.FacultyId == userId);
-                var courseIds = mappings.Select(m => m.CourseId).Distinct().ToList();
+                var mappings = await _courseFacultyMapManager.GetAsync(null, x => x.FacultyId == userId && x.IsActive);
+                var courseIds = mappings.Select(m => m.CourseId).Distinct().ToHashSet();
 
-                quizzes = await _quizManager.GetAsync(
-                    new[] { "Course", "CourseQuadrant", "Questions" },
-                    x => courseIds.Contains(x.CourseId)
-                );
+                if (courseIds.Any())
+                {
+                    var allQuizzes = await _quizManager.GetAsync(new[] { "Course", "CourseQuadrant", "Questions" });
+                    quizzes = allQuizzes.Where(x => courseIds.Contains(x.CourseId)).ToList();
+                }
+                else
+                {
+                    quizzes = new List<QuizMasterViewModel>();
+                }
             }
             else
             {
                 quizzes = await _quizManager.GetAsync(new[] { "Course", "CourseQuadrant", "Questions" });
             }
 
+            ViewBag.IsFaculty = isFaculty;
             return View(quizzes);
         }
 
         // GET: Admin/Quiz/Item/{id?}
         [HttpGet]
-        public async Task<IActionResult> Item(string? iId)
+        public async Task<IActionResult> Item(string? iId, int? courseId, int? quadrantId)
         {
             QuizMasterViewModel model = new();
 
@@ -78,13 +84,21 @@ namespace TMS.Web.Areas.Admin.Controllers
             }
             else
             {
-                // Initialize with one question and one option
+                if (courseId.HasValue && courseId.Value > 0)
+                    model.CourseId = courseId.Value;
+                if (quadrantId.HasValue && quadrantId.Value > 0)
+                    model.CourseQuadrantId = quadrantId.Value;
+
+                // Initialize with one default question and two options
                 model.Questions = new List<QuizQuestionViewModel>
                 {
                     new QuizQuestionViewModel
                     {
+                        QuestionType = TMS.Models.Masters.QuestionType.Objective,
+                        MaxMarks = 1,
                         Options = new List<QuizOptionViewModel>
                         {
+                            new QuizOptionViewModel(),
                             new QuizOptionViewModel()
                         }
                     }
@@ -101,18 +115,10 @@ namespace TMS.Web.Areas.Admin.Controllers
         public async Task<IActionResult> Item(QuizMasterViewModel model)
         {
             int userId = GetUserId();
-            string? userRole = GetUserRole();
-
-            //if (!ModelState.IsValid)
-            //{
-            //    await SetDropdowns(model);
-            //    return View(model);
-            //}
 
             // Validate duplicate quiz per course/quadrant
-            if(model.Id==0)
-            { 
-
+            if (model.Id == 0)
+            {
                 bool duplicate = await ValidateModel(model);
                 if (duplicate)
                 {
@@ -120,7 +126,6 @@ namespace TMS.Web.Areas.Admin.Controllers
                     return View(model);
                 }
             }
-            
 
             bool result = await _quizManager.AddUpdateQuizAsync(model, userId);
 
@@ -136,21 +141,41 @@ namespace TMS.Web.Areas.Admin.Controllers
             return View(model);
         }
 
+        // POST: Admin/Quiz/Delete
+        [HttpPost]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var quiz = await _quizManager.GetAsync(id);
+            if (quiz == null)
+                return Json(new { success = false, message = "Quiz not found." });
+
+            if (IsFacultyRole())
+            {
+                int userId = GetUserId();
+                var mappings = await _courseFacultyMapManager.GetAsync(null, x => x.FacultyId == userId && x.CourseId == quiz.CourseId && x.IsActive);
+                if (!mappings.Any())
+                    return Json(new { success = false, message = "You do not have permission to delete this quiz." });
+            }
+
+            bool result = await _quizManager.DeleteAsync(id);
+            return Json(new { success = result, message = result ? "Quiz deleted successfully." : "Failed to delete quiz." });
+        }
+
         // Dropdown binding
         private async Task SetDropdowns(QuizMasterViewModel model)
         {
             int userId = GetUserId();
-            string? userRole = GetUserRole();
+            bool isFaculty = IsFacultyRole();
 
             List<CourseMasterViewModel> courses;
 
-            if (userRole?.Equals("Faculty", StringComparison.OrdinalIgnoreCase) == true)
+            if (isFaculty)
             {
-                var mappings = await _courseFacultyMapManager.GetAsync(new[] { "Course" }, x => x.FacultyId == userId);
+                var mappings = await _courseFacultyMapManager.GetAsync(new[] { "Course" }, x => x.FacultyId == userId && x.IsActive);
                 var courseIds = mappings.Select(m => m.CourseId).Distinct().ToList();
 
                 var allCourses = await _courseManager.GetAsync(null, t => t.IsActive);
-                courses = allCourses.Where(c => courseIds.Contains(c.Id)).ToList();
+                courses = allCourses.Where(c => courseIds.Contains(c.Id) || c.Id == model.CourseId).ToList();
             }
             else
             {
@@ -159,18 +184,8 @@ namespace TMS.Web.Areas.Admin.Controllers
 
             ViewBag.CourseId = courses ?? new List<CourseMasterViewModel>();
 
-            // Load only quadrants that belong to selected course (if any)
-            IEnumerable<CourseQuadrantViewModel> quadrants;
-
-            if (model.CourseId > 0)
-            {
-                quadrants = await _quadrantManager.GetAsync(null, q => q.IsActive );
-            }
-            else
-            {
-                quadrants = await _quadrantManager.GetAsync(null, q => q.IsActive);
-            }
-
+            // Load quadrants
+            var quadrants = await _quadrantManager.GetAsync(null, q => q.IsActive);
             ViewBag.QuadrantId = quadrants ?? new List<CourseQuadrantViewModel>();
         }
 
@@ -193,10 +208,11 @@ namespace TMS.Web.Areas.Admin.Controllers
         [HttpGet]
         public async Task<JsonResult> GetQuadrantsByCourse(int courseId)
         {
-            var quadrants = await _quadrantManager.GetAsync(null, q =>  q.IsActive);
+            var quadrants = await _quadrantManager.GetAsync(null, q => q.IsActive);
             var list = quadrants.Select(q => new { q.Id, q.Name }).ToList();
             return Json(list);
         }
+
         [HttpGet]
         public IActionResult RenderQuestionPartial(int index)
         {
@@ -204,16 +220,17 @@ namespace TMS.Web.Areas.Admin.Controllers
             {
                 QuestionText = string.Empty,
                 QuestionType = TMS.Models.Masters.QuestionType.Objective,
+                MaxMarks = 1,
                 Options = new List<QuizOptionViewModel>
-        {
-            new QuizOptionViewModel()
-        },
+                {
+                    new QuizOptionViewModel(),
+                    new QuizOptionViewModel()
+                },
                 CorrectOptionId = null
             };
 
             ViewData["qIndex"] = index;
             return PartialView("_QuestionTemplate", model);
         }
-
     }
 }

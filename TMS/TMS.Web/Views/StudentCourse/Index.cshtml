@@ -66,9 +66,30 @@
                         <a href="@Url.Action("Details","StudentCourse",new{courseId=course.CourseId})" class="course-card">
                             <div class="cc-top">
                                 <div class="cc-icon" style="background:@cBg[cx];color:@cCl[cx];"><i class="fa-solid @cIc[cx]"></i></div>
-                                <div class="cc-info"><h4>@course.CourseName</h4><span class="cc-code">@course.CourseCode</span></div>
+                                <div class="cc-info" style="flex:1;">
+                                    <h4>@course.CourseName</h4>
+                                    <span class="cc-code">@course.CourseCode</span>
+                                </div>
                             </div>
-                            <div class="cc-bottom"><span class="cc-arrow">Open Subject <i class="fa-solid fa-arrow-right"></i></span></div>
+                            <div class="cc-progress-section" style="margin: 12px 0 14px;">
+                                <div style="display:flex; justify-content:space-between; font-size:11.5px; font-weight:700; margin-bottom:5px;">
+                                    <span style="color:#64748b;">Learning Progress</span>
+                                    <span style="color:#2563eb;">@(course.ProgressPercent)%</span>
+                                </div>
+                                <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+                                    <div style="height:100%; width:@(course.ProgressPercent)%; background:linear-gradient(90deg, #3b82f6, #6366f1); border-radius:999px; transition:width 0.3s ease;"></div>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; font-size:11px; color:#94a3b8; margin-top:4px;">
+                                    <span>@course.CompletedMaterials of @course.TotalMaterials completed</span>
+                                    @if (course.ProgressPercent >= 100)
+                                    {
+                                        <span style="color:#16a34a; font-weight:700;"><i class="fa-solid fa-circle-check"></i> Finished</span>
+                                    }
+                                </div>
+                            </div>
+                            <div class="cc-bottom" style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #f1f5f9; padding-top:10px;">
+                                <span class="cc-arrow" style="font-size:12.5px; font-weight:700; color:#4f46e5;">Continue Learning <i class="fa-solid fa-arrow-right"></i></span>
+                            </div>
                         </a>
                         ci++;
                     }

@@ -1,19 +1,34 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TMS.Models.Assessments;
+using TMS.Repository;
 using TMS.Repository.Managers;
+using TMS.ViewModels;
+using TMS.ViewModels.Academics;
+using TMS.ViewModels.Masters;
+using TMS.Web.Models;
 
 namespace TMS.Web.Controllers
 {
     public class StudentExamController : BaseController
     {
         private readonly IAssessmentManager _assessmentManager;
+        private readonly ApplicationDBContext _context;
+        private readonly IMapper _mapper;
 
-        public StudentExamController(IAssessmentManager assessmentManager)
+        public StudentExamController(
+            IAssessmentManager assessmentManager,
+            ApplicationDBContext context,
+            IMapper mapper)
         {
             _assessmentManager = assessmentManager;
+            _context = context;
+            _mapper = mapper;
         }
 
         [HttpGet]
@@ -21,7 +36,52 @@ namespace TMS.Web.Controllers
         {
             int studentId = GetUserId();
             var exams = await _assessmentManager.GetAssignedExamsForStudentAsync(studentId);
-            return View(exams);
+
+            // Fetch course quizzes
+            var enrollments = await _context.CourseEnrollments.AsNoTracking()
+                .Where(x => x.IsActive && x.StudentId == studentId && (x.Status == 0 || x.Status == 1))
+                .Select(e => e.CourseId)
+                .ToListAsync();
+
+            var courseIds = new List<int>(enrollments);
+            var allCourses = await _context.CourseMasters.AsNoTracking().Where(c => c.IsActive).ToListAsync();
+
+            if (!courseIds.Any())
+            {
+                courseIds = allCourses.Select(c => c.Id).ToList();
+            }
+
+            var quizzesEntities = await _context.QuizMasters.AsNoTracking()
+                .Include(q => q.Questions).ThenInclude(q => q.Options)
+                .Include(q => q.Course)
+                .Include(q => q.CourseQuadrant)
+                .Where(q => q.IsActive && (courseIds.Contains(q.CourseId) || q.CourseId == 0))
+                .ToListAsync();
+
+            if (!quizzesEntities.Any())
+            {
+                quizzesEntities = await _context.QuizMasters.AsNoTracking()
+                    .Include(q => q.Questions).ThenInclude(q => q.Options)
+                    .Include(q => q.Course)
+                    .Include(q => q.CourseQuadrant)
+                    .Where(q => q.IsActive)
+                    .ToListAsync();
+            }
+
+            var allQuizzes = _mapper.Map<List<QuizMasterViewModel>>(quizzesEntities);
+
+            var attemptsEntities = await _context.StudentQuizAttempt.AsNoTracking()
+                .Include(a => a.Quiz)
+                .Where(a => a.IsActive && a.StudentId == studentId)
+                .OrderByDescending(a => a.AttemptDate)
+                .ToListAsync();
+
+            var attempts = _mapper.Map<List<StudentQuizAttemptViewModel>>(attemptsEntities);
+
+            ViewBag.Quizzes = allQuizzes.OrderByDescending(q => q.Id).ToList();
+            ViewBag.QuizAttempts = attempts ?? new List<StudentQuizAttemptViewModel>();
+
+            return View(exams ?? new List<ExamMaster>());
         }
 
         [HttpGet]
@@ -56,6 +116,12 @@ namespace TMS.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> SaveAnswer(int attemptId, int questionId, int? selectedOptionId, string? subjectiveAnswer, int remainingSeconds)
         {
+            var attempt = await _assessmentManager.GetAttemptDetailsAsync(attemptId);
+            if (attempt == null || attempt.StudentId != GetUserId())
+            {
+                return Unauthorized();
+            }
+
             var success = await _assessmentManager.SaveStudentAnswerAsync(attemptId, questionId, selectedOptionId, subjectiveAnswer, remainingSeconds);
             return Json(new { success });
         }
@@ -64,6 +130,12 @@ namespace TMS.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Submit(int attemptId)
         {
+            var attempt = await _assessmentManager.GetAttemptDetailsAsync(attemptId);
+            if (attempt == null || attempt.StudentId != GetUserId())
+            {
+                return Unauthorized();
+            }
+
             var result = await _assessmentManager.SubmitExamAttemptAsync(attemptId);
             if (result == null)
             {

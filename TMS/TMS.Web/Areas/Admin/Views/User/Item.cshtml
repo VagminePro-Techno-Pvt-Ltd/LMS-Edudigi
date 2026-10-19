@@ -1,14 +1,24 @@
 @model TMS.ViewModels.UserViewModel
+
 @{
     var permissions = ViewContext.HttpContext.GetFormPermissions();
     var roleFilter = ViewData["RoleFilter"]?.ToString();
     var isRoleLocked = !string.IsNullOrWhiteSpace(roleFilter);
 }
-<form method="post" class="noclick" id="frmItem" disabled="@(!permissions.Add && !permissions.Edit)" enctype="multipart/form-data">
+
+<form method="post"
+      class="noclick"
+      id="frmItem"
+      disabled="@(!permissions.Add && !permissions.Edit)"
+      enctype="multipart/form-data">
+
     <div class="card glass">
         <div class="card-body">
+
             <input asp-for="Id" type="hidden" />
+
             <div class="row mb-2">
+
                 <div class="col-12 col-md-6">
                     <div class="mb-1">
                         <label asp-for="Name"></label>
@@ -16,6 +26,7 @@
                         <span asp-validation-for="Name" class="text-danger"></span>
                     </div>
                 </div>
+
                 <div class="col-12 col-md-6">
                     <div class="mb-1">
                         <label asp-for="Email"></label>
@@ -23,70 +34,120 @@
                         <span asp-validation-for="Email" class="text-danger"></span>
                     </div>
                 </div>
-                  <div class="col-12 col-md-6">
+
+                <div class="col-12 col-md-6">
                     <div class="mb-1">
                         <label asp-for="ContactNo"></label>
-                        <input asp-for="ContactNo" placeholder="Enter Contact Number" />
+                        <input asp-for="ContactNo"
+                               type="tel"
+                               inputmode="tel"
+                               maxlength="20"
+                               placeholder="Enter Contact Number" />
                         <span asp-validation-for="ContactNo" class="text-danger"></span>
                     </div>
                 </div>
+
                 <div class="col-12 col-md-6">
                     <div class="mb-1">
                         <label asp-for="Description"></label>
-                        <input asp-for="Description" placeholder="Enter Description" />
-                        <span asp-validation-for="Description" class="text-danger"></span>
+                        <input asp-for="Description"
+                               placeholder="Enter Description" />
+                        <span asp-validation-for="Description"
+                              class="text-danger"></span>
                     </div>
                 </div>
 
-                @* ── Role Dropdown: LOCKED when on role-specific tab ── *@
                 <div class="col-12 col-md-6">
                     <div class="mb-1">
+
                         <label asp-for="RoleId"></label>
+
                         @if (isRoleLocked)
                         {
-                            @* Show role as read-only badge + keep hidden field for form submission *@
                             <input asp-for="RoleId" type="hidden" />
-                            <div class="form-control" style="background:#f1f5f9; cursor:not-allowed; font-weight:600; display:flex; align-items:center; gap:8px;">
-                                <i class="fas fa-lock" style="color:#94a3b8; font-size:12px;"></i>
+
+                            <div class="form-control"
+                                 style="background:#f1f5f9;
+                                        cursor:not-allowed;
+                                        font-weight:600;
+                                        display:flex;
+                                        align-items:center;
+                                        gap:8px;">
+
+                                <i class="fas fa-lock"
+                                   style="color:#94a3b8;
+                                          font-size:12px;"></i>
+
                                 <span>@roleFilter</span>
                             </div>
-                            <small class="text-muted"><i class="fas fa-info-circle"></i> Role is auto-assigned from this tab</small>
+
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle"></i>
+                                Role is auto-assigned from this tab
+                            </small>
                         }
                         else
                         {
-                            <select asp-for="RoleId" asp-items="ViewBag.RoleId" class="form-select"></select>
+                            <select asp-for="RoleId"
+                                    asp-items="ViewBag.RoleId"
+                                    class="form-select">
+                            </select>
                         }
+
                     </div>
-                    <span asp-validation-for="RoleId" class="text-danger"></span>
+
+                    <span asp-validation-for="RoleId"
+                          class="text-danger"></span>
                 </div>
-              
+
                 @if (Model!.Id > 0)
                 {
-                   
                     <div class="col-12 col-md-6">
                         <div class="mb-1 position-relative">
-                            <label asp-for="Password" class="form-label">Password</label>
+
+                            <label for="Password"
+                                   class="form-label">
+                                Password
+                            </label>
 
                             <div class="input-group">
-                                <input asp-for="Password"
+
+                                <input type="password"
+                                       id="Password"
+                                       name="Password"
                                        class="form-control"
-                                       placeholder="Enter Password"
-                                       value="@TMS.EncriptorUtility.Decrypt(Model.Password)" />
+                                       value=""
+                                       autocomplete="new-password"
+                                       placeholder="Leave blank to keep current password" />
 
                             </div>
 
-                            <span asp-validation-for="Password" class="text-danger"></span>
                         </div>
                     </div>
 
                     <div class="col-12 col-md-6">
-                        <label class="form-label">Status</label>
+
+                        <label class="form-label">
+                            Status
+                        </label>
+
                         <div class="d-flex">
-                            <label asp-for="IsActive" class="form-check-label nomandatory">Inactive</label>
+
+                            <label asp-for="IsActive"
+                                   class="form-check-label nomandatory">
+                                Inactive
+                            </label>
+
                             <div class="form-switch form-check ms-2">
-                                <input asp-for="IsActive" class="form-check-input">
+                                <input asp-for="IsActive"
+                                       class="form-check-input">
                             </div>
-                            <label asp-for="IsActive" class="form-check-label nomandatory">Active</label>
+
+                            <label asp-for="IsActive"
+                                   class="form-check-label nomandatory">
+                                Active
+                            </label>
+
                         </div>
                     </div>
                 }
@@ -100,7 +161,135 @@
                         </div>
                     </div>
                 }
+
+                @* ── Academic Program & Course Enrollment Section ── *@
+                @{
+                    var programList = ViewBag.ProgramList as List<TMS.ViewModels.Masters.CourseCategoryMasterViewModel>;
+                    var courseList = ViewBag.CourseList as List<TMS.ViewModels.Masters.CourseMasterViewModel>;
+                    var enrolledCourseIds = (ViewBag.EnrolledCourseIds as List<int>) ?? new List<int>();
+                    bool showEnrollment = roleFilter == "Student" || (Model?.RoleId.HasValue == true && ViewBag.RoleId != null);
+                }
+
+                <div class="col-12 mt-3" id="academicEnrollmentSection" style="@(showEnrollment ? "" : "display:none;")">
+                    <div style="background: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%); border: 1px solid #bae6fd; border-radius: 14px; padding: 18px 20px;">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <i class="fas fa-graduation-cap" style="color:#0284c7; font-size:18px;"></i>
+                            <h6 class="fw-bold mb-0" style="color:#0369a1;">Academic Program & Course Enrollment</h6>
+                            <span class="badge bg-primary ms-auto" style="font-size:11px;">Instant Enrollment</span>
+                        </div>
+                        <p class="text-muted small mb-3">
+                            Select a program to automatically assign all of its courses, or customize specific courses below.
+                        </p>
+
+                        <div class="row g-2">
+                            <div class="col-12 col-md-6 mb-2">
+                                <label class="form-label fw-semibold small text-secondary">Degree / Program</label>
+                                <select asp-for="ProgramId" id="userProgramSelect" class="form-select" style="border-radius:10px;">
+                                    <option value="">-- Choose Program (Optional) --</option>
+                                    @if (programList != null)
+                                    {
+                                        foreach (var prog in programList)
+                                        {
+                                            <option value="@prog.Id">@prog.Name (@(prog.NoOfSemester ?? 0) Semesters)</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="col-12 col-md-6 mb-2 d-flex align-items-end">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="autoEnrollAllCourses" checked style="cursor:pointer;">
+                                    <label class="form-check-label fw-bold small text-dark" for="autoEnrollAllCourses" style="cursor:pointer;">
+                                        Auto-select all courses in selected program
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-2">
+                            <label class="form-label fw-semibold small text-secondary d-flex justify-content-between">
+                                <span>Courses to Enroll:</span>
+                                <span class="text-primary fw-bold" id="selectedCoursesCount">0 courses selected</span>
+                            </label>
+                            <div id="courseSelectionContainer" style="max-height: 200px; overflow-y: auto; background: white; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 14px;">
+                                @if (courseList != null && courseList.Any())
+                                {
+                                    foreach (var course in courseList)
+                                    {
+                                        var isEnrolled = enrolledCourseIds.Contains(course.Id);
+                                        <div class="form-check course-checkbox-item mb-1" data-program-id="@course.CourseCategoryId">
+                                            <input class="form-check-input course-chk" type="checkbox" name="CourseIds" value="@course.Id" id="course_@course.Id" @(isEnrolled ? "checked" : "") style="cursor:pointer;" />
+                                            <label class="form-check-label small" for="course_@course.Id" style="cursor:pointer;">
+                                                <strong class="text-dark">@course.CourseCode</strong> — @course.Name
+                                                @if (course.Semester != null)
+                                                {
+                                                    <span class="badge bg-light text-secondary border ms-1" style="font-size:10px;">@course.Semester.Name</span>
+                                                }
+                                            </label>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="text-muted small py-2 text-center">No active courses available.</div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
 </form>
+
+<script>
+    function updateCourseCount() {
+        var count = $('.course-chk:checked').length;
+        $('#selectedCoursesCount').text(count + ' course(s) selected');
+    }
+
+    $(document).on('change', '.course-chk', updateCourseCount);
+
+    $('#userProgramSelect').on('change', function () {
+        var progId = $(this).val();
+        if (!progId) {
+            $('.course-checkbox-item').show();
+            return;
+        }
+
+        var autoSelect = $('#autoEnrollAllCourses').is(':checked');
+
+        $('.course-checkbox-item').each(function () {
+            var itemProg = $(this).data('program-id');
+            if (itemProg == progId) {
+                $(this).show();
+                if (autoSelect) {
+                    $(this).find('.course-chk').prop('checked', true);
+                }
+            } else {
+                if (autoSelect) {
+                    $(this).find('.course-chk').prop('checked', false);
+                }
+            }
+        });
+        updateCourseCount();
+    });
+
+    $('#autoEnrollAllCourses').on('change', function () {
+        if ($(this).is(':checked')) {
+            $('#userProgramSelect').trigger('change');
+        }
+    });
+
+    $('#RoleId').on('change', function () {
+        var roleText = $("#RoleId option:selected").text().toLowerCase();
+        if (roleText.indexOf('student') > -1) {
+            $('#academicEnrollmentSection').slideDown();
+        } else {
+            $('#academicEnrollmentSection').slideUp();
+        }
+    });
+
+    updateCourseCount();
+</script>

@@ -15,6 +15,9 @@ using TMS.ViewModels.Training;
 using TMS.ViewModels.Account;
 using TMS.Models.Academics;
 using TMS.ViewModels.Academics;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace TMS.Repository
 {
@@ -24,6 +27,15 @@ namespace TMS.Repository
         {
             services.AddTransient(provider =>
             {
+                var config = provider.GetService<Microsoft.Extensions.Configuration.IConfiguration>();
+                var connectionString = config?.GetConnectionString("DefaultConnection");
+                if (!string.IsNullOrEmpty(connectionString))
+                {
+                    var builder = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<ApplicationDBContext>();
+                    builder.UseSqlServer(connectionString);
+                    return new ApplicationDBContext(builder.Options);
+                }
+
                 var factory = new ContextFactory();
                 return factory.CreateDbContext(Array.Empty<string>());
             });
@@ -31,7 +43,7 @@ namespace TMS.Repository
             var config = new AutoMapper.MapperConfiguration(cfg =>
             {
                 cfg.AddProfile(new AutoMapperProfileConfiguration());
-            });
+            }, NullLoggerFactory.Instance);
             var mapper = config.CreateMapper();
             services.AddSingleton(mapper);
 
@@ -51,7 +63,7 @@ namespace TMS.Repository
             #region Managers    
             #region Masters
             services.AddScoped<IMasterManager<RoleMasterViewModel>, MasterManager<RoleMasterViewModel, RoleMaster>>();
-            services.AddScoped<IMasterManager<UserViewModel>, MasterManager<UserViewModel, UserMaster>>();
+            services.AddScoped<IMasterManager<UserViewModel>, UserManager>();
             services.AddScoped<IMasterManager<CompanyMasterViewModel>, MasterManager<CompanyMasterViewModel, CompanyMaster>>();
             services.AddScoped<IMasterManager<BadgeMasterViewModel>, MasterManager<BadgeMasterViewModel, BadgeMaster>>();
             services.AddScoped<IMasterManager<CertificateMasterViewModel>, MasterManager<CertificateMasterViewModel, CertificateMaster>>();

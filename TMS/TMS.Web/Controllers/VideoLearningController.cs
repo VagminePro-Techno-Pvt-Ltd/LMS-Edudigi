@@ -46,7 +46,7 @@ namespace TMS.Web.Controllers
         private async Task<List<int>> GetStudentSemesterIdsAsync(int studentId)
         {
             return await _db.CourseEnrollments
-                .Where(e => e.StudentId == studentId && e.IsActive)
+                .Where(e => e.StudentId == studentId && e.IsActive && (e.Status == 0 || e.Status == (int)TMS.Common.EnrollmentStatus.Active))
                 .Include(e => e.Course)
                 .Where(e => e.Course != null && e.Course.SemesterId.HasValue)
                 .Select(e => e.Course!.SemesterId!.Value)

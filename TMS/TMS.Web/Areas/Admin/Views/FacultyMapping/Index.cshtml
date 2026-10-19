@@ -1,85 +1,490 @@
-﻿@model IEnumerable<TMS.ViewModels.Masters.CourseMasterViewModel>
+@model IEnumerable<TMS.ViewModels.Masters.CourseMasterViewModel>
 @{
-    ViewData["Title"] = "Faculty-Course Mapping";
+    ViewData["Title"] = "Faculty Course Mapping";
+    var totalCourses = Model.Count();
+    var mappedCount = Model.Count(c => c.MappedFaculties != null && c.MappedFaculties.Any());
+    var unmappedCount = totalCourses - mappedCount;
 }
 
- 
+<style>
+    .fmap-hero {
+        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4338ca 100%);
+        border-radius: 18px;
+        padding: 2rem 2.2rem;
+        color: #ffffff;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 12px 30px -8px rgba(49, 46, 129, 0.35);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1.25rem;
+        position: relative;
+        overflow: hidden;
+    }
 
-<table id="tbl" class="table table-bordered table-striped align-middle">
-    <thead>
-        <tr>
-            <th>Course</th>
-            <th>Mapped Faculties</th>
-            <th class="text-center">Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var course in Model)
-        {
-            var hasMappings = course?.MappedFaculties != null && course.MappedFaculties.Any();
-            <tr>
-                <td>@course?.Name</td>
-                <td>
-                    @if (hasMappings)
+    .fmap-hero::after {
+        content: '';
+        position: absolute;
+        bottom: -30px;
+        right: -30px;
+        width: 180px;
+        height: 180px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .fmap-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+        padding: 1.5rem;
+        transition: all 0.2s ease;
+    }
+
+    .stat-widget {
+        background: rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 14px;
+        padding: 10px 18px;
+        min-width: 110px;
+        text-align: center;
+        transition: transform 0.2s;
+    }
+    .stat-widget:hover {
+        transform: translateY(-2px);
+    }
+
+    .faculty-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #f0fdf4;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+        border-radius: 9999px;
+        padding: 4px 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin: 3px 3px 3px 0;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+
+    .faculty-chip:hover {
+        background: #dcfce7;
+        border-color: #86efac;
+        transform: translateY(-1px);
+    }
+
+    .chip-avatar {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #16a34a;
+        color: white;
+        font-size: 10px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .chip-remove-btn {
+        color: #ef4444;
+        cursor: pointer;
+        margin-left: 2px;
+        font-size: 0.85rem;
+        border-radius: 50%;
+        padding: 2px 4px;
+        transition: all 0.15s;
+    }
+
+    .chip-remove-btn:hover {
+        background: #fee2e2;
+        color: #b91c1c;
+        transform: scale(1.18);
+    }
+
+    .btn-action-pill {
+        border-radius: 10px;
+        padding: 7px 14px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+    }
+    .btn-action-pill:hover {
+        transform: translateY(-1px);
+    }
+
+    .fmap-filter-pill {
+        padding: 6px 14px;
+        border-radius: 9999px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .fmap-filter-pill:hover {
+        background: #e2e8f0;
+        color: #1e293b;
+    }
+    .fmap-filter-pill.active {
+        background: #4338ca;
+        color: #ffffff;
+        border-color: #4338ca;
+        box-shadow: 0 2px 8px rgba(67, 56, 202, 0.25);
+    }
+
+    .course-title {
+        font-size: 0.95rem;
+        color: #1e293b;
+    }
+
+    .table thead th {
+        background-color: #f8fafc;
+        color: #475569;
+        font-weight: 700;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 2px solid #e2e8f0;
+        padding: 12px 16px;
+    }
+
+    .table tbody td {
+        padding: 14px 16px;
+        vertical-align: middle;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    /* Toast styling */
+    .fmap-toast {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 99999;
+        min-width: 300px;
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 14px 18px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        display: none;
+        border-left: 4px solid #4338ca;
+        animation: slideUp 0.3s ease;
+    }
+    @@keyframes slideUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+</style>
+
+@Html.AntiForgeryToken()
+
+<div class="container-fluid px-0">
+    <!-- Hero Header -->
+    <div class="fmap-hero">
+        <div style="flex: 1; min-width: 280px;">
+            <div style="display:inline-flex; align-items:center; gap:6px; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.3); color: #ffffff !important; padding: 5px 14px; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px;">
+                <i class="fa-solid fa-chalkboard-user text-warning"></i> INSTRUCTOR WORKLOAD
+            </div>
+            <h2 style="font-size: 24px; font-weight: 800; color: #ffffff !important; margin: 0 0 6px 0; letter-spacing: -0.3px;">
+                Faculty-Course Mapping
+            </h2>
+            <p style="font-size: 13.5px; color: rgba(255,255,255,0.85) !important; margin: 0; line-height: 1.4;">
+                Seamlessly assign and synchronize faculty instructors with academic courses and modules.
+            </p>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            <div class="stat-widget">
+                <span style="display:block; font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: 0.5px;">Courses</span>
+                <strong style="font-size: 22px; font-weight: 800; color: #ffffff;">@totalCourses</strong>
+            </div>
+            <div class="stat-widget">
+                <span style="display:block; font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: 0.5px;">Mapped</span>
+                <strong style="font-size: 22px; font-weight: 800; color: #4ade80;">@mappedCount</strong>
+            </div>
+            <div class="stat-widget">
+                <span style="display:block; font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: 0.5px;">Unassigned</span>
+                <strong style="font-size: 22px; font-weight: 800; color: #facc15;">@unmappedCount</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Container -->
+    <div class="fmap-card">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
+            <div class="d-flex gap-2 flex-wrap align-items-center">
+                <span class="text-muted small fw-bold me-1">Filter:</span>
+                <button class="fmap-filter-pill active" data-status="all">All (@totalCourses)</button>
+                <button class="fmap-filter-pill" data-status="mapped">Mapped (@mappedCount)</button>
+                <button class="fmap-filter-pill" data-status="unmapped">Unassigned (@unmappedCount)</button>
+            </div>
+            <div class="input-group" style="max-width: 320px;">
+                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa fa-search"></i></span>
+                <input type="text" id="courseTableSearch" class="form-control border-start-0 bg-light" placeholder="Search course name or code..." style="font-size:0.9rem;" />
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table id="courseMappingTable" class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 120px;">Course Code</th>
+                        <th style="min-width: 200px;">Course Title</th>
+                        <th style="min-width: 170px;">Program / Semester</th>
+                        <th style="min-width: 260px;">Assigned Instructors</th>
+                        <th class="text-center" style="width: 220px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Any())
                     {
-                        foreach (var f in course.MappedFaculties)
-                        {
-                            <span class="badge bg-secondary me-1">@f?.Name</span>
-                        }
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <i class="fa fa-book-open fa-3x mb-3 text-secondary opacity-50"></i>
+                                <h6>No active courses found</h6>
+                                <p class="small">Add courses in Course Structure to start mapping instructors.</p>
+                            </td>
+                        </tr>
                     }
-                    else
+                    @foreach (var course in Model)
                     {
-                        <span class="text-muted">No mapping</span>
+                        var hasMappings = course?.MappedFaculties != null && course.MappedFaculties.Any();
+                        <tr class="course-row" data-status="@(hasMappings ? "mapped" : "unmapped")" id="courseRow_@course?.Id">
+                            <td>
+                                <span class="badge bg-indigo bg-opacity-10 text-primary border border-primary border-opacity-25 px-2 py-1 font-monospace" style="font-size:0.82rem; letter-spacing:0.03em;">
+                                    @(course?.CourseCode ?? "N/A")
+                                </span>
+                            </td>
+                            <td>
+                                <strong class="course-title">@course?.Name</strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border px-2 py-1">
+                                    @(course?.CourseCategory?.Name ?? "General")
+                                </span>
+                                @if (course?.Semester != null)
+                                {
+                                    <span class="badge bg-light text-secondary border px-2 py-1 ms-1">
+                                        @course.Semester.Name
+                                    </span>
+                                }
+                            </td>
+                            <td>
+                                @if (hasMappings)
+                                {
+                                    <div class="d-flex flex-wrap align-items-center">
+                                        @foreach (var f in course!.MappedFaculties!)
+                                        {
+                                            var initials = (f.Name?.Length > 1) ? f.Name.Substring(0, 2).ToUpper() : "FC";
+                                            <span class="faculty-chip" title="@f.Email" id="chip_@(course.Id)_@(f.Id)">
+                                                <span class="chip-avatar">@initials</span>
+                                                <span>@f.Name</span>
+                                                <i class="fa fa-times chip-remove-btn" title="Unassign @f.Name"
+                                                   onclick="unassignInstructorDirect(@course.Id, @f.Id, '@f.Name.Replace("'", "\\'")')"></i>
+                                            </span>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-warning bg-opacity-10 text-dark border border-warning border-opacity-25 px-2 py-1" style="font-size:0.78rem;">
+                                        <i class="fa fa-exclamation-circle text-warning me-1"></i> No Instructors Assigned
+                                    </span>
+                                }
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-info view-mapping btn-action-pill"
+                                            data-course="@course?.Id" title="View Assigned Faculty">
+                                        <i class="fa fa-eye"></i> View
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary manage-mapping btn-action-pill ms-1"
+                                            data-course="@course?.Id" title="@(hasMappings ? "Edit Mappings" : "Assign Faculty")">
+                                        <i class="fa @(hasMappings ? "fa-user-pen" : "fa-user-plus")"></i> @(hasMappings ? "Edit" : "Assign")
+                                    </button>
+                                    @if (hasMappings)
+                                    {
+                                        <button type="button" class="btn btn-outline-danger btn-action-pill ms-1"
+                                                onclick="unassignAllDirect(@course?.Id, '@course?.Name.Replace("'", "\\'")')" title="Unassign All Faculty">
+                                            <i class="fa fa-user-xmark"></i>
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
                     }
-                </td>
-                <td class="text-center">
-                    <a href="javascript:void(0)" class="btn btn-sm btn-outline-info me-1 view-mapping"
-                       data-course="@course?.Id" title="View">
-                        <i class="fa fa-eye"></i>
-                    </a>
-                    <a href="javascript:void(0)" class="btn btn-sm btn-outline-primary manage-mapping"
-                       data-course="@course?.Id" title="@(hasMappings ? "Edit" : "Add")">
-                        <i class="fa @(hasMappings ? "fa-edit" : "fa-plus")"></i>
-                    </a>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
 <!-- Modal -->
 <div class="modal fade" id="mappingModal" tabindex="-1" aria-labelledby="mappingModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="mappingModalLabel"></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header text-white rounded-top-4" style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);">
+                <h5 class="modal-title fw-bold" id="mappingModalLabel">
+                    <i class="fa fa-chalkboard-user me-2"></i> Faculty Mapping
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body" id="mappingModalBody">
-                <div class="text-center p-3">
-                    <i class="fa fa-spinner fa-spin fa-2x"></i>
+            <div class="modal-body p-3" id="mappingModalBody">
+                <div class="text-center py-5">
+                    <i class="fa fa-spinner fa-spin fa-2x text-primary mb-2"></i>
+                    <p class="text-muted mb-0">Loading instructor details...</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Notification Toast -->
+<div class="fmap-toast" id="fmapToast">
+    <div class="d-flex align-items-center gap-2">
+        <i class="fa fa-circle-check text-success fs-5" id="toastIcon"></i>
+        <div>
+            <strong class="d-block" id="toastTitle">Notification</strong>
+            <span class="small text-muted" id="toastMessage">Action completed successfully.</span>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script>
+        function showFmapToast(title, message, isSuccess) {
+            var toast = $("#fmapToast");
+            $("#toastTitle").text(title);
+            $("#toastMessage").text(message);
+            if (isSuccess) {
+                toast.css("border-left-color", "#16a34a");
+                $("#toastIcon").attr("class", "fa fa-circle-check text-success fs-5");
+            } else {
+                toast.css("border-left-color", "#dc2626");
+                $("#toastIcon").attr("class", "fa fa-triangle-exclamation text-danger fs-5");
+            }
+            toast.stop(true, true).fadeIn(200);
+            setTimeout(function () {
+                toast.fadeOut(300);
+            }, 3000);
+        }
+
         $(function () {
-            $(".view-mapping").click(function () {
-                var courseId = $(this).data("course");
-                $("#mappingModalLabel").text("View Faculty Mapping");
-                $("#mappingModalBody").load(`/Admin/FacultyMapping/ViewMapping?courseId=${courseId}`);
-                $("#mappingModal").modal("show");
+            // Search table rows
+            $("#courseTableSearch").on("keyup", function () {
+                var val = $(this).val().toLowerCase();
+                var activeStatus = $(".fmap-filter-pill.active").data("status");
+
+                $(".course-row").each(function () {
+                    var text = $(this).text().toLowerCase();
+                    var status = $(this).data("status");
+                    var matchesSearch = text.indexOf(val) > -1;
+                    var matchesStatus = activeStatus === "all" || status === activeStatus;
+
+                    $(this).toggle(matchesSearch && matchesStatus);
+                });
             });
 
-            $(".manage-mapping").click(function () {
+            // Filter pills (All, Mapped, Unmapped)
+            $(".fmap-filter-pill").on("click", function () {
+                $(".fmap-filter-pill").removeClass("active");
+                $(this).addClass("active");
+                $("#courseTableSearch").trigger("keyup");
+            });
+
+            // View Mapping
+            $(document).on("click", ".view-mapping", function () {
                 var courseId = $(this).data("course");
-                $("#mappingModalLabel").text("Manage Faculty Mapping");
-                $("#mappingModalBody").load(`/Admin/FacultyMapping/ManageMapping?courseId=${courseId}`);
+                $("#mappingModalLabel").html('<i class="fa fa-users me-2"></i> Assigned Faculty');
+                $("#mappingModalBody").html('<div class="text-center py-5"><i class="fa fa-spinner fa-spin fa-2x text-primary mb-2"></i><p class="text-muted mb-0">Loading...</p></div>');
                 $("#mappingModal").modal("show");
+                $("#mappingModalBody").load(`/Admin/FacultyMapping/ViewMapping?courseId=${courseId}`);
+            });
+
+            // Manage Mapping
+            $(document).on("click", ".manage-mapping", function () {
+                var courseId = $(this).data("course");
+                $("#mappingModalLabel").html('<i class="fa fa-user-plus me-2"></i> Manage Course Instructors');
+                $("#mappingModalBody").html('<div class="text-center py-5"><i class="fa fa-spinner fa-spin fa-2x text-primary mb-2"></i><p class="text-muted mb-0">Loading...</p></div>');
+                $("#mappingModal").modal("show");
+                $("#mappingModalBody").load(`/Admin/FacultyMapping/ManageMapping?courseId=${courseId}`);
             });
         });
+
+        // 1-Click Direct Unassign Single Faculty
+        function unassignInstructorDirect(courseId, facultyId, facultyName) {
+            if (!confirm(`Are you sure you want to unassign ${facultyName} from this course?`)) return;
+
+            var token = $('input[name="__RequestVerificationToken"]').val();
+
+            $.ajax({
+                url: '/Admin/FacultyMapping/UnassignFaculty',
+                method: 'POST',
+                data: { courseId: courseId, facultyId: facultyId, __RequestVerificationToken: token },
+                success: function (res) {
+                    if (typeof res === 'string') {
+                        try { res = JSON.parse(res); } catch (e) {}
+                    }
+                    var isSuccess = res && (res.success === true || res.Success === true || res.status === true || res.Status === true);
+                    var msg = (res && (res.message || res.Message || res.msg || res.Msg)) || (isSuccess ? "Instructor unassigned successfully." : "Failed to unassign instructor.");
+
+                    if (isSuccess) {
+                        showFmapToast("Unassigned", msg, true);
+                        $(`#chip_${courseId}_${facultyId}`).fadeOut(200, function () {
+                            location.reload();
+                        });
+                    } else {
+                        showFmapToast("Error", msg, false);
+                    }
+                },
+                error: function (xhr) {
+                    showFmapToast("Error", "Server error while unassigning instructor.", false);
+                }
+            });
+        }
+
+        // 1-Click Direct Unassign All Faculty from Course
+        function unassignAllDirect(courseId, courseName) {
+            if (!confirm(`Are you sure you want to unassign ALL instructors from "${courseName}"?`)) return;
+
+            var token = $('input[name="__RequestVerificationToken"]').val();
+
+            $.ajax({
+                url: '/Admin/FacultyMapping/UnassignAll',
+                method: 'POST',
+                data: { courseId: courseId, __RequestVerificationToken: token },
+                success: function (res) {
+                    if (typeof res === 'string') {
+                        try { res = JSON.parse(res); } catch (e) {}
+                    }
+                    var isSuccess = res && (res.success === true || res.Success === true || res.status === true || res.Status === true);
+                    var msg = (res && (res.message || res.Message || res.msg || res.Msg)) || (isSuccess ? "All instructors unassigned successfully." : "Failed to unassign instructors.");
+
+                    if (isSuccess) {
+                        showFmapToast("Success", msg, true);
+                        setTimeout(function () {
+                            location.reload();
+                        }, 700);
+                    } else {
+                        showFmapToast("Error", msg, false);
+                    }
+                },
+                error: function () {
+                    showFmapToast("Error", "Server error occurred while unassigning instructors.", false);
+                }
+            });
+        }
     </script>
 }

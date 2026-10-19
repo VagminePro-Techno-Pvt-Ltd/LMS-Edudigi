@@ -10,7 +10,7 @@
     .qc-bc a:hover { color: #6366f1; }
     .qc-bc .sep { color: #cbd5e1; }
     .qc-bc strong { color: #1e293b; }
-    
+
     .qc-back { display: inline-flex; align-items: center; gap: 7px; color: #6366f1; font-size: 13px; font-weight: 700; text-decoration: none; margin-bottom: 20px; transition: opacity .15s; }
     .qc-back:hover { opacity: .75; color: #6366f1; }
 
@@ -25,7 +25,7 @@
     .qc-hero-icon { width: 56px; height: 56px; border-radius: 14px; background: rgba(255,255,255,0.18); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
     .qc-hero-text h2 { font-size: 20px; font-weight: 800; margin: 0 0 4px; }
     .qc-hero-text p { font-size: 13px; opacity: .82; margin: 0; }
-    
+
     .qc-stat { text-align: center; min-width: 72px; }
     .qc-stat .sn { font-size: 30px; font-weight: 800; line-height: 1; }
     .qc-stat .sl { font-size: 11px; opacity: .7; text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
@@ -40,7 +40,7 @@
     .qc-row:hover { background: #fafbff; }
     .qc-row-left { display: flex; align-items: center; gap: 16px; flex: 1; }
     .qc-type-icon { font-size: 20px; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    
+
     .qc-info h4 { font-size: 14.5px; font-weight: 700; color: #1e293b; margin: 0 0 3px; }
     .qc-info p { font-size: 12px; color: #94a3b8; margin: 0; }
 
@@ -135,11 +135,15 @@
             {
                 var mat = Model.Materials[i];
                 string previewUrl = mat.IsVideo && !string.IsNullOrEmpty(mat.ContentPath) ? mat.ContentPath : Url.Content(mat.FilePath ?? "");
-                
+
                 <div class="qc-row">
                     <div class="qc-row-left">
-                        <div class="qc-type-icon" style="background: @Model.QuadrantBgColor; color: @Model.QuadrantColor;">
-                            @if (mat.IsVideo)
+                        <div class="qc-type-icon" style="background: @(mat.IsCompleted ? "#ecfdf5" : Model.QuadrantBgColor); color: @(mat.IsCompleted ? "#059669" : Model.QuadrantColor);">
+                            @if (mat.IsCompleted)
+                            {
+                                <i class="fa-solid fa-circle-check"></i>
+                            }
+                            else if (mat.IsVideo)
                             {
                                 <i class="fa-solid fa-video"></i>
                             }
@@ -153,32 +157,43 @@
                             }
                         </div>
                         <div class="qc-info">
-                            <h4>@(i + 1). @mat.Title</h4>
-                            <p>@(mat.MaterialType) · @(mat.UploadedOn.ToString("MMM dd, yyyy"))</p>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <h4 class="mb-0">@(i + 1). @mat.Title</h4>
+                                @if (mat.IsCompleted)
+                                {
+                                    <span class="badge" style="background:#ecfdf5; color:#059669; font-size:11px; padding:3px 8px; border-radius:6px; font-weight:700;">
+                                        <i class="fa-solid fa-check me-1"></i>Completed
+                                    </span>
+                                }
+                            </div>
+                            <p class="mt-1">@(mat.MaterialType) · @(mat.UploadedOn.ToString("MMM dd, yyyy"))</p>
                         </div>
                     </div>
                     <div class="qc-actions">
                         @if (mat.IsVideo)
                         {
                             <button class="btn-qc btn-qc-view view-file-link"
+                                    style="@(mat.IsCompleted ? "background:#f0fdf4; color:#16a34a;" : "")"
                                     data-filepath="@previewUrl"
                                     data-filepath-fallback="@Url.Content(mat.FilePath ?? "")"
                                     data-title="@mat.Title"
                                     data-material-id="@mat.MaterialId"
                                     data-materialtype="@mat.MaterialType">
-                                <i class="fa-solid fa-play"></i> Watch
+                                <i class="fa-solid @(mat.IsCompleted ? "fa-rotate-right" : "fa-play")"></i> @(mat.IsCompleted ? "Watch Again" : "Watch")
                             </button>
                         }
                         else
                         {
-                            <a href="@Url.Action("View", "DocumentViewer", new { id = mat.MaterialId })" class="btn-qc btn-qc-view">
-                                <i class="fa-solid fa-eye"></i> View
+                            <a href="@Url.Action("View", "DocumentViewer", new { id = mat.MaterialId })"
+                               style="@(mat.IsCompleted ? "background:#f0fdf4; color:#16a34a;" : "")"
+                               class="btn-qc btn-qc-view">
+                                <i class="fa-solid @(mat.IsCompleted ? "fa-book-open-reader" : "fa-eye")"></i> @(mat.IsCompleted ? "Re-read" : "View")
                             </a>
                         }
 
                         @if (!string.IsNullOrEmpty(mat.FilePath) && mat.MaterialType != "VideoURL")
                         {
-                            <a href="@Url.Action("DownloadFile", "StudentCourseContent", new { id = mat.MaterialId })" 
+                            <a href="@Url.Action("DownloadFile", "StudentCourseContent", new { id = mat.MaterialId })"
                                class="btn-qc btn-qc-dl" title="Download">
                                 <i class="fa-solid fa-download"></i>
                             </a>

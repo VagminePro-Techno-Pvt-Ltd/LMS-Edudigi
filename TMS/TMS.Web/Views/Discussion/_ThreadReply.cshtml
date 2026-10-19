@@ -1,4 +1,8 @@
 @model TMS.Models.Masters.DiscussionReply
+@{
+    string currentRole = User?.Claims?.FirstOrDefault(c => c.Type == "role")?.Value?.ToLower() ?? "";
+    bool canModerate = currentRole.Contains("admin") || currentRole.Contains("faculty") || currentRole.Contains("teacher") || currentRole.Contains("coordinator") || User.IsInRole("Admin") || User.IsInRole("Faculty");
+}
 
 <div class="card reply-item mb-3 @(Model.IsAccepted ? "accepted-indicator" : "")">
     <div class="card-body p-4">
@@ -6,7 +10,31 @@
             <div class="d-flex align-items-center">
                 <img src="/img/user-default.png" class="rounded-circle mr-3 border shadow-sm" style="width: 40px; height: 40px;" />
                 <div>
-                    <span class="d-block font-weight-bold text-dark">@Model.User?.Name</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="font-weight-bold text-dark">@Model.User?.Name</span>
+                        @if (Model.User?.Role?.Name != null)
+                        {
+                            var rName = Model.User.Role.Name.ToLower();
+                            if (rName.Contains("faculty") || rName.Contains("teacher"))
+                            {
+                                <span class="badge" style="background:#dbeafe; color:#1d4ed8; font-size:11px; padding:3px 8px; border-radius:6px; font-weight:600;">
+                                    <i class="fas fa-chalkboard-teacher mr-1"></i> Faculty
+                                </span>
+                            }
+                            else if (rName.Contains("admin") || rName.Contains("management"))
+                            {
+                                <span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:11px; padding:3px 8px; border-radius:6px; font-weight:600;">
+                                    <i class="fas fa-shield mr-1"></i> Staff
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge" style="background:#f1f5f9; color:#475569; font-size:11px; padding:3px 8px; border-radius:6px; font-weight:600;">
+                                    <i class="fas fa-user-graduate mr-1"></i> Student
+                                </span>
+                            }
+                        }
+                    </div>
                     <small class="text-muted">@Model.CommentedOn.ToString("MMM dd, yyyy HH:mm")</small>
                 </div>
             </div>
@@ -17,7 +45,7 @@
                         <i class="fas fa-check-circle mr-1"></i> Best Answer
                     </span>
                 }
-                else if (User.IsInRole("Admin") || User.IsInRole("Faculty"))
+                else if (canModerate)
                 {
                     <button class="btn btn-outline-success btn-sm rounded-pill px-3" onclick="markAccepted(@Model.Id)">
                         <i class="fas fa-check mr-1"></i> Mark as Solution

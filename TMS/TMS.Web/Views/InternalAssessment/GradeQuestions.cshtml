@@ -1,0 +1,728 @@
+@model IEnumerable<TMS.Models.Academics.InternalAssessmentQuestionAnswer>
+@using TMS.Models.Academics
+@{
+    var a = (InternalAssessment)ViewBag.Assessment;
+    var s = (InternalAssessmentSubmission)ViewBag.Submission;
+    var questions = (List<InternalAssessmentQuestion>)ViewBag.Questions;
+    ViewData["Title"] = $"{a.Title} — Question-wise Evaluation";
+    var isLocked = (a.ResultsPublished && s.Marks.HasValue) || a.ResultApprovalRequested || a.ResultApproved;
+}
+
+<div class="container-fluid py-4">
+    <!-- Top Navigation & Header -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <a asp-action="Submissions" asp-route-id="@a.Id" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Back to Submissions
+            </a>
+            <span class="text-muted">|</span>
+            <span class="badge bg-primary fs-6">Submission #@s.Id</span>
+            @if (a.ResultsPublished)
+            {
+                <span class="badge bg-warning text-dark"><i class="bi bi-lock-fill me-1"></i>Results Published</span>
+            }
+            @if (a.ResultApproved)
+            {
+                <span class="badge bg-success"><i class="bi bi-patch-check-fill me-1"></i>Result Approved</span>
+            }
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" id="btnEvaluateAllAi" class="btn btn-outline-primary" @(isLocked ? "disabled" : "")>
+                <i class="bi bi-clipboard-check me-1"></i>Evaluate All Questions
+            </button>
+            <button type="button" id="btnAcceptAllAi" class="btn btn-outline-success" @(isLocked ? "disabled" : "")>
+                <i class="bi bi-check2-all me-1"></i>Apply Evaluated Marks (All)
+            </button>
+        </div>
+    </div>
+
+    <!-- Overview Card -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-7">
+                    <h3 class="card-title mb-1 text-dark fw-bold">@a.Title</h3>
+                    <div class="text-muted small">
+                        <span>Student ID: <strong class="text-dark">@s.StudentId</strong></span>
+                        <span class="mx-2">•</span>
+                        <span>Assessment Max Marks: <strong class="text-dark">@a.MaxMarks</strong></span>
+                        <span class="mx-2">•</span>
+                        <span>Questions: <strong class="text-dark">@questions.Count</strong></span>
+                        @if (!string.IsNullOrWhiteSpace(s.FilePath))
+                        {
+                            <span class="ms-3">
+                                <a asp-action="Download" asp-route-submissionId="@s.Id" class="btn btn-sm btn-outline-primary py-0">
+                                    <i class="bi bi-paperclip me-1"></i>Download Submission Attachment
+                                </a>
+                            </span>
+                        }
+                    </div>
+                </div>
+                <div class="col-md-5 text-md-end mt-3 mt-md-0">
+                    <div class="d-inline-block p-2 px-3 rounded bg-light border">
+                        <div class="small text-muted text-uppercase fw-semibold" style="letter-spacing: 0.5px;">Current Evaluated Total</div>
+                        <div class="fs-4 fw-bold text-primary">
+                            <span id="currentTotalDisplay">@(s.Marks?.ToString("0.00") ?? "0.00")</span>
+                            <span class="text-muted fs-6 fw-normal">/ @a.MaxMarks</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @if (isLocked)
+            {
+                <div class="alert alert-warning mt-3 mb-0 d-flex align-items-center">
+                    <i class="bi bi-exclamation-triangle-fill fs-5 me-2"></i>
+                    <div>
+                        <strong>Grades are locked:</strong> This assessment result is published or under approval review. Evaluation preview remains available, but applying marks or modifying grades requires unpublishing results first from the Faculty Dashboard.
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Notification Toast / Alert Container -->
+    <div id="aiAlertBox" class="d-none alert alert-dismissible fade show mb-4" role="alert">
+        <span id="aiAlertText"></span>
+        <button type="button" class="btn-close" aria-label="Close" onclick="$('#aiAlertBox').addClass('d-none')"></button>
+    </div>
+
+    <!-- Evaluation Form -->
+    <form asp-action="SaveGrades" method="post" id="gradingForm">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="submissionId" value="@s.Id" />
+
+        @for (int i = 0; i < questions.Count; i++)
+        {
+            var q = questions[i];
+            var r = Model.FirstOrDefault(x => x.QuestionId == q.Id);
+            var isMcq = q.Type == "MCQ";
+            var hasRubric = !string.IsNullOrWhiteSpace(q.ExpectedAnswer) || !string.IsNullOrWhiteSpace(q.Rubric);
+            var hasAiEvaluation = r?.AiSuggestedMarks != null || r?.AiConceptualMatchPercentage != null;
+
+            <div class="card mb-4 border-0 shadow-sm question-eval-card" id="qcard_@q.Id" data-qid="@q.Id" data-type="@q.Type" data-maxmarks="@q.Marks">
+                <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-secondary-subtle text-secondary border px-2 py-1">Q@(i + 1)</span>
+                        <span class="badge @(isMcq ? "bg-info-subtle text-info border border-info" : "bg-primary-subtle text-primary border border-primary")">
+                            @q.Type
+                        </span>
+                        <strong class="text-dark">Max Marks: @q.Marks</strong>
+
+                        @if (!isMcq && hasRubric)
+                        {
+                            <span id="rubricStatus_@q.Id" class="badge bg-success-subtle text-success border border-success">
+                                <i class="bi bi-check2-circle me-1"></i>Rubric Configured
+                            </span>
+                        }
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2">
+                        @if (!isMcq)
+                        {
+                            <button type="button" class="btn btn-sm btn-outline-secondary btn-toggle-rubric" data-bs-toggle="collapse" data-bs-target="#rubricCollapse_@q.Id">
+                                <i class="bi bi-journal-text me-1"></i>Reference & Rubric
+                            </button>
+                            <button type="button" class="btn btn-sm btn-primary btn-eval-ai" data-qid="@q.Id" @(isLocked ? "disabled" : "")>
+                                <i class="bi bi-check2-circle me-1"></i>Evaluate Understanding
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <!-- Question Prompt -->
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-semibold text-uppercase">Question Prompt</label>
+                        <div class="p-3 rounded bg-light border text-dark" style="white-space: pre-wrap; font-size: 0.95rem;">@q.Text</div>
+                    </div>
+
+                    <!-- Collapsible Rubric / Expected Answer Editor (Kept collapsed by default) -->
+                    @if (!isMcq)
+                    {
+                        <div class="collapse mb-3" id="rubricCollapse_@q.Id">
+                            <div class="card card-body bg-light-subtle border">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="mb-0 fw-bold text-dark">
+                                        <i class="bi bi-shield-check text-primary me-1"></i>Faculty Reference Answer & Marking Rubric
+                                    </h6>
+                                    <span class="badge bg-secondary">Version <span id="rubricVersion_@q.Id">@q.RubricVersion</span></span>
+                                </div>
+                                <p class="text-muted small mb-2">
+                                    Evaluates conceptual understanding against this reference. You can update key concepts and specific criteria anytime.
+                                </p>
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Expected Answer / Key Concepts</label>
+                                        <textarea id="expectedAnswer_@q.Id" class="form-control form-control-sm" rows="3" placeholder="List core concepts, definitions, formulas, or reference answer required for full marks...">@q.ExpectedAnswer</textarea>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Marking Rubric / Criteria</label>
+                                        <textarea id="rubric_@q.Id" class="form-control form-control-sm" rows="3" placeholder="Weighted criteria (e.g. 10m for definitions, 5m for examples, 5m for completeness)...">@q.Rubric</textarea>
+                                    </div>
+                                </div>
+                                <div class="mt-2 text-end">
+                                    <button type="button" class="btn btn-sm btn-success btn-save-rubric" data-qid="@q.Id">
+                                        <i class="bi bi-save me-1"></i>Save Reference & Rubric
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Student Submitted Answer -->
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-semibold text-uppercase">Student Submitted Answer</label>
+                        <div class="p-3 rounded border @(string.IsNullOrWhiteSpace(r?.AnswerText) ? "bg-light text-muted fst-italic" : "bg-white text-dark")" style="white-space: pre-wrap; font-size: 0.95rem; min-height: 50px;">
+                            @(string.IsNullOrWhiteSpace(r?.AnswerText) ? "No written text was submitted by the student." : r.AnswerText)
+                        </div>
+                    </div>
+
+                    <!-- Student Submitted Document / Project / Presentation Attachment -->
+                    @if (!string.IsNullOrWhiteSpace(r?.FilePath))
+                    {
+                        <div class="alert alert-info py-2 px-3 mb-3 d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-file-earmark-arrow-down-fill text-primary fs-5"></i>
+                                <div>
+                                    <strong class="text-dark">Attached Document (@q.Type)</strong>
+                                    <div class="small text-muted">@r.FilePath</div>
+                                </div>
+                            </div>
+                            <a asp-action="DownloadAnswerFile" asp-route-answerId="@r.Id" class="btn btn-sm btn-primary">
+                                <i class="bi bi-download me-1"></i>Download / View Document
+                            </a>
+                        </div>
+                    }
+
+                    @if (isMcq)
+                    {
+                        <!-- MCQ Auto-Evaluation Block -->
+                        <div class="alert alert-light border mb-3">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div>
+                                    <span class="fw-semibold">Correct Option:</span> <span class="badge bg-success">@q.CorrectOption</span>
+                                    <span class="ms-3 fw-semibold">Student Choice:</span> <span class="badge @(r?.AnswerText == q.CorrectOption ? "bg-success" : "bg-danger")">@(r?.AnswerText ?? "None")</span>
+                                </div>
+                                <div>
+                                    <span class="text-muted">Auto Marks:</span>
+                                    <strong class="text-dark fs-6">@(r?.Marks?.ToString("0.00") ?? "0.00") / @q.Marks</strong>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- Evaluation Progress / Loading Container -->
+                        <div id="aiLoading_@q.Id" class="d-none alert alert-info py-3 mb-3 text-center">
+                            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                            <span class="fw-semibold">Analyzing conceptual understanding against reference and rubric...</span>
+                        </div>
+
+                        <!-- Evaluation Error / Retry Banner -->
+                        <div id="aiError_@q.Id" class="d-none alert alert-danger py-2 mb-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="bi bi-exclamation-octagon-fill me-1"></i>
+                                    <span id="aiErrorText_@q.Id">Evaluation error occurred.</span>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-retry-ai" data-qid="@q.Id">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Retry
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Conceptual Understanding Results Panel (Clean, focused on concepts, no AI/Gemini branding, no forced suggested marks box) -->
+                        <div id="aiResultCard_@q.Id" class="card bg-light border-primary border-opacity-25 mb-3 @(hasAiEvaluation ? "" : "d-none")">
+                            <div class="card-header bg-primary bg-opacity-10 py-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <strong class="text-primary"><i class="bi bi-shield-check me-1"></i>Conceptual Evaluation</strong>
+                                    <span id="aiThresholdBadge_@q.Id" class="badge @(r?.AiThresholdMet == true ? "bg-success" : "bg-danger")">
+                                        @(r?.AiThresholdMet == true ? "Threshold Met (≥50%)" : "Below Threshold (<50%) — Review Needed")
+                                    </span>
+                                    <span id="aiConfidenceBadge_@q.Id" class="badge bg-secondary-subtle text-secondary border">
+                                        Confidence: <span id="aiConfidenceText_@q.Id">@(r?.AiConfidence ?? "Medium")</span>
+                                    </span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <!-- Hidden score element for script reference -->
+                                    <span id="aiSuggestedMarksText_@q.Id" class="d-none">@(r?.AiSuggestedMarks?.ToString("0.00") ?? "0.00")</span>
+                                    <button type="button" class="btn btn-sm btn-success btn-accept-ai" data-qid="@q.Id" @(isLocked ? "disabled" : "")>
+                                        <i class="bi bi-check-lg me-1"></i>Apply Evaluated Marks
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="card-body py-3">
+                                <!-- Conceptual Match Progress Bar -->
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="small fw-semibold text-muted">Conceptual Understanding Match</span>
+                                        <span id="aiMatchPercentageText_@q.Id" class="small fw-bold @(r?.AiThresholdMet == true ? "text-success" : "text-danger")">
+                                            @(r?.AiConceptualMatchPercentage?.ToString("0.0") ?? "0.0")%
+                                        </span>
+                                    </div>
+                                    <div class="progress" style="height: 10px;">
+                                        <div id="aiProgressBar_@q.Id" class="progress-bar @(r?.AiThresholdMet == true ? "bg-success" : "bg-danger")"
+                                             role="progressbar"
+                                             style="width: @(r?.AiConceptualMatchPercentage ?? 0m)%;"
+                                             aria-valuenow="@(r?.AiConceptualMatchPercentage ?? 0m)"
+                                             aria-valuemin="0"
+                                             aria-valuemax="100"></div>
+                                    </div>
+                                    <div class="small text-muted mt-1" style="font-size: 0.75rem;">
+                                        Benchmark: 50% conceptual threshold. Match ≥50% indicates core understanding of required concepts.
+                                    </div>
+                                </div>
+
+                                <!-- Strengths & Missing Concepts -->
+                                <div class="row g-2 mb-2">
+                                    <div class="col-md-6">
+                                        <div class="p-2 rounded bg-success bg-opacity-10 border border-success border-opacity-25 h-100">
+                                            <div class="small fw-bold text-success mb-1"><i class="bi bi-hand-thumbs-up me-1"></i>Demonstrated Strengths</div>
+                                            <div id="aiStrengthsText_@q.Id" class="small text-dark" style="white-space: pre-wrap;">@(r?.AiStrengths ?? "None noted")</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="p-2 rounded bg-warning bg-opacity-10 border border-warning border-opacity-25 h-100">
+                                            <div class="small fw-bold text-warning-emphasis mb-1"><i class="bi bi-exclamation-triangle me-1"></i>Missing or Incomplete Concepts</div>
+                                            <div id="aiMissingConceptsText_@q.Id" class="small text-dark" style="white-space: pre-wrap;">@(r?.AiMissingConcepts ?? "None noted")</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Evaluation Feedback -->
+                                <div class="p-2 rounded bg-white border">
+                                    <div class="small fw-bold text-primary mb-1"><i class="bi bi-chat-left-text me-1"></i>Evaluation Feedback</div>
+                                    <div id="aiFeedbackDisplay_@q.Id" class="small text-dark" style="white-space: pre-wrap;">@(r?.AiFeedback ?? "No feedback provided")</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Manual Grade Inputs (Faculty Direct Control) -->
+                        <div class="row g-3 align-items-center pt-2 border-top">
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold text-dark small mb-1">Marks Awarded / @q.Marks</label>
+                                <div class="input-group">
+                                    <input type="number"
+                                           id="marksInput_@q.Id"
+                                           name="marks[@q.Id]"
+                                           min="0"
+                                           max="@q.Marks"
+                                           step="0.01"
+                                           value="@(r?.Marks?.ToString("0.00") ?? "")"
+                                           required
+                                           class="form-control form-control-lg marks-input fw-bold text-primary"
+                                           @(isLocked ? "readonly" : "") />
+                                    <span class="input-group-text bg-light text-muted">/ @q.Marks</span>
+                                </div>
+                            </div>
+                            <div class="col-md-9">
+                                <label class="form-label fw-bold text-dark small mb-1">Faculty Feedback (Optional)</label>
+                                <input type="text"
+                                       id="feedbackInput_@q.Id"
+                                       name="feedback[@q.Id]"
+                                       maxlength="1000"
+                                       value="@r?.Feedback"
+                                       placeholder="Provide constructive feedback for student..."
+                                       class="form-control"
+                                       @(isLocked ? "readonly" : "") />
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Save Button Section -->
+        <div class="d-flex justify-content-between align-items-center my-4 p-3 rounded bg-white shadow-sm">
+            <div>
+                <a asp-action="Submissions" asp-route-id="@a.Id" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1"></i>Cancel & Return
+                </a>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <div class="text-end">
+                    <div class="small text-muted">Total Calculated Marks</div>
+                    <strong class="fs-5 text-primary"><span id="formTotalMarks">@(s.Marks?.ToString("0.00") ?? "0.00")</span> / @a.MaxMarks</strong>
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg px-4" @(isLocked ? "disabled" : "")>
+                    <i class="bi bi-check2-circle me-1"></i>Save Question-wise Grades
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Confirmation Modal for Applying Evaluated Marks -->
+<div class="modal fade" id="acceptAiModal" tabindex="-1" aria-labelledby="acceptAiModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="acceptAiModalLabel">Apply Evaluated Marks</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="acceptAiModalBodyText" class="text-dark">
+                    Apply the evaluated marks and constructive feedback to this question?
+                </p>
+                <div class="alert alert-info py-2 small mb-0">
+                    <i class="bi bi-info-circle me-1"></i>You can review or adjust the marks and feedback before saving final grades.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="btnConfirmAcceptAi">Apply Marks</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+$(document).ready(function() {
+    const submissionId = @s.Id;
+    const isLocked = @(isLocked ? "true" : "false");
+    const token = $('input[name="__RequestVerificationToken"]').val();
+
+    // Recalculate and update the running total of marks across all question inputs
+    function recalculateTotal() {
+        let total = 0;
+        $('.marks-input').each(function() {
+            const val = parseFloat($(this).val());
+            if (!isNaN(val)) {
+                total += val;
+            }
+        });
+        const formatted = total.toFixed(2);
+        $('#formTotalMarks').text(formatted);
+        $('#currentTotalDisplay').text(formatted);
+    }
+
+    $(document).on('input change', '.marks-input', function() {
+        recalculateTotal();
+    });
+
+    function showAlert(message, kind = 'info') {
+        const box = $('#aiAlertBox');
+        box.removeClass('d-none alert-info alert-success alert-warning alert-danger')
+           .addClass('alert-' + kind);
+        $('#aiAlertText').html(message);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // 1. Save Rubric via AJAX
+    $(document).on('click', '.btn-save-rubric', function() {
+        const btn = $(this);
+        const qid = btn.data('qid');
+        const expectedAnswer = $('#expectedAnswer_' + qid).val();
+        const rubric = $('#rubric_' + qid).val();
+
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Saving...');
+
+        $.ajax({
+            url: '@Url.Action("SaveQuestionRubric", "InternalAssessment")',
+            type: 'POST',
+            data: {
+                submissionId: submissionId,
+                questionId: qid,
+                expectedAnswer: expectedAnswer,
+                rubric: rubric,
+                __RequestVerificationToken: token
+            },
+            success: function(res) {
+                btn.prop('disabled', false).html('<i class="bi bi-save me-1"></i>Save Reference & Rubric');
+                if (res.success) {
+                    $('#rubricVersion_' + qid).text(res.rubricVersion);
+                    const badge = $('#rubricStatus_' + qid);
+                    badge.removeClass('bg-warning-subtle text-dark border-warning')
+                         .addClass('bg-success-subtle text-success border-success')
+                         .html('<i class="bi bi-check2-circle me-1"></i>Rubric Configured');
+                    showAlert('Reference answer and rubric updated successfully for Question #' + qid, 'success');
+                } else {
+                    showAlert(res.message || 'Failed to save rubric.', 'danger');
+                }
+            },
+            error: function(xhr) {
+                btn.prop('disabled', false).html('<i class="bi bi-save me-1"></i>Save Reference & Rubric');
+                showAlert('Error saving rubric: ' + (xhr.responseText || 'Server error'), 'danger');
+            }
+        });
+    });
+
+    // 2. Evaluate Single Question
+    function runAiEvaluation(qid, btn) {
+        const loading = $('#aiLoading_' + qid);
+        const errBox = $('#aiError_' + qid);
+        const resultCard = $('#aiResultCard_' + qid);
+
+        if (btn) btn.prop('disabled', true);
+        loading.removeClass('d-none');
+        errBox.addClass('d-none');
+
+        return $.ajax({
+            url: '@Url.Action("EvaluateQuestionAi", "InternalAssessment")',
+            type: 'POST',
+            data: {
+                submissionId: submissionId,
+                questionId: qid,
+                __RequestVerificationToken: token
+            },
+            success: function(res) {
+                loading.addClass('d-none');
+                if (btn) btn.prop('disabled', false);
+
+                if (res.rubricRequired) {
+                    $('#rubricCollapse_' + qid).collapse('show');
+                    errBox.removeClass('d-none');
+                    $('#aiErrorText_' + qid).html('<strong>Rubric Required:</strong> Please provide expected concepts or a rubric for this question first.');
+                    showAlert('Reference or rubric required before evaluating Question #' + qid + '. Please fill in expected concepts below.', 'warning');
+                    return;
+                }
+
+                if (!res.success) {
+                    errBox.removeClass('d-none');
+                    $('#aiErrorText_' + qid).text(res.errorMessage || 'Evaluation failed.');
+                    return;
+                }
+
+                // Render result into UI
+                const ev = res.evaluation;
+                renderAiResult(qid, ev);
+            },
+            error: function(xhr) {
+                loading.addClass('d-none');
+                if (btn) btn.prop('disabled', false);
+                errBox.removeClass('d-none');
+                $('#aiErrorText_' + qid).text('Evaluation request failed. Check your connection or server configuration.');
+            }
+        });
+    }
+
+    function renderAiResult(qid, ev) {
+        const resultCard = $('#aiResultCard_' + qid);
+        resultCard.removeClass('d-none');
+
+        // Match Percentage & Progress Bar
+        const matchPct = parseFloat(ev.conceptualMatchPercentage) || 0;
+        $('#aiMatchPercentageText_' + qid)
+            .text(matchPct.toFixed(1) + '%')
+            .removeClass('text-success text-danger')
+            .addClass(ev.thresholdMet ? 'text-success' : 'text-danger');
+
+        $('#aiProgressBar_' + qid)
+            .css('width', matchPct + '%')
+            .removeClass('bg-success bg-danger')
+            .addClass(ev.thresholdMet ? 'bg-success' : 'bg-danger')
+            .attr('aria-valuenow', matchPct);
+
+        // Threshold Badge
+        const thresholdBadge = $('#aiThresholdBadge_' + qid);
+        if (ev.thresholdMet) {
+            thresholdBadge.removeClass('bg-danger').addClass('bg-success').text('Threshold Met (≥50%)');
+        } else {
+            thresholdBadge.removeClass('bg-success').addClass('bg-danger').text('Below Threshold (<50%) — Review Needed');
+        }
+
+        // Store score in hidden element
+        const marks = parseFloat(ev.suggestedMarks) || 0;
+        $('#aiSuggestedMarksText_' + qid).text(marks.toFixed(2));
+
+        // Confidence
+        $('#aiConfidenceText_' + qid).text(ev.confidence || 'Medium');
+
+        // Strengths & Missing Concepts & Feedback
+        $('#aiStrengthsText_' + qid).text(ev.strengths || 'None noted');
+        $('#aiMissingConceptsText_' + qid).text(ev.missingConcepts || 'None noted');
+        $('#aiFeedbackDisplay_' + qid).text(ev.feedback || 'None');
+
+        // Store data attributes on the accept button
+        resultCard.find('.btn-accept-ai')
+            .data('suggestedmarks', marks.toFixed(2))
+            .data('feedback', ev.feedback || '');
+    }
+
+    $(document).on('click', '.btn-eval-ai', function() {
+        const btn = $(this);
+        const qid = btn.data('qid');
+        runAiEvaluation(qid, btn);
+    });
+
+    $(document).on('click', '.btn-retry-ai', function() {
+        const qid = $(this).data('qid');
+        runAiEvaluation(qid, null);
+    });
+
+    // 3. Apply Evaluated Marks for a single question with modal confirmation
+    let pendingAcceptQid = null;
+    let pendingAcceptMarks = null;
+    let pendingAcceptFeedback = null;
+
+    $(document).on('click', '.btn-accept-ai', function() {
+        if (isLocked) {
+            showAlert('Results are published or under approval review. Cannot change grades.', 'warning');
+            return;
+        }
+
+        const qid = $(this).data('qid');
+        const suggestedMarks = $('#aiSuggestedMarksText_' + qid).text().trim();
+        const feedback = $('#aiFeedbackDisplay_' + qid).text().trim();
+
+        pendingAcceptQid = qid;
+        pendingAcceptMarks = suggestedMarks;
+        pendingAcceptFeedback = feedback;
+
+        const maxMarks = $('#qcard_' + qid).data('maxmarks');
+        $('#acceptAiModalBodyText').html(
+            'Apply evaluated score of <strong>' + suggestedMarks + ' / ' + maxMarks + '</strong> and feedback for Question #' + qid + '?'
+        );
+
+        const modal = new bootstrap.Modal(document.getElementById('acceptAiModal'));
+        modal.show();
+    });
+
+    $('#btnConfirmAcceptAi').on('click', function() {
+        if (!pendingAcceptQid) return;
+        const qid = pendingAcceptQid;
+
+        // Apply to input fields immediately on the page
+        $('#marksInput_' + qid).val(pendingAcceptMarks).trigger('change');
+        if (pendingAcceptFeedback && pendingAcceptFeedback !== 'None' && pendingAcceptFeedback !== 'No feedback provided') {
+            $('#feedbackInput_' + qid).val(pendingAcceptFeedback);
+        }
+
+        // Visual flash highlight on marks input
+        const input = $('#marksInput_' + qid);
+        input.addClass('border-success bg-success-subtle');
+        setTimeout(() => input.removeClass('border-success bg-success-subtle'), 1200);
+
+        // Also post to backend AcceptAiMarks for persistence
+        $.ajax({
+            url: '@Url.Action("AcceptAiMarks", "InternalAssessment")',
+            type: 'POST',
+            data: {
+                submissionId: submissionId,
+                questionId: qid,
+                __RequestVerificationToken: token
+            },
+            success: function(res) {
+                if (res.success) {
+                    recalculateTotal();
+                }
+            }
+        });
+
+        const modalEl = document.getElementById('acceptAiModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+
+        showAlert('Marks of ' + pendingAcceptMarks + ' applied for Question #' + qid + '. Click "Save Question-wise Grades" when complete.', 'success');
+        pendingAcceptQid = null;
+    });
+
+    // 4. Evaluate All Questions
+    $('#btnEvaluateAllAi').on('click', function() {
+        const btn = $(this);
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Evaluating All Questions...');
+
+        showAlert('Starting evaluation for all eligible questions. Please wait...', 'info');
+
+        $.ajax({
+            url: '@Url.Action("EvaluateAllQuestionsAi", "InternalAssessment")',
+            type: 'POST',
+            data: {
+                submissionId: submissionId,
+                __RequestVerificationToken: token
+            },
+            success: function(res) {
+                btn.prop('disabled', false).html('<i class="bi bi-clipboard-check me-1"></i>Evaluate All Questions');
+                if (res.success) {
+                    if (res.results && res.results.length > 0) {
+                        res.results.forEach(function(item) {
+                            if (item.success && item.evaluation) {
+                                renderAiResult(item.questionId, item.evaluation);
+                            } else if (item.rubricRequired) {
+                                $('#rubricCollapse_' + item.questionId).collapse('show');
+                                $('#aiError_' + item.questionId).removeClass('d-none');
+                                $('#aiErrorText_' + item.questionId).text('Rubric required for this question.');
+                            } else {
+                                $('#aiError_' + item.questionId).removeClass('d-none');
+                                $('#aiErrorText_' + item.questionId).text(item.errorMessage || 'Evaluation failed.');
+                            }
+                        });
+                    }
+
+                    showAlert(
+                        'Batch evaluation completed: <strong>' + res.totalEvaluated + ' question(s) evaluated successfully</strong>.' +
+                        (res.totalErrors > 0 ? (' (' + res.totalErrors + ' failed)') : ''),
+                        res.totalErrors > 0 ? 'warning' : 'success'
+                    );
+                } else {
+                    showAlert(res.errorMessage || 'Evaluation encountered an issue.', 'danger');
+                }
+            },
+            error: function(xhr) {
+                btn.prop('disabled', false).html('<i class="bi bi-clipboard-check me-1"></i>Evaluate All Questions');
+                showAlert('Evaluation request failed: ' + (xhr.responseText || 'Server error'), 'danger');
+            }
+        });
+    });
+
+    // 5. Apply All Evaluated Marks
+    $('#btnAcceptAllAi').on('click', function() {
+        if (isLocked) {
+            showAlert('Results are published or under approval review. Cannot change grades.', 'warning');
+            return;
+        }
+
+        if (!confirm('Are you sure you want to apply evaluated marks for ALL questions that have been evaluated? This will update the input marks and feedback fields.')) {
+            return;
+        }
+
+        const btn = $(this);
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Applying...');
+
+        // Update inputs on client
+        $('.question-eval-card').each(function() {
+            const qid = $(this).data('qid');
+            const suggestedText = $('#aiSuggestedMarksText_' + qid).text().trim();
+            const feedbackText = $('#aiFeedbackDisplay_' + qid).text().trim();
+            const hasResult = !$('#aiResultCard_' + qid).hasClass('d-none');
+
+            if (hasResult && suggestedText && !isNaN(parseFloat(suggestedText))) {
+                $('#marksInput_' + qid).val(suggestedText);
+                if (feedbackText && feedbackText !== 'None' && feedbackText !== 'No feedback provided') {
+                    $('#feedbackInput_' + qid).val(feedbackText);
+                }
+            }
+        });
+        recalculateTotal();
+
+        // Also post to backend AcceptAllAiMarks
+        $.ajax({
+            url: '@Url.Action("AcceptAllAiMarks", "InternalAssessment")',
+            type: 'POST',
+            data: {
+                submissionId: submissionId,
+                __RequestVerificationToken: token
+            },
+            success: function(res) {
+                btn.prop('disabled', false).html('<i class="bi bi-check2-all me-1"></i>Apply Evaluated Marks (All)');
+                if (res.success) {
+                    showAlert('Successfully applied evaluated marks for ' + res.acceptedCount + ' questions! Click "Save Question-wise Grades" when ready to persist.', 'success');
+                } else {
+                    showAlert('Application completed with warning.', 'warning');
+                }
+            },
+            error: function(xhr) {
+                btn.prop('disabled', false).html('<i class="bi bi-check2-all me-1"></i>Apply Evaluated Marks (All)');
+                showAlert('Error applying marks: ' + (xhr.responseText || 'Server error'), 'danger');
+            }
+        });
+    });
+
+    // Initial total calculation
+    recalculateTotal();
+});
+</script>
+}

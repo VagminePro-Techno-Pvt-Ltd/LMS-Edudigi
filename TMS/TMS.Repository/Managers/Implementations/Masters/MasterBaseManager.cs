@@ -1,4 +1,3 @@
-using Azure;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
 using System.Linq.Expressions;
@@ -628,7 +627,7 @@ namespace TMS.Repository.Managers.Implementations.Masters
                                     if (correctOption != null && ansVm.SelectedOptionId == correctOption.Id)
                                     {
                                         ansEntity.IsCorrect = true;
-                                        calculatedScore++;
+                                        calculatedScore += (question.MaxMarks ?? 1);
                                     }
                                     else
                                     {

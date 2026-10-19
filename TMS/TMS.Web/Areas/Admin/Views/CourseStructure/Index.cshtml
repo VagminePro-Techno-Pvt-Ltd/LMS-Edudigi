@@ -1,4 +1,5 @@
 @model TMS.ViewModels.Academics.CurriculumBuilderPageViewModel
+
 @{
     ViewData["Title"] = "Curriculum Builder";
     bool isFaculty = ViewBag.IsFaculty ?? false;
@@ -9,111 +10,159 @@
 
 <style>
     .cb-shell {
-        max-width: 1400px;
+        width: 100%;
+        max-width: 1440px;
         margin: 0 auto;
-        padding: 20px;
+        padding: 24px 28px 40px;
+        box-sizing: border-box;
     }
 
     .cb-header {
         display: flex;
+        align-items: center;
         justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 24px;
-        padding: 28px 32px;
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.04), rgba(139, 92, 246, 0.04));
+        min-height: 118px;
+        padding: 24px 30px;
+        margin-bottom: 22px;
+        border: 1px solid #e4e7ff;
         border-radius: 20px;
-        border: 1px solid rgba(99, 102, 241, 0.08);
+        background: linear-gradient(135deg, #fafaff 0%, #f6f5ff 100%);
     }
 
-    .cb-header h1 {
-        font-size: 1.5rem;
-        font-weight: 800;
-        color: #0f172a;
-        letter-spacing: -0.03em;
-        margin: 0 0 4px 0;
+    .cb-header-main {
+        min-width: 0;
+    }
+
+    .cb-title-row {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 7px;
+    }
+
+    .cb-title {
         display: flex;
         align-items: center;
         gap: 12px;
+        margin: 0;
+        color: #111827;
+        font-size: 26px;
+        line-height: 1.2;
+        font-weight: 800;
+        letter-spacing: -0.035em;
     }
 
-    .cb-header h1 i { color: #6366f1; }
-
-    .cb-subtitle {
-        color: #64748b;
-        font-size: 0.88rem;
-        margin: 0;
+    .cb-title i {
+        color: #6366f1;
     }
 
     .cb-pill {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        padding: 4px 14px;
-        font-size: 0.72rem;
-        font-weight: 700;
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-        color: white;
+        padding: 5px 15px;
         border-radius: 999px;
-        letter-spacing: 0.04em;
+        color: #fff;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        font-size: 12px;
+        line-height: 1.4;
+        font-weight: 700;
+        white-space: nowrap;
     }
 
-    /* ─── PROGRAM TABS ─── */
+    .cb-subtitle {
+        margin: 0;
+        color: #64748b;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
     .cb-program-tabs {
         display: flex;
-        gap: 8px;
+        align-items: stretch;
+        gap: 10px;
         flex-wrap: wrap;
-        padding: 0 0 20px 0;
-        border-bottom: 1px solid #f1f5f9;
-        margin-bottom: 24px;
+        margin: 0 0 22px;
     }
 
     .cb-program-tab {
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        gap: 8px;
-        padding: 10px 20px;
-        border-radius: 12px;
-        border: 1.5px solid #e2e8f0;
+        justify-content: flex-start;
+        gap: 10px;
+        min-height: 48px;
+        padding: 10px 18px;
+        border: 1px solid #dfe5ee;
+        border-radius: 13px;
         background: #fff;
-        color: #475569;
-        font-weight: 600;
-        font-size: 0.88rem;
+        color: #334155;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.2;
         cursor: pointer;
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 1px 2px rgba(15, 23, 42, .02);
+        transition:
+            background .18s ease,
+            border-color .18s ease,
+            color .18s ease,
+            transform .18s ease,
+            box-shadow .18s ease;
     }
 
     .cb-program-tab:hover {
-        border-color: #6366f1;
-        color: #6366f1;
-        background: rgba(99, 102, 241, 0.04);
+        color: #4f46e5;
+        border-color: #a5b4fc;
+        background: #fafaff;
         transform: translateY(-1px);
+        box-shadow: 0 5px 14px rgba(99, 102, 241, .08);
     }
 
     .cb-program-tab.active {
-        background: linear-gradient(135deg, #6366f1, #7c3aed);
-        color: white;
+        color: #fff;
         border-color: transparent;
-        box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+        background: linear-gradient(135deg, #6366f1, #7c3aed);
+        box-shadow: 0 7px 18px rgba(99, 102, 241, .24);
     }
 
-    .cb-program-tab .tab-badge {
-        background: rgba(255,255,255,0.2);
-        padding: 2px 8px;
-        border-radius: 6px;
-        font-size: 0.72rem;
+    .cb-program-tab i {
+        flex: 0 0 auto;
     }
 
-    .cb-program-tab.active .tab-badge {
-        background: rgba(255,255,255,0.25);
-    }
-
-    /* ─── STRUCTURE BOARD ─── */
-    .cb-board {
-        min-height: 400px;
-        background: #fff;
-        border-radius: 20px;
-        border: 1px solid #e2e8f0;
+    .cb-program-name {
+        max-width: 310px;
         overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .cb-tab-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 48px;
+        padding: 4px 8px;
+        margin-left: 2px;
+        border-radius: 7px;
+        color: #475569;
+        background: #f1f5f9;
+        font-size: 11px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .cb-program-tab.active .cb-tab-badge {
+        color: #fff;
+        background: rgba(255, 255, 255, .18);
+    }
+
+    .cb-board {
+        width: 100%;
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        border-radius: 20px;
+        background: #fff;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, .02);
     }
 
     .cb-board-loading {
@@ -121,264 +170,4023 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        min-height: 400px;
-        color: #94a3b8;
+        gap: 12px;
+        min-height: 220px;
+        padding: 40px 20px;
+        color: #64748b;
     }
+
+    .cb-board-loading p {
+        margin: 0;
+        font-size: 14px;
+    }
+
+    .cb-error-state {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        min-height: 180px;
+        padding: 30px;
+        color: #b91c1c;
+        font-size: 14px;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .cb-empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 245px;
+        padding: 42px 24px;
+        text-align: center;
+    }
+
+    .cb-empty-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 64px;
+        height: 64px;
+        margin-bottom: 14px;
+        border-radius: 18px;
+        color: #94a3b8;
+        background: #f1f5f9;
+        font-size: 28px;
+    }
+
+    .cb-empty-state h4 {
+        margin: 0 0 6px;
+        color: #334155;
+        font-size: 18px;
+        font-weight: 800;
+    }
+
+    .cb-empty-state p {
+        max-width: 500px;
+        margin: 0;
+        color: #94a3b8;
+        font-size: 13px;
+        line-height: 1.55;
+    }
+
+    .cb-empty-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        margin-top: 18px;
+        padding: 9px 16px;
+        border: 1px solid #c7d2fe;
+        border-radius: 10px;
+        color: #4f46e5;
+        background: #eef2ff;
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .cb-empty-action:hover {
+        color: #fff;
+        border-color: #6366f1;
+        background: #6366f1;
+    }
+
+    .ps-program-header {
+        padding: 22px 26px;
+        border-bottom: 1px solid #edf1f5;
+        background: linear-gradient(135deg, #ffffff, #fbfbff);
+    }
+
+    .ps-program-main {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+    }
+
+    .ps-program-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 42px;
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        color: #6366f1;
+        background: #eef2ff;
+        font-size: 20px;
+    }
+
+    .ps-program-info {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .ps-program-info h2 {
+        margin: 0;
+        color: #0f172a;
+        font-size: 22px;
+        line-height: 1.25;
+        font-weight: 800;
+        letter-spacing: -.025em;
+    }
+
+    .ps-program-info p {
+        margin: 5px 0 0;
+        color: #64748b;
+        font-size: 13px;
+    }
+
+    .ps-program-stats {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 9px;
+    }
+
+    .ps-program-stats span {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 9px;
+        border-radius: 7px;
+        color: #475569;
+        background: #f1f5f9;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .ps-semester-list {
+        padding: 18px;
+    }
+
+    .ps-semester {
+        overflow: hidden;
+        margin-bottom: 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 15px;
+        background: #fff;
+        transition: box-shadow .18s ease;
+    }
+
+    .ps-semester:last-child {
+        margin-bottom: 0;
+    }
+
+    .ps-semester:hover {
+        box-shadow: 0 5px 18px rgba(15, 23, 42, .045);
+    }
+
+    .ps-semester-header {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        width: 100%;
+        padding: 14px 17px;
+        border: 0;
+        border-left: 4px solid var(--semester-color);
+        background: #fff;
+        color: inherit;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .ps-semester-header:hover {
+        background: #fcfcfd;
+    }
+
+    .ps-semester-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 38px;
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        color: #fff;
+        font-size: 15px;
+    }
+
+    .ps-semester-heading {
+        display: flex;
+        flex: 1;
+        min-width: 0;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .ps-semester-heading strong {
+        overflow: hidden;
+        color: #1e293b;
+        font-size: 14px;
+        font-weight: 800;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .ps-semester-heading small {
+        color: #94a3b8;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .ps-semester-chevron {
+        color: #94a3b8;
+        font-size: 12px;
+        transition: transform .2s ease;
+    }
+
+    .ps-semester.collapsed .ps-semester-chevron {
+        transform: rotate(-90deg);
+    }
+
+    .ps-semester.collapsed .ps-semester-body {
+        display: none;
+    }
+
+    .ps-semester-body {
+        padding: 0 14px 14px;
+    }
+
+    .ps-course-wrapper {
+        margin-top: 8px;
+    }
+
+    .ps-course-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 66px;
+        padding: 11px 13px;
+        border: 1px solid #edf1f5;
+        border-radius: 11px;
+        background: #fafbfc;
+        transition:
+            background .16s ease,
+            border-color .16s ease,
+            transform .16s ease;
+    }
+
+    .ps-course-card:hover {
+        border-color: #dbe2ea;
+        background: #fff;
+        transform: translateX(2px);
+    }
+
+    .ps-course-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 36px;
+        width: 36px;
+        height: 36px;
+        border-radius: 9px;
+        color: #475569;
+        background: #eef2f7;
+        font-size: 14px;
+    }
+
+    .ps-course-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .ps-course-name {
+        overflow: hidden;
+        color: #1e293b;
+        font-size: 13px;
+        font-weight: 800;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .ps-course-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 3px;
+        color: #94a3b8;
+        font-size: 10.5px;
+        font-weight: 600;
+    }
+
+    .ps-course-actions {
+        display: flex;
+        align-items: center;
+        flex: 0 0 auto;
+        gap: 7px;
+    }
+
+    .ps-content-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        min-height: 31px;
+        padding: 5px 9px;
+        border: 1px solid #c7d2fe;
+        border-radius: 8px;
+        color: #4f46e5;
+        background: #eef2ff;
+        font-size: 11px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .ps-content-chevron {
+        margin-left: 2px;
+        font-size: 8px;
+        transition: transform .18s ease;
+    }
+
+    .ps-content-badge[aria-expanded="true"] .ps-content-chevron {
+        transform: rotate(180deg);
+    }
+
+    .ps-zero-content {
+        color: #94a3b8;
+        font-size: 10px;
+        font-weight: 700;
+    }
+
+    .ps-action-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        color: #6366f1;
+        background: #fff;
+        cursor: pointer;
+        transition: all .16s ease;
+    }
+
+    .ps-action-btn:hover {
+        color: #fff;
+        border-color: #6366f1;
+        background: #6366f1;
+    }
+
+    .ps-course-content-list {
+        margin-top: -1px;
+        padding: 10px 12px 10px 48px;
+        border: 1px solid #e2e8f0;
+        border-top: 0;
+        border-radius: 0 0 11px 11px;
+        background: #fafbff;
+    }
+
+    .ps-semester-empty {
+        padding: 22px;
+        color: #94a3b8;
+        font-size: 12px;
+        text-align: center;
+    }
+
+    .cb-content-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 7px 9px;
+        margin-bottom: 5px;
+        border: 1px solid #edf1f5;
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .cb-content-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .cb-content-item-main {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        gap: 7px;
+    }
+
+    .cb-content-item-main i {
+        color: #6366f1;
+        font-size: 11px;
+    }
+
+    .cb-content-item-title {
+        overflow: hidden;
+        color: #334155;
+        font-size: 11px;
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .cb-quadrant-badge {
+        flex: 0 0 auto;
+        padding: 2px 7px;
+        border-radius: 5px;
+        color: #4f46e5;
+        background: #e0e7ff;
+        font-size: 9px;
+        font-weight: 800;
+    }
+
+    .cb-mapping-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) 1px minmax(0, 0.9fr);
+        min-height: 380px;
+        max-height: 480px;
+        background: #ffffff;
+    }
+
+    .cb-mapping-column {
+        overflow-y: auto;
+        padding: 20px;
+        background: #ffffff;
+    }
+
+    .cb-mapping-divider {
+        background: #e2e8f0;
+    }
+
+    .cb-mapping-heading {
+        margin-bottom: 14px;
+        color: #475569;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .cb-quad-pill {
+        border-radius: 20px;
+        padding: 6px 14px;
+        font-size: 12.5px;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        color: #334155;
+    }
+    .cb-quad-pill:hover {
+        background: #f1f5f9;
+        border-color: #94a3b8;
+        color: #1e293b;
+    }
+    .cb-quad-pill.active {
+        background: #2563eb !important;
+        border-color: #2563eb !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    }
+    .cb-quad-pill.active i {
+        color: #ffffff !important;
+    }
+
+    .cb-library-search {
+        width: 100%;
+        padding: 10px 14px;
+        margin-bottom: 14px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 10px;
+        outline: none;
+        font-size: 13.5px;
+        background: #f8fafc;
+        transition: all 0.2s;
+    }
+
+    .cb-library-search:focus {
+        background: #ffffff;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, .12);
+    }
+
+    .cb-resource-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: #f8fafc;
+        transition: all 0.2s ease;
+    }
+
+    .cb-resource-row:hover {
+        background: #ffffff;
+        border-color: #bfdbfe;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.05);
+        transform: translateY(-1px);
+    }
+
+    .cb-resource-info {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        gap: 10px;
+        flex: 1;
+    }
+
+    .cb-resource-type-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        flex-shrink: 0;
+    }
+    .cb-resource-type-icon.video { background: #fee2e2; color: #dc2626; }
+    .cb-resource-type-icon.doc { background: #dbeafe; color: #2563eb; }
+    .cb-resource-type-icon.ppt { background: #ffedd5; color: #ea580c; }
+    .cb-resource-type-icon.quiz { background: #dcfce7; color: #16a34a; }
+
+    .cb-resource-title {
+        overflow: hidden;
+        color: #1e293b;
+        font-size: 13px;
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .cb-resource-subtext {
+        font-size: 11px;
+        color: #64748b;
+        margin-top: 1px;
+    }
+
+    .cb-assign-btn {
+        background: #eff6ff;
+        color: #2563eb;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        padding: 5px 10px;
+        font-size: 12px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .cb-assign-btn:hover {
+        background: #2563eb;
+        color: #ffffff;
+        border-color: #2563eb;
+    }
+
+    .cb-unassign-btn {
+        background: #fff1f2;
+        color: #e11d48;
+        border: 1px solid #fecdd3;
+        border-radius: 8px;
+        padding: 5px 8px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        flex-shrink: 0;
+    }
+
+    .cb-unassign-btn:hover {
+        background: #e11d48;
+        color: #ffffff;
+        border-color: #e11d48;
+    }
+
+    .cb-small-empty {
+        padding: 30px 12px;
+        color: #94a3b8;
+        font-size: 13px;
+        text-align: center;
+        font-weight: 500;
+    }
+
+    /* Manage Content modal */
+    #manageContentModal .modal-dialog { width: min(960px, calc(100vw - 32px)); max-width: 960px; margin: 24px auto; }
+    #manageContentModal .modal-content { max-height: calc(100vh - 48px); border: 0; border-radius: 20px; overflow: hidden; background: #fff; box-shadow: 0 25px 70px rgba(15, 23, 42, .25); }
+    #manageContentModal .modal-header { flex: 0 0 auto; padding: 20px 26px; border-bottom: 1px solid #e2e8f0; }
+    #manageContentModal .modal-body { min-height: 0; overflow: auto; }
+    #manageContentModal .modal-footer { flex: 0 0 auto; justify-content: flex-end !important; gap: 10px; padding: 14px 26px; border-top: 1px solid #e2e8f0; background: #fff; }
+    #manageContentModal .modal-footer .btn { min-width: 100px; border-radius: 10px; font-weight: 700; }
+
+    @@media (max-width: 991px) {
+        .cb-shell {
+            padding: 18px;
+        }
+
+        .cb-header {
+            min-height: auto;
+            padding: 20px;
+        }
+
+        .cb-title {
+            font-size: 22px;
+        }
+
+        .cb-program-tab {
+            flex: 1 1 220px;
+        }
+    }
+
+    @@media (max-width: 767px) {
+        .cb-shell {
+            padding: 12px;
+        }
+
+        .cb-header {
+            margin-bottom: 16px;
+            padding: 18px;
+            border-radius: 15px;
+        }
+
+        .cb-title-row {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .cb-title {
+            font-size: 20px;
+        }
+
+        .cb-pill {
+            white-space: normal;
+        }
+
+        .cb-program-tabs {
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .cb-program-tab {
+            flex: 1 1 100%;
+            width: 100%;
+        }
+
+        .cb-program-name {
+            flex: 1;
+            max-width: none;
+            text-align: left;
+        }
+
+        .cb-board {
+            border-radius: 15px;
+        }
+
+        .ps-program-header {
+            padding: 18px;
+        }
+
+        .ps-program-main {
+            align-items: flex-start;
+        }
+
+        .ps-semester-list {
+            padding: 12px;
+        }
+
+        .ps-course-card {
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .ps-course-info {
+            min-width: calc(100% - 50px);
+        }
+
+        .ps-course-actions {
+            width: 100%;
+            padding-left: 48px;
+        }
+
+        .ps-course-content-list {
+            padding-left: 12px;
+        }
+
+        .cb-mapping-grid {
+            display: block;
+            max-height: none;
+        }
+
+        .cb-mapping-divider {
+            width: 100%;
+            height: 1px;
+        }
+
+        .cb-mapping-column {
+            max-height: 300px;
+        }
+    }
+
+    /* Program Toolbar & Action Styling */
+    .cb-programs-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 22px;
+    }
+
+    .cb-new-program-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 48px;
+        padding: 10px 20px;
+        border: 1.5px dashed #6366f1;
+        border-radius: 13px;
+        background: #f5f3ff;
+        color: #6366f1;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all .18s ease;
+        box-shadow: 0 2px 6px rgba(99,102,241,.06);
+    }
+
+    .cb-new-program-btn:hover {
+        background: #6366f1;
+        color: #fff;
+        border-style: solid;
+        transform: translateY(-1px);
+        box-shadow: 0 6px 18px rgba(99,102,241,.24);
+    }
+
+    .ps-program-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .btn-ps-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 14px;
+        border-radius: 9px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all .16s ease;
+    }
+
+    .btn-ps-primary {
+        background: #6366f1;
+        color: #fff;
+        border: 1px solid #6366f1;
+    }
+
+    .btn-ps-primary:hover {
+        background: #4f46e5;
+        border-color: #4f46e5;
+        color: #fff;
+    }
+
+    .btn-ps-secondary {
+        background: #fff;
+        color: #475569;
+        border: 1px solid #cbd5e1;
+    }
+
+    .btn-ps-secondary:hover {
+        background: #f1f5f9;
+        color: #0f172a;
+        border-color: #94a3b8;
+    }
+
+    .ps-semester-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .ps-sem-add-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 12px;
+        border-radius: 8px;
+        background: rgba(99,102,241,0.08);
+        border: 1px solid rgba(99,102,241,0.22);
+        color: #6366f1;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all .16s ease;
+    }
+
+    .ps-sem-add-btn:hover {
+        background: #6366f1;
+        border-color: #6366f1;
+        color: #fff;
+    }
+
+    .ps-semester-empty-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 28px 20px;
+        border: 1.5px dashed #e2e8f0;
+        border-radius: 12px;
+        background: #fafbfc;
+        text-align: center;
+        margin-top: 10px;
+    }
+
+    .ps-sem-empty-icon {
+        font-size: 26px;
+        color: #94a3b8;
+        margin-bottom: 8px;
+    }
+
+    .ps-sem-empty-text {
+        font-size: 13px;
+        color: #64748b;
+        margin-bottom: 14px;
+    }
+
+    .ps-sem-empty-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 18px;
+        border-radius: 9px;
+        background: #6366f1;
+        color: #fff;
+        border: none;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background .16s ease;
+    }
+
+    .ps-sem-empty-btn:hover {
+        background: #4f46e5;
+    }
+
+    .ps-sem-footer {
+        margin-top: 12px;
+        padding-top: 4px;
+    }
+
+    .ps-sem-footer-add-btn {
+        width: 100%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 16px;
+        border: 1px dashed #cbd5e1;
+        border-radius: 10px;
+        background: #f8fafc;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all .16s ease;
+    }
+
+    .ps-sem-footer-add-btn:hover {
+        border-color: #6366f1;
+        color: #6366f1;
+        background: #faf5ff;
+    }
+
+    .badge-code {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 8px;
+        border-radius: 6px;
+        background: #f1f5f9;
+        color: #475569;
+        font-weight: 700;
+        font-family: monospace;
+        font-size: 11px;
+    }
+
+    .badge-credit {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 8px;
+        border-radius: 6px;
+        background: #fef3c7;
+        color: #b45309;
+        font-weight: 700;
+        font-size: 11px;
+    }
+
+    .badge-duration {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 8px;
+        border-radius: 6px;
+        background: #ecfdf5;
+        color: #047857;
+        font-weight: 700;
+        font-size: 11px;
+    }
+
+    .ps-course-desc {
+        margin-top: 5px;
+        font-size: 12px;
+        color: #64748b;
+        line-height: 1.4;
+        max-width: 650px;
+    }
+
+    .ps-action-btn-danger:hover {
+        background: #fef2f2 !important;
+        color: #ef4444 !important;
+        border-color: #fecaca !important;
+    }
+
+    .qb-course-row {
+        position: relative;
+        padding: 16px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: #f8fafc;
+        margin-bottom: 12px;
+    }
+
+    .qb-course-row-remove {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        border: 1px solid #fecaca;
+        background: #fff;
+        color: #ef4444;
+        border-radius: 7px;
+        padding: 4px 9px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .qb-course-row-remove:hover {
+        background: #ef4444;
+        color: #fff;
+    }
+
+    /* ========================================================
+       ADD COURSE STRUCTURED MODAL (Matches Reference Design)
+       ======================================================== */
+    #addCourseStructuredModal .modal-dialog {
+        max-width: 1060px;
+        width: 95vw;
+    }
+
+    #addCourseStructuredModal .modal-content {
+        border-radius: 20px;
+        border: none;
+        box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.3);
+        overflow: hidden;
+        background: #ffffff;
+    }
+
+    .ac-header-icon-box {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: #eff6ff;
+        color: #2563eb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+    }
+
+    .ac-modal-container {
+        display: flex;
+        min-height: 560px;
+        max-height: 74vh;
+    }
+
+    .ac-sidebar {
+        width: 320px;
+        flex-shrink: 0;
+        background: #f8fafc;
+        border-right: 1px solid #e2e8f0;
+        padding: 22px 18px;
+        overflow-y: auto;
+    }
+
+    .ac-step-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        border: 1px solid transparent;
+    }
+
+    .ac-step-item:hover {
+        background: #f1f5f9;
+    }
+
+    .ac-step-item.active {
+        background: #eef2ff;
+        border-color: #c7d2fe;
+    }
+
+    .ac-step-badge {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 15px;
+        flex-shrink: 0;
+    }
+
+    .ac-step-badge.bg-emerald {
+        background: #dcfce7;
+        color: #16a34a;
+    }
+
+    .ac-step-badge.bg-amber {
+        background: #fef3c7;
+        color: #d97706;
+    }
+
+    .ac-step-badge.bg-purple {
+        background: #f3e8ff;
+        color: #9333ea;
+    }
+
+    .ac-step-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.2;
+    }
+
+    .ac-step-sub {
+        font-size: 11px;
+        color: #64748b;
+        margin-top: 2px;
+    }
+
+    .ac-step-num {
+        margin-left: auto;
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        background: #e2e8f0;
+        color: #475569;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .ac-step-item.active .ac-step-num {
+        background: #c7d2fe;
+        color: #3730a3;
+    }
+
+    .ac-tree-preview {
+        margin-left: 28px;
+        border-left: 2px dashed #cbd5e1;
+        padding-left: 14px;
+        margin-top: 4px;
+        margin-bottom: 12px;
+    }
+
+    .ac-tree-module {
+        margin-bottom: 12px;
+        position: relative;
+    }
+
+    .ac-tree-module-header {
+        display: flex;
+        align-items: center;
+        font-size: 12px;
+        font-weight: 600;
+        color: #1e293b;
+        padding: 3px 0;
+        cursor: pointer;
+    }
+
+    .ac-tree-topics-container {
+        margin-left: 10px;
+        border-left: 2px dashed #cbd5e1;
+        padding-left: 12px;
+        margin-top: 4px;
+    }
+
+    .ac-tree-topic {
+        display: flex;
+        align-items: center;
+        font-size: 11px;
+        color: #475569;
+        padding: 3px 0;
+    }
+
+    .ac-tree-add-topic-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #2563eb;
+        background: #eff6ff;
+        border: 1.5px dashed #93c5fd;
+        border-radius: 16px;
+        padding: 3px 10px;
+        margin-top: 5px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.15s ease;
+    }
+
+    .ac-tree-add-topic-btn:hover {
+        background: #dbeafe;
+    }
+
+    .ac-tree-add-module-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #2563eb;
+        background: #eff6ff;
+        border: 1.5px dashed #93c5fd;
+        border-radius: 16px;
+        padding: 5px 14px;
+        margin-top: 8px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.15s ease;
+    }
+
+    .ac-tree-add-module-btn:hover {
+        background: #dbeafe;
+    }
+
+    .ac-main-content {
+        flex: 1;
+        padding: 24px 28px;
+        overflow-y: auto;
+        background: #ffffff;
+    }
+
+    .ac-section-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 15px;
+        color: #ffffff;
+    }
+
+    .ac-section-icon.bg-emerald-solid {
+        background: #10b981;
+    }
+
+    .ac-section-icon.bg-amber-solid {
+        background: #f59e0b;
+    }
+
+    .ac-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 20px;
+        background: #ffffff;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    }
+
+    .ac-module-card {
+        border: 1px solid #dbeafe;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #ffffff;
+        margin-bottom: 14px;
+    }
+
+    .ac-module-header {
+        background: #eff6ff;
+        border-bottom: 1px solid #dbeafe;
+    }
+
+    .ac-topic-item {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        transition: border-color 0.15s ease;
+    }
+
+    .ac-topic-item:focus-within {
+        border-color: #93c5fd;
+        background: #ffffff;
+    }
+
+    .ac-add-topic-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #2563eb;
+        background: #f8fafc;
+        border: 1.5px dashed #93c5fd;
+        border-radius: 16px;
+        padding: 5px 14px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       ACADEMIC HUB (CENTRALIZED NAVIGATION & VIEWS)
+       ═══════════════════════════════════════════════════════ */
+    .ah-hub-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 24px 30px;
+        margin-bottom: 20px;
+        border: 1px solid #e0e7ff;
+        border-radius: 20px;
+        background: linear-gradient(135deg, #ffffff 0%, #f5f3ff 100%);
+        box-shadow: 0 4px 20px rgba(99, 102, 241, 0.05);
+        flex-wrap: wrap;
+    }
+
+    .ah-stats-ribbon {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+    }
+
+    .ah-stat-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        color: #475569;
+    }
+
+    .ah-stat-chip.purple {
+        background: #f5f3ff;
+        border-color: #ddd6fe;
+        color: #6d28d9;
+    }
+
+    .ah-stat-chip.blue {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #1d4ed8;
+    }
+
+    .ah-stat-chip.emerald {
+        background: #ecfdf5;
+        border-color: #a7f3d0;
+        color: #047857;
+    }
+
+    .ah-nav-switcher {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        margin-bottom: 22px;
+    }
+
+    .ah-nav-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 18px;
+        border: none;
+        border-radius: 12px;
+        font-size: 13.5px;
+        font-weight: 600;
+        color: #64748b;
+        background: transparent;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        font-family: inherit;
+    }
+
+    .ah-nav-tab:hover {
+        color: #1e293b;
+        background: rgba(255, 255, 255, 0.6);
+    }
+
+    .ah-nav-tab.active {
+        background: #ffffff;
+        color: #4f46e5;
+        font-weight: 700;
+        box-shadow: 0 2px 8px rgba(79, 70, 229, 0.12);
+    }
+
+    .ah-nav-badge {
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #e2e8f0;
+        color: #475569;
+        font-weight: 600;
+    }
+
+    .ah-nav-tab.active .ah-nav-badge {
+        background: #ede9fe;
+        color: #6366f1;
+    }
+
+    /* Course Catalog Styles */
+    .ah-catalog-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 16px 20px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    .ah-search-box {
+        position: relative;
+        min-width: 280px;
+        flex: 1;
+    }
+
+    .ah-search-box i {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        font-size: 14px;
+    }
+
+    .ah-search-input {
+        width: 100%;
+        padding: 9px 14px 9px 38px;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        font-size: 13px;
+        font-family: inherit;
+        outline: none;
+        transition: border 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .ah-search-input:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    }
+
+    .ah-catalog-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+        gap: 16px;
+    }
+
+    .ah-catalog-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        position: relative;
+    }
+
+    .ah-catalog-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
+        border-color: #c7d2fe;
+    }
+
+    .ah-code-pill {
+        display: inline-block;
+        padding: 3px 8px;
+        font-size: 11px;
+        font-weight: 700;
+        font-family: monospace;
+        text-transform: uppercase;
+        border-radius: 6px;
+        background: #eff6ff;
+        color: #2563eb;
+        border: 1px solid #bfdbfe;
+    }
+
+    .ah-course-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 8px 0 6px;
+        line-height: 1.35;
+    }
+
+    .ah-course-meta-tags {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+    }
+
+    .ah-prog-badge {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 6px;
+        background: #f5f3ff;
+        color: #7c3aed;
+        border: 1px solid #ddd6fe;
+    }
+
+    .ah-sem-badge {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 6px;
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+    }
+
+    .ah-card-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-top: 14px;
+        border-top: 1px solid #f1f5f9;
+        flex-wrap: wrap;
+    }
+
+    .ah-btn-structure {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #ffffff;
+        background: linear-gradient(135deg, #4f46e5, #6366f1);
+        border: none;
+        cursor: pointer;
+        transition: opacity 0.15s ease;
+    }
+
+    .ah-btn-structure:hover {
+        opacity: 0.9;
+        color: #fff;
+    }
+
+    /* Program Directory Grid */
+    .ah-programs-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 20px;
+    }
+
+    .ah-program-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        padding: 24px;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .ah-program-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.07);
+        border-color: #c7d2fe;
+    }
+
+    .ah-program-top-bar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 5px;
+        background: linear-gradient(90deg, #6366f1, #8b5cf6, #ec4899);
+    }
+
+    .ah-program-title {
+        font-size: 18px;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 8px;
+        line-height: 1.3;
+    }
+
+    .ah-program-desc {
+        font-size: 13px;
+        color: #64748b;
+        margin-bottom: 16px;
+        line-height: 1.5;
+        min-height: 38px;
+    }
+
+    .ah-program-stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        background: #f8fafc;
+        padding: 12px;
+        border-radius: 12px;
+        margin-bottom: 18px;
+        text-align: center;
+    }
+
+    .ah-pstat-num {
+        font-size: 16px;
+        font-weight: 800;
+        color: #1e293b;
+    }
+
+    .ah-pstat-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #94a3b8;
+        text-transform: uppercase;
+    }
+
+    .ah-new-prog-card {
+        border: 2px dashed #cbd5e1;
+        border-radius: 18px;
+        background: #f8fafc;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 32px;
+        min-height: 250px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: center;
+    }
+
+    .ah-new-prog-card:hover {
+        background: #f5f3ff;
+        border-color: #6366f1;
+        transform: translateY(-2px);
+    }
+
+    .ah-new-prog-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        background: #ede9fe;
+        color: #6366f1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        margin-bottom: 12px;
+    }
+
+    /* Floating Toast Notifications */
+    #cbToastContainer {
+        position: fixed;
+        top: 24px;
+        right: 24px;
+        z-index: 10999;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        pointer-events: none;
+    }
+    .cb-toast-item {
+        min-width: 320px;
+        max-width: 440px;
+        background: #ffffff;
+        border-radius: 14px;
+        box-shadow: 0 14px 36px rgba(15, 23, 42, 0.16), 0 4px 12px rgba(15, 23, 42, 0.08);
+        border: 1px solid #e2e8f0;
+        padding: 14px 18px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        opacity: 0;
+        transform: translateY(-16px) scale(0.96);
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        pointer-events: auto;
+    }
+    .cb-toast-item.show {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    .cb-toast-item.cb-toast-success { border-left: 5px solid #10b981; }
+    .cb-toast-item.cb-toast-error { border-left: 5px solid #ef4444; }
+    .cb-toast-item.cb-toast-info { border-left: 5px solid #3b82f6; }
 </style>
 
+@Html.AntiForgeryToken()
+
+<!-- Floating Toast Container -->
+<div id="cbToastContainer"></div>
+
 <div class="cb-shell">
-    <!-- HEADER -->
-    <div class="cb-header">
-        <div>
-            <h1>
-                <i class="fa-solid fa-graduation-cap"></i>
-                Curriculum Builder
-                <span class="cb-pill">Program → Semester → Course → Content</span>
-            </h1>
+
+    <!-- ACADEMIC HUB HEADER -->
+    <div class="ah-hub-header">
+        <div class="cb-header-main">
+            <div class="cb-title-row">
+                <h1 class="cb-title">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                    Academic Hub
+                </h1>
+                <span class="cb-pill">
+                    Programs • Courses • Curriculum Hierarchy
+                </span>
+            </div>
             <p class="cb-subtitle">
-                Organize your complete academic hierarchy from a single interface.
-
+                Centralized command center for managing Degree Programs, Course Catalog, and Syllabus Structure.
             </p>
+            <div class="ah-stats-ribbon">
+                <span class="ah-stat-chip purple">
+                    <i class="fa-solid fa-building-columns"></i>
+                    <strong>@(Model.Programs?.Count ?? 0)</strong> Programs
+                </span>
+                <span class="ah-stat-chip blue">
+                    <i class="fa-solid fa-book-bookmark"></i>
+                    <strong>@(Model.AllCourses?.Count ?? 0)</strong> Courses
+                </span>
+                <span class="ah-stat-chip emerald">
+                    <i class="fa-solid fa-star"></i>
+                    <strong>@(Model.AllCourses?.Sum(c => c.NoofCredit) ?? 0)</strong> Total Credits
+                </span>
+                <span class="ah-stat-chip">
+                    <i class="fa-solid fa-calendar-days"></i>
+                    <strong>@(Model.AllSemesters?.Count ?? 0)</strong> Semesters
+                </span>
+            </div>
         </div>
+
+        @if (!isFaculty)
+        {
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <button type="button" class="btn btn-outline-primary fw-semibold px-3 py-2" id="btnHeaderNewProgram" style="border-radius:10px;font-size:13px;">
+                    <i class="fa-solid fa-plus me-1"></i> New Program
+                </button>
+                <button type="button" class="btn btn-primary fw-semibold px-3 py-2" id="btnHeaderAddCourse" style="border-radius:10px;font-size:13px;background:linear-gradient(135deg,#4f46e5,#6366f1);border:none;box-shadow:0 4px 12px rgba(79,70,229,0.25);">
+                    <i class="fa-solid fa-wand-magic-sparkles me-1"></i> Add Course &amp; Structure
+                </button>
+            </div>
+        }
     </div>
 
-    <!-- PROGRAM TABS -->
-    <div class="cb-program-tabs" id="programTabs">
-        @foreach (var prog in Model.Programs)
-        {
-            <div class="cb-program-tab @(prog.Id == Model.SelectedProgramId ? "active" : "")"
-                 data-program-id="@prog.Id">
+    <!-- CENTRAL VIEW SWITCHER BAR -->
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+        <div class="ah-nav-switcher">
+            <button type="button" class="ah-nav-tab @(Model.ActiveView == "tree" ? "active" : "")" data-view="tree">
+                <i class="fa-solid fa-sitemap"></i>
+                <span>Curriculum Hierarchy</span>
+                <span class="ah-nav-badge">Tree View</span>
+            </button>
+            <button type="button" class="ah-nav-tab @(Model.ActiveView == "courses" ? "active" : "")" data-view="courses">
+                <i class="fa-solid fa-book-bookmark"></i>
+                <span>Course Catalog</span>
+                <span class="ah-nav-badge">@(Model.AllCourses?.Count ?? 0)</span>
+            </button>
+            <button type="button" class="ah-nav-tab @(Model.ActiveView == "programs" ? "active" : "")" data-view="programs">
                 <i class="fa-solid fa-building-columns"></i>
-                @prog.Name
-                <span class="tab-badge">@(prog.NoOfSemester ?? 0) Sem</span>
-            </div>
-        }
-    </div>
-
-    <!-- STRUCTURE BOARD -->
-    <div class="cb-board" id="structureBoard">
-        @if (Model.SelectedProgramStructure != null)
-        {
-            <partial name="_ProgramStructureTree" model="Model.SelectedProgramStructure" />
-        }
-        else
-        {
-            <div class="cb-board-loading">
-                <i class="fa-solid fa-building-columns" style="font-size:48px; color:#e2e8f0;"></i>
-                <p style="margin-top:16px; font-size:0.95rem;">Select a program above to view its curriculum.</p>
-            </div>
-        }
-    </div>
-</div>
-
-<!-- ═══════ CONTENT MAPPING MODAL ═══════ -->
-<div class="modal fade" id="manageContentModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content" style="border-radius: 24px; border: none; box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.3); overflow: hidden; background: #fff;">
-            <div class="modal-body p-0">
-                <div class="p-4 border-bottom" style="background: linear-gradient(135deg, #f8fafc, #f1f5f9);">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h4 class="fw-bold mb-1" style="color: #0f172a;">Map Content Resources</h4>
-                            <p class="text-muted mb-0">Assigning to: <span id="mappingCourseTitle" class="fw-bold text-primary"></span></p>
-                        </div>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                </div>
-
-                <input type="hidden" id="mapCourseId" />
-
-                <!-- Quadrant Selection -->
-                <div class="p-3 border-bottom" style="background: #fff;">
-                    <label class="form-label fw-bold" style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px; color:#64748b;">Quadrant</label>
-                    <select id="mapQuadrantId" class="form-select" style="border-radius:10px; max-width:300px;">
-                        @if (Model.AllQuadrants != null)
-                        {
-                            foreach (var q in Model.AllQuadrants)
-                            {
-                                <option value="@q.Id">@q.Name</option>
-                            }
-                        }
-                    </select>
-                </div>
-
-                <div style="display:grid; grid-template-columns:1fr auto 1fr; max-height:420px;">
-                    <div style="overflow-y:auto; padding:16px;">
-                        <div style="font-size:11px; text-transform:uppercase; font-weight:700; color:#94a3b8; margin-bottom:12px; letter-spacing:0.5px;">
-                            <i class="fa fa-search"></i> Library Resources
-                        </div>
-                        <input type="text" id="librarySearch" placeholder="Search content..."
-                               style="width:100%; padding:8px 14px; border:1px solid #e2e8f0; border-radius:10px; margin-bottom:12px; font-size:0.88rem;">
-                        <div id="libraryItemsList"></div>
-                    </div>
-                    <div style="width:1px; background:#e2e8f0;"></div>
-                    <div style="overflow-y:auto; padding:16px;">
-                        <div style="font-size:11px; text-transform:uppercase; font-weight:700; color:#94a3b8; margin-bottom:12px; letter-spacing:0.5px;">
-                            <i class="fa fa-link"></i> Assigned to this Course
-                        </div>
-                        <div id="mappedItemsList"></div>
-                    </div>
-                </div>
-
-                <div class="p-3 text-center border-top">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" style="border-radius:10px; padding:8px 28px;">Done</button>
-                </div>
-            </div>
+                <span>Programs Directory</span>
+                <span class="ah-nav-badge">@(Model.Programs?.Count ?? 0)</span>
+            </button>
         </div>
     </div>
-</div>
 
-@section Scripts {
-    <script>
-        var isFaculty = @(isFaculty ? "true" : "false");
-        var urls = {
-            getProgramStructure: '@Url.Action("GetProgramStructure", "CourseStructure")',
-            getCourseContent: '@Url.Action("GetCourseContent", "CourseStructure")',
-            getLib: '@Url.Action("GetLibraryItems", "CourseStructure")',
-            assign: '@Url.Action("AssignContent", "CourseStructure")',
-            unassign: '@Url.Action("UnassignContent", "CourseStructure")'
-        };
+    <!-- ========================================== -->
+    <!-- VIEW 1: CURRICULUM HIERARCHY (TREE VIEW)   -->
+    <!-- ========================================== -->
+    <div class="ah-view-container @(Model.ActiveView == "tree" ? "" : "d-none")" id="hubView_tree">
+        <div class="cb-programs-toolbar">
+            <div class="cb-program-tabs mb-0" id="programTabs" role="tablist">
+                @if (Model.Programs != null && Model.Programs.Any())
+                {
+                    @foreach (var program in Model.Programs)
+                    {
+                        bool active = program.Id == Model.SelectedProgramId;
 
-        $(document).ready(function () {
-            // ═══════ PROGRAM TAB CLICK ═══════
-            $(document).on('click', '.cb-program-tab', function () {
-                var id = $(this).data('program-id');
-                $('.cb-program-tab').removeClass('active');
-                $(this).addClass('active');
-                $('#structureBoard').html('<div class="cb-board-loading"><div class="spinner-border text-primary" role="status"></div><p class="mt-3">Loading structure...</p></div>');
-                $.get(urls.getProgramStructure, { programId: id }, function (html) {
-                    $('#structureBoard').html(html);
-                });
-            });
+                        <button type="button"
+                                class="cb-program-tab @(active ? "active" : "")"
+                                data-program-id="@program.Id"
+                                role="tab"
+                                aria-selected="@(active ? "true" : "false")">
 
-            // ═══════ CONTENT MAPPING ═══════
-            $(document).on('click', '.cb-manage-content-btn', function () {
-                var courseId = $(this).data('course-id');
-                var courseName = $(this).data('course-name');
-                $('#mapCourseId').val(courseId);
-                $('#mappingCourseTitle').text(courseName);
-                loadMappingData();
-                new bootstrap.Modal('#manageContentModal').show();
-            });
+                            <i class="fa-solid fa-building-columns"></i>
 
-            function loadMappingData() {
-                var courseId = $('#mapCourseId').val();
+                            <span class="cb-program-name"
+                                  title="@program.Name">
+                                @program.Name
+                            </span>
 
-                // Load library items
-                $.get(urls.getLib, function (lib) {
-                    var html = '';
-                    if (lib.length === 0) {
-                        html = '<div class="text-muted text-center p-3" style="font-size:13px;">No items in library.</div>';
+                            <span class="cb-tab-badge">
+                                @(program.NoOfSemester ?? 0) Sem
+                            </span>
+                        </button>
                     }
-                    lib.forEach(function (i) {
-                        var icon = i.type === 'Video' ? 'fa-video' : i.type === 'VideoURL' ? 'fa-link' : 'fa-file-alt';
-                        html += '<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-radius:10px; margin-bottom:6px; background:#f8fafc; border:1px solid #f1f5f9;">' +
-                                    '<div style="display:flex; align-items:center; gap:8px;"><i class="fa ' + icon + '" style="color:#6366f1;"></i> <span style="font-size:0.88rem;">' + i.title + '</span></div>' +
-                                    '<button class="btn btn-sm btn-link p-0" onclick="assignContent(' + i.id + ')"><i class="fa fa-plus-circle" style="color:#10b981; font-size:1.1rem;"></i></button>' +
-                                '</div>';
-                    });
-                    $('#libraryItemsList').html(html);
-                });
+                }
+            </div>
 
-                // Load assigned items
-                $.get(urls.getCourseContent, { courseId: courseId }, function (mapped) {
-                    var html = '';
-                    if (mapped.length === 0) {
-                        html = '<div class="text-muted text-center p-3" style="font-size:13px;">No content assigned yet.</div>';
+            @if (!isFaculty)
+            {
+                <button type="button"
+                        class="cb-new-program-btn"
+                        id="btnOpenNewProgramModal"
+                        title="Create a new academic program">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>New Program</span>
+                </button>
+            }
+        </div>
+
+        <div class="cb-board" id="structureBoard">
+            @if (Model.Programs == null || !Model.Programs.Any())
+            {
+                <div class="cb-empty-state">
+                    <div class="cb-empty-icon" style="color: #6366f1; background: #eef2ff;">
+                        <i class="fa-solid fa-chalkboard-user"></i>
+                    </div>
+
+                    @if (isFaculty)
+                    {
+                        <h4>No Courses Assigned Yet</h4>
+                        <p>
+                            You have not been assigned to any courses in the Faculty Course Mapping yet. Please contact your administrator to map your subjects.
+                        </p>
                     }
-                    mapped.forEach(function (i) {
-                        var icon = i.type === 'Video' ? 'fa-video' : i.type === 'VideoURL' ? 'fa-link' : 'fa-file-alt';
-                        html += '<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-radius:10px; margin-bottom:6px; background:#fef2f2; border:1px solid #fee2e2;">' +
-                                    '<div style="display:flex; align-items:center; gap:8px;"><i class="fa ' + icon + '" style="color:#8b5cf6;"></i> <span style="font-size:0.88rem;">' + i.title + '</span></div>' +
-                                    '<button class="btn btn-sm btn-link p-0" onclick="unassignContent(' + i.mappingId + ')"><i class="fa fa-trash" style="color:#ef4444; font-size:0.9rem;"></i></button>' +
-                                '</div>';
-                    });
-                    $('#mappedItemsList').html(html);
-                });
+                    else
+                    {
+                        <h4>No programs available</h4>
+                        <p>
+                            Create an active program before building the curriculum.
+                        </p>
+                    }
+                </div>
+            }
+            else if (Model.SelectedProgramStructure != null)
+            {
+                <partial name="_ProgramStructureTree"
+                         model="Model.SelectedProgramStructure" />
+            }
+            else
+            {
+                <div class="cb-empty-state">
+                    <div class="cb-empty-icon">
+                        <i class="fa-regular fa-folder-open"></i>
+                    </div>
+
+                    <h4>No curriculum available</h4>
+
+                    <p>
+                        Select a program to view its curriculum structure.
+                    </p>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- VIEW 2: COURSE CATALOG                     -->
+    <!-- ========================================== -->
+    <div class="ah-view-container @(Model.ActiveView == "courses" ? "" : "d-none")" id="hubView_courses">
+        <div class="ah-catalog-toolbar">
+            <div class="ah-search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="courseCatalogSearch" class="ah-search-input" placeholder="Search courses by title or code..." />
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <select id="courseCatalogProgramFilter" class="form-select form-select-sm fw-semibold" style="width:auto;border-radius:10px;min-width:180px;">
+                    <option value="all">All Programs (@(Model.Programs?.Count ?? 0))</option>
+                    @if (Model.Programs != null)
+                    {
+                        foreach (var prog in Model.Programs)
+                        {
+                            <option value="@prog.Id">@prog.Name</option>
+                        }
+                    }
+                </select>
+                <select id="courseCatalogSemesterFilter" class="form-select form-select-sm fw-semibold" style="width:auto;border-radius:10px;min-width:150px;">
+                    <option value="all">All Semesters</option>
+                    @if (Model.AllSemesters != null)
+                    {
+                        foreach (var sem in Model.AllSemesters)
+                        {
+                            <option value="@sem.Id">@sem.Name</option>
+                        }
+                    }
+                </select>
+                @if (!isFaculty)
+                {
+                    <button type="button" class="btn btn-primary btn-sm fw-semibold px-3 py-2 btn-open-add-course" style="border-radius:10px;background:linear-gradient(135deg,#4f46e5,#6366f1);border:none;">
+                        <i class="fa-solid fa-plus me-1"></i> Add Course
+                    </button>
+                }
+            </div>
+        </div>
+
+        <div class="ah-catalog-grid" id="courseCatalogGrid">
+            @if (Model.AllCourses != null && Model.AllCourses.Any())
+            {
+                foreach (var course in Model.AllCourses)
+                {
+                    <div class="ah-catalog-card"
+                         data-name="@(course.Name ?? "")"
+                         data-code="@(course.CourseCode ?? "")"
+                         data-program-id="@course.CourseCategoryId"
+                         data-semester-id="@(course.SemesterId ?? 0)">
+                        <div>
+                            <div class="d-flex align-items-center justify-content-between gap-2">
+                                <span class="ah-code-pill">@(string.IsNullOrWhiteSpace(course.CourseCode) ? "N/A" : course.CourseCode)</span>
+                                <div class="d-flex align-items-center gap-1">
+                                    <span class="badge bg-light text-secondary border" style="font-size:11px;">
+                                        <i class="fa-regular fa-star text-warning me-1"></i>@course.NoofCredit Cr
+                                    </span>
+                                    @if ((course.CourseDurationMonths ?? 0) > 0)
+                                    {
+                                        <span class="badge bg-light text-secondary border" style="font-size:11px;">
+                                            <i class="fa-regular fa-clock text-info me-1"></i>@(course.CourseDurationMonths) Mo
+                                        </span>
+                                    }
+                                </div>
+                            </div>
+                            <h3 class="ah-course-title">@course.Name</h3>
+                            <div class="ah-course-meta-tags">
+                                <span class="ah-prog-badge" title="Program">
+                                    <i class="fa-solid fa-graduation-cap me-1"></i>@(course.CourseCategory?.Name ?? "General")
+                                </span>
+                                <span class="ah-sem-badge" title="Semester">
+                                    <i class="fa-regular fa-calendar-check me-1"></i>@(course.Semester?.Name ?? "Semester Unassigned")
+                                </span>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(course.Description))
+                            {
+                                <p class="text-muted small mb-3" style="line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+                                    @course.Description
+                                </p>
+                            }
+                        </div>
+                        <div class="ah-card-actions">
+                            <button type="button" class="ah-btn-structure btn-catalog-manage-structure"
+                                    data-course-id="@course.Id"
+                                    data-course-name="@course.Name"
+                                    data-course-code="@course.CourseCode"
+                                    data-program-id="@course.CourseCategoryId"
+                                    data-semester-id="@(course.SemesterId ?? 0)"
+                                    title="Manage Modules, Topics &amp; Structure">
+                                <i class="fa-solid fa-sitemap"></i>
+                                <span>Structure</span>
+                            </button>
+
+                            <button type="button" class="btn btn-light btn-sm fw-semibold text-secondary btn-catalog-content"
+                                    data-course-id="@course.Id"
+                                    data-course-name="@course.Name"
+                                    style="border-radius:8px;font-size:12px;"
+                                    title="Content Library">
+                                <i class="fa-solid fa-layer-group text-warning"></i>
+                            </button>
+
+                            @if (!isFaculty)
+                            {
+                                <button type="button" class="btn btn-light btn-sm fw-semibold text-success btn-catalog-assign-faculty"
+                                        data-course-id="@course.Id"
+                                        data-course-name="@course.Name"
+                                        style="border-radius:8px;font-size:12px;"
+                                        title="Assign Faculty / Instructors">
+                                    <i class="fa-solid fa-chalkboard-user"></i>
+                                </button>
+                                <button type="button" class="btn btn-light btn-sm fw-semibold text-secondary btn-catalog-edit"
+                                        data-course-id="@course.Id"
+                                        style="border-radius:8px;font-size:12px;"
+                                        title="Edit Course Info">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                <button type="button" class="btn btn-light btn-sm fw-semibold text-danger btn-catalog-delete"
+                                        data-course-id="@course.Id"
+                                        data-course-name="@course.Name"
+                                        style="border-radius:8px;font-size:12px;"
+                                        title="Delete Course">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+        <div id="catalogEmptyState" class="cb-empty-state d-none py-5">
+            <div class="cb-empty-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
+            <h4>No courses found</h4>
+            <p>Try adjusting your search query or filter options.</p>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- VIEW 3: PROGRAMS DIRECTORY                 -->
+    <!-- ========================================== -->
+    <div class="ah-view-container @(Model.ActiveView == "programs" ? "" : "d-none")" id="hubView_programs">
+        <div class="ah-programs-grid">
+            @if (Model.Programs != null && Model.Programs.Any())
+            {
+                foreach (var prog in Model.Programs)
+                {
+                    var progCourses = Model.AllCourses?.Where(c => c.CourseCategoryId == prog.Id).ToList() ?? new List<TMS.ViewModels.Masters.CourseMasterViewModel>();
+                    int totalCredits = progCourses.Sum(c => c.NoofCredit);
+
+                    <div class="ah-program-card">
+                        <div class="ah-program-top-bar"></div>
+                        <div>
+                            <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size:11px;">
+                                    <i class="fa-solid fa-circle-check me-1"></i> Active Program
+                                </span>
+                                <span class="text-muted small fw-semibold">ID: #@prog.Id</span>
+                            </div>
+                            <h3 class="ah-program-title">@prog.Name</h3>
+                            <p class="ah-program-desc">
+                                @(string.IsNullOrWhiteSpace(prog.Description) ? "Comprehensive academic degree curriculum with structured semester modules." : prog.Description)
+                            </p>
+                            <div class="ah-program-stats">
+                                <div>
+                                    <div class="ah-pstat-num">@(prog.NoOfSemester ?? 0)</div>
+                                    <div class="ah-pstat-label">Semesters</div>
+                                </div>
+                                <div>
+                                    <div class="ah-pstat-num">@progCourses.Count</div>
+                                    <div class="ah-pstat-label">Courses</div>
+                                </div>
+                                <div>
+                                    <div class="ah-pstat-num">@totalCredits</div>
+                                    <div class="ah-pstat-label">Credits</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center justify-content-between gap-2 pt-3 border-top flex-wrap">
+                            <button type="button" class="btn btn-outline-primary btn-sm fw-semibold btn-explore-program"
+                                    data-program-id="@prog.Id"
+                                    style="border-radius:8px;font-size:12px;">
+                                <i class="fa-solid fa-sitemap me-1"></i> Explore Tree
+                            </button>
+                            <div class="d-flex align-items-center gap-1">
+                                @if (!isFaculty)
+                                {
+                                    <button type="button" class="btn btn-primary btn-sm fw-semibold btn-program-add-course"
+                                            data-program-id="@prog.Id"
+                                            data-program-name="@prog.Name"
+                                            data-semesters="@(prog.NoOfSemester ?? 6)"
+                                            style="border-radius:8px;font-size:12px;background:#4f46e5;border:none;"
+                                            title="Add Course to this Program">
+                                        <i class="fa-solid fa-plus me-1"></i> Add Course
+                                    </button>
+                                    <button type="button" class="btn btn-light btn-sm fw-semibold text-secondary btn-edit-program"
+                                            data-program-id="@prog.Id"
+                                            data-program-name="@prog.Name"
+                                            data-semesters="@(prog.NoOfSemester ?? 6)"
+                                            data-description="@(prog.Description ?? "")"
+                                            style="border-radius:8px;font-size:12px;"
+                                            title="Edit Program Details">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-light btn-sm fw-semibold text-danger btn-delete-program"
+                                            data-program-id="@prog.Id"
+                                            data-program-name="@prog.Name"
+                                            data-course-count="@progCourses.Count"
+                                            style="border-radius:8px;font-size:12px;"
+                                            title="Delete Program">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
             }
 
-            // Library search
-            var searchTimer;
-            $('#librarySearch').on('input', function () {
-                clearTimeout(searchTimer);
-                var val = $(this).val();
-                searchTimer = setTimeout(function () {
-                    $.get(urls.getLib, { search: val }, function (lib) {
-                        var html = '';
-                        lib.forEach(function (i) {
-                            var icon = i.type === 'Video' ? 'fa-video' : i.type === 'VideoURL' ? 'fa-link' : 'fa-file-alt';
-                            html += '<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-radius:10px; margin-bottom:6px; background:#f8fafc; border:1px solid #f1f5f9;">' +
-                                        '<div style="display:flex; align-items:center; gap:8px;"><i class="fa ' + icon + '" style="color:#6366f1;"></i> <span style="font-size:0.88rem;">' + i.title + '</span></div>' +
-                                        '<button class="btn btn-sm btn-link p-0" onclick="assignContent(' + i.id + ')"><i class="fa fa-plus-circle" style="color:#10b981; font-size:1.1rem;"></i></button>' +
-                                    '</div>';
-                        });
-                        $('#libraryItemsList').html(html);
-                    });
-                }, 300);
+            @if (!isFaculty)
+            {
+                <div class="ah-new-prog-card" id="btnCardNewProgram">
+                    <div class="ah-new-prog-icon">
+                        <i class="fa-solid fa-plus"></i>
+                    </div>
+                    <h4 class="fw-bold mb-1 text-dark" style="font-size:16px;">New Degree Program</h4>
+                    <p class="text-muted small mb-0">Create another degree or diploma track</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@if (!isFaculty)
+{
+    <div class="modal fade"
+         id="manageContentModal"
+         tabindex="-1"
+         aria-hidden="true">
+
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+
+            <div class="modal-content"
+                 style="border:0;border-radius:20px;overflow:hidden;box-shadow:0 25px 60px -15px rgba(15,23,42,.30);">
+
+                <div class="modal-header"
+                     style="padding:20px 22px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);">
+
+                    <div>
+                        <h5 class="modal-title fw-bold"
+                            style="color:#0f172a;">
+                            Map Content Resources
+                        </h5>
+
+                        <div class="text-muted"
+                             style="font-size:12px;margin-top:3px;">
+                            Assigning to:
+                            <strong id="mappingCourseTitle"
+                                    class="text-primary"></strong>
+                        </div>
+                    </div>
+
+                    <button type="button"
+                            class="btn-close js-close-manage-content"
+                            aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body p-0">
+                    <input type="hidden" id="mapCourseId" />
+
+                    <div class="p-3 px-4 border-bottom bg-light">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                            <label class="form-label fw-bold mb-0 text-muted small text-uppercase">
+                                <i class="fa-solid fa-shapes text-primary me-1"></i> Target Learning Quadrant
+                            </label>
+                            <span class="badge bg-primary bg-opacity-10 text-primary fw-bold" id="selectedQuadrantBadge">Quadrant 1 (e-Tutorial)</span>
+                        </div>
+                        <div class="cb-quadrant-pills-row d-flex gap-2 flex-wrap" id="quadrantPillsContainer">
+                            @if (Model.AllQuadrants != null && Model.AllQuadrants.Any())
+                            {
+                                int qIdx = 0;
+                                foreach (var q in Model.AllQuadrants)
+                                {
+                                    var iconClass = q.QuadrantNumber switch {
+                                        1 => "fa-video text-danger",
+                                        2 => "fa-file-lines text-primary",
+                                        3 => "fa-comments text-warning",
+                                        4 => "fa-list-check text-success",
+                                        _ => "fa-layer-group text-secondary"
+                                    };
+                                    <button type="button"
+                                            class="cb-quad-pill @(qIdx == 0 ? "active" : "")"
+                                            data-quad-id="@q.Id"
+                                            data-quad-number="@q.QuadrantNumber"
+                                            data-quad-name="@q.Name">
+                                        <i class="fa-solid @iconClass me-1"></i> @q.Name
+                                    </button>
+                                    qIdx++;
+                                }
+                            }
+                        </div>
+                        <select id="mapQuadrantId" class="d-none">
+                            @if (Model.AllQuadrants != null && Model.AllQuadrants.Any())
+                            {
+                                foreach (var quadrant in Model.AllQuadrants)
+                                {
+                                    <option value="@quadrant.Id" data-quadrant-number="@quadrant.QuadrantNumber">@quadrant.Name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="cb-mapping-grid">
+                        <div class="cb-mapping-column">
+                            <div class="cb-mapping-heading">
+                                <span><i class="fa-solid fa-magnifying-glass me-1 text-primary"></i> Library Resources</span>
+                                <span class="badge bg-light text-muted border" id="libraryCountBadge">0 items</span>
+                            </div>
+
+                            <input type="search"
+                                   id="librarySearch"
+                                   class="cb-library-search"
+                                   autocomplete="off"
+                                   placeholder="Search central library resources..." />
+
+                            <div id="libraryItemsList"></div>
+                        </div>
+
+                        <div class="cb-mapping-divider"></div>
+
+                        <div class="cb-mapping-column">
+                            <div class="cb-mapping-heading">
+                                <span><i class="fa-solid fa-link me-1 text-success"></i> Assigned to this Course</span>
+                                <span class="badge bg-light text-muted border" id="mappedCountBadge">0 items</span>
+                            </div>
+
+                            <div id="mappedItemsList"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer justify-content-center">
+                    <button type="button"
+                            class="btn btn-primary px-4 js-close-manage-content">
+                        Done
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- PROGRAM MODAL (CREATE / EDIT) -->
+    <!-- ========================================== -->
+    <div class="modal fade" id="programModal" tabindex="-1" aria-labelledby="programModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius:16px;overflow:hidden;border:none;box-shadow:0 20px 40px rgba(0,0,0,0.15);">
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold" id="programModalLabel">
+                        <i class="fa-solid fa-graduation-cap text-primary me-2"></i><span id="programModalTitle">New Degree Program</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="programForm">
+                    <input type="hidden" id="progId" value="0" />
+                    <div class="modal-body px-4 py-3">
+                        <div class="mb-3">
+                            <label for="progName" class="form-label fw-semibold" style="font-size:13px;">Program Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="progName" placeholder="e.g. Bachelor of Computer Applications (BCA)" required style="border-radius:8px;" />
+                            <small class="text-muted" style="font-size:11px;">Enter the full title of the degree or diploma.</small>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="progSemesters" class="form-label fw-semibold" style="font-size:13px;">Number of Semesters <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="progSemesters" min="1" max="12" value="6" required style="border-radius:8px;" />
+                                <small class="text-muted" style="font-size:11px;">e.g. 6 for 3-yr, 8 for 4-yr degrees.</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="progDurationMonths" class="form-label fw-semibold" style="font-size:13px;">Total Duration (Months)</label>
+                                <input type="number" class="form-control" id="progDurationMonths" min="1" value="36" style="border-radius:8px;" />
+                                <small class="text-muted" style="font-size:11px;">e.g. 36 for 3 years, 24 for 2 years.</small>
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <label for="progDescription" class="form-label fw-semibold" style="font-size:13px;">Description / Overview</label>
+                            <textarea class="form-control" id="progDescription" rows="3" placeholder="Brief overview of learning outcomes, eligibility, etc." style="border-radius:8px;"></textarea>
+                        </div>
+                        <div id="progErrorAlert" class="alert alert-danger py-2 px-3 mt-3 d-none" style="font-size:12px;border-radius:8px;"></div>
+                    </div>
+                    <div class="modal-footer bg-light border-top px-4 py-3">
+                        <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal" style="border-radius:8px;">Cancel</button>
+                        <button type="submit" class="btn btn-primary px-4 fw-semibold" id="saveProgramBtn" style="border-radius:8px;">
+                            <i class="fa-solid fa-floppy-disk me-1"></i> Save Program
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- ADD / EDIT COURSE STRUCTURED MODAL (Matches Reference)   -->
+    <!-- ======================================================== -->
+    <div class="modal fade" id="addCourseStructuredModal" tabindex="-1" aria-labelledby="addCourseModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <!-- Modal Header -->
+                <div class="modal-header border-0 pb-0 pt-4 px-4 align-items-center">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="ac-header-icon-box">
+                            <i class="fa-solid fa-book-open"></i>
+                        </div>
+                        <div>
+                            <h4 class="fw-bold mb-0 text-dark" id="addCourseModalTitle">Add Course</h4>
+                            <p class="text-muted mb-0 small" id="addCourseModalSubtitle">Create a new course and manage its structure</p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <!-- Modal Body with 2-Column Split -->
+                <div class="modal-body p-0 pt-3">
+                    <div class="ac-modal-container">
+                        <!-- LEFT SIDEBAR -->
+                        <div class="ac-sidebar">
+                            <!-- Step 1: Course Details -->
+                            <div class="ac-step-item active" id="acNavDetails" title="Go to Course Details">
+                                <div class="ac-step-badge bg-emerald">
+                                    <i class="fa-solid fa-file-lines"></i>
+                                </div>
+                                <div class="ac-step-info">
+                                    <div class="ac-step-title">Course Details</div>
+                                    <div class="ac-step-sub">Basic information</div>
+                                </div>
+                                <span class="ac-step-num">1</span>
+                            </div>
+
+                            <!-- Step 2: Structure -->
+                            <div class="ac-step-item" id="acNavStructure" title="Go to Course Structure">
+                                <div class="ac-step-badge bg-amber">
+                                    <i class="fa-solid fa-list-ul"></i>
+                                </div>
+                                <div class="ac-step-info">
+                                    <div class="ac-step-title">Structure</div>
+                                    <div class="ac-step-sub">Add modules and topics</div>
+                                </div>
+                                <span class="ac-step-num">2</span>
+                            </div>
+
+                            <!-- LIVE TREE PREVIEW (Directly below Step 2) -->
+                            <div class="ac-tree-preview" id="acSidebarTree">
+                                <!-- Rendered dynamically by JS -->
+                            </div>
+
+                            <!-- Step 3: Additional Settings -->
+                            <div class="ac-step-item" id="acNavSettings" title="Go to Credits & Duration">
+                                <div class="ac-step-badge bg-purple">
+                                    <i class="fa-solid fa-gear"></i>
+                                </div>
+                                <div class="ac-step-info">
+                                    <div class="ac-step-title">Additional Settings</div>
+                                    <div class="ac-step-sub">Credits, duration and more</div>
+                                </div>
+                                <span class="ac-step-num">3</span>
+                            </div>
+                        </div>
+
+                        <!-- RIGHT MAIN PANEL -->
+                        <div class="ac-main-content">
+                            <form id="acCourseForm">
+                                <input type="hidden" id="acCourseId" value="0" />
+                                <input type="hidden" id="acProgramId" value="0" />
+
+                                <!-- Meta Info Bar (Program & Semester) -->
+                                <div class="ac-meta-bar mb-3 p-3 rounded-3 border bg-light d-flex align-items-center justify-content-between flex-wrap gap-3">
+                                    <div class="d-flex align-items-center gap-2" style="min-width: 220px; flex: 1;">
+                                        <label for="acProgramSelect" class="form-label mb-0 fw-bold small text-secondary text-nowrap">
+                                            <i class="fa-solid fa-graduation-cap text-primary me-1"></i> Program *
+                                        </label>
+                                        <select id="acProgramSelect" class="form-select form-select-sm fw-semibold" style="border-radius:8px;" required>
+                                            @if (Model.Programs != null)
+                                            {
+                                                foreach (var p in Model.Programs)
+                                                {
+                                                    <option value="@p.Id" data-name="@p.Name" data-semesters="@(p.NoOfSemester ?? 6)">@p.Name</option>
+                                                }
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2" style="min-width: 200px; flex: 1;">
+                                        <label for="acSemesterSelect" class="form-label mb-0 fw-bold small text-secondary text-nowrap">
+                                            <i class="fa-regular fa-calendar-check text-success me-1"></i> Semester *
+                                        </label>
+                                        <select id="acSemesterSelect" class="form-select form-select-sm fw-semibold" style="border-radius:8px;" required>
+                                            <option value="">-- Choose Semester --</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- SECTION 1: Course Details -->
+                                <div class="ac-section-header d-flex align-items-center gap-2 mb-2" id="acSectionDetails">
+                                    <div class="ac-section-icon bg-emerald-solid">
+                                        <i class="fa-solid fa-book-open"></i>
+                                    </div>
+                                    <div>
+                                        <h5 class="fw-bold mb-0 text-dark">Course Details</h5>
+                                        <p class="text-muted mb-0 small">Enter the basic information for your course</p>
+                                    </div>
+                                </div>
+
+                                <div class="ac-card mb-4">
+                                    <div class="row g-3">
+                                        <div class="col-md-5">
+                                            <label for="acCourseCode" class="form-label fw-semibold small">Course Code <span class="text-danger">*</span></label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white text-primary border-end-0" style="border-radius:8px 0 0 8px;">
+                                                    <i class="fa-solid fa-link"></i>
+                                                </span>
+                                                <input type="text" class="form-control border-start-0" id="acCourseCode" placeholder="e.g. BCA001" required style="border-radius:0 8px 8px 0; font-weight:600; font-family:monospace;" />
+                                            </div>
+                                        </div>
+                                        <div class="col-md-7">
+                                            <label for="acCourseTitle" class="form-label fw-semibold small">Full Course Title <span class="text-danger">*</span></label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white text-muted border-end-0 fw-bold" style="border-radius:8px 0 0 8px; font-size:15px;">T</span>
+                                                <input type="text" class="form-control border-start-0" id="acCourseTitle" placeholder="e.g. C Programming" required style="border-radius:0 8px 8px 0; font-weight:600;" />
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <label for="acCourseDescription" class="form-label fw-semibold small">Course Description <span class="text-danger">*</span></label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white text-muted border-end-0 align-items-start pt-2" style="border-radius:8px 0 0 8px;">
+                                                    <i class="fa-regular fa-file-lines"></i>
+                                                </span>
+                                                <textarea class="form-control border-start-0" id="acCourseDescription" rows="3" placeholder="This course covers the fundamentals of C programming, including syntax, data types, control structures, functions, arrays, pointers and file handling." required style="border-radius:0 8px 8px 0;"></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6" id="acSectionSettings">
+                                            <label for="acCourseCredits" class="form-label fw-semibold small">Credits <span class="text-danger">*</span></label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white text-primary border-end-0" style="border-radius:8px 0 0 8px;">
+                                                    <i class="fa-solid fa-award"></i>
+                                                </span>
+                                                <input type="number" class="form-control border-start-0" id="acCourseCredits" min="1" max="30" value="4" required style="border-radius:0 8px 8px 0; font-weight:600;" />
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="acCourseDuration" class="form-label fw-semibold small">Duration (Months) <span class="text-danger">*</span></label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white text-primary border-end-0" style="border-radius:8px 0 0 8px;">
+                                                    <i class="fa-regular fa-calendar"></i>
+                                                </span>
+                                                <input type="number" class="form-control border-start-0" id="acCourseDuration" min="1" max="60" value="6" required style="border-radius:0 8px 8px 0; font-weight:600;" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- SECTION 2: Course Structure -->
+                                <div class="d-flex align-items-center justify-content-between mb-3" id="acSectionStructure">
+                                    <div class="ac-section-header d-flex align-items-center gap-2">
+                                        <div class="ac-section-icon bg-amber-solid">
+                                            <i class="fa-solid fa-list-ul"></i>
+                                        </div>
+                                        <div>
+                                            <h5 class="fw-bold mb-0 text-dark">Course Structure</h5>
+                                            <p class="text-muted mb-0 small">Organize the course into modules and topics</p>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary fw-semibold px-3" id="acAddModuleBtn" style="border-radius:8px;">
+                                        <i class="fa-solid fa-plus me-1"></i> Add Module
+                                    </button>
+                                </div>
+
+                                <!-- MODULES CONTAINER -->
+                                <div id="acModulesContainer">
+                                    <!-- Rendered dynamically by JS -->
+                                </div>
+
+                                <div id="acErrorAlert" class="alert alert-danger py-2 px-3 mt-3 d-none" style="font-size:12px;border-radius:8px;"></div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="modal-footer border-0 px-4 py-3 bg-white d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-light px-4 border fw-semibold" data-bs-dismiss="modal" style="border-radius:10px;">Cancel</button>
+                    <button type="button" class="btn btn-primary px-4 fw-semibold" id="acSaveCourseBtn" style="border-radius:10px; background:#4f46e5; border-color:#4f46e5;">
+                        <i class="fa-solid fa-floppy-disk me-1"></i> Save Course
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- DELETE COURSE CONFIRM MODAL -->
+    <!-- ========================================== -->
+    <div class="modal fade" id="deleteCourseModal" tabindex="-1" aria-labelledby="deleteCourseModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content" style="border-radius:16px;overflow:hidden;border:none;box-shadow:0 20px 40px rgba(0,0,0,0.15);">
+                <div class="modal-body text-center p-4">
+                    <div style="width:56px;height:56px;border-radius:50%;background:#fee2e2;color:#ef4444;display:inline-flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:16px;">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <h5 class="fw-bold mb-2">Delete Course?</h5>
+                    <p class="text-muted" style="font-size:13px;line-height:1.5;">
+                        Are you sure you want to remove <strong id="deleteCourseNameDisplay" class="text-dark"></strong> from this curriculum?
+                    </p>
+                    <input type="hidden" id="deleteCourseId" />
+                    <div class="d-flex justify-content-center gap-2 mt-4">
+                        <button type="button" class="btn btn-light px-3" data-bs-dismiss="modal" style="border-radius:8px;font-weight:600;">Cancel</button>
+                        <button type="button" class="btn btn-danger px-4" id="confirmDeleteCourseBtn" style="border-radius:8px;font-weight:600;">
+                            <i class="fa-solid fa-trash me-1"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- DELETE PROGRAM CONFIRM MODAL -->
+    <!-- ========================================== -->
+    <div class="modal fade" id="deleteProgramModal" tabindex="-1" aria-labelledby="deleteProgramModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content" style="border-radius:16px;overflow:hidden;border:none;box-shadow:0 20px 40px rgba(0,0,0,0.15);">
+                <div class="modal-body text-center p-4">
+                    <div style="width:56px;height:56px;border-radius:50%;background:#fee2e2;color:#ef4444;display:inline-flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:16px;">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <h5 class="fw-bold mb-2">Delete Program?</h5>
+                    <p class="text-muted" style="font-size:13px;line-height:1.5;">
+                        Are you sure you want to delete <strong id="deleteProgramNameDisplay" class="text-dark"></strong>? This cannot be undone.
+                    </p>
+                    <input type="hidden" id="deleteProgramId" />
+                    <div class="d-flex justify-content-center gap-2 mt-4">
+                        <button type="button" class="btn btn-light px-3" data-bs-dismiss="modal" style="border-radius:8px;font-weight:600;">Cancel</button>
+                        <button type="button" class="btn btn-danger px-4" id="confirmDeleteProgramBtn" style="border-radius:8px;font-weight:600;">
+                            <i class="fa-solid fa-trash me-1"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FACULTY MAPPING MODAL (Direct access from Academic Hub) -->
+    <div class="modal fade" id="hubFacultyMappingModal" tabindex="-1" aria-labelledby="hubFacultyMappingModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="modal-header text-white rounded-top-4" style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);">
+                    <h5 class="modal-title fw-bold" id="hubFacultyMappingModalLabel">
+                        <i class="fa fa-chalkboard-user me-2"></i> Faculty Course Mapping
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-3" id="hubFacultyMappingModalBody">
+                    <div class="text-center py-5">
+                        <i class="fa fa-spinner fa-spin fa-2x text-primary mb-2"></i>
+                        <p class="text-muted mb-0">Loading instructors...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts
+{
+    <script>
+        (function () {
+            "use strict";
+
+            const isFaculty = @(isFaculty ? "true" : "false");
+
+            const urls = {
+                getProgramStructure: '@Url.Action("GetProgramStructure", "CourseStructure", new { area = "Admin" })',
+                getCourseContent: '@Url.Action("GetCourseContent", "CourseStructure", new { area = "Admin" })',
+                getLibraryItems: '@Url.Action("GetLibraryItems", "CourseStructure", new { area = "Admin" })',
+                assignContent: '@Url.Action("AssignContent", "CourseStructure", new { area = "Admin" })',
+                unassignContent: '@Url.Action("UnassignContent", "CourseStructure", new { area = "Admin" })',
+                createProgram: '@Url.Action("CreateProgram", "CourseStructure", new { area = "Admin" })',
+                updateProgram: '@Url.Action("UpdateProgram", "CourseStructure", new { area = "Admin" })',
+                quickAddCourse: '@Url.Action("QuickAddCourse", "CourseStructure", new { area = "Admin" })',
+                updateCourse: '@Url.Action("UpdateCourse", "CourseStructure", new { area = "Admin" })',
+                getCourseDetails: '@Url.Action("GetCourseDetails", "CourseStructure", new { area = "Admin" })',
+                getProgramSemesters: '@Url.Action("GetProgramSemesters", "CourseStructure", new { area = "Admin" })',
+                getCourseFullDetails: '@Url.Action("GetCourseFullDetails", "CourseStructure", new { area = "Admin" })',
+                saveCourseFullStructure: '@Url.Action("SaveCourseFullStructure", "CourseStructure", new { area = "Admin" })',
+                deleteCourse: '@Url.Action("DeleteCourse", "CourseStructure", new { area = "Admin" })',
+                deleteProgram: '@Url.Action("DeleteProgram", "CourseStructure", new { area = "Admin" })'
+            };
+
+            function getAntiForgeryToken() {
+                return document.querySelector(
+                    'input[name="__RequestVerificationToken"]'
+                )?.value || "";
+            }
+
+            function escapeHtml(value) {
+                if (value === null || value === undefined) {
+                    return "";
+                }
+
+                return String(value)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            }
+
+            function showCbToast(title, message, type) {
+                type = type || "success";
+                const isSuccess = type === "success";
+                const iconClass = isSuccess ? "fa-circle-check text-success" : (type === "error" ? "fa-circle-xmark text-danger" : "fa-circle-info text-primary");
+                const toastClass = isSuccess ? "cb-toast-success" : (type === "error" ? "cb-toast-error" : "cb-toast-info");
+
+                const toastHtml = $(`
+                    <div class="cb-toast-item ${toastClass}">
+                        <i class="fa-solid ${iconClass} fs-4"></i>
+                        <div style="flex:1;">
+                            <strong class="d-block text-dark fw-bold" style="font-size:13.5px;">${escapeHtml(title || (isSuccess ? "Success" : "Notification"))}</strong>
+                            <span class="text-secondary" style="font-size:12.5px; line-height:1.4;">${escapeHtml(message || "")}</span>
+                        </div>
+                        <button type="button" class="btn-close ms-auto" style="font-size:11px;" onclick="$(this).closest('.cb-toast-item').removeClass('show').delay(300).queue(function(){ $(this).remove(); });"></button>
+                    </div>
+                `);
+
+                $("#cbToastContainer").append(toastHtml);
+                setTimeout(() => toastHtml.addClass("show"), 50);
+
+                setTimeout(function () {
+                    toastHtml.removeClass("show");
+                    setTimeout(() => toastHtml.remove(), 350);
+                }, 4500);
+            }
+
+            // Check for pending flash message from previous action
+            $(function () {
+                const pendingToast = sessionStorage.getItem("cb_toast_msg");
+                if (pendingToast) {
+                    const toastType = sessionStorage.getItem("cb_toast_type") || "success";
+                    showCbToast(toastType === "success" ? "Success" : "Notification", pendingToast, toastType);
+                    sessionStorage.removeItem("cb_toast_msg");
+                    sessionStorage.removeItem("cb_toast_type");
+                }
             });
+
+            function materialIcon(type) {
+                switch ((type || "").toLowerCase()) {
+                    case "video":
+                        return "fa-video";
+
+                    case "videourl":
+                    case "url":
+                    case "link":
+                        return "fa-link";
+
+                    case "audio":
+                        return "fa-volume-high";
+
+                    case "image":
+                        return "fa-image";
+
+                    default:
+                        return "fa-file-lines";
+                }
+            }
+
+            function showBoardLoading() {
+                $("#structureBoard").html(
+                    '<div class="cb-board-loading">' +
+                    '<div class="spinner-border text-primary" role="status"></div>' +
+                    '<p>Loading curriculum...</p>' +
+                    '</div>'
+                );
+            }
+
+            function showBoardError(message) {
+                $("#structureBoard").html(
+                    '<div class="cb-error-state">' +
+                    '<i class="fa-solid fa-circle-exclamation"></i>' +
+                    '<span>' + escapeHtml(message) + '</span>' +
+                    '</div>'
+                );
+            }
 
             function refreshStructure() {
-                var id = $('.cb-program-tab.active').data('program-id');
-                if (!id) return;
-                $.get(urls.getProgramStructure, { programId: id }, function (html) {
-                    $('#structureBoard').html(html);
-                });
-            }
+                const activeTab = $(".cb-program-tab.active");
+                const programId = Number(activeTab.data("program-id"));
 
-            // Global functions
-            window.assignContent = function (materialId) {
-                var quadrantId = $('#mapQuadrantId').val();
-                $.post(urls.assign, {
-                    materialId: materialId,
-                    courseId: $('#mapCourseId').val(),
-                    quadrantId: quadrantId
-                }, function (res) {
-                    if (res.success) {
-                        loadMappingData();
-                        refreshStructure();
-                    } else {
-                        alert(res.message || 'Failed to assign.');
-                    }
-                });
-            };
-
-            window.unassignContent = function (mappingId) {
-                $.post(urls.unassign, { mappingId: mappingId }, function () {
-                    loadMappingData();
-                    refreshStructure();
-                });
-            };
-
-            // ═══════ CLICK BADGE TO VIEW CONTENT ═══════
-            $(document).on('click', '.cb-view-content-badge', function () {
-                var courseId = $(this).data('course-id');
-                var listContainer = $('#content-list-' + courseId);
-
-                if (listContainer.is(':visible')) {
-                    listContainer.slideUp(200);
+                if (!programId) {
                     return;
                 }
 
-                listContainer.html('<div class="text-muted small p-1" style="font-size:11px;"><i class="fa fa-spinner fa-spin me-1"></i> Loading content...</div>').slideDown(200);
+                $.ajax({
+                    url: urls.getProgramStructure,
+                    type: "GET",
+                    data: {
+                        programId: programId
+                    }
+                })
+                .done(function (html) {
+                    $("#structureBoard").html(html);
+                })
+                .fail(function () {
+                    showBoardError(
+                        "Unable to refresh curriculum structure."
+                    );
+                });
+            }
 
-                $.get(urls.getCourseContent, { courseId: courseId }, function (mapped) {
-                    if (mapped.length === 0) {
-                        listContainer.html('<div class="text-muted small p-1" style="font-size:11px;"><i class="fa fa-info-circle me-1"></i> No content assigned.</div>');
+            function renderLibraryItems(items) {
+                const container = $("#libraryItemsList");
+                const countBadge = $("#libraryCountBadge");
+
+                if (!Array.isArray(items) || items.length === 0) {
+                    countBadge.text("0 items");
+                    container.html(
+                        '<div class="cb-small-empty">' +
+                        '<i class="fa-solid fa-folder-open d-block mb-2 fs-4 text-muted"></i>' +
+                        'No library resources found.' +
+                        '</div>'
+                    );
+                    return;
+                }
+
+                countBadge.text(items.length + " items");
+                let html = "";
+
+                items.forEach(function (item) {
+                    const typeLower = (item.type || "").toLowerCase();
+                    let badgeClass = "doc";
+                    let typeLabel = "Document";
+
+                    if (typeLower.indexOf("video") !== -1) {
+                        badgeClass = "video";
+                        typeLabel = "Video";
+                    } else if (typeLower.indexOf("ppt") !== -1 || typeLower.indexOf("powerpoint") !== -1) {
+                        badgeClass = "ppt";
+                        typeLabel = "Presentation";
+                    } else if (typeLower.indexOf("quiz") !== -1) {
+                        badgeClass = "quiz";
+                        typeLabel = "Quiz";
+                    }
+
+                    html +=
+                        '<div class="cb-resource-row">' +
+                            '<div class="cb-resource-info">' +
+                                '<div class="cb-resource-type-icon ' + badgeClass + '">' +
+                                    '<i class="fa-solid ' + materialIcon(item.type) + '"></i>' +
+                                '</div>' +
+                                '<div style="min-width:0; flex:1;">' +
+                                    '<div class="cb-resource-title" title="' + escapeHtml(item.title) + '">' +
+                                        escapeHtml(item.title) +
+                                    '</div>' +
+                                    '<div class="cb-resource-subtext">' +
+                                        '<span class="badge bg-light text-secondary border me-1" style="font-size:9.5px;">' + typeLabel + '</span>' +
+                                    '</div>' +
+                                '</div>' +
+                            '</div>' +
+
+                            '<button type="button" ' +
+                                    'class="cb-assign-btn js-assign-content" ' +
+                                    'data-material-id="' + Number(item.id) + '" ' +
+                                    'data-material-type="' + escapeHtml(item.type || "") + '" ' +
+                                    'title="Assign to selected quadrant">' +
+                                '<i class="fa-solid fa-plus"></i> Assign' +
+                            '</button>' +
+                        '</div>';
+                });
+
+                container.html(html);
+            }
+
+            function renderMappedItems(items) {
+                const container = $("#mappedItemsList");
+                const countBadge = $("#mappedCountBadge");
+
+                if (!Array.isArray(items) || items.length === 0) {
+                    countBadge.text("0 items");
+                    container.html(
+                        '<div class="cb-small-empty">' +
+                        '<i class="fa-solid fa-link-slash d-block mb-2 fs-4 text-muted"></i>' +
+                        'No content assigned to this course yet.' +
+                        '</div>'
+                    );
+                    return;
+                }
+
+                countBadge.text(items.length + " items");
+                let html = "";
+
+                items.forEach(function (item) {
+                    const typeLower = (item.type || "").toLowerCase();
+                    let badgeClass = "doc";
+                    if (typeLower.indexOf("video") !== -1) badgeClass = "video";
+                    else if (typeLower.indexOf("ppt") !== -1) badgeClass = "ppt";
+                    else if (typeLower.indexOf("quiz") !== -1) badgeClass = "quiz";
+
+                    html +=
+                        '<div class="cb-resource-row">' +
+                            '<div class="cb-resource-info">' +
+                                '<div class="cb-resource-type-icon ' + badgeClass + '">' +
+                                    '<i class="fa-solid ' + materialIcon(item.type) + '"></i>' +
+                                '</div>' +
+                                '<div style="min-width:0; flex:1;">' +
+                                    '<div class="cb-resource-title" title="' + escapeHtml(item.title) + '">' +
+                                        escapeHtml(item.title) +
+                                    '</div>' +
+                                    '<div class="cb-resource-subtext">' +
+                                        '<span class="badge bg-primary bg-opacity-10 text-primary fw-bold" style="font-size:10px;">' +
+                                            escapeHtml(item.quadrant || "Quadrant") +
+                                        '</span>' +
+                                    '</div>' +
+                                '</div>' +
+                            '</div>' +
+
+                            '<button type="button" ' +
+                                    'class="cb-unassign-btn js-unassign-content" ' +
+                                    'data-mapping-id="' + Number(item.mappingId) + '" ' +
+                                    'title="Remove content mapping">' +
+                                '<i class="fa-solid fa-trash-can"></i>' +
+                            '</button>' +
+                        '</div>';
+                });
+
+                container.html(html);
+            }
+
+            function loadLibrary(searchText) {
+                $("#libraryItemsList").html(
+                    '<div class="cb-small-empty">' +
+                    '<i class="fa-solid fa-spinner fa-spin"></i> Loading...' +
+                    '</div>'
+                );
+
+                $.ajax({
+                    url: urls.getLibraryItems,
+                    type: "GET",
+                    data: {
+                        search: searchText || ""
+                    }
+                })
+                .done(function (items) {
+                    renderLibraryItems(items);
+                })
+                .fail(function () {
+                    $("#libraryItemsList").html(
+                        '<div class="cb-small-empty text-danger">' +
+                        'Unable to load library resources.' +
+                        '</div>'
+                    );
+                });
+            }
+
+            function loadMappedItems() {
+                const courseId = Number($("#mapCourseId").val());
+
+                if (!courseId) {
+                    return;
+                }
+
+                $("#mappedItemsList").html(
+                    '<div class="cb-small-empty">' +
+                    '<i class="fa-solid fa-spinner fa-spin"></i> Loading...' +
+                    '</div>'
+                );
+
+                $.ajax({
+                    url: urls.getCourseContent,
+                    type: "GET",
+                    data: {
+                        courseId: courseId
+                    }
+                })
+                .done(function (items) {
+                    renderMappedItems(items);
+                })
+                .fail(function () {
+                    $("#mappedItemsList").html(
+                        '<div class="cb-small-empty text-danger">' +
+                        'Unable to load assigned content.' +
+                        '</div>'
+                    );
+                });
+            }
+
+            function loadMappingData() {
+                loadLibrary($("#librarySearch").val());
+                loadMappedItems();
+            }
+
+            $(document).on(
+                "click",
+                ".cb-program-tab",
+                function () {
+                    const button = $(this);
+                    const programId = Number(
+                        button.data("program-id")
+                    );
+
+                    if (!programId ||
+                        button.hasClass("active")) {
                         return;
                     }
 
-                    var html = '<div style="display: flex; flex-direction: column; gap: 4px;">';
-                    mapped.forEach(function (i) {
-                        var icon = i.type === 'Video' ? 'fa-video' : i.type === 'VideoURL' ? 'fa-link' : 'fa-file-alt';
-                        html += '<div style="display:flex; justify-content:space-between; align-items:center; padding: 4px 10px; background:#f8fafc; border-radius: 6px; border: 1px solid #f1f5f9;">' +
-                                    '<div style="display:flex; align-items:center; gap:6px;"><i class="fa ' + icon + '" style="color:#6366f1; font-size:11px;"></i> <span style="font-size:11px; color:#334155; font-weight:600;">' + i.title + '</span></div>' +
-                                    '<span style="font-size:9px; background:#e0e7ff; color:#4f46e5; padding: 1px 6px; border-radius: 4px; font-weight:700;">' + i.quadrant + '</span>' +
-                                '</div>';
+                    $(".cb-program-tab")
+                        .removeClass("active")
+                        .attr("aria-selected", "false");
+
+                    button
+                        .addClass("active")
+                        .attr("aria-selected", "true");
+
+                    showBoardLoading();
+
+                    $.ajax({
+                        url: urls.getProgramStructure,
+                        type: "GET",
+                        data: {
+                            programId: programId
+                        }
+                    })
+                    .done(function (html) {
+                        $("#structureBoard").html(html);
+
+                        const newUrl =
+                            window.location.pathname +
+                            "?programId=" +
+                            encodeURIComponent(programId);
+
+                        window.history.replaceState(
+                            {},
+                            "",
+                            newUrl
+                        );
+                    })
+                    .fail(function () {
+                        showBoardError(
+                            "Unable to load the selected program."
+                        );
                     });
-                    html += '</div>';
-                    listContainer.html(html);
+                }
+            );
+
+            $(document).on(
+                "click",
+                ".ps-semester-header",
+                function () {
+                    const semester = $(this)
+                        .closest(".ps-semester");
+
+                    semester.toggleClass("collapsed");
+
+                    const collapsed =
+                        semester.hasClass("collapsed");
+
+                    $(this).attr(
+                        "aria-expanded",
+                        collapsed ? "false" : "true"
+                    );
+                }
+            );
+
+            $(document).on(
+                "click",
+                ".cb-view-content-badge",
+                function () {
+                    const button = $(this);
+                    const courseId = Number(
+                        button.data("course-id")
+                    );
+
+                    const container = $(
+                        "#content-list-" + courseId
+                    );
+
+                    if (!courseId) {
+                        return;
+                    }
+
+                    if (container.is(":visible")) {
+                        container.stop(true, true).slideUp(160);
+                        button.attr("aria-expanded", "false");
+                        return;
+                    }
+
+                    button.attr("aria-expanded", "true");
+
+                    container
+                        .html(
+                            '<div class="cb-small-empty">' +
+                            '<i class="fa-solid fa-spinner fa-spin"></i> Loading content...' +
+                            '</div>'
+                        )
+                        .stop(true, true)
+                        .slideDown(160);
+
+                    $.ajax({
+                        url: urls.getCourseContent,
+                        type: "GET",
+                        data: {
+                            courseId: courseId
+                        }
+                    })
+                    .done(function (items) {
+                        if (!Array.isArray(items) ||
+                            items.length === 0) {
+
+                            container.html(
+                                '<div class="cb-small-empty">' +
+                                'No content assigned.' +
+                                '</div>'
+                            );
+
+                            return;
+                        }
+
+                        let html = "";
+
+                        items.forEach(function (item) {
+                            html +=
+                                '<div class="cb-content-item">' +
+
+                                    '<div class="cb-content-item-main">' +
+                                        '<i class="fa-solid ' +
+                                            materialIcon(item.type) +
+                                        '"></i>' +
+
+                                        '<span class="cb-content-item-title" title="' +
+                                            escapeHtml(item.title) +
+                                        '">' +
+                                            escapeHtml(item.title) +
+                                        '</span>' +
+                                    '</div>' +
+
+                                    '<span class="cb-quadrant-badge">' +
+                                        escapeHtml(item.quadrant) +
+                                    '</span>' +
+
+                                '</div>';
+                        });
+
+                        container.html(html);
+                    })
+                    .fail(function () {
+                        container.html(
+                            '<div class="cb-small-empty text-danger">' +
+                            'Unable to load assigned content.' +
+                            '</div>'
+                        );
+                    });
+                }
+            );
+
+            if (!isFaculty) {
+                let manageContentModalInstance = null;
+
+                function closeManageContentModal() {
+                    const modalElement = document.getElementById("manageContentModal");
+                    if (!modalElement) return;
+
+                    if (manageContentModalInstance && typeof manageContentModalInstance.hide === "function") {
+                        manageContentModalInstance.hide();
+                        return;
+                    }
+
+                    if (window.jQuery && $.fn && typeof $.fn.modal === "function") {
+                        $(modalElement).modal("hide");
+                    }
+                }
+
+                $(document).on("click", ".js-close-manage-content", function (event) {
+                    event.preventDefault();
+                    closeManageContentModal();
                 });
-            });
-        });
+
+                $(document).on(
+                    "click",
+                    ".cb-manage-content-btn",
+                    function () {
+                        const courseId = Number(
+                            $(this).data("course-id")
+                        );
+
+                        const courseName =
+                            $(this).data("course-name") || "";
+
+                        if (!courseId) {
+                            return;
+                        }
+
+                        $("#mapCourseId").val(courseId);
+                        $("#mappingCourseTitle").text(courseName);
+                        $("#librarySearch").val("");
+
+                        // Set first quadrant active by default
+                        const firstPill = $(".cb-quad-pill").first();
+                        if (firstPill.length) {
+                            $(".cb-quad-pill").removeClass("active");
+                            firstPill.addClass("active");
+                            $("#mapQuadrantId").val(firstPill.data("quad-id"));
+                            $("#selectedQuadrantBadge").text(firstPill.data("quad-name"));
+                        }
+
+                        loadMappingData();
+
+                        const modalElement =
+                            document.getElementById(
+                                "manageContentModal"
+                            );
+
+                        if (!modalElement) {
+                            return;
+                        }
+
+                        if (!manageContentModalInstance) {
+                            manageContentModalInstance = new bootstrap.Modal(modalElement);
+                        }
+
+                        manageContentModalInstance.show();
+                    }
+                );
+
+                $(document).on("click", ".cb-quad-pill", function () {
+                    $(".cb-quad-pill").removeClass("active");
+                    $(this).addClass("active");
+                    const quadId = $(this).data("quad-id");
+                    const quadName = $(this).data("quad-name");
+                    $("#mapQuadrantId").val(quadId);
+                    $("#selectedQuadrantBadge").text(quadName);
+                });
+
+                $("#manageContentModal").on("hidden.bs.modal", function () {
+                    $("#librarySearch").val("");
+                    $("#mapCourseId").val("");
+                    $("#mappingCourseTitle").text("");
+                    $("#libraryItemsList").empty();
+                    $("#mappedItemsList").empty();
+                    $("body").removeClass("modal-open");
+                    $(".modal-backdrop").remove();
+                });
+
+                let searchTimer = null;
+
+                $(document).on(
+                    "input",
+                    "#librarySearch",
+                    function () {
+                        const searchText = $(this).val();
+
+                        window.clearTimeout(searchTimer);
+
+                        searchTimer = window.setTimeout(
+                            function () {
+                                loadLibrary(searchText);
+                            },
+                            250
+                        );
+                    }
+                );
+
+                $(document).on(
+                    "click",
+                    ".js-assign-content",
+                    function () {
+                        const button = $(this);
+
+                        const materialId = Number(
+                            button.data("material-id")
+                        );
+
+                        const courseId = Number(
+                            $("#mapCourseId").val()
+                        );
+
+                        const quadrantId = Number(
+                            $("#mapQuadrantId").val()
+                        ) || Number($(".cb-quad-pill.active").data("quad-id"));
+
+                        if (!materialId || !courseId) {
+                            return;
+                        }
+
+                        if (!quadrantId) {
+                            alert(
+                                "Please select a target learning quadrant from the top bar."
+                            );
+                            return;
+                        }
+
+                        button
+                            .prop("disabled", true)
+                            .html(
+                                '<i class="fa-solid fa-spinner fa-spin"></i>'
+                            );
+
+                        $.ajax({
+                            url: urls.assignContent,
+                            type: "POST",
+                            data: {
+                                __RequestVerificationToken:
+                                    getAntiForgeryToken(),
+
+                                materialId: materialId,
+                                courseId: courseId,
+                                quadrantId: quadrantId
+                            }
+                        })
+                        .done(function (response) {
+                            if (!response ||
+                                response.success !== true) {
+
+                                alert(
+                                    response?.message ||
+                                    "Unable to assign content."
+                                );
+
+                                return;
+                            }
+
+                            loadMappingData();
+                            refreshStructure();
+                        })
+                        .fail(function () {
+                            alert(
+                                "Unable to assign content. Please try again."
+                            );
+                        })
+                        .always(function () {
+                            button
+                                .prop("disabled", false)
+                                .html(
+                                    '<i class="fa-solid fa-plus"></i> Assign'
+                                );
+                        });
+                    }
+                );
+
+                $(document).on(
+                    "click",
+                    ".js-unassign-content",
+                    function () {
+                        const button = $(this);
+
+                        const mappingId = Number(
+                            button.data("mapping-id")
+                        );
+
+                        if (!mappingId) {
+                            return;
+                        }
+
+                        button
+                            .prop("disabled", true)
+                            .html(
+                                '<i class="fa-solid fa-spinner fa-spin"></i>'
+                            );
+
+                        $.ajax({
+                            url: urls.unassignContent,
+                            type: "POST",
+                            data: {
+                                __RequestVerificationToken:
+                                    getAntiForgeryToken(),
+
+                                mappingId: mappingId
+                            }
+                        })
+                        .done(function (response) {
+                            if (!response ||
+                                response.success !== true) {
+
+                                alert(
+                                    response?.message ||
+                                    "Unable to remove content."
+                                );
+
+                                return;
+                            }
+
+                            loadMappingData();
+                            refreshStructure();
+                        })
+                        .fail(function () {
+                            alert(
+                                "Unable to remove content. Please try again."
+                            );
+                        })
+                        .always(function () {
+                            button
+                                .prop("disabled", false)
+                                .html(
+                                    '<i class="fa-solid fa-trash"></i>'
+                                );
+                        });
+                    }
+                );
+
+                // ========================================================
+                // MODAL HELPER FUNCTIONS
+                // ========================================================
+                function getBootstrapModal(elementId) {
+                    const el = document.getElementById(elementId);
+                    if (!el) return null;
+                    return bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el);
+                }
+
+                function showModal(elementId) {
+                    const modal = getBootstrapModal(elementId);
+                    if (modal) modal.show();
+                    else if (window.jQuery && $.fn.modal) $(`#${elementId}`).modal("show");
+                }
+
+                function hideModal(elementId) {
+                    const modal = getBootstrapModal(elementId);
+                    if (modal) modal.hide();
+                    else if (window.jQuery && $.fn.modal) $(`#${elementId}`).modal("hide");
+                    $("body").removeClass("modal-open");
+                    $(".modal-backdrop").remove();
+                }
+
+                // ========================================================
+                // PROGRAM MANAGEMENT (CREATE / EDIT)
+                // ========================================================
+                $(document).on("click", "#openNewProgramModalBtn, #btnOpenNewProgramModal, #btnHeaderNewProgram, .cb-new-program-btn, .btn-new-program", function (e) {
+                    e.preventDefault();
+                    $("#progId").val("0");
+                    $("#progName").val("");
+                    $("#progSemesters").val("6");
+                    $("#progDurationMonths").val("36");
+                    $("#progDescription").val("");
+                    $("#progErrorAlert").addClass("d-none").text("");
+                    $("#programModalTitle").text("New Degree Program");
+                    showModal("programModal");
+                });
+
+                $(document).on("click", ".cb-edit-program-btn, .cb-prog-edit-btn, .btn-edit-program", function () {
+                    const programId = Number($(this).data("program-id")) || 0;
+                    const programName = $(this).data("program-name") || "";
+                    const semesters = Number($(this).data("semesters")) || 6;
+                    const desc = $(this).data("description") || "";
+
+                    $("#progId").val(programId);
+                    $("#progName").val(programName);
+                    $("#progSemesters").val(semesters);
+                    $("#progDurationMonths").val(semesters * 6);
+                    $("#progDescription").val(desc);
+                    $("#progErrorAlert").addClass("d-none").text("");
+                    $("#programModalTitle").text("Edit Program: " + programName);
+                    showModal("programModal");
+                });
+
+                $("#programForm").on("submit", function (e) {
+                    e.preventDefault();
+                    const progId = Number($("#progId").val()) || 0;
+                    const name = $("#progName").val().trim();
+                    const semesters = Number($("#progSemesters").val()) || 6;
+                    const desc = $("#progDescription").val().trim();
+                    const btn = $("#saveProgramBtn");
+
+                    if (!name) {
+                        $("#progErrorAlert").text("Program Name is required.").removeClass("d-none");
+                        return;
+                    }
+
+                    $("#progErrorAlert").addClass("d-none");
+                    btn.prop("disabled", true).html('<i class="fa-solid fa-spinner fa-spin me-1"></i> Saving...');
+
+                    const targetUrl = progId > 0 ? urls.updateProgram : urls.createProgram;
+                    const postData = {
+                        __RequestVerificationToken: getAntiForgeryToken(),
+                        name: name,
+                        noOfSemester: semesters,
+                        description: desc
+                    };
+                    if (progId > 0) {
+                        postData.programId = progId;
+                    }
+
+                    $.ajax({
+                        url: targetUrl,
+                        type: "POST",
+                        data: postData
+                    })
+                    .done(function (res) {
+                        if (res && res.success) {
+                            sessionStorage.setItem("cb_toast_msg", res.message || (progId > 0 ? "Program updated successfully!" : "Program created successfully!"));
+                            sessionStorage.setItem("cb_toast_type", "success");
+                            hideModal("programModal");
+                            if (res.programId) {
+                                window.location.href = window.location.pathname + "?programId=" + encodeURIComponent(res.programId);
+                            } else {
+                                window.location.reload();
+                            }
+                        } else {
+                            $("#progErrorAlert").text(res?.message || "Failed to save program.").removeClass("d-none");
+                            btn.prop("disabled", false).html('<i class="fa-solid fa-floppy-disk me-1"></i> Save Program');
+                        }
+                    })
+                    .fail(function () {
+                        $("#progErrorAlert").text("An error occurred while saving the program.").removeClass("d-none");
+                        btn.prop("disabled", false).html('<i class="fa-solid fa-floppy-disk me-1"></i> Save Program');
+                    });
+                });
+
+                // ========================================================
+                // ADD & EDIT COURSE STRUCTURED MODAL (Matches Reference)
+                // ========================================================
+                let currentModules = [];
+
+                function renderModulesEditor() {
+                    const container = $("#acModulesContainer");
+                    container.empty();
+
+                    if (!currentModules || currentModules.length === 0) {
+                        container.html(`
+                            <div class="text-center py-4 border rounded-3 bg-light text-muted">
+                                <i class="fa-solid fa-folder-open mb-2 text-secondary" style="font-size:28px;"></i>
+                                <div class="small fw-semibold">No modules added yet</div>
+                                <div class="small text-muted mb-2">Click "+ Add Module" to start organizing topics</div>
+                            </div>
+                        `);
+                        updateSidebarTree();
+                        return;
+                    }
+
+                    currentModules.forEach(function (mod, modIdx) {
+                        let topicsHtml = '';
+                        if (mod.topics && mod.topics.length > 0) {
+                            mod.topics.forEach(function (top, topIdx) {
+                                topicsHtml += `
+                                    <div class="ac-topic-item d-flex align-items-center justify-content-between p-2 px-3 mb-2" data-topic-index="${topIdx}">
+                                        <div class="d-flex align-items-center gap-2 flex-grow-1 min-w-0 me-2">
+                                            <i class="fa-solid fa-file-lines text-danger flex-shrink-0" style="font-size:14px;"></i>
+                                            <span class="ac-topic-badge fw-bold text-secondary small text-nowrap">Topic ${topIdx + 1}</span>
+                                            <input type="text" class="form-control form-control-sm ac-topic-title-input" value="${escapeHtml(top.name)}" placeholder="Topic Title (e.g. Basics and Syntax)" data-mod-idx="${modIdx}" data-top-idx="${topIdx}" style="border-radius:6px;" />
+                                        </div>
+                                        <div class="d-flex align-items-center gap-1">
+                                            <button type="button" class="btn btn-sm btn-light border ac-delete-topic-btn text-danger p-1 px-2" data-mod-idx="${modIdx}" data-top-idx="${topIdx}" title="Delete Topic" style="border-radius:6px;">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                        }
+
+                        const modCard = `
+                            <div class="ac-module-card" data-module-index="${modIdx}">
+                                <div class="ac-module-header d-flex align-items-center justify-content-between p-2 px-3">
+                                    <div class="d-flex align-items-center gap-2 flex-grow-1 min-w-0 me-2">
+                                        <i class="fa-solid fa-folder text-primary flex-shrink-0" style="font-size:16px;"></i>
+                                        <span class="ac-module-badge fw-bold text-dark text-nowrap">Module ${modIdx + 1}</span>
+                                        <input type="text" class="form-control form-control-sm ac-module-title-input" value="${escapeHtml(mod.name)}" placeholder="Module Title (e.g. Introduction to C)" data-mod-idx="${modIdx}" style="border-radius:6px; font-weight:600;" />
+                                    </div>
+                                    <div class="d-flex align-items-center gap-1">
+                                        <button type="button" class="btn btn-sm btn-light border ac-delete-module-btn text-danger p-1 px-2" data-mod-idx="${modIdx}" title="Delete Module" style="border-radius:6px;">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-light border ac-toggle-module-btn text-secondary p-1 px-2" data-mod-idx="${modIdx}" title="Collapse/Expand" style="border-radius:6px;">
+                                            <i class="fa-solid fa-chevron-down"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="ac-topics-body p-3 pt-2">
+                                    <div class="ac-topics-list">
+                                        ${topicsHtml}
+                                    </div>
+                                    <button type="button" class="btn btn-sm ac-add-topic-btn mt-2" data-mod-idx="${modIdx}">
+                                        <i class="fa-solid fa-plus"></i> Add Topic
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        container.append(modCard);
+                    });
+
+                    updateSidebarTree();
+                }
+
+                function updateSidebarTree() {
+                    const tree = $("#acSidebarTree");
+                    tree.empty();
+
+                    if (!currentModules || currentModules.length === 0) {
+                        tree.html(`
+                            <button type="button" class="ac-tree-add-module-btn" id="acTreeAddModuleInitial">
+                                <i class="fa-solid fa-plus"></i> Add Module
+                            </button>
+                        `);
+                        return;
+                    }
+
+                    let treeHtml = '';
+                    currentModules.forEach(function (mod, modIdx) {
+                        let topicsTreeHtml = '';
+                        if (mod.topics && mod.topics.length > 0) {
+                            mod.topics.forEach(function (top, topIdx) {
+                                topicsTreeHtml += `
+                                    <div class="ac-tree-topic">
+                                        <i class="fa-solid fa-file-lines text-danger me-1 flex-shrink-0"></i>
+                                        <span class="fw-semibold me-1 text-nowrap">Topic ${topIdx + 1}</span>
+                                        <span class="text-truncate text-muted small" title="${escapeHtml(top.name || '')}">${escapeHtml(top.name || 'Untitled Topic')}</span>
+                                    </div>
+                                `;
+                            });
+                        }
+
+                        treeHtml += `
+                            <div class="ac-tree-module">
+                                <div class="ac-tree-module-header">
+                                    <i class="fa-solid fa-folder text-primary me-1 flex-shrink-0"></i>
+                                    <span class="fw-bold me-1 text-nowrap">Module ${modIdx + 1}</span>
+                                    <span class="text-truncate text-muted small" title="${escapeHtml(mod.name || '')}">${escapeHtml(mod.name || 'Untitled Module')}</span>
+                                    <i class="fa-solid fa-chevron-down ms-auto text-muted small" style="font-size:10px;"></i>
+                                </div>
+                                <div class="ac-tree-topics-container">
+                                    ${topicsTreeHtml}
+                                    <div>
+                                        <button type="button" class="ac-tree-add-topic-btn" data-mod-idx="${modIdx}">
+                                            <i class="fa-solid fa-plus"></i> Add Topic
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    treeHtml += `
+                        <button type="button" class="ac-tree-add-module-btn" id="acTreeAddModule">
+                            <i class="fa-solid fa-plus"></i> Add Module
+                        </button>
+                    `;
+
+                    tree.html(treeHtml);
+                }
+
+                // Sidebar Step Nav clicks smooth scroll
+                $(document).on("click", "#acNavDetails", function () {
+                    $(".ac-step-item").removeClass("active");
+                    $(this).addClass("active");
+                    document.getElementById("acSectionDetails")?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+
+                $(document).on("click", "#acNavStructure", function () {
+                    $(".ac-step-item").removeClass("active");
+                    $(this).addClass("active");
+                    document.getElementById("acSectionStructure")?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+
+                $(document).on("click", "#acNavSettings", function () {
+                    $(".ac-step-item").removeClass("active");
+                    $(this).addClass("active");
+                    document.getElementById("acSectionSettings")?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                });
+
+                function addModuleAction(initialName) {
+                    const modIdx = currentModules.length;
+                    currentModules.push({
+                        id: 0,
+                        name: initialName || `Module ${modIdx + 1}`,
+                        topics: [
+                            { id: 0, name: 'Topic 1' }
+                        ]
+                    });
+                    renderModulesEditor();
+                }
+
+                function addTopicAction(modIdx, initialName) {
+                    if (currentModules[modIdx]) {
+                        const topIdx = (currentModules[modIdx].topics || []).length;
+                        if (!currentModules[modIdx].topics) currentModules[modIdx].topics = [];
+                        currentModules[modIdx].topics.push({
+                            id: 0,
+                            name: initialName || `Topic ${topIdx + 1}`
+                        });
+                        renderModulesEditor();
+                    }
+                }
+
+                $(document).on("click", "#acAddModuleBtn, #acTreeAddModule, #acTreeAddModuleInitial", function () {
+                    addModuleAction();
+                });
+
+                $(document).on("click", ".ac-add-topic-btn, .ac-tree-add-topic-btn", function () {
+                    const modIdx = Number($(this).data("mod-idx"));
+                    addTopicAction(modIdx);
+                });
+
+                $(document).on("input", ".ac-module-title-input", function () {
+                    const modIdx = Number($(this).data("mod-idx"));
+                    if (currentModules[modIdx]) {
+                        currentModules[modIdx].name = $(this).val();
+                        updateSidebarTree();
+                    }
+                });
+
+                $(document).on("input", ".ac-topic-title-input", function () {
+                    const modIdx = Number($(this).data("mod-idx"));
+                    const topIdx = Number($(this).data("top-idx"));
+                    if (currentModules[modIdx] && currentModules[modIdx].topics && currentModules[modIdx].topics[topIdx]) {
+                        currentModules[modIdx].topics[topIdx].name = $(this).val();
+                        updateSidebarTree();
+                    }
+                });
+
+                $(document).on("click", ".ac-delete-module-btn", function () {
+                    const modIdx = Number($(this).data("mod-idx"));
+                    currentModules.splice(modIdx, 1);
+                    renderModulesEditor();
+                });
+
+                $(document).on("click", ".ac-delete-topic-btn", function () {
+                    const modIdx = Number($(this).data("mod-idx"));
+                    const topIdx = Number($(this).data("top-idx"));
+                    if (currentModules[modIdx] && currentModules[modIdx].topics) {
+                        currentModules[modIdx].topics.splice(topIdx, 1);
+                        renderModulesEditor();
+                    }
+                });
+
+                $(document).on("click", ".ac-toggle-module-btn", function () {
+                    const card = $(this).closest(".ac-module-card");
+                    const body = card.find(".ac-topics-body");
+                    body.slideToggle(140);
+                    const icon = $(this).find("i");
+                    icon.toggleClass("fa-chevron-down fa-chevron-up");
+                });
+
+                // ========================================================
+                // ACADEMIC HUB: UNIFIED VIEW SWITCHER & HELPERS
+                // ========================================================
+                function switchHubView(viewName) {
+                    if (!viewName) viewName = "tree";
+                    $(".ah-nav-tab").removeClass("active");
+                    $(`.ah-nav-tab[data-view="${viewName}"]`).addClass("active");
+                    $(".ah-view-container").addClass("d-none");
+                    $(`#hubView_${viewName}`).removeClass("d-none");
+
+                    if (history.replaceState) {
+                        const url = new URL(window.location);
+                        url.searchParams.set("view", viewName);
+                        history.replaceState(null, "", url.toString());
+                    }
+                }
+
+                $(document).on("click", ".ah-nav-tab", function () {
+                    const view = $(this).data("view");
+                    switchHubView(view);
+                });
+
+                // Auto-detect initial view from URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const initialView = urlParams.get("view") || window.location.hash.replace("#", "");
+                if (initialView && ["tree", "courses", "programs"].includes(initialView)) {
+                    switchHubView(initialView);
+                }
+
+                // ========================================================
+                // COURSE CATALOG: FILTERING & SEARCH
+                // ========================================================
+                function filterCourseCatalog() {
+                    const search = ($("#courseCatalogSearch").val() || "").toLowerCase().trim();
+                    const programFilter = $("#courseCatalogProgramFilter").val();
+                    const semesterFilter = $("#courseCatalogSemesterFilter").val();
+
+                    let visibleCount = 0;
+                    $(".ah-catalog-card").each(function () {
+                        const card = $(this);
+                        const name = (card.data("name") || "").toString().toLowerCase();
+                        const code = (card.data("code") || "").toString().toLowerCase();
+                        const prog = (card.data("program-id") || "").toString();
+                        const sem = (card.data("semester-id") || "").toString();
+
+                        const matchSearch = !search || name.includes(search) || code.includes(search);
+                        const matchProg = !programFilter || programFilter === "all" || prog === programFilter;
+                        const matchSem = !semesterFilter || semesterFilter === "all" || sem === semesterFilter;
+
+                        if (matchSearch && matchProg && matchSem) {
+                            card.removeClass("d-none");
+                            visibleCount++;
+                        } else {
+                            card.addClass("d-none");
+                        }
+                    });
+
+                    if (visibleCount === 0) {
+                        $("#catalogEmptyState").removeClass("d-none");
+                    } else {
+                        $("#catalogEmptyState").addClass("d-none");
+                    }
+                }
+
+                $(document).on("input", "#courseCatalogSearch", filterCourseCatalog);
+                $(document).on("change", "#courseCatalogProgramFilter, #courseCatalogSemesterFilter", filterCourseCatalog);
+
+                // ========================================================
+                // PROGRAM SEMESTERS LOADER HELPER
+                // ========================================================
+                function loadProgramSemesters(programId, targetSemesterId, callback) {
+                    const select = $("#acSemesterSelect");
+                    select.html('<option value="">Loading semesters...</option>');
+
+                    if (!programId) {
+                        select.html('<option value="">-- Choose Program First --</option>');
+                        return;
+                    }
+
+                    $.ajax({
+                        url: urls.getProgramSemesters,
+                        type: "GET",
+                        data: { programId: programId }
+                    })
+                    .done(function (semesters) {
+                        select.empty();
+                        if (Array.isArray(semesters) && semesters.length > 0) {
+                            semesters.forEach(function (s) {
+                                select.append(`<option value="${s.id}">${escapeHtml(s.name)}</option>`);
+                            });
+                            if (targetSemesterId > 0) {
+                                select.val(targetSemesterId);
+                            }
+                        } else {
+                            select.append('<option value="">No semesters configured</option>');
+                        }
+                        if (typeof callback === "function") callback();
+                    })
+                    .fail(function () {
+                        select.html('<option value="">Error loading semesters</option>');
+                    });
+                }
+
+                $(document).on("change", "#acProgramSelect", function () {
+                    const progId = Number($(this).val()) || 0;
+                    $("#acProgramId").val(progId);
+                    loadProgramSemesters(progId, 0);
+                });
+
+                // ========================================================
+                // OPEN ADD COURSE MODAL
+                // ========================================================
+                function openAddCourseModalWithStructure(programId, targetSemesterId) {
+                    if (!programId) {
+                        programId = Number($(".cb-program-tab.active").data("program-id")) || Number($("#acProgramSelect option:first").val()) || 0;
+                    }
+
+                    $("#addCourseModalTitle").text("Add Course");
+                    $("#addCourseModalSubtitle").text("Create a new course and manage its structure");
+                    $("#acCourseId").val("0");
+                    $("#acProgramId").val(programId);
+                    $("#acProgramSelect").val(programId);
+                    $("#acCourseCode").val("");
+                    $("#acCourseTitle").val("");
+                    $("#acCourseDescription").val("");
+                    $("#acCourseCredits").val(4);
+                    $("#acCourseDuration").val(6);
+                    $("#acErrorAlert").addClass("d-none").text("");
+
+                    currentModules = [
+                        {
+                            id: 0,
+                            name: "Introduction to Course",
+                            topics: [
+                                { id: 0, name: "Overview and Foundations" },
+                                { id: 0, name: "Core Concepts & Methodology" }
+                            ]
+                        },
+                        {
+                            id: 0,
+                            name: "Advanced Principles",
+                            topics: [
+                                { id: 0, name: "Practical Implementations" }
+                            ]
+                        }
+                    ];
+                    renderModulesEditor();
+                    loadProgramSemesters(programId, targetSemesterId);
+                    showModal("addCourseStructuredModal");
+                }
+
+                $(document).on("click", "#btnHeaderAddCourse, .btn-open-add-course", function () {
+                    const activeProg = Number($(".cb-program-tab.active").data("program-id")) || 0;
+                    openAddCourseModalWithStructure(activeProg);
+                });
+
+                $(document).on("click", ".cb-quick-add-course-btn, .cb-sem-add-course-btn", function () {
+                    const programId = Number($(this).data("program-id")) || Number($(".cb-program-tab.active").data("program-id")) || 0;
+                    const targetSemesterId = Number($(this).data("semester-id")) || 0;
+                    openAddCourseModalWithStructure(programId, targetSemesterId);
+                });
+
+                $(document).on("click", ".btn-program-add-course, .cb-prog-add-course-btn", function () {
+                    const programId = Number($(this).data("program-id"));
+                    openAddCourseModalWithStructure(programId);
+                });
+
+                // ========================================================
+                // OPEN EDIT COURSE MODAL & STRUCTURE
+                // ========================================================
+                function loadAndOpenCourseFullStructure(courseId) {
+                    if (!courseId) return;
+
+                    $("#acErrorAlert").addClass("d-none").text("");
+
+                    $.ajax({
+                        url: urls.getCourseFullDetails,
+                        type: "GET",
+                        data: { courseId: courseId }
+                    })
+                    .done(function (course) {
+                        if (!course) return;
+
+                        $("#addCourseModalTitle").text("Edit Course");
+                        $("#addCourseModalSubtitle").text("Update course details and manage its structure");
+
+                        $("#acCourseId").val(course.courseId);
+                        $("#acProgramId").val(course.programId);
+                        $("#acProgramSelect").val(course.programId);
+                        $("#acCourseCode").val(course.courseCode || "");
+                        $("#acCourseTitle").val(course.courseTitle || "");
+                        $("#acCourseDescription").val(course.description || "");
+                        $("#acCourseCredits").val(course.credits || 4);
+                        $("#acCourseDuration").val(course.durationMonths || 6);
+
+                        loadProgramSemesters(course.programId, course.semesterId);
+
+                        if (course.modules && course.modules.length > 0) {
+                            currentModules = course.modules.map(function (m) {
+                                return {
+                                    id: m.id || 0,
+                                    name: m.name || '',
+                                    topics: (m.topics || []).map(function (t) {
+                                        return {
+                                            id: t.id || 0,
+                                            name: t.name || ''
+                                        };
+                                    })
+                                };
+                            });
+                        } else {
+                            currentModules = [
+                                {
+                                    id: 0,
+                                    name: "Module 1",
+                                    topics: [{ id: 0, name: "Topic 1" }]
+                                }
+                            ];
+                        }
+                        renderModulesEditor();
+                        showModal("addCourseStructuredModal");
+                    })
+                    .fail(function () {
+                        alert("Unable to load course structure.");
+                    });
+                }
+
+                $(document).on("click", ".cb-edit-course-btn, .btn-catalog-edit, .btn-catalog-manage-structure", function () {
+                    const courseId = Number($(this).data("course-id"));
+                    loadAndOpenCourseFullStructure(courseId);
+                });
+
+                $(document).on("click", ".btn-catalog-content", function () {
+                    const courseId = Number($(this).data("course-id"));
+                    const courseName = $(this).data("course-name") || "Course";
+                    openContentModal(courseId, courseName);
+                });
+
+                $(document).on("click", ".cb-assign-faculty-btn, .btn-catalog-assign-faculty", function () {
+                    const courseId = Number($(this).data("course-id"));
+                    const courseName = $(this).data("course-name") || "Course";
+                    if (!courseId) return;
+                    $("#hubFacultyMappingModalLabel").html(`<i class="fa fa-chalkboard-user me-2"></i> Faculty Mapping: ${escapeHtml(courseName)}`);
+                    $("#hubFacultyMappingModalBody").html('<div class="text-center py-5"><i class="fa fa-spinner fa-spin fa-2x text-primary mb-2"></i><p class="text-muted mb-0">Loading instructors...</p></div>');
+                    showModal("hubFacultyMappingModal");
+                    $("#hubFacultyMappingModalBody").load(`/Admin/FacultyMapping/ManageMapping?courseId=${courseId}`);
+                });
+
+                // ========================================================
+                // PROGRAM DIRECTORY ACTIONS
+                // ========================================================
+                $(document).on("click", ".btn-explore-program", function () {
+                    const programId = Number($(this).data("program-id"));
+                    if (!programId) return;
+                    $(`.cb-program-tab[data-program-id="${programId}"]`).click();
+                    switchHubView("tree");
+                });
+
+                $(document).on("click", ".btn-edit-program", function () {
+                    const programId = Number($(this).data("program-id")) || 0;
+                    const programName = $(this).data("program-name") || "";
+                    const semesters = Number($(this).data("semesters")) || 6;
+                    const desc = $(this).data("description") || "";
+
+                    $("#progId").val(programId);
+                    $("#progName").val(programName);
+                    $("#progSemesters").val(semesters);
+                    $("#progDurationMonths").val(semesters * 6);
+                    $("#progDescription").val(desc);
+                    $("#progErrorAlert").addClass("d-none").text("");
+                    $("#programModalTitle").text("Edit Program: " + programName);
+                    showModal("programModal");
+                });
+
+                $(document).on("click", ".btn-delete-program", function () {
+                    const programId = Number($(this).data("program-id"));
+                    const programName = $(this).data("program-name") || "this program";
+                    const courseCount = Number($(this).data("course-count")) || 0;
+
+                    if (courseCount > 0) {
+                        alert(`Cannot delete '${programName}' because it has ${courseCount} courses assigned. Please remove or move its courses first.`);
+                        return;
+                    }
+
+                    $("#deleteProgramId").val(programId);
+                    $("#deleteProgramNameDisplay").text(programName);
+                    showModal("deleteProgramModal");
+                });
+
+                $(document).on("click", "#confirmDeleteProgramBtn", function () {
+                    const programId = Number($("#deleteProgramId").val());
+                    const btn = $(this);
+                    if (!programId) return;
+
+                    btn.prop("disabled", true).html('<i class="fa-solid fa-spinner fa-spin me-1"></i> Deleting...');
+
+                    $.ajax({
+                        url: urls.deleteProgram,
+                        type: "POST",
+                        data: {
+                            __RequestVerificationToken: getAntiForgeryToken(),
+                            programId: programId
+                        }
+                    })
+                    .done(function (res) {
+                        if (res && res.success) {
+                            sessionStorage.setItem("cb_toast_msg", res.message || "Program removed successfully!");
+                            sessionStorage.setItem("cb_toast_type", "success");
+                            hideModal("deleteProgramModal");
+                            window.location.reload();
+                        } else {
+                            alert(res?.message || "Failed to delete program.");
+                        }
+                    })
+                    .fail(function () {
+                        alert("An error occurred while deleting the program.");
+                    })
+                    .always(function () {
+                        btn.prop("disabled", false).html('<i class="fa-solid fa-trash me-1"></i> Delete');
+                    });
+                });
+
+                // ========================================================
+                // SAVE COURSE FORM SUBMISSION
+                // ========================================================
+                $("#acCourseForm").on("submit", function (e) {
+                    e.preventDefault();
+                    const courseId = Number($("#acCourseId").val()) || 0;
+                    const programId = Number($("#acProgramId").val());
+                    const semesterId = Number($("#acSemesterSelect").val());
+                    const code = $("#acCourseCode").val().trim();
+                    const title = $("#acCourseTitle").val().trim();
+                    const desc = $("#acCourseDescription").val().trim();
+                    const credits = Number($("#acCourseCredits").val()) || 4;
+                    const duration = Number($("#acCourseDuration").val()) || 6;
+                    const btn = $("#acSaveCourseBtn");
+
+                    if (!programId) {
+                        $("#acErrorAlert").text("Please select a valid Program.").removeClass("d-none");
+                        return;
+                    }
+
+                    if (!semesterId) {
+                        $("#acErrorAlert").text("Please select a Target Semester.").removeClass("d-none");
+                        return;
+                    }
+
+                    if (!code) {
+                        $("#acErrorAlert").text("Course Code is required.").removeClass("d-none");
+                        return;
+                    }
+
+                    if (!title) {
+                        $("#acErrorAlert").text("Full Course Title is required.").removeClass("d-none");
+                        return;
+                    }
+
+                    const modulesPayload = currentModules.map(function (mod, modIdx) {
+                        return {
+                            id: mod.id || 0,
+                            name: mod.name || `Module ${modIdx + 1}`,
+                            sortOrder: modIdx + 1,
+                            topics: (mod.topics || []).map(function (top, topIdx) {
+                                return {
+                                    id: top.id || 0,
+                                    name: top.name || `Topic ${topIdx + 1}`,
+                                    sortOrder: topIdx + 1
+                                };
+                            })
+                        };
+                    });
+
+                    const payload = {
+                        courseId: courseId,
+                        programId: programId,
+                        semesterId: semesterId,
+                        courseCode: code,
+                        courseTitle: title,
+                        description: desc,
+                        credits: credits,
+                        durationMonths: duration,
+                        modules: modulesPayload
+                    };
+
+                    $("#acErrorAlert").addClass("d-none");
+                    btn.prop("disabled", true).html('<i class="fa-solid fa-spinner fa-spin me-1"></i> Saving Course...');
+
+                    $.ajax({
+                        url: urls.saveCourseFullStructure,
+                        type: "POST",
+                        contentType: "application/json",
+                        headers: {
+                            "RequestVerificationToken": getAntiForgeryToken()
+                        },
+                        data: JSON.stringify(payload)
+                    })
+                    .done(function (res) {
+                        if (res && res.success) {
+                            sessionStorage.setItem("cb_toast_msg", res.message || (courseId > 0 ? "Course updated successfully!" : "Course created and structured successfully!"));
+                            sessionStorage.setItem("cb_toast_type", "success");
+                            hideModal("addCourseStructuredModal");
+                            window.location.reload();
+                        } else {
+                            $("#acErrorAlert").text(res?.message || "Failed to save course.").removeClass("d-none");
+                        }
+                    })
+                    .fail(function () {
+                        $("#acErrorAlert").text("An error occurred while saving the course.").removeClass("d-none");
+                    })
+                    .always(function () {
+                        btn.prop("disabled", false).html('<i class="fa-solid fa-floppy-disk me-1"></i> Save Course');
+                    });
+                });
+
+                $(document).on("click", "#acSaveCourseBtn", function () {
+                    $("#acCourseForm").submit();
+                });
+
+                // ========================================================
+                // DELETE COURSE
+                // ========================================================
+                $(document).on("click", ".cb-delete-course-btn, .btn-catalog-delete", function () {
+                    const courseId = Number($(this).data("course-id"));
+                    const courseName = $(this).data("course-name") || "this course";
+
+                    if (!courseId) return;
+
+                    $("#deleteCourseId").val(courseId);
+                    $("#deleteCourseNameDisplay").text(courseName);
+                    showModal("deleteCourseModal");
+                });
+
+                $(document).on("click", "#confirmDeleteCourseBtn", function () {
+                    const courseId = Number($("#deleteCourseId").val());
+                    const btn = $(this);
+
+                    if (!courseId) return;
+
+                    btn.prop("disabled", true).html('<i class="fa-solid fa-spinner fa-spin me-1"></i> Deleting...');
+
+                    $.ajax({
+                        url: urls.deleteCourse,
+                        type: "POST",
+                        data: {
+                            __RequestVerificationToken: getAntiForgeryToken(),
+                            courseId: courseId
+                        }
+                    })
+                    .done(function (res) {
+                        if (res && res.success) {
+                            sessionStorage.setItem("cb_toast_msg", res.message || "Course removed successfully!");
+                            sessionStorage.setItem("cb_toast_type", "success");
+                            hideModal("deleteCourseModal");
+                            window.location.reload();
+                        } else {
+                            alert(res?.message || "Failed to delete course.");
+                        }
+                    })
+                    .fail(function () {
+                        alert("An error occurred while deleting the course.");
+                    })
+                    .always(function () {
+                        btn.prop("disabled", false).html('<i class="fa-solid fa-trash me-1"></i> Delete');
+                    });
+                });
+            }
+        })();
     </script>
 }

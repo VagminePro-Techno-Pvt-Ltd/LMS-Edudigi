@@ -21,11 +21,13 @@ namespace TMS.ViewModels.Academics
         // ─── Filters ───
         public List<CourseMasterViewModel> Courses { get; set; } = new();
         public List<SubjectMasterViewModel> Subjects { get; set; } = new();
+        public List<UserViewModel> Faculties { get; set; } = new();
 
         // ─── Current User Info ───
         public string UserRole { get; set; } = "Student";
         public int UserId { get; set; }
         public string UserName { get; set; } = string.Empty;
+        public bool IsFaculty => !string.IsNullOrEmpty(UserRole) && (UserRole.Equals("Faculty", StringComparison.OrdinalIgnoreCase) || UserRole.Equals("Admin", StringComparison.OrdinalIgnoreCase) || UserRole.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase));
 
         // ─── Stats ───
         public int TotalUpcoming { get; set; }

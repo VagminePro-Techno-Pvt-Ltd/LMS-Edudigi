@@ -67,13 +67,13 @@ namespace TMS.Web.Areas.Admin.Controllers
             ViewData["Title"] = "Content Library";
 
             int userId = GetUserId();
-            string? userRole = User.FindFirstValue(ClaimTypes.Role);
+            bool isFaculty = IsFacultyRole();
 
             // 1. Fetch all courses (filtered by faculty role if needed)
             List<CourseMasterViewModel> allCourses;
-            if (userRole?.Equals("Faculty", StringComparison.OrdinalIgnoreCase) == true)
+            if (isFaculty)
             {
-                var facultyMaps = await _courseFacultyMapManager.GetAsync(null, x => x.FacultyId == userId);
+                var facultyMaps = await _courseFacultyMapManager.GetAsync(null, x => x.FacultyId == userId && x.IsActive);
                 var facultyCourseIds = facultyMaps.Select(m => m.CourseId).Distinct().ToList();
                 var dbCourses = await _courseManager.GetAsync(new[] { "Semester", "CourseCategory" }, t => t.IsActive);
                 allCourses = dbCourses.Where(c => facultyCourseIds.Contains(c.Id)).ToList();
@@ -125,7 +125,8 @@ namespace TMS.Web.Areas.Admin.Controllers
             int selectedCourseId = 0;
             if (!showGlobalLibrary)
             {
-                selectedCourseId = courseId ?? filteredGroups.FirstOrDefault()?.CourseIds.FirstOrDefault() ?? 0;
+                var groupWithContent = filteredGroups.OrderByDescending(g => g.TotalMaterials).FirstOrDefault(g => g.TotalMaterials > 0);
+                selectedCourseId = courseId ?? groupWithContent?.CourseIds.FirstOrDefault() ?? filteredGroups.FirstOrDefault()?.CourseIds.FirstOrDefault() ?? 0;
             }
 
             // 7. Build selected course board (grouped by Semester)
@@ -243,13 +244,24 @@ namespace TMS.Web.Areas.Admin.Controllers
         {
             int userId = GetUserId();
 
-            // Fetch course to get its SemesterId (subjects are usually linked to course/semester)
             var course = await _courseManager.GetAsync(courseId, new[] { "Semester" });
-            if (course == null) return Json(new { success = false, message = "Course not found." });
+            if (course == null)
+                return Json(new { success = false, message = "Course not found." });
 
-            // Check duplicate
-            var existing = await _courseMaterialMappingManager.GetAsync(null,
-                x => x.LectureMaterialId == materialId && x.CourseId == courseId && x.IsActive);
+            var material = await _lectureMaterialManager.GetAsync(materialId);
+            if (material == null || !material.IsActive)
+                return Json(new { success = false, message = "Content resource not found." });
+
+            var resolvedQuadrant = await ResolveQuadrantAsync(material.MaterialType, quadrantId);
+            if (resolvedQuadrant == null)
+                return Json(new { success = false, message = "A valid active quadrant could not be resolved for this content type." });
+
+            var existing = await _courseMaterialMappingManager.GetAsync(
+                null,
+                x => x.LectureMaterialId == materialId &&
+                     x.CourseId == courseId &&
+                     x.IsActive);
+
             if (existing.Any())
                 return Json(new { success = false, message = "Content already assigned to this course." });
 
@@ -257,14 +269,12 @@ namespace TMS.Web.Areas.Admin.Controllers
             {
                 LectureMaterialId = materialId,
                 CourseId = courseId,
-                CourseQuadrantId = quadrantId ?? 0,
+                CourseQuadrantId = resolvedQuadrant.Id,
                 AssignedBy = userId,
                 AssignedOn = DateTime.Now,
                 CreatedBy = userId,
                 CreatedOn = DateTime.Now,
-                IsActive = true,
-                // Automatically legacy link to course's default semester/subject if possible
-                // Or we can leave them null for now as per minimal requirement
+                IsActive = true
             };
 
             var res = await _courseMaterialMappingManager.AddUpdateAsync(mapping, userId);
@@ -309,12 +319,12 @@ namespace TMS.Web.Areas.Admin.Controllers
         public async Task<IActionResult> GetAssignableCourses()
         {
             int userId = GetUserId();
-            string? userRole = User.FindFirstValue(ClaimTypes.Role);
+            bool isFaculty = IsFacultyRole();
 
             List<CourseMasterViewModel> courses;
-            if (userRole?.Equals("Faculty", StringComparison.OrdinalIgnoreCase) == true)
+            if (isFaculty)
             {
-                var mappings = await _courseFacultyMapManager.GetAsync(null, x => x.FacultyId == userId);
+                var mappings = await _courseFacultyMapManager.GetAsync(null, x => x.FacultyId == userId && x.IsActive);
                 var courseIds = mappings.Select(m => m.CourseId).Distinct().ToList();
                 var all = await _courseManager.GetAsync(new[] { "Semester" }, t => t.IsActive);
                 courses = all.Where(c => courseIds.Contains(c.Id)).ToList();
@@ -331,6 +341,26 @@ namespace TMS.Web.Areas.Admin.Controllers
                 courses = courses.Select(c => new { id = c.Id, name = c.Name, semester = c.Semester?.Name ?? "General" }),
                 quadrants = quadrants.OrderBy(q => q.QuadrantNumber).Select(q => new { id = q.Id, name = q.Name })
             });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> DeleteMaterial(int id)
+        {
+            if (id <= 0) return Json(new { success = false, message = "Invalid content ID." });
+
+            // 1. Delete associated mappings
+            var mappings = await _courseMaterialMappingManager.GetAsync(null, x => x.LectureMaterialId == id);
+            if (mappings != null && mappings.Any())
+            {
+                foreach (var map in mappings)
+                {
+                    await _courseMaterialMappingManager.DeleteAsync(map.Id);
+                }
+            }
+
+            // 2. Delete material
+            var res = await _lectureMaterialManager.DeleteAsync(id);
+            return Json(new { success = res, message = res ? "Content deleted successfully." : "Failed to delete content." });
         }
 
 
@@ -399,6 +429,30 @@ namespace TMS.Web.Areas.Admin.Controllers
             {
                 model.CourseId = model.SelectedCourseIds.First();
                 ModelState.Remove("CourseId");
+
+                if (!model.SemesterId.HasValue || model.SemesterId.Value <= 0)
+                    ModelState.AddModelError("SemesterId", "Please select a semester.");
+
+                if (!model.SubjectId.HasValue || model.SubjectId.Value <= 0)
+                    ModelState.AddModelError("SubjectId", "Please select a subject.");
+
+                var resolvedQuadrant = await ResolveQuadrantAsync(model.MaterialType, model.CourseQuadrantId);
+                if (resolvedQuadrant == null)
+                {
+                    ModelState.AddModelError(
+                        "CourseQuadrantId",
+                        "A valid active quadrant could not be resolved for this content type.");
+                }
+                else
+                {
+                    model.CourseQuadrantId = resolvedQuadrant.Id;
+                }
+
+                if (!ModelState.IsValid)
+                {
+                    await SetDropdowns(model);
+                    return View(model);
+                }
             }
             else if (model.AssignToCourse && !model.SelectedCourseIds.Any())
             {
@@ -506,14 +560,40 @@ namespace TMS.Web.Areas.Admin.Controllers
                     await SetDropdowns(model);
                     return View(model);
                 }
-                model.FilePath = model.ContentPath.Trim();
-                model.Source = "Local"; // URLs are still "Local" source
+                var videoUrl = model.ContentPath.Trim();
+                if (!Uri.TryCreate(videoUrl, UriKind.Absolute, out var parsedVideoUrl) ||
+                    (parsedVideoUrl.Scheme != Uri.UriSchemeHttp && parsedVideoUrl.Scheme != Uri.UriSchemeHttps))
+                {
+                    ModelState.AddModelError("ContentPath", "Please enter a valid http/https video URL.");
+                    await SetDropdowns(model);
+                    return View(model);
+                }
+
+                model.FilePath = videoUrl;
+                model.ContentPath = videoUrl;
+                model.Source = "Local";
+                model.ExternalFileId = null;
+                model.OriginalFileName = null;
+                model.MimeType = null;
+                model.FileSizeBytes = null;
+                model.FileHash = null;
             }
 
             // Save SelectedCourseIds BEFORE model gets replaced
             var selectedCourseIds = model.SelectedCourseIds?.ToList() ?? new List<int>();
             int? savedQuadrantId = model.CourseQuadrantId;
             bool assignToCourse = model.AssignToCourse;
+
+            if (assignToCourse &&
+                selectedCourseIds.Any() &&
+                (!savedQuadrantId.HasValue || savedQuadrantId.Value <= 0))
+            {
+                ModelState.AddModelError(
+                    "CourseQuadrantId",
+                    "A valid active quadrant is required before assigning content.");
+                await SetDropdowns(model);
+                return View(model);
+            }
 
             // ─── SAVE LectureMaterial to Central Library ───
             var saveResult = await _lectureMaterialManager.AddUpdateResultAsync(model, userId);
@@ -544,7 +624,7 @@ namespace TMS.Web.Areas.Admin.Controllers
                         {
                             LectureMaterialId = model.Id,
                             CourseId = cId,
-                            CourseQuadrantId = model.CourseQuadrantId ?? 0,
+                            CourseQuadrantId = savedQuadrantId!.Value,
                             SubjectId = model.SubjectId,
                             UnitId = model.UnitId,
                             AssignedBy = userId,
@@ -568,6 +648,54 @@ namespace TMS.Web.Areas.Admin.Controllers
             SetApplicationResult(false, "Error while saving data.");
             await SetDropdowns(model);
             return View(model);
+        }
+
+
+        /// <summary>
+        /// Resolves a valid active quadrant on the server.
+        /// If a valid quadrant is explicitly selected, it is preserved.
+        /// Otherwise falls back to UGC-DEB 4-Quadrant standards:
+        /// Video/VideoURL -> Quadrant 1 (e-Tutorial)
+        /// Document/PDF/PPT -> Quadrant 2 (e-Content)
+        /// </summary>
+        private async Task<CourseQuadrantViewModel?> ResolveQuadrantAsync(
+            string? materialType,
+            int? requestedQuadrantId)
+        {
+            var activeQuadrants = await _quadrantManager.GetAsync(null, q => q.IsActive);
+
+            // 1. If explicit quadrant is requested and valid, use it directly
+            if (requestedQuadrantId.HasValue && requestedQuadrantId.Value > 0)
+            {
+                var explicitMatch = activeQuadrants.FirstOrDefault(q => q.Id == requestedQuadrantId.Value);
+                if (explicitMatch != null) return explicitMatch;
+            }
+
+            // 2. Otherwise fallback based on UGC 4-Quadrant definitions
+            var normalizedType = (materialType ?? string.Empty).Trim().ToLowerInvariant();
+
+            if (normalizedType == "video" ||
+                normalizedType == "videourl" ||
+                normalizedType == "url" ||
+                normalizedType == "link")
+            {
+                return activeQuadrants.FirstOrDefault(q => q.QuadrantNumber == 1) ?? activeQuadrants.FirstOrDefault();
+            }
+
+            if (normalizedType == "document" ||
+                normalizedType == "pdf" ||
+                normalizedType == "ppt" ||
+                normalizedType == "pptx" ||
+                normalizedType == "doc" ||
+                normalizedType == "docx" ||
+                normalizedType == "text" ||
+                normalizedType == "xlsx" ||
+                normalizedType == "xls")
+            {
+                return activeQuadrants.FirstOrDefault(q => q.QuadrantNumber == 2) ?? activeQuadrants.FirstOrDefault();
+            }
+
+            return activeQuadrants.FirstOrDefault();
         }
 
 
@@ -644,6 +772,53 @@ namespace TMS.Web.Areas.Admin.Controllers
 
             SetApplicationResult(true, "Virtual Class scheduled successfully.");
             return RedirectToAction("Index");
+        }
+
+        // ═══════════════════════════════════════════════════
+        //           AJAX: Semester -> Subject -> Unit
+        // ═══════════════════════════════════════════════════
+
+        [HttpGet]
+        public async Task<IActionResult> GetSubjects(int semesterId)
+        {
+            if (semesterId <= 0)
+                return Json(Array.Empty<object>());
+
+            var subjects = await _db.SubjectMasters
+                .AsNoTracking()
+                .Where(x => x.SemesterId == semesterId && x.IsActive)
+                .OrderBy(x => x.SortOrder)
+                .ThenBy(x => x.Name)
+                .Select(x => new
+                {
+                    id = x.Id,
+                    name = x.Name,
+                    code = x.SubjectCode
+                })
+                .ToListAsync();
+
+            return Json(subjects);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetUnits(int subjectId)
+        {
+            if (subjectId <= 0)
+                return Json(Array.Empty<object>());
+
+            var units = await _db.Set<UnitMaster>()
+                .AsNoTracking()
+                .Where(x => x.SubjectId == subjectId && x.IsActive)
+                .OrderBy(x => x.SortOrder)
+                .ThenBy(x => x.Name)
+                .Select(x => new
+                {
+                    id = x.Id,
+                    name = x.Name
+                })
+                .ToListAsync();
+
+            return Json(units);
         }
 
         // ═══════════════════════════════════════════════════

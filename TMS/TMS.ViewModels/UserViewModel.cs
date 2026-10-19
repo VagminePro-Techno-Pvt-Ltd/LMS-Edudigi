@@ -10,7 +10,8 @@ namespace TMS.ViewModels
     {
         [MapToDTO, Required, DataType(DataType.EmailAddress), Display(Name = "Email")]
         public string? Email { get; set; }
-		public int? ContactNo { get; set; }
+		[Phone(ErrorMessage = "Enter a valid contact number."), StringLength(20), Display(Name = "Contact Number")]
+		public string? ContactNo { get; set; }
 		 
 		 
 
@@ -29,5 +30,11 @@ namespace TMS.ViewModels
         public virtual List<UserRolesViewModel> UserRoles { get; set; } = new();
         
         public virtual UserViewModel? User { get; set; }
+
+        [Display(Name = "Program / Degree")]
+        public int? ProgramId { get; set; }
+
+        [Display(Name = "Enroll in Courses")]
+        public List<int>? CourseIds { get; set; }
     }
 }

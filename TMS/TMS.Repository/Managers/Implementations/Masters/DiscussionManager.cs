@@ -44,40 +44,45 @@ namespace TMS.Repository.Managers.Implementations.Masters
         {
             userRole = userRole?.ToUpper() ?? "";
 
-            if (userRole.Contains("ADMIN"))
+            if (userRole.Contains("ADMIN") || userRole.Contains("MANAGEMENT") || userRole.Contains("EXAM COORDINATOR") || userRole.Contains("COORDINATOR"))
             {
                 return await _context.CourseCategoryMasters.Where(c => c.IsActive).ToListAsync();
             }
 
-            if (userRole.Contains("STUDENT"))
+            if (userRole.Contains("FACULTY") || userRole.Contains("TEACHER") || userRole.Contains("CO-FACULTY") || userRole.Contains("CO FACULTY"))
+            {
+                var mappedPrograms = await _context.CourseFacultyMaps
+                    .Include(m => m.Course).ThenInclude(c => c.CourseCategory)
+                    .Where(m => m.FacultyId == userId && m.Course.CourseCategory != null && m.Course.CourseCategory.IsActive)
+                    .Select(m => m.Course.CourseCategory!)
+                    .Distinct()
+                    .ToListAsync();
+
+                if (mappedPrograms.Any())
+                    return mappedPrograms;
+
+                return await _context.CourseCategoryMasters.Where(c => c.IsActive).ToListAsync();
+            }
+
+            if (userRole.Contains("STUDENT") || userRole == "USER")
             {
                 return await _context.CourseEnrollments
                     .Include(e => e.Course).ThenInclude(c => c.CourseCategory)
-                    .Where(e => e.StudentId == userId && e.Status == 1 && e.Course.CourseCategory != null)
+                    .Where(e => e.StudentId == userId && e.Status == 1 && e.Course.CourseCategory != null && e.Course.CourseCategory.IsActive)
                     .Select(e => e.Course.CourseCategory!)
                     .Distinct()
                     .ToListAsync();
             }
 
-            if (userRole.Contains("FACULTY"))
-            {
-                return await _context.CourseFacultyMaps
-                    .Include(m => m.Course).ThenInclude(c => c.CourseCategory)
-                    .Where(m => m.FacultyId == userId && m.Course.CourseCategory != null)
-                    .Select(m => m.Course.CourseCategory!)
-                    .Distinct()
-                    .ToListAsync();
-            }
-
-            return new List<CourseCategoryMaster>();
+            return await _context.CourseCategoryMasters.Where(c => c.IsActive).ToListAsync();
         }
 
         public async Task<DiscussionThread> GetThreadDetailsAsync(int threadId)
         {
             var thread = await _context.DiscussionThreads
-                .Include(t => t.CreatedByUser)
+                .Include(t => t.CreatedByUser).ThenInclude(u => u.Role)
                 .Include(t => t.Attachments)
-                .Include(t => t.Replies).ThenInclude(r => r.User)
+                .Include(t => t.Replies).ThenInclude(r => r.User).ThenInclude(u => u.Role)
                 .Include(t => t.Replies).ThenInclude(r => r.Attachments)
                 .FirstOrDefaultAsync(t => t.Id == threadId);
 
@@ -85,7 +90,7 @@ namespace TMS.Repository.Managers.Implementations.Masters
             {
                 thread.ViewCount++;
                 await _context.SaveChangesAsync();
-                
+
                 // Build tree structure for replies
                 if (thread.Replies != null)
                 {
@@ -161,7 +166,7 @@ namespace TMS.Repository.Managers.Implementations.Masters
             var existingAccepted = await _context.DiscussionReplies
                 .Where(r => r.ThreadId == reply.ThreadId && r.IsAccepted)
                 .ToListAsync();
-            
+
             foreach (var r in existingAccepted) r.IsAccepted = false;
 
             reply.IsAccepted = true;
@@ -172,28 +177,29 @@ namespace TMS.Repository.Managers.Implementations.Masters
         public async Task<bool> CanUserAccessForumAsync(int programId, int userId, string userRole)
         {
             if (string.IsNullOrEmpty(userRole)) return false;
-            
-            // Normalize role for comparison
+
             userRole = userRole.ToUpper();
 
-            // Admin access (Super Admin or Campus Admin)
-            if (userRole.Contains("ADMIN")) return true;
+            if (userRole.Contains("ADMIN") || userRole.Contains("MANAGEMENT") || userRole.Contains("EXAM COORDINATOR") || userRole.Contains("COORDINATOR")) return true;
 
-            if (userRole.Contains("STUDENT"))
+            if (userRole.Contains("FACULTY") || userRole.Contains("TEACHER") || userRole.Contains("CO-FACULTY") || userRole.Contains("CO FACULTY"))
+            {
+                var isMapped = await _context.CourseFacultyMaps
+                    .Include(m => m.Course)
+                    .AnyAsync(m => m.FacultyId == userId &&
+                                   m.Course.CourseCategoryId == programId);
+                if (isMapped) return true;
+
+                return await _context.CourseCategoryMasters.AnyAsync(c => c.Id == programId && c.IsActive);
+            }
+
+            if (userRole.Contains("STUDENT") || userRole == "USER")
             {
                 return await _context.CourseEnrollments
                     .Include(e => e.Course)
-                    .AnyAsync(e => e.StudentId == userId && 
-                                   e.Status == 1 && 
+                    .AnyAsync(e => e.StudentId == userId &&
+                                   e.Status == 1 &&
                                    e.Course.CourseCategoryId == programId);
-            }
-
-            if (userRole.Contains("FACULTY"))
-            {
-                return await _context.CourseFacultyMaps
-                    .Include(m => m.Course)
-                    .AnyAsync(m => m.FacultyId == userId && 
-                                   m.Course.CourseCategoryId == programId);
             }
 
             return false;
@@ -219,4 +225,3 @@ namespace TMS.Repository.Managers.Implementations.Masters
         }
     }
 }
-

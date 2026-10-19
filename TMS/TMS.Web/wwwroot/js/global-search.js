@@ -90,12 +90,12 @@
  
         // ── Results / Report Card ──────────────────────────────
         {
-            title: 'Personalized Report Card',
-            subtitle: 'Download your official report card',
-            url: '/Report/Personalized',
+            title: 'Internal Grade Card',
+            subtitle: 'View published internal assessment marks',
+            url: '/InternalGradeCard/Index',
             icon: 'fa-solid fa-id-card',
             iconBg: '#fdf2f8', iconColor: '#ec4899',
-            tags: ['report', 'report card', 'result', 'grade', 'marks', 'scorecard', 'transcript', 'gpa', 'cgpa']
+            tags: ['internal', 'grade card', 'report card', 'assessment', 'marks', 'result', 'scorecard']
         },
         {
             title: 'Progress Report',
@@ -238,35 +238,41 @@
         inputEl   = document.getElementById('globalSearchInput');
         closeBtn  = document.getElementById('globalSearchClose');
         dropdown  = document.getElementById('globalSearchDropdown');
- 
-        if (!wrapper) return; // layout not present on this page
- 
-        // Open search on icon click
-        iconBadge.addEventListener('click', openSearch);
- 
-        // Close on ✕ button
-        closeBtn.addEventListener('click', closeSearch);
- 
-        // Input: debounce + search
-        inputEl.addEventListener('input', function () {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(function () {
-                runSearch(inputEl.value.trim());
-            }, 300);
-        });
- 
-        // Keyboard navigation
-        inputEl.addEventListener('keydown', handleKeyboard);
- 
-        // Close on outside click
+
+        if (!wrapper && !inputEl) return;
+
+        if (iconBadge) iconBadge.addEventListener('click', openSearch);
+        if (closeBtn) closeBtn.addEventListener('click', closeSearch);
+
+        if (inputEl) {
+            inputEl.addEventListener('focus', function () {
+                if (inputEl.value.trim().length > 0) {
+                    runSearch(inputEl.value.trim());
+                }
+            });
+            inputEl.addEventListener('input', function () {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(function () {
+                    runSearch(inputEl.value.trim());
+                }, 200);
+            });
+            inputEl.addEventListener('keydown', handleKeyboard);
+        }
+
         document.addEventListener('click', function (e) {
-            if (!wrapper.contains(e.target)) {
+            if (wrapper && !wrapper.contains(e.target)) {
                 closeSearch();
             }
         });
- 
-        // Close on Escape key globally
+
         document.addEventListener('keydown', function (e) {
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+                e.preventDefault();
+                if (inputEl) {
+                    inputEl.focus();
+                    inputEl.select();
+                }
+            }
             if (e.key === 'Escape') closeSearch();
         });
     }

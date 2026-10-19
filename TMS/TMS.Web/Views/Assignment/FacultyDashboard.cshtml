@@ -6,6 +6,8 @@
     var selectedProgramId = ViewBag.SelectedProgramId as int?;
 }
 
+<div class="container-fluid pt-3"><a class="btn btn-primary" asp-controller="InternalAssessment" asp-action="FacultyDashboard"><i class="fa-solid fa-list-check"></i> Open Internal Assessments</a></div>
+
 <style>
     :root {
         --primary-gradient: linear-gradient(135deg, #0f172a, #1e293b);
@@ -308,6 +310,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form method="post" action="@Url.Action("CreateAssignment")" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
                 <div class="modal-body">
                     <div class="row g-3">
                         <div class="col-12">

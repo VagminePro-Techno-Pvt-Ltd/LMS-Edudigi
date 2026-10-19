@@ -5,16 +5,23 @@
         <ul>
 
             <!-- Brand Title -->
-            <li class="main-title">
-                <span class="brand-icon-wrap">
-                    <i class="fa-solid fa-display"></i>
+            <li class="main-title" style="display:flex; align-items:center; gap:12px; padding:16px 18px 14px 18px; border-bottom:1px solid #f1f5f9; margin-bottom:12px;">
+                <span class="brand-icon-wrap" style="width:40px; height:40px; border-radius:12px; background:linear-gradient(135deg, #2563eb, #1d4ed8); color:#ffffff; display:flex; align-items:center; justify-content:center; font-size:19px; box-shadow:0 4px 12px rgba(37,99,235,0.28); flex-shrink:0;">
+                    <i class="fa-solid fa-graduation-cap"></i>
                 </span>
-                <span class="brand-text">Online Learning<br><strong>Platform</strong></span>
+                <div style="display:flex; flex-direction:column; line-height:1.2;">
+                    <span style="font-size:18px; font-weight:800; color:#0f172a; letter-spacing:-0.4px; font-family:'Outfit', 'Jost', sans-serif;">
+                        Edudigi <span style="color:#2563eb; font-weight:700;">Classes</span>
+                    </span>
+                    <span style="font-size:10px; font-weight:700; color:#94a3b8; letter-spacing:0.8px; text-transform:uppercase; margin-top:2px;">
+                        Student Portal
+                    </span>
+                </div>
             </li>
 
             <!-- Dashboard -->
             <li>
-                <a asp-controller="Home" asp-action="StudentDashboard">
+                <a asp-area="" asp-controller="Home" asp-action="StudentDashboard">
                     <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#3b82f6;">
                         <i class="fa-solid fa-gauge-high"></i>
                     </span>
@@ -37,7 +44,7 @@
                 </a>
             </li>
             <li>
-                <a asp-controller="Calendar" asp-action="Index">
+                <a asp-area="" asp-controller="Calendar" asp-action="Index">
                     <span class="icon-badge" style="--ibg:#ecfdf5; --iclr:#10b981;">
                         <i class="fa-solid fa-calendar-days"></i>
                     </span>
@@ -45,7 +52,7 @@
                 </a>
             </li>
             <li>
-                <a asp-controller="StudentCourse" asp-action="Index">
+                <a asp-area="" asp-controller="StudentCourse" asp-action="Index">
                     <span class="icon-badge" style="--ibg:#f5f3ff; --iclr:#8b5cf6;">
                         <i class="fa-solid fa-layer-group"></i>
                     </span>
@@ -53,7 +60,7 @@
                 </a>
             </li>
             <li>
-                <a asp-controller="Assignment" asp-action="Index">
+                <a asp-area="" asp-controller="Assignment" asp-action="Index">
                     <span class="icon-badge" style="--ibg:#fff7ed; --iclr:#ea580c;">
                         <i class="fa-solid fa-pen-to-square"></i>
                     </span>
@@ -61,16 +68,24 @@
                 </a>
             </li>
             <li>
-                <a asp-controller="StudentExam" asp-action="Index">
+                <a asp-area="" asp-controller="StudentExam" asp-action="Index">
                     <span class="icon-badge" style="--ibg:#fdf4ff; --iclr:#a855f7;">
                         <i class="fa-solid fa-file-signature"></i>
                     </span>
-                    <span>Assessments & Exams</span>
+                    <span>Assessments &amp; Exams</span>
+                </a>
+            </li>
+            <li>
+                <a asp-area="" asp-controller="InternalGradeCard" asp-action="Index" data-title="My Grade Card">
+                    <span class="icon-badge" style="--ibg:#ecfdf5; --iclr:#059669;">
+                        <i class="fa-solid fa-file-lines"></i>
+                    </span>
+                    <span>My Grade Card</span>
                 </a>
             </li>
 
             <li>
-                <a asp-controller="VirtualClassroom" asp-action="Index">
+                <a asp-area="" asp-controller="VirtualClassroom" asp-action="Index">
                     <span class="icon-badge" style="--ibg:#fff1f2; --iclr:#f43f5e;">
                         <i class="fa-solid fa-chalkboard-user"></i>
                     </span>
@@ -78,11 +93,19 @@
                 </a>
             </li>
             <li>
-                <a asp-controller="Attendance" asp-action="MyAttendance">
+                <a asp-area="" asp-controller="Attendance" asp-action="MyAttendance">
                     <span class="icon-badge" style="--ibg:#ecfdf5; --iclr:#059669;">
                         <i class="fa-solid fa-calendar-check"></i>
                     </span>
                     <span>My Attendance</span>
+                </a>
+            </li>
+            <li>
+                <a asp-area="" asp-controller="ProgressReport" asp-action="Index">
+                    <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#2563eb;">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </span>
+                    <span>My Progress Report</span>
                 </a>
             </li>
 
@@ -94,7 +117,7 @@
             </li>
 
             <li>
-                <a asp-controller="Notifications" asp-action="Index">
+                <a asp-area="" asp-controller="Notifications" asp-action="Index">
                     <span class="icon-badge" style="--ibg:#fef9c3; --iclr:#ca8a04;">
                         <i class="fa-solid fa-bell"></i>
                     </span>
@@ -102,7 +125,7 @@
                 </a>
             </li>
             <li>
-                <a asp-controller="Discussion" asp-action="Index">
+                <a asp-area="" asp-controller="Discussion" asp-action="Index">
                     <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#2563eb;">
                         <i class="fa-solid fa-comments"></i>
                     </span>
@@ -110,7 +133,7 @@
                 </a>
             </li>
             <li>
-                <a asp-controller="Announcement" asp-action="Board">
+                <a asp-area="" asp-controller="Announcement" asp-action="Board">
                     <span class="icon-badge" style="--ibg:#fff7ed; --iclr:#ea580c;">
                         <i class="fa-solid fa-bullhorn"></i>
                     </span>
@@ -150,7 +173,7 @@
                 </a>
             </li>
             <li>
-                <a asp-controller="Chat" asp-action="Index">
+                <a asp-area="" asp-controller="Chat" asp-action="Index">
                     <span class="icon-badge" style="--ibg:#fdf4ff; --iclr:#a855f7;">
                         <i class="fa-solid fa-user-group"></i>
                     </span>
@@ -158,7 +181,7 @@
                 </a>
             </li>
             <li>
-                <a asp-controller="Discussion" asp-action="Index">
+                <a asp-area="" asp-controller="Discussion" asp-action="Index">
                     <span class="icon-badge" style="--ibg:#f0fdfa; --iclr:#0d9488;">
                         <i class="fa-solid fa-pen-nib"></i>
                     </span>
@@ -166,15 +189,40 @@
                 </a>
             </li>
             <li>
-                <a asp-controller="StudentPPT" asp-action="Index">
+                <a asp-area="" asp-controller="StudentPPT" asp-action="Index">
                     <span class="icon-badge" style="--ibg:#fdf4ff; --iclr:#7c3aed;">
                         <i class="fa-solid fa-file-powerpoint"></i>
                     </span>
                     <span>Interactive PPT</span>
                 </a>
-            </li>
-
         </ul>
+
+        <!-- ── Sidebar Bottom Promo Card (Light-Bluish Theme) ──── -->
+        <div style="padding: 16px 14px 10px 14px; margin-top: auto;">
+            <div style="background: linear-gradient(135deg, #eff6ff 0%, #e0f2fe 50%, #f0f9ff 100%); border: 1px solid #bfdbfe; border-radius: 16px; padding: 14px; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 8px rgba(37,99,235,0.04);">
+                <div>
+                    <span style="display:block; font-size:11px; font-weight:600; color:#1e40af; margin-bottom:2px;">Empowering</span>
+                    <strong style="display:block; font-size:13px; font-weight:800; color:#1e3a8a; line-height:1.2;">Education<br/>Together</strong>
+                </div>
+                <div style="width: 50px; height: 42px; display: flex; align-items: center; justify-content: center;">
+                    <svg width="46" height="38" viewBox="0 0 46 38" fill="none">
+                        <rect x="5" y="24" width="34" height="6" rx="2" fill="#2563eb" />
+                        <rect x="3" y="19" width="38" height="6" rx="2" fill="#38bdf8" />
+                        <rect x="7" y="14" width="30" height="6" rx="2" fill="#60a5fa" />
+                        <polygon points="22,3 6,11 22,18 38,11" fill="#1e293b" />
+                        <circle cx="22" cy="11" r="1.5" fill="#f59e0b" />
+                    </svg>
+                </div>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding: 0 4px;">
+                <a asp-area="" asp-controller="Home" asp-action="StudentDashboard" style="font-size: 12.5px; font-weight: 600; color: #64748b; text-decoration: none; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-house"></i> Home
+                </a>
+                <a asp-area="" asp-controller="Auth" asp-action="LogOff" class="aLogout" style="font-size: 12.5px; font-weight: 700; color: #ef4444; text-decoration: none; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+                </a>
+            </div>
+        </div>
     </nav>
 </div>
-

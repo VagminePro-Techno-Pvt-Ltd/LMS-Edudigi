@@ -1,4 +1,4 @@
-﻿
+
     using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -27,7 +27,8 @@ namespace TMS.ViewModels.Academics
         public string? SelectedOptionText { get; set; }
         public string? WrittenAnswer { get; set; }
         public QuestionType QuestionType { get; set; }
-      
+        public bool? IsOptionCorrect { get; set; }
+        public string? CorrectOptionText { get; set; }
     }
 }
 

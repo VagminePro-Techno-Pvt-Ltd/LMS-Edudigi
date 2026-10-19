@@ -1,0 +1,917 @@
+
+@model IEnumerable<TMS.Models.Academics.InternalAssessment>
+@using TMS.Models.Masters
+@using TMS.Models.Academics
+
+@{
+    ViewData["Title"] = "Faculty Internal Assessments";
+
+    var courses = ViewBag.Courses as List<CourseMaster> ?? new();
+    var subjects = ViewBag.Subjects as List<SubjectMaster> ?? new();
+    var counts = ViewBag.SubmissionCounts as Dictionary<int, int> ?? new();
+    var windows = ViewBag.Windows as List<InternalAssessmentWindow> ?? new();
+    var policies = ViewBag.Policies as List<InternalAssessmentPolicy> ?? new();
+
+    var assessmentTypes = new[]
+    {
+        "Assignment",
+        "Written",
+        "Practical",
+        "Project",
+        "Presentation",
+        "Viva",
+        "MCQ"
+    };
+}
+
+<style>
+    .ia-faculty {
+        --ia-border: #dce4ef;
+        --ia-blue: #2563eb;
+        --ia-text: #183153;
+        --ia-muted: #64748b;
+        color: var(--ia-text);
+    }
+
+    .ia-faculty .ia-page-title {
+        margin: 0 0 4px;
+        font-size: 26px;
+        font-weight: 700;
+        color: #102a4c;
+    }
+
+    .ia-faculty .ia-subtitle {
+        margin: 0 0 16px;
+        color: var(--ia-muted);
+        font-size: 13px;
+    }
+
+    .ia-faculty .ia-card {
+        position: relative;
+        background: #ffffff;
+        border: 1px solid #dce5f4;
+        border-radius: 14px;
+        box-shadow: 0 2px 6px rgba(15, 23, 42, .04);
+        margin-bottom: 18px;
+        overflow: visible;
+    }
+
+    .ia-faculty .ia-card-body {
+        padding: 20px;
+    }
+
+    .ia-faculty .ia-section-title {
+        margin: 0 0 15px;
+        color: #142c4c;
+        font-size: 19px;
+        font-weight: 700;
+    }
+
+    /* Compact form */
+    #iaCreateForm {
+        --bs-gutter-x: 16px;
+        --bs-gutter-y: 0px;
+        row-gap: 0 !important;
+    }
+
+    #iaCreateForm > [class*="col-"] {
+        margin-top: 12px !important;
+    }
+
+    #iaCreateForm .form-label {
+        display: block;
+        margin-bottom: 5px !important;
+        color: #183153;
+        font-size: 12px;
+        font-weight: 650;
+    }
+
+    #iaCreateForm .form-control,
+    #iaCreateForm .form-select,
+    #iaCreateForm #iaTypesButton {
+        width: 100%;
+        height: 40px;
+        min-height: 40px !important;
+        padding: 8px 12px;
+        border: 1px solid #dce4ef !important;
+        border-radius: 8px !important;
+        background: #ffffff !important;
+        background-color: #ffffff !important;
+        background-image: none;
+        color: #24364b !important;
+        font-size: 13px;
+        line-height: 1.4;
+        opacity: 1 !important;
+        box-shadow: none !important;
+    }
+
+    #iaCreateForm .form-control:focus,
+    #iaCreateForm .form-select:focus,
+    #iaCreateForm #iaTypesButton:focus {
+        outline: none !important;
+        border-color: #93b4ff !important;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, .09) !important;
+    }
+
+    #iaCreateForm .form-control::placeholder {
+        color: #8b98aa;
+    }
+
+    #iaCreateForm .form-text {
+        margin-top: 4px !important;
+        color: #7b8798;
+        font-size: 11px;
+        line-height: 1.4;
+    }
+
+    /* Assessment types dropdown */
+    #iaCreateForm #iaTypesDropdown {
+        position: relative;
+        z-index: 20;
+        isolation: isolate;
+    }
+
+    #iaCreateForm #iaTypesButton {
+        display: flex !important;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        text-align: left;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        cursor: pointer;
+    }
+
+    #iaCreateForm #iaTypesButton::after {
+        flex-shrink: 0;
+        margin-left: auto;
+    }
+
+    #iaCreateForm #iaTypesDropdown .dropdown-menu,
+    #iaCreateForm #iaTypesDropdown .dropdown-menu.show {
+        position: absolute;
+        width: 100%;
+        min-width: 220px;
+        max-height: 240px;
+        overflow-y: auto;
+        padding: 10px !important;
+        margin-top: 4px;
+        background: #ffffff !important;
+        background-color: #ffffff !important;
+        background-image: none !important;
+        opacity: 1 !important;
+        border: 1px solid #dce4ef !important;
+        border-radius: 10px !important;
+        box-shadow: 0 12px 30px rgba(15, 23, 42, .18) !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        z-index: 1100 !important;
+    }
+
+    #iaCreateForm #iaTypesDropdown .dropdown-menu::before,
+    #iaCreateForm #iaTypesDropdown .dropdown-menu::after {
+        content: none !important;
+        display: none !important;
+    }
+
+    #iaCreateForm #iaTypesDropdown .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        min-height: 34px;
+        padding: 7px 9px !important;
+        margin: 2px 0;
+        border: 0 !important;
+        border-radius: 6px;
+        background: #ffffff !important;
+        background-color: #ffffff !important;
+        color: #334155 !important;
+        opacity: 1 !important;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: normal;
+    }
+
+    #iaCreateForm #iaTypesDropdown .dropdown-item:hover,
+    #iaCreateForm #iaTypesDropdown .dropdown-item:focus {
+        background: #f0f5ff !important;
+        color: #183153 !important;
+    }
+
+    #iaCreateForm #iaTypesDropdown .dropdown-item:has(input:checked) {
+        background: #eef5ff !important;
+    }
+
+    #iaCreateForm #iaTypesDropdown .form-check-input {
+        flex-shrink: 0;
+        margin: 0 !important;
+        width: 15px;
+        height: 15px;
+        cursor: pointer;
+    }
+
+    #iaCreateForm #iaTypesDropdown .ia-dropdown-actions {
+        display: flex;
+        gap: 8px;
+        padding-bottom: 8px;
+        margin-bottom: 5px;
+        border-bottom: 1px solid #eef2f7;
+        background: #ffffff !important;
+    }
+
+    #iaCreateForm #iaTypesDropdown .ia-dropdown-actions .btn {
+        padding: 5px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+    }
+
+    /* Date, checkbox and instructions */
+    #iaCreateForm #iaDueDate {
+        max-width: 100%;
+    }
+
+    #iaCreateForm #iaUseEnd {
+        padding: 3px 0;
+        margin-top: 1px;
+        font-size: 11px;
+        text-decoration: none;
+    }
+
+    #iaCreateForm #iaUseEnd:disabled {
+        color: #94a3b8;
+    }
+
+    #iaCreateForm .ia-checkbox-area {
+        display: flex;
+        align-items: center;
+        min-height: 26px;
+        padding: 0 !important;
+    }
+
+    #iaCreateForm .ia-checkbox-area label {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        margin: 0;
+        color: #334155;
+        font-size: 12px;
+        cursor: pointer;
+    }
+
+    #iaCreateForm .ia-checkbox-area input {
+        margin: 0;
+        cursor: pointer;
+    }
+
+    #iaCreateForm textarea.form-control {
+        height: auto;
+        min-height: 76px !important;
+        padding: 10px 12px;
+        resize: vertical;
+    }
+
+    #iaCreateForm .ia-create-button {
+        min-height: 38px;
+        padding: 8px 22px;
+        border: 1px solid #175cd3;
+        border-radius: 7px;
+        background: #175cd3;
+        color: #ffffff;
+        font-size: 12px;
+        font-weight: 650;
+    }
+
+    #iaCreateForm .ia-create-button:hover {
+        background: #124fb9;
+        border-color: #124fb9;
+    }
+
+    /* Assessment table */
+    .ia-faculty .ia-table-wrap {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .ia-faculty .ia-assessment-table {
+        width: 100%;
+        min-width: 980px;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin-bottom: 0;
+    }
+
+    .ia-faculty .ia-assessment-table thead th {
+        padding: 12px 11px;
+        border-bottom: 1px solid #e6ebf3;
+        color: #1752a5;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+        background: transparent;
+    }
+
+    .ia-faculty .ia-assessment-table tbody td {
+        padding: 14px 11px;
+        border-bottom: 1px solid #eef2f7;
+        vertical-align: middle;
+        color: #334155;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    .ia-faculty .ia-assessment-table tbody tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .ia-faculty .ia-assessment-title {
+        color: #263b55;
+        font-size: 12px;
+        font-weight: 700;
+        overflow-wrap: anywhere;
+    }
+
+    .ia-faculty .ia-assessment-type {
+        margin-top: 3px;
+        color: #648096;
+        font-size: 11px;
+    }
+
+    .ia-faculty .ia-course-name {
+        max-width: 260px;
+        overflow-wrap: anywhere;
+    }
+
+    .ia-faculty .ia-semester-badge {
+        display: inline-block;
+        padding: 5px 9px;
+        border: 1px solid #dce4ef;
+        border-radius: 6px;
+        background: #f8fafc;
+        color: #475569;
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .ia-faculty .ia-visibility {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+        min-width: 115px;
+    }
+
+    .ia-faculty .ia-status-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 24px;
+        padding: 4px 9px;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+
+    .ia-faculty .ia-status-draft {
+        background: #f1f5f9;
+        border-color: #e2e8f0;
+        color: #64748b;
+    }
+
+    .ia-faculty .ia-status-published {
+        background: #eaf8ee;
+        border-color: #bce7c6;
+        color: #15803d;
+    }
+
+    .ia-faculty .ia-status-hidden {
+        background: #f1f5f9;
+        border-color: #e2e8f0;
+        color: #64748b;
+    }
+
+    .ia-faculty .ia-status-visible {
+        background: #eaf1ff;
+        border-color: #c8d9ff;
+        color: #2456a6;
+    }
+
+    .ia-faculty .ia-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        min-width: 190px;
+    }
+
+    .ia-faculty .ia-actions .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 29px;
+        padding: 5px 9px;
+        border-radius: 7px;
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 1.25;
+        white-space: nowrap;
+    }
+
+    .ia-faculty .ia-actions form {
+        margin: 0;
+    }
+
+    @@media (max-width: 767.98px) {
+        .ia-faculty .ia-card-body {
+            padding: 15px;
+        }
+
+        .ia-faculty .ia-page-title {
+            font-size: 22px;
+        }
+
+        .ia-faculty .ia-section-title {
+            font-size: 17px;
+        }
+
+        #iaCreateForm {
+            --bs-gutter-x: 12px;
+        }
+    }
+</style>
+
+<div class="container-fluid py-3 ia-faculty">
+
+    <h2 class="ia-page-title">
+        Internal Assessments — Faculty
+    </h2>
+
+    <p class="ia-subtitle">
+        Create, publish, evaluate and submit results for Admin approval.
+    </p>
+
+    <partial name="_StatusModal" />
+
+    <section class="ia-card">
+        <div class="ia-card-body">
+
+            <h4 class="ia-section-title">
+                Create Internal Assessment
+            </h4>
+
+            <form method="post"
+                  asp-controller="InternalAssessment"
+                  asp-action="Create"
+                  class="row"
+                  id="iaCreateForm">
+
+                @Html.AntiForgeryToken()
+
+                <div class="col-lg-6 col-md-6">
+                    <label for="iaTitle" class="form-label">
+                        Title
+                    </label>
+
+                    <input type="text"
+                           id="iaTitle"
+                           name="title"
+                           maxlength="200"
+                           required
+                           class="form-control"
+                           placeholder="Enter assessment title" />
+                </div>
+
+                <div class="col-lg-3 col-md-6">
+                    <label for="iaTypesButton"
+                           class="form-label"
+                           id="iaTypesLabel">
+                        Assessment types (multiple)
+                    </label>
+
+                    <div class="dropdown" id="iaTypesDropdown">
+
+                        <button type="button"
+                                id="iaTypesButton"
+                                class="btn btn-outline-secondary dropdown-toggle w-100"
+                                data-bs-toggle="dropdown"
+                                data-bs-auto-close="outside"
+                                aria-expanded="false"
+                                aria-labelledby="iaTypesLabel">
+                            Select assessment types
+                        </button>
+
+                        <div class="dropdown-menu"
+                             aria-labelledby="iaTypesButton">
+
+                            <div class="ia-dropdown-actions">
+
+                                <button type="button"
+                                        class="btn btn-outline-primary"
+                                        id="iaTypesAll">
+                                    Select all
+                                </button>
+
+                                <button type="button"
+                                        class="btn btn-outline-danger"
+                                        id="iaTypesClear">
+                                    Clear
+                                </button>
+
+                            </div>
+
+                            @foreach (var type in assessmentTypes)
+                            {
+                                <label class="dropdown-item">
+                                    <input type="checkbox"
+                                           name="types"
+                                           value="@type"
+                                           class="form-check-input ia-type" />
+
+                                    <span>@type</span>
+                                </label>
+                            }
+
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 col-md-6">
+                    <label for="iaMaxMarks" class="form-label">
+                        Max marks
+                    </label>
+
+                    <input type="number"
+                           id="iaMaxMarks"
+                           name="maxMarks"
+                           min="0.01"
+                           max="10000"
+                           step="0.01"
+                           required
+                           class="form-control" />
+                </div>
+
+                <div class="col-md-6">
+                    <label for="iaCourse" class="form-label">
+                        Course
+                    </label>
+
+                    <select name="courseId"
+                            id="iaCourse"
+                            required
+                            class="form-select">
+
+                        <option value="">Choose course</option>
+
+                        @foreach (var course in courses)
+                        {
+                            <option value="@course.Id"
+                                    data-semester="@course.SemesterId">
+                                @course.Name
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="iaSubject" class="form-label">
+                        Subject (optional)
+                    </label>
+
+                    <select name="subjectId"
+                            id="iaSubject"
+                            class="form-select">
+
+                        <option value="">All subjects</option>
+
+                        @foreach (var subject in subjects)
+                        {
+                            <option value="@subject.Id"
+                                    data-semester="@subject.SemesterId">
+                                @subject.Name
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="iaWindow" class="form-label">
+                        Admin-approved assessment window
+                    </label>
+
+                    <select name="windowId"
+                            id="iaWindow"
+                            required
+                            class="form-select">
+
+                        <option value="">Choose active schedule</option>
+
+                        @foreach (var window in windows)
+                        {
+                            var policy = policies.FirstOrDefault(
+                                p => p.Id == window.PolicyId
+                            );
+
+                            if (policy == null)
+                            {
+                                continue;
+                            }
+
+                            var windowCourse = window.CourseId.HasValue
+                                ? courses.FirstOrDefault(
+                                    c => c.Id == window.CourseId.Value
+                                )
+                                : null;
+
+                            var courseLabel = window.CourseId.HasValue
+                                ? (windowCourse?.Name ?? "Other course")
+                                : "Legacy semester-wide";
+
+                            <option value="@window.Id"
+                                    data-semester="@policy.SemesterId"
+                                    data-course="@window.CourseId"
+                                    data-max="@policy.MaxMarks"
+                                    data-late="@policy.AllowLateSubmission"
+                                    data-start="@window.StartsOn.ToString("yyyy-MM-ddTHH:mm")"
+                                    data-end="@window.EndsOn.ToString("yyyy-MM-ddTHH:mm")">
+                                @window.Name — @courseLabel
+                                (@window.StartsOn.ToString("dd MMM")
+                                -
+                                @window.EndsOn.ToString("dd MMM yyyy"))
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="iaDueDate" class="form-label">
+                        Due date &amp; time
+                    </label>
+
+                    <input type="datetime-local"
+                           name="dueDate"
+                           id="iaDueDate"
+                           required
+                           class="form-control" />
+
+                    <div class="form-text" id="iaDueHelp">
+                        Select a schedule to see its date range.
+                    </div>
+
+                    <button type="button"
+                            id="iaUseEnd"
+                            class="btn btn-sm btn-link"
+                            disabled>
+                        Use schedule end
+                    </button>
+                </div>
+
+                <div class="col-12">
+                    <div class="ia-checkbox-area">
+                        <label for="iaAllowLate">
+
+                            <input type="checkbox"
+                                   id="iaAllowLate"
+                                   name="allowLateSubmission"
+                                   value="true"
+                                   class="form-check-input" />
+
+                            Allow late submission
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <label for="iaInstructions" class="form-label">
+                        Instructions
+                    </label>
+
+                    <textarea name="instructions"
+                              id="iaInstructions"
+                              maxlength="4000"
+                              rows="3"
+                              class="form-control"
+                              placeholder="Enter instructions for students"></textarea>
+                </div>
+
+                <div class="col-12">
+                    <button type="submit"
+                            class="btn btn-primary ia-create-button">
+                        Create Draft
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </section>
+
+    <section class="ia-card">
+        <div class="ia-card-body">
+
+            <h4 class="ia-section-title">
+                Created / Assigned Assessments
+            </h4>
+
+            <div class="ia-table-wrap">
+                <table class="table ia-assessment-table">
+                    <thead>
+                        <tr>
+                            <th>Title / Type</th>
+                            <th>Course</th>
+                            <th>Semester</th>
+                            <th>Deadline</th>
+                            <th>Submissions</th>
+                            <th>Visibility</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var assessment in Model)
+                        {
+                            var assessmentCourse = courses.FirstOrDefault(
+                                c => c.Id == assessment.CourseId
+                            );
+
+                            <tr>
+                                <td>
+                                    <div class="ia-assessment-title">
+                                        @assessment.Title
+                                    </div>
+
+                                    <div class="ia-assessment-type">
+                                        @assessment.Type
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div class="ia-course-name">
+                                        @if (assessmentCourse != null)
+                                        {
+                                            @assessmentCourse.Name
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">
+                                                Course not found
+                                            </span>
+                                        }
+                                    </div>
+                                </td>
+
+                                <td>
+                                    @if (assessmentCourse != null &&
+                                         assessmentCourse.SemesterId != null)
+                                    {
+                                        <span class="ia-semester-badge">
+                                            Semester @assessmentCourse.SemesterId
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">
+                                            Not mapped
+                                        </span>
+                                    }
+                                </td>
+
+                                <td>
+                                    @assessment.DueDate.ToString("dd MMM yyyy")
+                                    <div class="text-muted">
+                                        @assessment.DueDate.ToString("HH:mm")
+                                    </div>
+                                </td>
+
+                                <td>
+                                    @counts.GetValueOrDefault(assessment.Id)
+                                </td>
+
+                                <td>
+                                    <div class="ia-visibility">
+                                        @if (assessment.IsPublished)
+                                        {
+                                            <span class="ia-status-badge ia-status-published">
+                                                Published
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="ia-status-badge ia-status-draft">
+                                                Draft
+                                            </span>
+                                        }
+
+                                        @if (assessment.ResultsPublished)
+                                        {
+                                            <span class="ia-status-badge ia-status-visible">
+                                                Results Visible
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="ia-status-badge ia-status-hidden">
+                                                Results Hidden
+                                            </span>
+                                        }
+
+                                        @if (assessment.ResultApprovalRequested)
+                                        {
+                                            <span class="ia-status-badge ia-status-hidden">Approval Pending</span>
+                                        }
+                                        else if (assessment.ResultApproved && !assessment.ResultsPublished)
+                                        {
+                                            <span class="ia-status-badge ia-status-published">Admin Approved</span>
+                                        }
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div class="ia-actions">
+                                        <a class="btn btn-sm btn-outline-primary"
+                                           asp-controller="InternalAssessment"
+                                           asp-action="Questions"
+                                           asp-route-id="@assessment.Id">
+                                            Manage Questions
+                                        </a>
+
+                                        <a class="btn btn-sm btn-outline-primary"
+                                           asp-controller="InternalAssessment"
+                                           asp-action="Submissions"
+                                           asp-route-id="@assessment.Id">
+                                            Evaluate
+                                        </a>
+
+                                        <form method="post"
+                                              asp-controller="InternalAssessment"
+                                              asp-action="Publish"
+                                              class="ia-confirm-form"
+                                              data-confirm-title="@(assessment.IsPublished ? "Unpublish assessment?" : "Publish assessment?")"
+                                              data-confirm-message="@(assessment.IsPublished ? "This will also hide published results. Do you want to continue?" : "Students will be able to see this assessment. Do you want to continue?")">
+
+                                            @Html.AntiForgeryToken()
+
+                                            <input type="hidden"
+                                                   name="id"
+                                                   value="@assessment.Id" />
+
+                                            <input type="hidden"
+                                                   name="publish"
+                                                   value="@(assessment.IsPublished ? "false" : "true")" />
+
+                                            <button type="submit"
+                                                    class="btn btn-sm @(assessment.IsPublished ? "btn-outline-danger" : "btn-outline-primary")">
+                                                @(assessment.IsPublished ? "Unpublish" : "Publish")
+                                            </button>
+                                        </form>
+
+                                        @if (!assessment.IsPublished && counts.GetValueOrDefault(assessment.Id) == 0)
+                                        {
+                                            <details class="w-100 mt-1">
+                                                <summary class="btn btn-sm btn-outline-secondary">Edit Metadata</summary>
+                                                <form method="post" asp-controller="InternalAssessment" asp-action="EditAssessment" class="row g-2 border rounded p-2 mt-2">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@assessment.Id" />
+                                                    <div class="col-12"><label class="form-label">Title</label><input class="form-control" name="title" maxlength="200" required value="@assessment.Title" /></div>
+                                                    <div class="col-12"><label class="form-label">Instructions</label><textarea class="form-control" name="instructions" maxlength="4000">@assessment.Instructions</textarea></div>
+                                                    <div class="col-12">
+                                                        <label class="form-label">Types</label>
+                                                        @foreach (var type in assessmentTypes)
+                                                        {
+                                                            <label class="me-2"><input type="checkbox" name="types" value="@type" checked="@assessment.Type.Split(',', StringSplitOptions.TrimEntries).Contains(type)" /> @type</label>
+                                                        }
+                                                    </div>
+                                                    <div class="col-md-6"><label class="form-label">Subject</label><select class="form-select" name="subjectId"><option value="">Unassigned</option>@foreach (var subject in subjects.Where(s => assessmentCourse?.SemesterId == s.SemesterId)){<option value="@subject.Id" selected="@(assessment.SubjectId == subject.Id)">@subject.SubjectCode - @subject.Name</option>}</select></div>
+                                                    <div class="col-md-6"><label class="form-label">Window</label><select class="form-select" name="windowId" required>@foreach (var window in windows.Where(w => w.IsActive && (!w.CourseId.HasValue || w.CourseId == assessment.CourseId))){<option value="@window.Id" selected="@(assessment.WindowId == window.Id)">@window.Name</option>}</select></div>
+                                                    <div class="col-md-6"><label class="form-label">Due</label><input class="form-control" type="datetime-local" name="dueDate" required value="@assessment.DueDate.ToString("yyyy-MM-ddTHH:mm")" /></div>
+                                                    <div class="col-md-3"><label class="form-label">Max marks</label><input class="form-control" type="number" name="maxMarks" min="0.01" max="10000" step="0.01" required value="@assessment.MaxMarks" /></div>
+                                                    <div class="col-md-3"><label class="form-label">Late</label><div><input type="checkbox" name="allowLateSubmission" value="true" checked="@assessment.AllowLateSubmission" /> Allow</div></div>
+                                                    <div class="col-12"><button class="btn btn-sm btn-primary" type="submit">Save Changes</button></div>
+                                                </form>
+                                            </details>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+
+                        @if (!Model.Any())
+                        {
+                            <tr>
+                                <td colspan="7"
+                                    class="text-center text-muted py-4">
+                                    No assessments created yet.
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </section>
+</div>
+
+<script src="~/js/internal-assessment.js"
+        asp-append-version="true"></script>

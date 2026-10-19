@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using TMS.ViewModels.Masters;
 
 namespace TMS.ViewModels.Academics
@@ -22,8 +22,10 @@ namespace TMS.ViewModels.Academics
         public int CourseId { get; set; }
         public string CourseCode { get; set; } = string.Empty;
         public string CourseName { get; set; } = string.Empty;
-        
         public int CategoryId { get; set; }
+        public int TotalMaterials { get; set; }
+        public int CompletedMaterials { get; set; }
+        public int ProgressPercent { get; set; }
     }
 
 

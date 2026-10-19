@@ -1,4 +1,4 @@
-﻿using TMS.Web.Controllers;
+using TMS.Web.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,7 +10,7 @@ namespace TMS.Web.Areas.Admin.Controllers
     {
         public IActionResult Index()
         {
-            return View();
+            return RedirectToAction("Index", "Home", new { area = "" });
         }
     }
 }

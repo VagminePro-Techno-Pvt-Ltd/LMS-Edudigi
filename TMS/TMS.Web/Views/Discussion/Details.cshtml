@@ -1,6 +1,8 @@
 @model TMS.Models.Masters.DiscussionThread
 @{
     ViewBag.Title = Model.Title;
+    string currentRole = User?.Claims?.FirstOrDefault(c => c.Type == "role")?.Value?.ToLower() ?? "";
+    bool canModerate = currentRole.Contains("admin") || currentRole.Contains("faculty") || currentRole.Contains("teacher") || currentRole.Contains("coordinator") || User.IsInRole("Admin") || User.IsInRole("Faculty");
 }
 
 <link rel="stylesheet" href="~/css/forum-premium.css" asp-append-version="true" />
@@ -32,11 +34,17 @@
                         <div class="post-user-info">
                             <img src="/img/user-default.png" class="user-avatar" />
                             <div class="user-details">
-                                <p class="name">@Model.CreatedByUser?.Name <span class="post-badge">OP</span></p>
+                                <p class="name">
+                                    @Model.CreatedByUser?.Name <span class="post-badge">OP</span>
+                                    @if (Model.CreatedByUser?.Role?.Name != null && (Model.CreatedByUser.Role.Name.ToLower().Contains("faculty") || Model.CreatedByUser.Role.Name.ToLower().Contains("teacher")))
+                                    {
+                                        <span class="badge ms-2" style="background:#dbeafe; color:#1d4ed8; font-size:11px; padding:2px 7px; border-radius:6px;">Faculty</span>
+                                    }
+                                </p>
                                 <p class="meta">@Model.CreatedOn.ToString("MMM dd, yyyy HH:mm") • <i class="fas fa-eye mr-1"></i> @Model.ViewCount views</p>
                             </div>
                         </div>
-                        @if (User.IsInRole("Admin") || User.IsInRole("Faculty"))
+                        @if (canModerate)
                         {
                             <div class="dropdown">
                                 <button class="btn btn-light btn-sm rounded-circle" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v"></i></button>

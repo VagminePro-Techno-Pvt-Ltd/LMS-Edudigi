@@ -1,0 +1,180 @@
+@model IEnumerable<TMS.Models.Academics.InternalAssessmentQuestion>
+@using TMS.Models.Academics
+@{
+    var a = (InternalAssessment)ViewBag.Assessment;
+    ViewData["Title"] = $"{a.Title} — Attempt Assessment";
+    var questions = Model.ToList();
+}
+
+<div class="container-fluid py-4" style="max-width: 1000px;">
+    <!-- Breadcrumb & Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a asp-action="StudentDashboard" class="text-decoration-none">Internal Assessments</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Attempt</li>
+                </ol>
+            </nav>
+            <h2 class="fw-bold text-dark mb-1">@a.Title</h2>
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                <span class="badge bg-primary px-2 py-1">@a.Type</span>
+                <span class="badge bg-light text-dark border px-2 py-1">
+                    <i class="bi bi-award me-1 text-primary"></i>Max Marks: <strong>@a.MaxMarks</strong>
+                </span>
+                <span class="badge bg-light text-dark border px-2 py-1">
+                    <i class="bi bi-clock me-1 text-warning"></i>Due: <strong>@a.DueDate.ToString("dd MMM yyyy hh:mm tt")</strong>
+                </span>
+                @if (a.AllowLateSubmission)
+                {
+                    <span class="badge bg-info-subtle text-info border border-info">Late Submission Allowed</span>
+                }
+            </div>
+        </div>
+        <a asp-action="StudentDashboard" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back
+        </a>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(a.Instructions))
+    {
+        <div class="alert alert-light border shadow-sm mb-4">
+            <h6 class="fw-bold text-primary mb-1"><i class="bi bi-info-circle me-1"></i>Assessment Instructions:</h6>
+            <div class="text-dark" style="white-space: pre-wrap; font-size: 0.95rem;">@a.Instructions</div>
+        </div>
+    }
+
+    <form asp-action="SubmitAnswers" method="post" enctype="multipart/form-data" id="attemptForm">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="id" value="@a.Id" />
+
+        @for (var i = 0; i < questions.Count; i++)
+        {
+            var q = questions[i];
+            var isMcq = q.Type == "MCQ";
+            var isDocType = string.Equals(q.Type, "Project", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(q.Type, "Presentation", StringComparison.OrdinalIgnoreCase);
+
+            <div class="card mb-4 border-0 shadow-sm question-attempt-card">
+                <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-secondary-subtle text-secondary border px-2 py-1">Q@(i + 1)</span>
+                        <span class="badge @(isMcq ? "bg-info-subtle text-info border border-info" : isDocType ? "bg-warning-subtle text-warning-emphasis border border-warning" : "bg-primary-subtle text-primary border border-primary")">
+                            @q.Type
+                        </span>
+                        <strong class="text-dark">@q.Marks Marks</strong>
+                    </div>
+
+                    @if (isDocType)
+                    {
+                        <span class="badge bg-success-subtle text-success border border-success">
+                            <i class="bi bi-file-earmark-arrow-up me-1"></i>Document Upload (@q.Type)
+                        </span>
+                    }
+                </div>
+
+                <div class="card-body p-4">
+                    <!-- Question Prompt -->
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-semibold text-uppercase">Question / Task Description</label>
+                        <div class="p-3 rounded bg-light border text-dark" style="white-space: pre-wrap; font-size: 0.95rem;">@q.Text</div>
+                    </div>
+
+                    @if (isMcq)
+                    {
+                        <!-- Multiple Choice Response -->
+                        <div class="mb-2">
+                            <label class="form-label fw-semibold text-dark">Select Your Option:</label>
+                            <div class="list-group">
+                                @foreach (var opt in new[] {
+                                    new { Key = "A", Val = q.OptionA },
+                                    new { Key = "B", Val = q.OptionB },
+                                    new { Key = "C", Val = q.OptionC },
+                                    new { Key = "D", Val = q.OptionD }
+                                })
+                                {
+                                    @if (!string.IsNullOrWhiteSpace(opt.Val))
+                                    {
+                                        <label class="list-group-item list-group-item-action d-flex align-items-center gap-3 py-2 cursor-pointer">
+                                            <input class="form-check-input flex-shrink-0" type="radio" name="answers[@q.Id]" value="@opt.Key" required />
+                                            <span><strong>@opt.Key.</strong> @opt.Val</span>
+                                        </label>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    }
+                    else if (isDocType)
+                    {
+                        <!-- Project or Presentation Document Upload -->
+                        <div class="p-3 mb-3 rounded bg-primary bg-opacity-10 border border-primary border-opacity-25">
+                            <label class="form-label fw-bold text-dark mb-1">
+                                <i class="bi bi-file-earmark-arrow-up-fill text-primary me-1"></i>Upload @q.Type Document / Presentation File:
+                            </label>
+                            <input type="file"
+                                   name="attachment_@q.Id"
+                                   id="file_@q.Id"
+                                   class="form-control mb-2"
+                                   accept=".pdf,.docx,.pptx,.jpg,.jpeg,.png" />
+                            <div class="small text-muted">
+                                <i class="bi bi-info-circle me-1"></i>Allowed formats: <strong>PDF (.pdf), Word (.docx), PowerPoint (.pptx), Images (.jpg, .png)</strong> (Max 8 MB per document).
+                            </div>
+                        </div>
+
+                        <!-- Project / Presentation Summary Notes -->
+                        <div class="mb-2">
+                            <label class="form-label fw-semibold text-dark small">
+                                Project Overview / Presentation Abstract / Notes (Optional if document is attached):
+                            </label>
+                            <textarea name="answers[@q.Id]"
+                                      id="notes_@q.Id"
+                                      class="form-control"
+                                      rows="3"
+                                      maxlength="10000"
+                                      placeholder="Provide an overview, abstract, executive summary, or presentation notes..."></textarea>
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- Written / Descriptive Question -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Your Written Answer:</label>
+                            <textarea name="answers[@q.Id]"
+                                      class="form-control"
+                                      rows="5"
+                                      maxlength="10000"
+                                      required
+                                      placeholder="Type your complete answer here..."></textarea>
+                        </div>
+
+                        <!-- Optional Supporting File Attachment for Written questions -->
+                        <div class="p-2 rounded bg-light border">
+                            <label class="form-label small fw-semibold text-muted mb-1">
+                                <i class="bi bi-paperclip me-1"></i>Attach Supporting Document / Diagram / Working File (Optional):
+                            </label>
+                            <input type="file"
+                                   name="attachment_@q.Id"
+                                   class="form-control form-control-sm"
+                                   accept=".pdf,.docx,.pptx,.jpg,.jpeg,.png" />
+                            <div class="small text-muted mt-1" style="font-size: 0.75rem;">
+                                Optional: Attach relevant calculation sheets, diagrams, or scans (Max 8 MB).
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Submit Button Card -->
+        <div class="p-3 rounded bg-white shadow-sm d-flex justify-content-between align-items-center mb-5 border">
+            <div>
+                <a asp-action="StudentDashboard" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle me-1"></i>Cancel
+                </a>
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg px-4" onclick="return confirm('Submit your assessment answers now? Once submitted, your submission cannot be modified.');">
+                <i class="bi bi-send-check me-1"></i>Submit Assessment
+            </button>
+        </div>
+    </form>
+</div>

@@ -69,6 +69,27 @@
     <script src="~/js/script.js" asp-append-version="true"></script>
     <!-- END: Custom JS-->
     <script src="~/js/app.util.js" asp-append-version="true"></script>
+    <script>
+        (function () {
+            function dismissLoaders() {
+                var loaders = document.querySelectorAll('.loader-wrapper');
+                loaders.forEach(function (l) {
+                    l.style.transition = 'opacity 0.3s ease';
+                    l.style.opacity = '0';
+                    setTimeout(function () {
+                        if (l.parentNode) l.parentNode.removeChild(l);
+                    }, 300);
+                });
+            }
+            if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                setTimeout(dismissLoaders, 100);
+            } else {
+                document.addEventListener('DOMContentLoaded', dismissLoaders);
+                window.addEventListener('load', dismissLoaders);
+            }
+            setTimeout(dismissLoaders, 1500);
+        })();
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

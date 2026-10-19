@@ -6,7 +6,9 @@ using TMS.Models.Masters;
 using TMS.Repository.Extensions;
 
 using TMS.Repository.Repositories;
+using TMS.ViewModels;
 using TMS.ViewModels.Academics;
+using TMS.ViewModels.Account;
 using TMS.ViewModels.Masters;
 using AutoMapper;
 
@@ -17,13 +19,13 @@ namespace TMS.Repository.Managers.Implementations.Masters
         private readonly IRepository<UserMaster> _userRepository;
 
         public DailyAttendanceManager(
-            IBaseModelRepository<DailyAttendance> repository, 
-            IMapper mapper, 
-            IBaseModelRepository<QuizMaster> quizRepository, 
-            IBaseModelRepository<StudentQuizAttempt> studentQuizAttemptRepository, 
-            IBaseModelRepository<StudentQuizAnswer> studentQuizAnswerRepository, 
+            IBaseModelRepository<DailyAttendance> repository,
+            IMapper mapper,
+            IBaseModelRepository<QuizMaster> quizRepository,
+            IBaseModelRepository<StudentQuizAttempt> studentQuizAttemptRepository,
+            IBaseModelRepository<StudentQuizAnswer> studentQuizAnswerRepository,
             IBaseModelRepository<FacultyQuizAssessment> facultyQuizAssessmentRepository,
-            IRepository<UserMaster> userRepository) 
+            IRepository<UserMaster> userRepository)
             : base(repository, mapper, quizRepository, studentQuizAttemptRepository, studentQuizAnswerRepository, facultyQuizAssessmentRepository)
         {
             _userRepository = userRepository;
@@ -56,15 +58,15 @@ namespace TMS.Repository.Managers.Implementations.Masters
         public async Task<int> ProcessDailyAbsentees()
         {
             var today = DateTime.Today;
-            
+
             // Get all active students
             var students = await _userRepository.Find(t => t.IsActive && t.Role.Name.ToLower() == "student", new[] { "Role" });
-            
+
             // Get students who logged in today
             var presentIds = (await _repository.Find(t => t.Date == today)).Select(t => t.StudentId).ToList();
-            
+
             var absentees = students.Where(s => !presentIds.Contains(s.Id)).ToList();
-            
+
             foreach (var student in absentees)
             {
                 var record = new DailyAttendance
@@ -78,21 +80,60 @@ namespace TMS.Repository.Managers.Implementations.Masters
                 };
                 await _repository.AddAsync(record);
             }
-            
+
             await _repository.SaveChangesAsync();
             return absentees.Count;
         }
 
         public async Task<List<DailyAttendanceViewModel>> GetAttendanceReport(DateTime date, int? studentId = null)
         {
-            var query = _repository.GetAsync(new[] { "Student" }).Where(t => t.Date == date.Date);
+            var targetDate = date.Date;
+
+            var studentsQuery = _userRepository.GetAsync(new[] { "Role" })
+                .Where(t => t.IsActive && t.Role.Name.ToLower() == "student");
+
             if (studentId.HasValue)
             {
-                query = query.Where(t => t.StudentId == studentId.Value);
+                studentsQuery = studentsQuery.Where(t => t.Id == studentId.Value);
             }
 
-            var records = await query.ToListAsync();
-            return _mapper.Map<List<DailyAttendanceViewModel>>(records);
+            var allStudents = await studentsQuery.ToListAsync();
+            var studentIds = allStudents.Select(s => s.Id).ToList();
+
+            var existingRecords = await _repository.GetAsync(new[] { "Student" })
+                .Where(t => t.Date == targetDate && studentIds.Contains(t.StudentId))
+                .ToListAsync();
+
+            var recordsMap = existingRecords.ToDictionary(r => r.StudentId, r => r);
+            var resultList = new List<DailyAttendanceViewModel>();
+
+            foreach (var student in allStudents)
+            {
+                if (recordsMap.TryGetValue(student.Id, out var record))
+                {
+                    var vm = _mapper.Map<DailyAttendanceViewModel>(record);
+                    if (vm.Student == null)
+                    {
+                        vm.Student = _mapper.Map<UserViewModel>(student);
+                    }
+                    resultList.Add(vm);
+                }
+                else
+                {
+                    resultList.Add(new DailyAttendanceViewModel
+                    {
+                        Id = 0,
+                        StudentId = student.Id,
+                        Date = targetDate,
+                        AttendanceStatus = 0,
+                        LoginTime = null,
+                        Remarks = "Not logged in",
+                        Student = _mapper.Map<UserViewModel>(student)
+                    });
+                }
+            }
+
+            return resultList.OrderBy(t => t.Student?.Name).ToList();
         }
     }
 }

@@ -1,0 +1,100 @@
+@model TMS.Web.ViewModels.InternalSemesterGradeCardViewModel
+@{
+    ViewData["Title"] = "Semester-wise Internal Assessment Grade Card";
+}
+<style>
+    .isgc-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:20px auto}
+    .isgc-actions a,.isgc-actions button{border:0;border-radius:8px;padding:11px 18px;font-weight:650;text-decoration:none;cursor:pointer;background:#155bb7;color:white}
+    .isgc-paper{box-sizing:border-box;width:210mm;max-width:100%;min-height:297mm;margin:0 auto 25px;padding:16mm;background:#fff;color:#172c45;border:1px solid #dbe4f0;box-shadow:0 8px 30px rgba(0,0,0,.07);font-family:Arial,sans-serif}
+    .isgc-brand{text-align:center;border-bottom:3px solid #1754a5;padding-bottom:16px;margin-bottom:25px}
+    .isgc-brand h1{font-size:28px;color:#1455ae;margin:0 0 8px;font-weight:800}
+    .isgc-brand h2{font-size:17px;margin:0;text-transform:uppercase}
+    .isgc-subtitle{color:#61738b;font-size:12px;margin-top:8px}
+    .isgc-info{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:24px;font-size:13px}
+    .isgc-info small{display:block;color:#667990;margin-bottom:5px}
+    .isgc-table{width:100%;border-collapse:collapse;font-size:12px}
+    .isgc-table th,.isgc-table td{border:1px solid #dbe3ee;padding:10px 8px;text-align:left}
+    .isgc-table th{background:#eaf2fd;color:#164c96}
+    .isgc-table tfoot{background:#f5f8fd;font-weight:bold}
+    .isgc-result{border:1px solid #d4e2f3;border-radius:10px;padding:16px;margin-top:24px;display:flex;justify-content:space-between;gap:20px}
+    .isgc-result small{display:block;color:#687b90;margin-bottom:7px}
+    .isgc-result strong{color:#114e9c;font-size:19px}
+    .isgc-note{font-size:11px;color:#62768e;line-height:1.7;margin-top:22px}
+    .isgc-footer{border-top:1px solid #d8e1ed;padding-top:14px;margin-top:65px;font-size:11px;color:#687b90;display:flex;justify-content:space-between}
+    @@page{size:A4 portrait;margin:0}
+    @@media print{
+        html,body{background:white!important;margin:0!important;padding:0!important}
+        .isgc-actions,.sidebar-wrapper,.page-header,footer,.page-footer,.footer{display:none!important}
+        .page-body,.page-body-wrapper,.page-wrapper,.container-fluid{margin:0!important;padding:0!important;width:100%!important;max-width:none!important;min-height:0!important}
+        .isgc-paper{width:210mm!important;max-width:none!important;min-height:297mm;margin:0!important;padding:16mm!important;border:0!important;box-shadow:none!important}
+        .isgc-table tr{break-inside:avoid}
+        .isgc-brand,.isgc-table th,.isgc-table tfoot{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+    }
+    @@media(max-width:700px){.isgc-paper{padding:18px;min-height:auto}.isgc-info{grid-template-columns:1fr}.isgc-table{font-size:10px}.isgc-table th,.isgc-table td{padding:6px 4px}}
+</style>
+<div class="isgc-actions">
+    <a asp-controller="InternalGradeCard" asp-action="Index">Back to Grade Cards</a>
+    <button type="button" onclick="window.print()">Print / Save as PDF</button>
+</div>
+<div class="isgc-paper">
+    <header class="isgc-brand">
+        <h1>EduDigi Classes</h1>
+        <div class="isgc-subtitle">LMS PLATFORM</div>
+        <h2>Semester-wise Internal Assessment Marks Statement</h2>
+        <div class="isgc-subtitle">Published Internal Assessment Results Only</div>
+    </header>
+    <section class="isgc-info">
+        <div><small>STUDENT NAME</small><strong>@Model.StudentName</strong></div>
+        <div><small>STUDENT ID</small><strong>@Model.StudentId</strong></div>
+        <div><small>SEMESTER</small><strong>Semester @Model.SemesterId</strong></div>
+        <div><small>GENERATED ON</small><strong>@Model.GeneratedOn.ToString("dd MMM yyyy, hh:mm tt")</strong></div>
+    </section>
+    <table class="isgc-table">
+        <thead><tr><th>#</th><th>Subject Code</th><th>Subject</th><th>Evaluated</th><th>Absent</th><th>Pending</th><th>Max Marks</th><th>Obtained</th><th>Percentage</th><th>Outcome</th></tr></thead>
+        <tbody>
+        @{ var serial = 0; }
+        @foreach (var course in Model.Courses)
+        {
+            serial++;
+            <tr>
+                <td>@serial</td><td>@course.SubjectCode</td><td>@course.CourseName</td>
+                <td>@course.EvaluatedAssessments / @course.PublishedAssessments</td>
+                <td>@course.AbsentAssessments</td>
+                <td>@course.PendingAssessments</td>
+                <td>@(course.MaximumMarks.HasValue ? course.MaximumMarks.Value.ToString("0.##") : "—")</td>
+                <td>@(course.ObtainedMarks.HasValue ? course.ObtainedMarks.Value.ToString("0.##") : "—")</td>
+                <td>@(course.Percentage.HasValue ? course.Percentage.Value.ToString("0.00") + "%" : "—")</td>
+                <td><strong style="color:@(course.ResultStatus == "FAIL" ? "#b42318" : course.ResultStatus == "PASS" ? "#087443" : "#9a6700")">@course.ResultStatus</strong></td>
+            </tr>
+        }
+        </tbody>
+        <tfoot><tr><td colspan="6">SEMESTER TOTAL</td>
+            <td>@(Model.TotalMaximumMarks.HasValue ? Model.TotalMaximumMarks.Value.ToString("0.##") : "—")</td>
+            <td>@(Model.TotalObtainedMarks.HasValue ? Model.TotalObtainedMarks.Value.ToString("0.##") : "—")</td>
+            <td>@(Model.Percentage.HasValue ? Model.Percentage.Value.ToString("0.00") + "%" : "—")</td>
+            <td><strong>@Model.ResultStatus</strong></td>
+        </tr></tfoot>
+    </table>
+    <div class="isgc-result">
+        <div><small>SEMESTER INTERNAL PERCENTAGE</small><strong>@(Model.Percentage.HasValue ? Model.Percentage.Value.ToString("0.00") + "%" : "Not available")</strong></div>
+        <div><small>ASSESSMENT STATUS</small><strong>@Model.ResultStatus</strong></div>
+    </div>
+    <section style="margin-top:20px;border:1px solid #d4e2f3;padding:14px;border-radius:8px">
+        <strong>REMARKS</strong>
+        @if (Model.FailedCourses.Count > 0)
+        {
+            <table class="isgc-table" style="margin-top:10px"><thead><tr><th>Subject Code</th><th>Remark</th></tr></thead><tbody>
+            @foreach (var failed in Model.FailedCourses)
+            { <tr><td>@failed.SubjectCode</td><td style="color:#b42318;font-weight:bold">FAIL</td></tr> }
+            </tbody></table>
+        }
+        else if (!Model.Complete)
+        { <p style="margin:8px 0 0">Evaluation pending for one or more subjects.</p> }
+        else
+        { <p style="margin:8px 0 0">NIL</p> }
+    </section>
+    <div class="isgc-note">
+        <strong>Important:</strong> This statement includes only subjects with published Internal Assessment results accessible to the current user. A published non-submission is ABSENT with 0 marks and FAIL. A submitted but incomplete evaluation remains PENDING. This is not a final university grade card. The pass threshold is 33% for each assessment, and exactly 33% is PASS. Semester FAIL if any subject fails. No external examination marks, SGPA or CGPA are calculated. This statement is not a digitally signed certificate.
+    </div>
+    <div class="isgc-footer"><span>Generated from EduDigi Classes LMS</span><span>Internal Assessment Marks Statement</span></div>
+</div>

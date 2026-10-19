@@ -5,6 +5,23 @@
 
 <link rel="stylesheet" href="~/css/content-library.css" />
 
+<style>
+    .upload-shell { padding: 24px 20px 40px; }
+    .upload-card { max-width: 1180px; margin: 0 auto; }
+    .upload-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    #courseAssignmentSection { margin-top: 18px; }
+    .assignment-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .assignment-grid .assignment-full { grid-column: 1 / -1; }
+    #courseSelect { min-height: 150px; }
+    .cascade-status { min-height: 18px; margin-top: 5px; font-size: 12px; color: #64748b; }
+    .form-select:disabled { background-color: #f8fafc; cursor: not-allowed; }
+    @@media (max-width: 768px) {
+        .upload-form-grid, .assignment-grid { grid-template-columns: 1fr; }
+        .assignment-grid .assignment-full { grid-column: auto; }
+        .upload-shell { padding: 14px 10px 28px; }
+    }
+</style>
+
 <div class="upload-shell">
     <div class="upload-card">
         <!-- HEADER -->
@@ -123,7 +140,7 @@
                         <span id="selectedFileSize"></span>
                         <button type="button" class="cloud-file-remove" id="removeLocalFile">✕</button>
                     </div>
-                    @if (!string.IsNullOrEmpty(Model.FilePath) && Model.Source == "Local")
+                    @if (!string.IsNullOrEmpty(Model.FilePath) && Model.Source == "Local" && Model.MaterialType != "VideoURL")
                     {
                         <p class="mt-2">
                             <i class="fa fa-check-circle text-success"></i>
@@ -161,8 +178,9 @@
                 </div>
 
                 <div id="courseAssignmentSection" style="@(Model.AssignToCourse ? "" : "display:none;")">
+                    <div class="assignment-grid">
                     <!-- Courses -->
-                    <div class="mb-3">
+                    <div class="mb-3 assignment-full">
                         <label class="form-label fw-bold">Courses (Select multiple if needed)</label>
                         <select name="SelectedCourseIds" multiple class="form-select" size="5" id="courseSelect">
                             @if (ViewBag.CourseId != null)
@@ -194,22 +212,27 @@
                                 }
                             }
                         </select>
+                        <span asp-validation-for="SemesterId" class="text-danger"></span>
                     </div>
 
                     <!-- Subject -->
                     <div class="mb-3">
                         <label class="form-label fw-bold">Subject</label>
-                        <select asp-for="SubjectId" class="form-select" id="subjectSelect">
+                        <select asp-for="SubjectId" class="form-select" id="subjectSelect" disabled>
                             <option value="">-- Select Subject --</option>
                         </select>
+                        <span asp-validation-for="SubjectId" class="text-danger"></span>
+                        <div id="subjectStatus" class="cascade-status"></div>
                     </div>
 
                     <!-- Unit -->
                     <div class="mb-3">
                         <label class="form-label fw-bold">Unit</label>
-                        <select asp-for="UnitId" class="form-select" id="unitSelect">
+                        <select asp-for="UnitId" class="form-select" id="unitSelect" disabled>
                             <option value="">-- Select Unit (Optional) --</option>
                         </select>
+                        <span asp-validation-for="UnitId" class="text-danger"></span>
+                        <div id="unitStatus" class="cascade-status"></div>
                     </div>
 
                     <!-- Quadrant -->
@@ -234,6 +257,7 @@
                             }
                         </select>
                         <span asp-validation-for="CourseQuadrantId" class="text-danger"></span>
+                    </div>
                     </div>
                 </div>
             </div>
@@ -292,6 +316,9 @@
                 var source = $('#hiddenSource').val() || 'Local';
 
                 if (type === "VideoURL") {
+                    $('#hiddenSource').val('Local');
+                    $('.source-tab').removeClass('active');
+                    $('.source-tab[data-source="Local"]').addClass('active');
                     $("#uploadSection").hide();
                     $("#videoUrlSection").show();
                     $('.source-tabs').hide();
@@ -419,57 +446,102 @@
             }
 
             // ═══════ CASCADING DROPDOWNS ═══════
-            
-            // 1. Semester -> Subject
-            $('#semesterSelect').on('change', function() {
-                var semId = $(this).val();
-                $('#subjectSelect').empty().append('<option value="">-- Select Subject --</option>');
-                $('#unitSelect').empty().append('<option value="">-- Select Unit (Optional) --</option>');
-                
-                if (semId) {
-                    $.get('/Quadrant/GetSubjects', { semesterId: semId }, function(data) {
-                        $.each(data, function(i, item) {
-                            $('#subjectSelect').append($('<option>', {
-                                value: item.id,
-                                text: (item.code ? item.code + ' - ' : '') + item.name
-                            }));
+            const getSubjectsUrl = '@Url.Action("GetSubjects", "LectureMaterial", new { area = "Admin" })';
+            const getUnitsUrl = '@Url.Action("GetUnits", "LectureMaterial", new { area = "Admin" })';
+            const initialSubjectId = '@(Model.SubjectId?.ToString() ?? "")';
+            const initialUnitId = '@(Model.UnitId?.ToString() ?? "")';
+
+            function resetSubjects(message) {
+                $('#subjectSelect')
+                    .prop('disabled', true)
+                    .empty()
+                    .append('<option value="">-- Select Subject --</option>');
+                $('#subjectStatus').text(message || '');
+            }
+
+            function resetUnits(message) {
+                $('#unitSelect')
+                    .prop('disabled', true)
+                    .empty()
+                    .append('<option value="">-- Select Unit (Optional) --</option>');
+                $('#unitStatus').text(message || '');
+            }
+
+            function loadUnits(subjectId, selectedUnitId) {
+                resetUnits(subjectId ? 'Loading units...' : '');
+                if (!subjectId) return;
+
+                $.ajax({
+                    url: getUnitsUrl,
+                    type: 'GET',
+                    data: { subjectId: subjectId },
+                    cache: false
+                }).done(function (data) {
+                    const $unit = $('#unitSelect');
+                    $unit.empty().append('<option value="">-- Select Unit (Optional) --</option>');
+
+                    if (Array.isArray(data)) {
+                        data.forEach(function (item) {
+                            $unit.append($('<option>', { value: item.id, text: item.name || '' }));
                         });
-                        
-                        // Set initial value if editing
-                        var initialSubj = '@Model.SubjectId';
-                        if (initialSubj && initialSubj !== '0') {
-                            $('#subjectSelect').val(initialSubj).trigger('change');
-                        }
-                    });
-                }
+                    }
+
+                    $unit.prop('disabled', false);
+                    $('#unitStatus').text(data && data.length ? '' : 'No units found for this subject.');
+
+                    if (selectedUnitId) $unit.val(selectedUnitId);
+                }).fail(function () {
+                    resetUnits('Unable to load units. Please try again.');
+                });
+            }
+
+            function loadSubjects(semesterId, selectedSubjectId, selectedUnitId) {
+                resetSubjects(semesterId ? 'Loading subjects...' : '');
+                resetUnits('');
+                if (!semesterId) return;
+
+                $.ajax({
+                    url: getSubjectsUrl,
+                    type: 'GET',
+                    data: { semesterId: semesterId },
+                    cache: false
+                }).done(function (data) {
+                    const $subject = $('#subjectSelect');
+                    $subject.empty().append('<option value="">-- Select Subject --</option>');
+
+                    if (Array.isArray(data)) {
+                        data.forEach(function (item) {
+                            const text = (item.code ? item.code + ' - ' : '') + (item.name || '');
+                            $subject.append($('<option>', { value: item.id, text: text }));
+                        });
+                    }
+
+                    $subject.prop('disabled', false);
+                    $('#subjectStatus').text(data && data.length ? '' : 'No subjects found for this semester.');
+
+                    if (selectedSubjectId) {
+                        $subject.val(selectedSubjectId);
+                        if ($subject.val()) loadUnits(selectedSubjectId, selectedUnitId);
+                    }
+                }).fail(function () {
+                    resetSubjects('Unable to load subjects. Please try again.');
+                    resetUnits('');
+                });
+            }
+
+            $('#semesterSelect').on('change', function () {
+                loadSubjects($(this).val(), '', '');
             });
 
-            // 2. Subject -> Unit
-            $('#subjectSelect').on('change', function() {
-                var subjId = $(this).val();
-                $('#unitSelect').empty().append('<option value="">-- Select Unit (Optional) --</option>');
-                
-                if (subjId) {
-                    $.get('/Quadrant/GetUnits', { subjectId: subjId }, function(data) {
-                        $.each(data, function(i, item) {
-                            $('#unitSelect').append($('<option>', {
-                                value: item.id,
-                                text: item.name
-                            }));
-                        });
-                        
-                        // Set initial value if editing
-                        var initialUnit = '@Model.UnitId';
-                        if (initialUnit && initialUnit !== '0') {
-                            $('#unitSelect').val(initialUnit);
-                        }
-                    });
-                }
+            $('#subjectSelect').on('change', function () {
+                loadUnits($(this).val(), '');
             });
 
-            // Trigger initial cascade if editing
             if ($('#semesterSelect').val()) {
-                $('#semesterSelect').trigger('change');
+                loadSubjects($('#semesterSelect').val(), initialSubjectId, initialUnitId);
+            } else {
+                resetSubjects('');
+                resetUnits('');
             }
         });
     </script>

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using TMS.Common;
 using TMS.Repository;
 using TMS.Repository.Managers;
 using TMS.ViewModels;
@@ -15,6 +16,7 @@ namespace TMS.Web.Controllers
     /// Handles: My Courses listing + Subject Details (Unit Grid).
     /// Part of the new Unit-first hierarchy.
     /// </summary>
+    [Authorize]
     public class StudentCourseController : BaseController
     {
         private readonly IStudentLearningService _learningService;
@@ -46,7 +48,7 @@ namespace TMS.Web.Controllers
 
             var enrollments = await _enrollmentManager.GetAsync(
                 includes: new[] { "Course", "Course.CourseCategory", "Course.Semester" },
-                predicate: e => e.StudentId == studentId && e.IsActive
+                predicate: e => e.StudentId == studentId && e.IsActive && (e.Status == 0 || e.Status == (int)EnrollmentStatus.Active)
             );
 
             var enrolledCourses = enrollments?
@@ -60,24 +62,32 @@ namespace TMS.Web.Controllers
                 return View(new StudentCourseCategoryViewModel());
             }
 
-            var firstCategory = enrolledCourses.First().CourseCategory;
+            var firstCategory = enrolledCourses.FirstOrDefault(c => c.CourseCategory != null)?.CourseCategory;
+            var courseIds = enrolledCourses.Select(c => c.Id).Distinct().ToList();
+            var progressMap = await _learningService.GetCoursesProgressMapAsync(studentId, courseIds);
 
             var viewModel = new StudentCourseCategoryViewModel
             {
                 CategoryName = firstCategory?.Name ?? "No Category",
                 CategoryDescription = firstCategory?.Description ?? "No description available.",
                 Semesters = enrolledCourses
-                    .GroupBy(c => c.Semester.Id)
+                    .GroupBy(c => c.Semester != null ? c.Semester.Id : (c.SemesterId ?? 0))
                     .OrderBy(g => g.Key)
                     .Select(g => new SemesterCourseGroupViewModel
                     {
                         Semester = g.Key,
-                        Courses = g.Select(c => new CourseSummaryViewModel
-                        {
-                            CourseId = c.Id,
-                            CourseCode = c.CourseCode ?? "N/A",
-                            CourseName = c.Name ?? "Untitled Course",
-                            CategoryId = c.CourseCategoryId
+                        Courses = g.Select(c => {
+                            var stat = progressMap.TryGetValue(c.Id, out var s) ? s : (Total: 0, Completed: 0, Percent: 0);
+                            return new CourseSummaryViewModel
+                            {
+                                CourseId = c.Id,
+                                CourseCode = c.CourseCode ?? "N/A",
+                                CourseName = c.Name ?? "Untitled Course",
+                                CategoryId = c.CourseCategoryId,
+                                TotalMaterials = stat.Total,
+                                CompletedMaterials = stat.Completed,
+                                ProgressPercent = stat.Percent
+                            };
                         }).ToList()
                     }).ToList()
             };
@@ -94,10 +104,14 @@ namespace TMS.Web.Controllers
             int studentId = GetUserId();
 
             // Security: Verify enrollment
-            bool enrolled = await _learningService.IsStudentEnrolledAsync(studentId, courseId);
-            if (!enrolled)
+            bool isStaff = User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("Faculty") || User.IsInRole("Exam Coordinator");
+            if (!isStaff)
             {
-                return RedirectToAction("Index");
+                bool enrolled = await _learningService.IsStudentEnrolledAsync(studentId, courseId);
+                if (!enrolled)
+                {
+                    return Forbid();
+                }
             }
 
             var model = await _learningService.GetSubjectHubAsync(studentId, courseId);

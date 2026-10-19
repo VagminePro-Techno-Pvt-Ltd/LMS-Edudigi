@@ -21,37 +21,44 @@ namespace TMS.Web.Areas.Admin.Controllers
         private readonly IMasterManager<CourseMasterViewModel> _courseManager;
         private readonly IMasterManager<UserViewModel> _userManager;
         private readonly IMasterManager<CourseCategoryMasterViewModel> _programManager;
+        private readonly IAccountManager _accountManager;
 
         public CourseEnrollmentController(
             IEnrollmentManager enrollmentManager,
             IMasterManager<CourseMasterViewModel> courseManager,
             IMasterManager<UserViewModel> userManager,
-            IMasterManager<CourseCategoryMasterViewModel> programManager)
+            IMasterManager<CourseCategoryMasterViewModel> programManager,
+            IAccountManager accountManager)
         {
             _enrollmentManager = enrollmentManager;
             _courseManager = courseManager;
             _userManager = userManager;
             _programManager = programManager;
+            _accountManager = accountManager;
         }
 
         // =============================
-        // GET: Index - Show all PROGRAMS with enrollment counts
+        // GET: Index - Academic Enrollment Center Dashboard
         // =============================
         public async Task<IActionResult> Index()
         {
-            ViewData["Title"] = "Program Enrollment Management";
+            ViewData["Title"] = "Academic Enrollment Center";
 
             // 1) Fetch all active Programs (CourseCategories)
             var programs = await _programManager.GetAsync(predicate: p => p.IsActive);
 
-            // 2) Fetch all courses (to count per-program and map enrollments)
+            // 2) Fetch all courses with Semester and Category
             var allCourses = await _courseManager.GetAsync(new[] { "Semester", "CourseCategory" }, c => c.IsActive);
 
             // 3) Fetch all active enrollments
             var allEnrollments = await _enrollmentManager.GetAsync(new[] { "Student" },
                 e => e.Status == (int)EnrollmentStatus.Active);
 
-            // 4) Build summary per program
+            // 4) Fetch all students
+            var allStudents = await _userManager.GetAsync(new[] { "Role" },
+                u => u.IsActive && u.Role != null && u.Role.Name == "Student");
+
+            // 5) Build summary per program
             var programSummaries = programs.Select(p =>
             {
                 var programCourseIds = allCourses
@@ -74,9 +81,34 @@ namespace TMS.Web.Areas.Admin.Controllers
                     CourseCount = programCourseIds.Count,
                     EnrolledStudentCount = enrolledStudentIds.Count
                 };
-            }).ToList();
+            }).OrderBy(p => p.ProgramName).ToList();
 
-            return View(programSummaries);
+            // 6) Build summary per individual course
+            var courseSummaries = allCourses.Select(c =>
+            {
+                var enrolledCount = allEnrollments.Count(e => e.CourseId == c.Id);
+                return new CourseEnrollmentDetailVM
+                {
+                    CourseId = c.Id,
+                    CourseCode = c.CourseCode ?? "N/A",
+                    CourseName = c.Name,
+                    ProgramId = c.CourseCategoryId,
+                    ProgramName = c.CourseCategory?.Name ?? "General / Unassigned",
+                    SemesterId = c.SemesterId,
+                    SemesterName = c.Semester?.Name ?? "General",
+                    EnrolledStudentCount = enrolledCount
+                };
+            }).OrderBy(c => c.ProgramName).ThenBy(c => c.CourseName).ToList();
+
+            var dashboardVm = new AcademicEnrollmentDashboardVM
+            {
+                Programs = programSummaries,
+                Courses = courseSummaries,
+                TotalActiveEnrollments = allEnrollments.Count,
+                TotalStudents = allStudents.Count()
+            };
+
+            return View(dashboardVm);
         }
 
         // =============================
@@ -86,32 +118,48 @@ namespace TMS.Web.Areas.Admin.Controllers
         public async Task<IActionResult> ManageMapping(int programId)
         {
             // 1) Fetch all students with "Student" role
-            var students = await _userManager.GetAsync(new[] { "Role" },
-                u => u.IsActive && u.Role != null && u.Role.Name == "Student");
+            var students = (await _userManager.GetAsync(new[] { "Role" },
+                u => u.IsActive && u.Role != null && u.Role.Name == "Student")).OrderBy(s => s.Name).ToList();
 
             // 2) Get all courses under this program
-            var programCourses = await _courseManager.GetAsync(null, c => c.IsActive && c.CourseCategoryId == programId);
+            var programCourses = await _courseManager.GetAsync(new[] { "Semester" }, c => c.IsActive && c.CourseCategoryId == programId);
             var programCourseIds = programCourses.Select(c => c.Id).ToList();
 
-            // 3) Get existing ACTIVE enrollments for any course in this program
-            var existingEnrollments = await _enrollmentManager.GetAsync(null,
+            // 3) Get ALL active enrollments across the system (including Course & Category)
+            var allActiveEnrollments = await _enrollmentManager.GetAsync(new[] { "Course", "Course.CourseCategory" },
                 e => e.Status == (int)EnrollmentStatus.Active);
 
-            // A student is "enrolled in program" if enrolled in ALL courses of the program
-            // For display, show anyone enrolled in ANY course of the program
-            var enrolledStudentIds = existingEnrollments
+            // A student is "enrolled in program" if enrolled in ANY course of the program
+            var enrolledStudentIds = allActiveEnrollments
                 .Where(e => programCourseIds.Contains(e.CourseId))
                 .Select(e => e.StudentId)
                 .Distinct()
                 .ToList();
 
-            // 4) Fetch program info
+            // 4) Map each student to their enrolled courses/programs across the platform
+            var studentEnrollmentInfo = students.ToDictionary(
+                s => s.Id,
+                s => allActiveEnrollments
+                    .Where(e => e.StudentId == s.Id && e.Course != null)
+                    .Select(e => new StudentEnrolledCourseBadgeVM
+                    {
+                        CourseId = e.CourseId,
+                        CourseCode = e.Course?.CourseCode ?? "",
+                        CourseName = e.Course?.Name ?? "",
+                        ProgramId = e.Course?.CourseCategoryId ?? 0,
+                        ProgramName = e.Course?.CourseCategory?.Name ?? "General"
+                    }).ToList()
+            );
+
+            // 5) Fetch program info
             var program = await _programManager.GetAsync(programId);
             ViewBag.ProgramName = program?.Name ?? "Unknown Program";
             ViewBag.ProgramId = programId;
             ViewBag.CourseCount = programCourseIds.Count;
+            ViewBag.ProgramCourses = programCourses;
+            ViewBag.StudentEnrollments = studentEnrollmentInfo;
 
-            // 5) Prepare select list for checkboxes
+            // 6) Prepare select list for checkboxes
             ViewBag.StudentList = students.Select(s => new SelectListItem
             {
                 Value = s.Id.ToString(),
@@ -257,6 +305,302 @@ namespace TMS.Web.Areas.Admin.Controllers
         }
 
         // =============================
+        // POST: EnrollSingleStudent - Enroll a student in a specific course
+        // =============================
+        [HttpPost]
+        public async Task<IActionResult> EnrollSingleStudent(int courseId, int studentId)
+        {
+            var result = await _enrollmentManager.EnrollStudentAsync(courseId, studentId, GetUserId(), "Admin");
+            return Json(new
+            {
+                success = result.Success,
+                message = result.Message,
+                wasReactivated = result.WasReactivated
+            });
+        }
+
+        // =============================
+        // POST: DropSingleStudent - Remove/Drop student from a specific course
+        // =============================
+        [HttpPost]
+        public async Task<IActionResult> DropSingleStudent(int courseId, int studentId)
+        {
+            var success = await _enrollmentManager.DropStudentAsync(courseId, studentId, GetUserId());
+            return Json(new
+            {
+                success,
+                message = success ? "Student dropped from course successfully." : "Student was not actively enrolled."
+            });
+        }
+
+        // =============================
+        // GET: Studio - Unified Enrollment Studio Modal (Program or Course)
+        // =============================
+        [HttpGet]
+        public async Task<IActionResult> Studio(int? programId, int? courseId)
+        {
+            var studioVm = new EnrollmentStudioVM();
+
+            // Fetch all students with Student role
+            var allStudents = (await _userManager.GetAsync(new[] { "Role" },
+                u => u.IsActive && u.Role != null && u.Role.Name == "Student")).OrderBy(s => s.Name).ToList();
+            studioVm.AllStudents = allStudents;
+
+            // All active enrollments across system for student course mapping
+            var allActiveEnrollments = await _enrollmentManager.GetAsync(new[] { "Course", "Course.CourseCategory" },
+                e => e.Status == (int)EnrollmentStatus.Active);
+
+            studioVm.StudentEnrollments = allStudents.ToDictionary(
+                s => s.Id,
+                s => allActiveEnrollments
+                    .Where(e => e.StudentId == s.Id && e.Course != null)
+                    .Select(e => new StudentEnrolledCourseBadgeVM
+                    {
+                        CourseId = e.CourseId,
+                        CourseCode = e.Course?.CourseCode ?? "",
+                        CourseName = e.Course?.Name ?? "",
+                        ProgramId = e.Course?.CourseCategoryId ?? 0,
+                        ProgramName = e.Course?.CourseCategory?.Name ?? "General"
+                    }).ToList()
+            );
+
+            if (courseId.HasValue && courseId.Value > 0)
+            {
+                var course = await _courseManager.GetAsync(courseId.Value, new[] { "Semester", "CourseCategory" });
+                if (course == null) return NotFound("Course not found.");
+
+                studioVm.CourseId = course.Id;
+                studioVm.ProgramId = course.CourseCategoryId;
+                studioVm.Title = course.Name;
+                studioVm.Subtitle = $"Code: {course.CourseCode} | Semester: {course.Semester?.Name ?? "General"} | Program: {course.CourseCategory?.Name ?? "General"}";
+                studioVm.CategoryName = course.CourseCategory?.Name ?? "General";
+                studioVm.ProgramCourses = new List<CourseMasterViewModel> { course };
+
+                var enrollments = await _enrollmentManager.GetAsync(new[] { "Student" }, e => e.CourseId == course.Id);
+                studioVm.ActiveEnrolledStudentIds = enrollments.Where(e => e.Status == (int)EnrollmentStatus.Active).Select(e => e.StudentId).ToList();
+
+                studioVm.EnrolledStudents = enrollments.Select(e => new ProgramStudentEnrollmentVM
+                {
+                    StudentId = e.StudentId,
+                    StudentName = e.Student?.Name ?? "Unknown",
+                    StudentEmail = e.Student?.Email ?? "",
+                    EnrolledOn = e.EnrolledOn,
+                    ActiveCourseCount = e.Status == (int)EnrollmentStatus.Active ? 1 : 0,
+                    TotalCourseCount = 1,
+                    Status = e.Status,
+                    Source = e.Source ?? "Admin"
+                }).OrderByDescending(s => s.Status == 1).ThenBy(s => s.StudentName).ToList();
+            }
+            else if (programId.HasValue && programId.Value > 0)
+            {
+                var program = await _programManager.GetAsync(programId.Value);
+                if (program == null) return NotFound("Program not found.");
+
+                studioVm.ProgramId = program.Id;
+                studioVm.Title = program.Name;
+                studioVm.Subtitle = $"Degree Program | {program.NoOfSemester ?? 0} Semesters";
+                studioVm.CategoryName = program.Name;
+                studioVm.NoOfSemester = program.NoOfSemester ?? 0;
+
+                var progCourses = (await _courseManager.GetAsync(new[] { "Semester" },
+                    c => c.IsActive && c.CourseCategoryId == program.Id)).OrderBy(c => c.SemesterId).ThenBy(c => c.Name).ToList();
+                studioVm.ProgramCourses = progCourses;
+                var progCourseIds = progCourses.Select(c => c.Id).ToList();
+
+                var enrollments = await _enrollmentManager.GetAsync(new[] { "Student", "Course" });
+                var progEnrollments = enrollments.Where(e => progCourseIds.Contains(e.CourseId)).ToList();
+
+                var activeStudents = progEnrollments.Where(e => e.Status == (int)EnrollmentStatus.Active).Select(e => e.StudentId).Distinct().ToList();
+                studioVm.ActiveEnrolledStudentIds = activeStudents;
+
+                studioVm.EnrolledStudents = progEnrollments
+                    .GroupBy(e => e.StudentId)
+                    .Select(g => new ProgramStudentEnrollmentVM
+                    {
+                        StudentId = g.Key,
+                        StudentName = g.First().Student?.Name ?? "Unknown",
+                        StudentEmail = g.First().Student?.Email ?? "",
+                        EnrolledOn = g.Min(e => e.EnrolledOn),
+                        ActiveCourseCount = g.Count(e => e.Status == (int)EnrollmentStatus.Active),
+                        TotalCourseCount = progCourseIds.Count,
+                        Status = g.All(e => e.Status == (int)EnrollmentStatus.Active) ? 1
+                               : g.All(e => e.Status == (int)EnrollmentStatus.Dropped) ? 3
+                               : g.All(e => e.Status == (int)EnrollmentStatus.Completed) ? 4
+                               : 1,
+                        Source = g.First().Source ?? "Admin"
+                    })
+                    .OrderByDescending(s => s.Status == 1)
+                    .ThenBy(s => s.StudentName)
+                    .ToList();
+            }
+
+            return PartialView("_EnrollmentStudio", studioVm);
+        }
+
+        // =============================
+        // POST: SaveStudioMapping - AJAX batch enrollment save
+        // =============================
+        [HttpPost]
+        public async Task<IActionResult> SaveStudioMapping([FromBody] StudioSaveRequest req)
+        {
+            if (req == null || req.StudentIds == null || !req.StudentIds.Any())
+            {
+                return Json(new { success = false, message = "Please select at least one student." });
+            }
+
+            var targetCourseIds = new List<int>();
+
+            if (req.CourseId.HasValue && req.CourseId.Value > 0)
+            {
+                targetCourseIds.Add(req.CourseId.Value);
+            }
+            else if (req.ProgramId.HasValue && req.ProgramId.Value > 0)
+            {
+                if (req.SelectedCourseIds != null && req.SelectedCourseIds.Any())
+                {
+                    targetCourseIds.AddRange(req.SelectedCourseIds);
+                }
+                else
+                {
+                    var progCourses = await _courseManager.GetAsync(null, c => c.IsActive && c.CourseCategoryId == req.ProgramId.Value);
+                    targetCourseIds.AddRange(progCourses.Select(c => c.Id));
+                }
+            }
+
+            if (!targetCourseIds.Any())
+            {
+                return Json(new { success = false, message = "No courses identified for enrollment. Please add courses to this program first." });
+            }
+
+            int enrolledCount = 0;
+            int reactivatedCount = 0;
+
+            foreach (var cid in targetCourseIds)
+            {
+                foreach (var sid in req.StudentIds)
+                {
+                    var res = await _enrollmentManager.EnrollStudentAsync(cid, sid, GetUserId(), "Studio");
+                    if (res.Success)
+                    {
+                        if (res.WasReactivated) reactivatedCount++;
+                        else enrolledCount++;
+                    }
+                }
+            }
+
+            return Json(new
+            {
+                success = true,
+                message = $"Successfully enrolled {req.StudentIds.Count} student(s) across {targetCourseIds.Count} course(s)!"
+            });
+        }
+
+        // =============================
+        // POST: QuickAddAndEnroll - Create new student & enroll immediately
+        // =============================
+        [HttpPost]
+        public async Task<IActionResult> QuickAddAndEnroll([FromBody] QuickAddStudentEnrollVM req)
+        {
+            if (req == null || string.IsNullOrWhiteSpace(req.Name) || string.IsNullOrWhiteSpace(req.Email))
+            {
+                return Json(new { success = false, message = "Name and Email are required." });
+            }
+
+            req.Email = req.Email.Trim();
+
+            if (string.IsNullOrWhiteSpace(req.Password))
+            {
+                return Json(new { success = false, message = "An initial password is required for a new student account." });
+            }
+
+            var existingUser = (await _userManager.GetAsync(null, u => u.Email == req.Email)).FirstOrDefault();
+            int studentId;
+
+            if (existingUser != null)
+            {
+                studentId = existingUser.Id;
+            }
+            else
+            {
+                var roles = await _accountManager.GetRolesByCompanyId(0, 0);
+                var studentRole = roles.FirstOrDefault(r => r.Name != null && r.Name.Equals("Student", StringComparison.OrdinalIgnoreCase));
+                int roleId = studentRole != null ? int.Parse(studentRole.Id) : 3;
+
+                var newUser = new UserViewModel
+                {
+                    Name = req.Name.Trim(),
+                    Email = req.Email,
+                    ContactNo = req.ContactNo?.Trim(),
+                    Password = req.Password.Trim(),
+                    ForcePasswordChange = true,
+                    RoleId = roleId,
+                    IsActive = true
+                };
+
+                var created = await _userManager.AddUpdateAsync(newUser, GetUserId());
+                if (!created)
+                {
+                    return Json(new { success = false, message = "Failed to create student account." });
+                }
+
+                var createdUser = (await _userManager.GetAsync(null, u => u.Email == req.Email)).FirstOrDefault();
+                if (createdUser == null)
+                {
+                    return Json(new { success = false, message = "Could not retrieve created student record." });
+                }
+                studentId = createdUser.Id;
+            }
+
+            var targetCourseIds = new HashSet<int>();
+            if (req.CourseIds != null && req.CourseIds.Any())
+            {
+                foreach (var cid in req.CourseIds) targetCourseIds.Add(cid);
+            }
+            else if (req.ProgramId.HasValue && req.ProgramId.Value > 0)
+            {
+                var progCourses = await _courseManager.GetAsync(null, c => c.IsActive && c.CourseCategoryId == req.ProgramId.Value);
+                foreach (var pc in progCourses) targetCourseIds.Add(pc.Id);
+            }
+
+            int enrolledCourses = 0;
+            foreach (var cid in targetCourseIds)
+            {
+                var enrollRes = await _enrollmentManager.EnrollStudentAsync(cid, studentId, GetUserId(), "Quick Add");
+                if (enrollRes.Success) enrolledCourses++;
+            }
+
+            return Json(new
+            {
+                success = true,
+                message = $"Student '{req.Name}' created & enrolled into {enrolledCourses} course(s) successfully!"
+            });
+        }
+
+        // =============================
+        // POST: ReactivateStudent - Re-activate a dropped student
+        // =============================
+        [HttpPost]
+        public async Task<IActionResult> ReactivateStudent(int? programId, int? courseId, int studentId)
+        {
+            var targetCourses = new List<int>();
+            if (courseId.HasValue && courseId.Value > 0) targetCourses.Add(courseId.Value);
+            else if (programId.HasValue && programId.Value > 0)
+            {
+                var pc = await _courseManager.GetAsync(null, c => c.IsActive && c.CourseCategoryId == programId.Value);
+                targetCourses.AddRange(pc.Select(c => c.Id));
+            }
+
+            int reactivated = 0;
+            foreach (var cid in targetCourses)
+            {
+                var res = await _enrollmentManager.EnrollStudentAsync(cid, studentId, GetUserId(), "Reactivation");
+                if (res.Success) reactivated++;
+            }
+
+            return Json(new { success = reactivated > 0, message = $"Student reactivated in {reactivated} course(s)." });
+        }
+
+        // =============================
         // POST: CompleteEnrollment - Mark completed for ALL courses in program
         // =============================
         [HttpPost]
@@ -331,10 +675,10 @@ namespace TMS.Web.Areas.Admin.Controllers
                         using (var reader = new StreamReader(stream))
                         {
                             int line = 0;
-                            while (!reader.EndOfStream)
+                            string? content;
+                            while ((content = await reader.ReadLineAsync()) is not null)
                             {
                                 line++;
-                                var content = await reader.ReadLineAsync();
                                 if (line == 1 || string.IsNullOrWhiteSpace(content)) continue;
 
                                 var parts = content.Split(',');
@@ -396,7 +740,71 @@ namespace TMS.Web.Areas.Admin.Controllers
         }
     }
 
-    // ─── View Models for Program Enrollment ───
+    // ─── View Models for Enrollment Studio ───
+
+    public class AcademicEnrollmentDashboardVM
+    {
+        public List<ProgramEnrollmentSummaryVM> Programs { get; set; } = new();
+        public List<CourseEnrollmentDetailVM> Courses { get; set; } = new();
+        public int TotalPrograms => Programs.Count;
+        public int TotalCourses => Courses.Count;
+        public int TotalActiveEnrollments { get; set; }
+        public int TotalStudents { get; set; }
+    }
+
+    public class CourseEnrollmentDetailVM
+    {
+        public int CourseId { get; set; }
+        public string CourseCode { get; set; } = string.Empty;
+        public string CourseName { get; set; } = string.Empty;
+        public int ProgramId { get; set; }
+        public string ProgramName { get; set; } = string.Empty;
+        public int? SemesterId { get; set; }
+        public string SemesterName { get; set; } = string.Empty;
+        public int EnrolledStudentCount { get; set; }
+    }
+
+    public class EnrollmentStudioVM
+    {
+        public int? ProgramId { get; set; }
+        public int? CourseId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Subtitle { get; set; } = string.Empty;
+        public string CategoryName { get; set; } = string.Empty;
+        public int NoOfSemester { get; set; }
+        public List<CourseMasterViewModel> ProgramCourses { get; set; } = new();
+        public List<ProgramStudentEnrollmentVM> EnrolledStudents { get; set; } = new();
+        public List<UserViewModel> AllStudents { get; set; } = new();
+        public List<int> ActiveEnrolledStudentIds { get; set; } = new();
+        public Dictionary<int, List<StudentEnrolledCourseBadgeVM>> StudentEnrollments { get; set; } = new();
+    }
+
+    public class StudentEnrolledCourseBadgeVM
+    {
+        public int CourseId { get; set; }
+        public string CourseCode { get; set; } = string.Empty;
+        public string CourseName { get; set; } = string.Empty;
+        public int ProgramId { get; set; }
+        public string ProgramName { get; set; } = string.Empty;
+    }
+
+    public class StudioSaveRequest
+    {
+        public int? ProgramId { get; set; }
+        public int? CourseId { get; set; }
+        public List<int> StudentIds { get; set; } = new();
+        public List<int>? SelectedCourseIds { get; set; }
+    }
+
+    public class QuickAddStudentEnrollVM
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string? ContactNo { get; set; }
+        public string? Password { get; set; }
+        public int? ProgramId { get; set; }
+        public List<int>? CourseIds { get; set; }
+    }
 
     public class ProgramEnrollmentSummaryVM
     {

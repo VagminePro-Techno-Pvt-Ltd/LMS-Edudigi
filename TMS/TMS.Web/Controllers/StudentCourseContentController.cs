@@ -3,15 +3,18 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using TMS.Common;
 using TMS.Models.Masters;
 using TMS.Repository;
 using TMS.Repository.Managers;
 using TMS.ViewModels;
 using TMS.ViewModels.Academics;
 using TMS.ViewModels.Masters;
+using TMS.Web.Services;
 
 namespace TMS.Web.Controllers
 {
+    [Authorize]
     [System.Obsolete("Deprecated in favor of StudentCourseController, StudentUnitController, and StudentQuadrantController for unit-first learning structure.")]
     public class StudentCourseContentController : BaseController
     {
@@ -21,6 +24,7 @@ namespace TMS.Web.Controllers
         private readonly IMasterBaseManager<CourseQuadrantViewModel> _quadrantManager;
         private readonly IMasterBaseManager<StudentQuizAttemptViewModel> _attemptManager;
         private readonly IMasterBaseManager<CourseMaterialMappingViewModel> _materialMappingManager;
+        private readonly IStudentLearningService _learningService;
         private readonly ApplicationDBContext _db;
         private readonly IWebHostEnvironment _env;
 
@@ -31,6 +35,7 @@ namespace TMS.Web.Controllers
             IMasterBaseManager<CourseQuadrantViewModel> quadrantManager,
             IMasterBaseManager<StudentQuizAttemptViewModel> attemptManager,
             IMasterBaseManager<CourseMaterialMappingViewModel> materialMappingManager,
+            IStudentLearningService learningService,
             ApplicationDBContext db,
             IWebHostEnvironment env)
         {
@@ -40,6 +45,7 @@ namespace TMS.Web.Controllers
             _quadrantManager = quadrantManager;
             _attemptManager = attemptManager;
             _materialMappingManager = materialMappingManager;
+            _learningService = learningService;
             _db = db;
             _env = env;
         }
@@ -68,8 +74,7 @@ namespace TMS.Web.Controllers
                 return View(new StudentCourseCategoryViewModel());
             }
 
-            // Pick first category as “main” (e.g., MBA)
-            var firstCategory = enrolledCourses.First().CourseCategory;
+            var firstCategory = enrolledCourses.FirstOrDefault(c => c.CourseCategory != null)?.CourseCategory;
             var quadrants = await _quadrantManager.GetAsync(null, q => q.IsActive);
 
             var viewModel = new StudentCourseCategoryViewModel
@@ -77,7 +82,7 @@ namespace TMS.Web.Controllers
                 CategoryName = firstCategory?.Name ?? "No Category",
                 CategoryDescription = firstCategory?.Description ?? "No description available.",
                 Semesters = enrolledCourses
-                    .GroupBy(c => c.Semester.Id)
+                    .GroupBy(c => c.Semester != null ? c.Semester.Id : (c.SemesterId ?? 0))
                     .OrderBy(g => g.Key)
                     .Select(g => new SemesterCourseGroupViewModel
                     {
@@ -150,15 +155,28 @@ namespace TMS.Web.Controllers
         public async Task<IActionResult> Details(int semesterId, int? courseId = null)
         {
             int studentId = GetUserId();
+            bool isStaff = User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("Faculty") || User.IsInRole("Exam Coordinator");
+
+            var enrolledCourseIds = new List<int>();
+            if (!isStaff)
+            {
+                enrolledCourseIds = await _learningService.GetEnrolledCourseIdsAsync(studentId);
+                if (!enrolledCourseIds.Any())
+                    return Forbid();
+
+                if (courseId.HasValue && !enrolledCourseIds.Contains(courseId.Value))
+                    return Forbid();
+            }
 
             var courses = await _courseManager.GetAsync(
                 includes: new[] { "CourseCategory", "Semester" },
                 predicate: c => c.SemesterId == semesterId && c.IsActive &&
-                                (!courseId.HasValue || c.Id == courseId.Value)
+                                (!courseId.HasValue || c.Id == courseId.Value) &&
+                                (isStaff || enrolledCourseIds.Contains(c.Id))
             );
 
             if (courses == null || !courses.Any())
-                return NotFound();
+                return isStaff ? NotFound() : Forbid();
 
             var courseIds = courses.Select(c => c.Id).ToList();
 
@@ -275,6 +293,14 @@ namespace TMS.Web.Controllers
         public async Task<IActionResult> QuadrantContent(int courseId, int semesterId, int quadrantId)
         {
             int studentId = GetUserId();
+            bool isStaff = User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("Faculty") || User.IsInRole("Exam Coordinator");
+
+            if (!isStaff)
+            {
+                bool enrolled = await _learningService.IsStudentEnrolledAsync(studentId, courseId);
+                if (!enrolled)
+                    return Forbid();
+            }
 
             var course = await _courseManager.GetAsync(courseId, new[] { "Semester", "CourseCategory" });
             if (course == null) return RedirectToAction("Index");
@@ -349,6 +375,15 @@ namespace TMS.Web.Controllers
         [Route("Quadrant/FileViewer/{id}")]
         public async Task<IActionResult> FileViewer(int id)
         {
+            bool isStaff = User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("Faculty") || User.IsInRole("Exam Coordinator");
+            if (!isStaff)
+            {
+                int studentId = GetUserId();
+                bool enrolled = await _learningService.IsStudentEnrolledInMaterialAsync(studentId, id);
+                if (!enrolled)
+                    return Forbid();
+            }
+
             var material = await _materialManager.GetAsync(id);
             if (material == null || !material.IsActive)
             {
@@ -432,6 +467,20 @@ namespace TMS.Web.Controllers
         [Route("Quadrant/PreviewFile/{id}")]
         public async Task<IActionResult> PreviewFile(int id)
         {
+            bool isStaff = User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("Faculty") || User.IsInRole("Exam Coordinator");
+            if (!isStaff)
+            {
+                int studentId = GetUserId();
+                bool enrolled = await _learningService.IsStudentEnrolledInMaterialAsync(studentId, id);
+                if (!enrolled)
+                    return Forbid();
+
+                if (studentId > 0)
+                {
+                    await _learningService.MarkMaterialViewedAsync(studentId, id);
+                }
+            }
+
             var material = await _materialManager.GetAsync(id);
             if (material == null || !material.IsActive || string.IsNullOrEmpty(material.FilePath))
             {
@@ -461,7 +510,7 @@ namespace TMS.Web.Controllers
                 FileName = material.OriginalFileName ?? System.IO.Path.GetFileName(absolutePath),
                 Inline = true
             };
-            Response.Headers.Add("Content-Disposition", cd.ToString());
+            Response.Headers.ContentDisposition = cd.ToString();
 
             return File(fileBytes, contentType);
         }
@@ -470,6 +519,20 @@ namespace TMS.Web.Controllers
         [Route("Quadrant/DownloadFile/{id}")]
         public async Task<IActionResult> DownloadFile(int id)
         {
+            bool isStaff = User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("Faculty") || User.IsInRole("Exam Coordinator");
+            if (!isStaff)
+            {
+                int studentId = GetUserId();
+                bool enrolled = await _learningService.IsStudentEnrolledInMaterialAsync(studentId, id);
+                if (!enrolled)
+                    return Forbid();
+
+                if (studentId > 0)
+                {
+                    await _learningService.MarkMaterialViewedAsync(studentId, id);
+                }
+            }
+
             var material = await _materialManager.GetAsync(id);
             if (material == null || !material.IsActive || string.IsNullOrEmpty(material.FilePath))
             {
@@ -506,6 +569,23 @@ namespace TMS.Web.Controllers
                 contentType = "application/octet-stream";
             }
             return contentType;
+        }
+
+        [HttpPost]
+        [Route("StudentCourseContent/MarkMaterialViewed")]
+        [Route("Quadrant/MarkMaterialViewed")]
+        public async Task<IActionResult> MarkMaterialViewed([FromQuery] int materialId)
+        {
+            if (materialId <= 0) return BadRequest(new { success = false, message = "Invalid material ID." });
+
+            int studentId = GetUserId();
+            bool isStaff = User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("Faculty") || User.IsInRole("Exam Coordinator");
+            if (!isStaff && studentId > 0)
+            {
+                await _learningService.MarkMaterialViewedAsync(studentId, materialId);
+            }
+
+            return Ok(new { success = true });
         }
     }
 

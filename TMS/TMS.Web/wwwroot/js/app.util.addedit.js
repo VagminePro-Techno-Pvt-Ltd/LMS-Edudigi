@@ -1,4 +1,4 @@
-
+﻿
 
 
 var oTableObject = null;
@@ -186,7 +186,14 @@ globalModalAction = function () {
         return;
 
     // Build save URL with roleFilter if present
-    var saveUrl = saveItemUrl;
+    var formAction = $('#frmItem').attr('action');
+
+    var saveUrl =
+        formAction &&
+        formAction !== '#' &&
+        !formAction.toLowerCase().endsWith('/item')
+            ? formAction
+            : saveItemUrl;
     var roleFilterSave = $('#hdRoleFilter').val();
     if (roleFilterSave) {
         saveUrl += (saveUrl.indexOf('?') > -1 ? '&' : '?') + 'roleFilter=' + encodeURIComponent(roleFilterSave);
@@ -245,6 +252,7 @@ function loadDropdownList(url, controlSelector, id) {
     });
 
 }
+
 
 
 

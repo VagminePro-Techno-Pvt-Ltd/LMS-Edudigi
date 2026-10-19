@@ -39,8 +39,8 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     .dv-page {
-        font-family: 'Jost', 'Segoe UI', system-ui, sans-serif;
-        background: #f1f5f9;
+        font-family: 'Outfit', 'Segoe UI', system-ui, -apple-system, sans-serif;
+        background: #0f172a;
         min-height: 100vh;
         display: flex;
         flex-direction: column;
@@ -48,14 +48,14 @@
 
     /* ── Top bar ─────────────────────────────────────────────── */
     .dv-topbar {
-        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 60%, #7c3aed 100%);
-        padding: 14px 24px;
+        background: #1e293b;
+        border-bottom: 1px solid #334155;
+        padding: 12px 24px;
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 16px;
         flex-wrap: wrap;
-        box-shadow: 0 4px 20px rgba(99,102,241,.35);
         position: sticky;
         top: 0;
         z-index: 100;
@@ -75,8 +75,8 @@
         justify-content: center;
         width: 38px;
         height: 38px;
-        background: rgba(255,255,255,.15);
-        border: 1px solid rgba(255,255,255,.25);
+        background: rgba(255,255,255,.08);
+        border: 1px solid rgba(255,255,255,.15);
         border-radius: 10px;
         color: #fff;
         text-decoration: none;
@@ -84,13 +84,13 @@
         transition: background .18s;
         flex-shrink: 0;
     }
-    .dv-back-btn:hover { background: rgba(255,255,255,.28); color: #fff; }
+    .dv-back-btn:hover { background: rgba(255,255,255,.2); color: #fff; }
 
     .dv-file-icon {
         width: 40px;
         height: 40px;
         border-radius: 10px;
-        background: rgba(255,255,255,.18);
+        background: rgba(255,255,255,.1);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -105,7 +105,7 @@
     }
     .dv-meta-title {
         font-size: 15px;
-        font-weight: 800;
+        font-weight: 700;
         color: #fff;
         white-space: nowrap;
         overflow: hidden;
@@ -113,8 +113,8 @@
         line-height: 1.25;
     }
     .dv-meta-sub {
-        font-size: 11.5px;
-        color: rgba(255,255,255,.72);
+        font-size: 12px;
+        color: #94a3b8;
         margin-top: 2px;
     }
 
@@ -130,9 +130,9 @@
         align-items: center;
         gap: 6px;
         padding: 8px 16px;
-        border-radius: 9px;
+        border-radius: 8px;
         font-size: 12.5px;
-        font-weight: 700;
+        font-weight: 600;
         text-decoration: none;
         border: none;
         cursor: pointer;
@@ -140,39 +140,25 @@
         white-space: nowrap;
     }
     .dv-btn-fs {
-        background: rgba(255,255,255,.15);
-        border: 1px solid rgba(255,255,255,.25);
+        background: rgba(255,255,255,.08);
+        border: 1px solid rgba(255,255,255,.15);
         color: #fff;
     }
-    .dv-btn-fs:hover { background: rgba(255,255,255,.28); color: #fff; }
+    .dv-btn-fs:hover { background: rgba(255,255,255,.18); color: #fff; }
 
     .dv-btn-dl {
-        background: #fff;
-        color: #4f46e5;
+        background: #3b82f6;
+        color: #fff;
     }
-    .dv-btn-dl:hover { background: #f0f0ff; color: #4338ca; box-shadow: 0 4px 14px rgba(0,0,0,.12); }
-
-    /* ── Notice strip ──────────────────────────────────────────── */
-    .dv-notice-strip {
-        background: #fff7ed;
-        border-bottom: 2px solid #fed7aa;
-        padding: 10px 24px;
-        font-size: 13px;
-        color: #92400e;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    .dv-notice-strip i { color: #f97316; font-size: 16px; flex-shrink: 0; }
+    .dv-btn-dl:hover { background: #2563eb; color: #fff; }
 
     /* ── Viewer area ───────────────────────────────────────────── */
     .dv-viewer-wrap {
         flex: 1;
         position: relative;
         overflow: hidden;
-        background: #e2e8f0;
-        /* Fixed height so the iframe fills viewport minus the top bar */
-        min-height: calc(100vh - 70px);
+        background: #0f172a;
+        min-height: calc(100vh - 65px);
         display: flex;
         flex-direction: column;
     }
@@ -181,7 +167,7 @@
     .dv-loader {
         position: absolute;
         inset: 0;
-        background: #f8fafc;
+        background: #0f172a;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -191,15 +177,15 @@
         transition: opacity .4s;
     }
     .dv-spinner {
-        width: 50px;
-        height: 50px;
-        border: 4px solid #e2e8f0;
-        border-top-color: #6366f1;
+        width: 48px;
+        height: 48px;
+        border: 4px solid #334155;
+        border-top-color: #3b82f6;
         border-radius: 50%;
         animation: dvSpin 1s linear infinite;
     }
     @@keyframes dvSpin { to { transform: rotate(360deg); } }
-    .dv-loader-text { font-size: 14px; font-weight: 600; color: #64748b; }
+    .dv-loader-text { font-size: 14px; font-weight: 600; color: #94a3b8; }
 
     /* The iframe itself */
     .dv-iframe {
@@ -218,7 +204,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: #1e293b;
+        background: #0f172a;
         padding: 24px;
     }
     .dv-img-wrap img {
@@ -229,52 +215,283 @@
         box-shadow: 0 12px 40px rgba(0,0,0,.5);
     }
 
-    /* Error / unsupported card */
-    .dv-error-card {
-        position: absolute;
-        inset: 0;
+    /* ══════════════════════════════════════════════════════════════
+       POWERPOINT PRESENTATION PLAYER (PPTX) STYLES
+       ══════════════════════════════════════════════════════════════ */
+    .pptx-player-container {
+        display: flex;
+        flex: 1;
+        height: calc(100vh - 65px);
+        background: #090d16;
+        overflow: hidden;
+    }
+
+    .pptx-sidebar {
+        width: 240px;
+        background: #131b2e;
+        border-right: 1px solid #1e293b;
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+
+    .pptx-sidebar-header {
+        padding: 14px 18px;
+        font-size: 13px;
+        font-weight: 700;
+        color: #94a3b8;
+        border-bottom: 1px solid #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #0f172a;
+    }
+
+    .pptx-thumbs-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .pptx-thumb-item {
+        background: #1e293b;
+        border: 2px solid transparent;
+        border-radius: 8px;
+        padding: 10px 12px;
+        cursor: pointer;
+        transition: all .2s;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    .pptx-thumb-item:hover {
+        background: #27354f;
+        transform: translateX(2px);
+    }
+    .pptx-thumb-item.active {
+        background: #1e3a8a;
+        border-color: #3b82f6;
+    }
+
+    .pptx-thumb-num {
+        background: rgba(255,255,255,.1);
+        color: #cbd5e1;
+        font-size: 11px;
+        font-weight: 800;
+        padding: 2px 7px;
+        border-radius: 4px;
+        flex-shrink: 0;
+    }
+    .pptx-thumb-item.active .pptx-thumb-num {
+        background: #3b82f6;
+        color: #fff;
+    }
+
+    .pptx-thumb-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: #e2e8f0;
+        line-height: 1.35;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .pptx-stage-wrap {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .pptx-stage-canvas {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 24px;
+        background: radial-gradient(circle at center, #1e293b 0%, #090d16 100%);
     }
-    .dv-error-inner {
-        background: #fff;
-        border-radius: 18px;
-        box-shadow: 0 12px 40px rgba(0,0,0,.1);
-        border: 1px solid #e2e8f0;
-        padding: 48px 40px;
-        text-align: center;
-        max-width: 480px;
+
+    .pptx-slide-card {
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 25px 60px rgba(0,0,0,.6);
         width: 100%;
+        max-width: 920px;
+        min-height: 520px;
+        padding: 40px;
+        color: #1e293b;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        animation: pptxSlideIn .3s ease-out;
     }
-    .dv-error-icon { font-size: 52px; margin-bottom: 18px; }
-    .dv-error-title { font-size: 20px; font-weight: 800; color: #1e293b; margin-bottom: 8px; }
-    .dv-error-desc  { font-size: 13.5px; color: #64748b; line-height: 1.65; margin-bottom: 24px; }
-    .dv-error-dl {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 11px 24px;
-        background: #6366f1;
-        color: #fff;
+    @@keyframes pptxSlideIn {
+        from { opacity: 0; transform: translateY(10px) scale(0.98); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .pptx-slide-badge {
+        position: absolute;
+        top: 20px;
+        right: 24px;
+        background: #eff6ff;
+        color: #2563eb;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 4px 12px;
+        border-radius: 999px;
+        border: 1px solid #bfdbfe;
+    }
+
+    .pptx-slide-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid #f1f5f9;
+        padding-right: 80px;
+    }
+
+    .pptx-slide-header h2 {
+        font-size: 26px;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1.3;
+        margin: 0;
+    }
+
+    .pptx-slide-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .pptx-point-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        font-size: 15.5px;
+        line-height: 1.6;
+        color: #334155;
+    }
+    .pptx-point-bullet {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #3b82f6;
+        margin-top: 8px;
+        flex-shrink: 0;
+    }
+    .pptx-point-lvl-1 { padding-left: 24px; font-size: 14.5px; color: #475569; }
+    .pptx-point-lvl-2 { padding-left: 48px; font-size: 13.5px; color: #64748b; }
+
+    .pptx-image-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+        margin: 16px 0;
+    }
+    .pptx-image-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 10px;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,.04);
+    }
+    .pptx-image-box img {
+        max-width: 100%;
+        max-height: 380px;
+        object-fit: contain;
+        border-radius: 6px;
+    }
+
+    .pptx-table-wrap {
+        margin: 16px 0;
         border-radius: 10px;
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+    }
+    .pptx-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+    .pptx-table th {
+        background: #f1f5f9;
+        font-weight: 700;
+        color: #1e293b;
+        padding: 10px 14px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .pptx-table td {
+        padding: 10px 14px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #334155;
+    }
+
+    .pptx-bottom-bar {
+        background: #1e293b;
+        border-top: 1px solid #334155;
+        padding: 12px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        z-index: 10;
+    }
+
+    .pptx-counter-badge {
         font-size: 14px;
         font-weight: 700;
-        text-decoration: none;
-        transition: background .18s;
+        color: #e2e8f0;
+        background: #0f172a;
+        padding: 5px 16px;
+        border-radius: 20px;
+        border: 1px solid #334155;
     }
-    .dv-error-dl:hover { background: #4f46e5; color: #fff; }
 
-    /* Fullscreen */
-    .dv-viewer-wrap:fullscreen { width: 100%; height: 100%; }
-    .dv-viewer-wrap:-webkit-full-screen { width: 100%; height: 100%; }
-    .dv-viewer-wrap:fullscreen .dv-iframe  { position: absolute; inset: 0; }
+    /* ══════════════════════════════════════════════════════════════
+       WORD DOCUMENT READER (DOCX) STYLES
+       ══════════════════════════════════════════════════════════════ */
+    .docx-reader-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 36px 20px;
+        display: flex;
+        justify-content: center;
+        background: #090d16;
+    }
 
-    @@media(max-width:640px) {
-        .dv-topbar { padding: 12px 14px; gap: 10px; }
-        .dv-meta-title { font-size: 13px; }
-        .dv-btn { padding: 7px 12px; font-size: 12px; }
+    .docx-document-paper {
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 20px 50px rgba(0,0,0,.5);
+        width: 100%;
+        max-width: 860px;
+        padding: 48px 56px;
+        color: #1e293b;
+        font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+        line-height: 1.75;
+    }
+
+    .docx-h1 { font-size: 26px; font-weight: 800; color: #0f172a; margin: 24px 0 14px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+    .docx-h2 { font-size: 21px; font-weight: 700; color: #1e293b; margin: 20px 0 10px; }
+    .docx-h3 { font-size: 17px; font-weight: 700; color: #334155; margin: 16px 0 8px; }
+    .docx-p  { font-size: 15px; color: #334155; margin-bottom: 12px; }
+
+    @@media(max-width:768px) {
+        .pptx-sidebar { display: none; }
+        .pptx-slide-card { padding: 24px 18px; }
+        .docx-document-paper { padding: 28px 20px; }
     }
 </style>
 
@@ -290,7 +507,7 @@
 
             <!-- File icon -->
             <div class="dv-file-icon">
-                <i class="fa-solid @iconClass"></i>
+                <i class="fa-solid @iconClass" style="color:@iconColor;"></i>
             </div>
 
             <!-- Title + subtitle -->
@@ -302,16 +519,16 @@
                         <span>@courseName</span><span style="margin:0 6px;opacity:.55;">&middot;</span>
                     }
                     <span style="text-transform:uppercase;letter-spacing:.5px;font-weight:700;">@extLabel</span>
-                    @if (isLocal && viewerType == "ConvertedPDF")
+                    @if (viewerType == "PPTXViewer")
                     {
-                        <span style="margin-left:8px;background:rgba(255,255,255,.18);border-radius:20px;padding:1px 9px;font-size:10.5px;">
-                            <i class="fa-solid fa-rotate"></i> Converted PDF
+                        <span style="margin-left:8px;background:#1e3a8a;color:#93c5fd;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;">
+                            <i class="fa-solid fa-file-powerpoint me-1"></i> Interactive Presentation
                         </span>
                     }
-                    else if (!isLocal && (viewerType == "OfficeOnline"))
+                    else if (viewerType == "DOCXViewer")
                     {
-                        <span style="margin-left:8px;background:rgba(255,255,255,.18);border-radius:20px;padding:1px 9px;font-size:10.5px;">
-                            <i class="fa-brands fa-microsoft"></i> Office Online
+                        <span style="margin-left:8px;background:#1e3a8a;color:#93c5fd;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;">
+                            <i class="fa-solid fa-file-word me-1"></i> Document Reader
                         </span>
                     }
                 </div>
@@ -324,7 +541,7 @@
                 <i class="fa-solid fa-expand" id="dvFsIcon"></i>
                 <span class="d-none d-sm-inline">Fullscreen</span>
             </button>
-            <!-- Download (always shown) -->
+            <!-- Download -->
             <a href="@downloadUrl" class="dv-btn dv-btn-dl" id="dvDlBtn" title="Download file">
                 <i class="fa-solid fa-download"></i>
                 <span class="d-none d-sm-inline">Download</span>
@@ -332,46 +549,62 @@
         </div>
     </div>
 
-    <!-- ── Warning strip: conversion failed ─────────────────────── -->
-    @if (showConvWarn)
-    {
-        <div class="dv-notice-strip">
-            <i class="fa-solid fa-triangle-exclamation"></i>
-            <span>
-                Preview conversion failed. LibreOffice may not be installed or the file may be corrupt.
-                Please <a href="@downloadUrl" style="color:#92400e;font-weight:700;">download the file</a> to view it locally.
-                See <em>Setup Instructions</em> below to install LibreOffice.
-            </span>
-        </div>
-    }
-
     <!-- ── Viewer area ─────────────────────────────────────────── -->
     <div class="dv-viewer-wrap" id="dvViewerWrap">
 
         <!-- Loading spinner -->
         <div class="dv-loader" id="dvLoader">
             <div class="dv-spinner"></div>
-            <div class="dv-loader-text" id="dvLoaderText">
-                @if (viewerType == "ConvertedPDF")
-                {
-                    <text>Loading converted PDF…</text>
-                }
-                else if (viewerType == "OfficeOnline")
-                {
-                    <text>Loading Microsoft Office Online Viewer…</text>
-                }
-                else if (viewerType == "PDF")
-                {
-                    <text>Loading PDF…</text>
-                }
-                else
-                {
-                    <text>Preparing preview…</text>
-                }
-            </div>
+            <div class="dv-loader-text" id="dvLoaderText">Loading document preview…</div>
         </div>
 
-        @if (viewerType == "PDF" || viewerType == "ConvertedPDF" || viewerType == "OfficeOnline")
+        @if (viewerType == "PPTXViewer")
+        {
+            <!-- ════ PPTX Interactive Presentation Deck ════ -->
+            <div class="pptx-player-container" id="pptxPlayerContainer">
+                <div class="pptx-sidebar">
+                    <div class="pptx-sidebar-header">
+                        <i class="fa-solid fa-layer-group text-primary"></i>
+                        <span>Slides (<span id="pptxSlideTotalCount">0</span>)</span>
+                    </div>
+                    <div class="pptx-thumbs-list" id="pptxThumbsList"></div>
+                </div>
+
+                <div class="pptx-stage-wrap">
+                    <div class="pptx-stage-canvas" id="pptxStageCanvas">
+                        <div class="pptx-slide-card" id="pptxSlideCard">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <div class="pptx-bottom-bar">
+                        <button class="dv-btn dv-btn-fs" id="pptxPrevBtn" onclick="prevPptxSlide()">
+                            <i class="fa-solid fa-chevron-left me-1"></i> Prev
+                        </button>
+                        <div class="pptx-counter-badge">
+                            Slide <span id="pptxCurSlideNum">1</span> of <span id="pptxMaxSlideNum">1</span>
+                        </div>
+                        <button class="dv-btn dv-btn-fs" id="pptxNextBtn" onclick="nextPptxSlide()">
+                            Next <i class="fa-solid fa-chevron-right ms-1"></i>
+                        </button>
+                        <div class="vr mx-2 bg-secondary"></div>
+                        <button class="dv-btn dv-btn-dl" id="pptxPlayBtn" onclick="togglePptxAutoPlay()">
+                            <i class="fa-solid fa-play me-1" id="pptxPlayIcon"></i> Slideshow
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+        else if (viewerType == "DOCXViewer")
+        {
+            <!-- ════ DOCX Executive Reader ════ -->
+            <div class="docx-reader-container" id="docxReaderContainer">
+                <div class="docx-document-paper" id="docxDocumentPaper">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        }
+        else if (viewerType == "PDF" || viewerType == "ConvertedPDF" || viewerType == "OfficeOnline")
         {
             <!-- Standard iframe viewer -->
             <iframe id="dvIframe"
@@ -393,40 +626,14 @@
                      onerror="showError('Image could not be loaded.')" />
             </div>
         }
-        else if (viewerType == "ConversionFailed")
-        {
-            <div class="dv-error-card">
-                <div class="dv-error-inner">
-                    <div class="dv-error-icon"><i class="fa-solid fa-circle-xmark" style="color:#ef4444;"></i></div>
-                    <div class="dv-error-title">Preview Unavailable</div>
-                    <div class="dv-error-desc">
-                        The document (@extLabel) could not be converted for preview on this server.<br><br>
-                        <strong>Possible causes:</strong><br>
-                        • LibreOffice is not installed on the server.<br>
-                        • The file may be password-protected or corrupt.<br><br>
-                        You can download the file and open it with the appropriate application.
-                    </div>
-                    <a href="@downloadUrl" class="dv-error-dl">
-                        <i class="fa-solid fa-download"></i> Download to View
-                    </a>
-                </div>
-            </div>
-        }
         else
         {
-            <!-- Unsupported file type -->
-            <div class="dv-error-card">
-                <div class="dv-error-inner">
-                    <div class="dv-error-icon"><i class="fa-solid fa-file-circle-question" style="color:#94a3b8;"></i></div>
-                    <div class="dv-error-title">Preview Not Available</div>
-                    <div class="dv-error-desc">
-                        The file format <strong>@extLabel</strong> cannot be previewed in the browser.<br>
-                        Please download the file to open it with the appropriate application.
-                    </div>
-                    <a href="@downloadUrl" class="dv-error-dl">
-                        <i class="fa-solid fa-download"></i> Download File
-                    </a>
-                </div>
+            <!-- Unsupported file type fallback -->
+            <div class="dv-error-card p-5 text-center text-white">
+                <i class="fa-solid fa-file-lines fa-3x mb-3 text-primary"></i>
+                <h3>@Model.Title</h3>
+                <p class="text-muted">You can download this file directly to view it.</p>
+                <a href="@downloadUrl" class="dv-btn dv-btn-dl mt-3"><i class="fa-solid fa-download me-2"></i>Download File</a>
             </div>
         }
 
@@ -441,18 +648,18 @@
         var l = document.getElementById('dvLoader');
         if (!l) return;
         l.style.opacity = '0';
-        setTimeout(function() { l.style.display = 'none'; }, 400);
+        setTimeout(function() { l.style.display = 'none'; }, 300);
     }
 
     function showError(msg) {
         var l = document.getElementById('dvLoader');
         if (!l) return;
-        l.innerHTML = '<div style="text-align:center;padding:24px;max-width:400px;">'
+        l.innerHTML = '<div style="text-align:center;padding:24px;max-width:400px;color:#fff;">'
             + '<i class="fa-solid fa-circle-xmark" style="font-size:40px;color:#ef4444;margin-bottom:14px;display:block;"></i>'
-            + '<div style="font-size:15px;font-weight:700;color:#1e293b;margin-bottom:8px;">Preview Failed</div>'
-            + '<div style="font-size:13px;color:#64748b;line-height:1.6;margin-bottom:20px;">' + msg + '</div>'
-            + '<a href="' + (document.getElementById('dvDlBtn')?.href || '#') + '" style="display:inline-flex;align-items:center;gap:8px;padding:10px 22px;background:#6366f1;color:#fff;border-radius:9px;font-size:13px;font-weight:700;text-decoration:none;">'
-            + '<i class="fa-solid fa-download"></i> Download File</a></div>';
+            + '<div style="font-size:16px;font-weight:700;margin-bottom:8px;">Preview Unavailable</div>'
+            + '<div style="font-size:13px;color:#94a3b8;line-height:1.6;margin-bottom:20px;">' + msg + '</div>'
+            + '<a href="' + (document.getElementById('dvDlBtn')?.href || '#') + '" class="dv-btn dv-btn-dl">'
+            + '<i class="fa-solid fa-download me-1"></i> Download File</a></div>';
         l.style.display = 'flex';
         l.style.opacity = '1';
     }
@@ -482,26 +689,217 @@
         if (icon) icon.className = _inFs ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
     }
 
-    // ── Auto-hide loader for static/unsupported views ────────────
+    // ── PPTX Presentation State & Rendering ──────────────────────
+    var _pptxSlides = [];
+    var _pptxCurIndex = 0;
+    var _pptxAutoPlayInterval = null;
+
+    function initPptxPlayer(materialId) {
+        fetch('/DocumentViewer/GetPptxData/' + materialId)
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (!data || !data.success || !data.slides || data.slides.length === 0) {
+                    showError(data && data.message ? data.message : 'Could not parse PPTX slides.');
+                    return;
+                }
+
+                _pptxSlides = data.slides;
+                document.getElementById('pptxSlideTotalCount').textContent = _pptxSlides.length;
+                document.getElementById('pptxMaxSlideNum').textContent = _pptxSlides.length;
+
+                renderPptxThumbnails();
+                renderPptxCurrentSlide();
+                hideLoader();
+            })
+            .catch(function(err) {
+                showError('Error loading presentation: ' + err.message);
+            });
+    }
+
+    function renderPptxThumbnails() {
+        var list = document.getElementById('pptxThumbsList');
+        if (!list) return;
+        list.innerHTML = '';
+
+        _pptxSlides.forEach(function(s, idx) {
+            var item = document.createElement('div');
+            item.className = 'pptx-thumb-item' + (idx === _pptxCurIndex ? ' active' : '');
+            item.innerHTML = '<span class="pptx-thumb-num">' + (idx + 1) + '</span>'
+                           + '<span class="pptx-thumb-title">' + (esc(s.title) || ('Slide ' + (idx + 1))) + '</span>';
+            item.onclick = function() {
+                goToPptxSlide(idx);
+            };
+            list.appendChild(item);
+        });
+    }
+
+    function renderPptxCurrentSlide() {
+        if (!_pptxSlides || _pptxSlides.length === 0) return;
+        var s = _pptxSlides[_pptxCurIndex];
+        var card = document.getElementById('pptxSlideCard');
+        if (!card) return;
+
+        var html = '<div class="pptx-slide-badge">Slide ' + (s.slideNumber || (_pptxCurIndex + 1)) + ' of ' + _pptxSlides.length + '</div>'
+                 + '<div class="pptx-slide-header"><h2>' + esc(s.title || ('Slide ' + (_pptxCurIndex + 1))) + '</h2></div>'
+                 + '<div class="pptx-slide-body">';
+
+        // Paragraphs / Bullet points
+        if (s.paragraphs && s.paragraphs.length > 0) {
+            s.paragraphs.forEach(function(p) {
+                var lvlClass = p.level === 1 ? ' pptx-point-lvl-1' : (p.level >= 2 ? ' pptx-point-lvl-2' : '');
+                html += '<div class="pptx-point-item' + lvlClass + '">'
+                     + '<div class="pptx-point-bullet"></div>'
+                     + '<div>' + esc(p.text) + '</div>'
+                     + '</div>';
+            });
+        }
+
+        // Embedded Images
+        if (s.images && s.images.length > 0) {
+            html += '<div class="pptx-image-grid">';
+            s.images.forEach(function(imgSrc) {
+                html += '<div class="pptx-image-box"><img src="' + imgSrc + '" alt="Slide Image" /></div>';
+            });
+            html += '</div>';
+        }
+
+        // Tables
+        if (s.tables && s.tables.length > 0) {
+            s.tables.forEach(function(tbl) {
+                html += '<div class="pptx-table-wrap"><table class="pptx-table">';
+                tbl.forEach(function(row, rIdx) {
+                    html += '<tr>';
+                    row.forEach(function(cell) {
+                        html += rIdx === 0 ? ('<th>' + esc(cell) + '</th>') : ('<td>' + esc(cell) + '</td>');
+                    });
+                    html += '</tr>';
+                });
+                html += '</table></div>';
+            });
+        }
+
+        html += '</div>';
+        card.innerHTML = html;
+
+        document.getElementById('pptxCurSlideNum').textContent = (_pptxCurIndex + 1);
+
+        // Update active thumbnail
+        var thumbs = document.querySelectorAll('.pptx-thumb-item');
+        thumbs.forEach(function(t, idx) {
+            if (idx === _pptxCurIndex) {
+                t.classList.add('active');
+                t.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+                t.classList.remove('active');
+            }
+        });
+    }
+
+    function goToPptxSlide(index) {
+        if (index < 0 || index >= _pptxSlides.length) return;
+        _pptxCurIndex = index;
+        renderPptxCurrentSlide();
+    }
+
+    function nextPptxSlide() {
+        if (_pptxCurIndex < _pptxSlides.length - 1) {
+            _pptxCurIndex++;
+            renderPptxCurrentSlide();
+        } else if (_pptxAutoPlayInterval) {
+            togglePptxAutoPlay(); // stop at end
+        }
+    }
+
+    function prevPptxSlide() {
+        if (_pptxCurIndex > 0) {
+            _pptxCurIndex--;
+            renderPptxCurrentSlide();
+        }
+    }
+
+    function togglePptxAutoPlay() {
+        var btn = document.getElementById('pptxPlayBtn');
+        var icon = document.getElementById('pptxPlayIcon');
+
+        if (_pptxAutoPlayInterval) {
+            clearInterval(_pptxAutoPlayInterval);
+            _pptxAutoPlayInterval = null;
+            if (btn) btn.classList.replace('btn-danger', 'btn-primary');
+            if (icon) icon.className = 'fa-solid fa-play me-1';
+        } else {
+            if (_pptxCurIndex >= _pptxSlides.length - 1) {
+                _pptxCurIndex = 0;
+                renderPptxCurrentSlide();
+            }
+            _pptxAutoPlayInterval = setInterval(function() {
+                nextPptxSlide();
+            }, 4000);
+            if (btn) btn.classList.replace('btn-primary', 'btn-danger');
+            if (icon) icon.className = 'fa-solid fa-pause me-1';
+        }
+    }
+
+    // ── DOCX Reader State & Rendering ──────────────────────────
+    function initDocxReader(materialId) {
+        fetch('/DocumentViewer/GetDocxData/' + materialId)
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (!data || !data.success || !data.html) {
+                    showError(data && data.message ? data.message : 'Could not parse DOCX document.');
+                    return;
+                }
+                var paper = document.getElementById('docxDocumentPaper');
+                if (paper) {
+                    paper.innerHTML = data.html;
+                }
+                hideLoader();
+            })
+            .catch(function(err) {
+                showError('Error loading document: ' + err.message);
+            });
+    }
+
+    // ── Keyboard shortcuts ───────────────────────────────────────
+    document.addEventListener('keydown', function(e) {
+        var vt = '@viewerType';
+        if (vt === 'PPTXViewer') {
+            if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+                e.preventDefault();
+                nextPptxSlide();
+            } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                e.preventDefault();
+                prevPptxSlide();
+            } else if (e.key === 'f' || e.key === 'F') {
+                toggleFullscreen();
+            }
+        }
+    });
+
+    // ── Initialization on load ───────────────────────────────────
     window.addEventListener('DOMContentLoaded', function() {
         var vt = '@viewerType';
-        if (vt === 'Unsupported' || vt === 'ConversionFailed') {
+        var matId = @Model.Id;
+
+        if (vt === 'PPTXViewer') {
+            initPptxPlayer(matId);
+        } else if (vt === 'DOCXViewer') {
+            initDocxReader(matId);
+        } else if (vt === 'Unsupported' || vt === 'ConversionFailed') {
             hideLoader();
         }
-        // Safety timeout: hide loader after 30 s in case iframe never fires onload
+
+        // Safety timeout
         setTimeout(function() {
             var l = document.getElementById('dvLoader');
             if (l && l.style.display !== 'none') hideLoader();
-        }, 30000);
+        }, 15000);
     });
 
-    // ── Keep back button working even if referrer is empty ───────
-    document.getElementById('dvBackBtn')?.addEventListener('click', function(e) {
-        var href = this.getAttribute('href');
-        if (!href || href === '' || href === '#') {
-            e.preventDefault();
-            history.length > 1 ? history.back() : (window.location.href = '/StudentCourseContent/Index');
-        }
-    });
+    function esc(str) {
+        if (!str) return '';
+        var div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
 </script>
 }

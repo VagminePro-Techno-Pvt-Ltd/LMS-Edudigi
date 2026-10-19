@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using System.Security.Claims;
 using TMS.Web.Models;
@@ -18,7 +18,13 @@ namespace TMS.Web.Controllers
         }
         public string GetUserRole()
         {
-           return User.FindFirstValue("role");
+            return User?.FindFirstValue("role") ?? User?.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+        }
+
+        public bool IsFacultyRole()
+        {
+            var role = GetUserRole().Trim().ToLower();
+            return role == "faculty" || role == "co faculty" || role == "co-faculty" || role == "teacher" || role == "instructor";
         }
         
         public void SetApplicationResult(bool status, string message)

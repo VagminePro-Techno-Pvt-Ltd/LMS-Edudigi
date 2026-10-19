@@ -307,6 +307,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form method="post" action="@Url.Action("SubmitAssignment")" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
                 <input type="hidden" name="AssignmentId" id="modalAssignmentId" />
                 <div class="modal-body">
                     <h5 id="modalAssignmentTitle" class="text-primary font-weight-bold mb-4"></h5>
