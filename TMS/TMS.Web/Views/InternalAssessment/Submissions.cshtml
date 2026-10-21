@@ -1,6 +1,7 @@
 @model IEnumerable<TMS.Models.Academics.InternalAssessmentSubmission>
 @using TMS.Models.Academics
 @using TMS.Web.Services
+@using TMS.ViewModels.Academics
 @{
     ViewData["Title"] = "Evaluate Internal Assessment";
     var assessment = (InternalAssessment)ViewBag.Assessment;
@@ -14,34 +15,124 @@
     var submittedCount = enrolled.Keys.Count(id => submissionsByStudent.ContainsKey(id));
     var evaluatedCount = enrolled.Keys.Count(id => submissionsByStudent.TryGetValue(id, out var submission)
         && submission.Marks.HasValue && submission.EvaluatedBy.HasValue && submission.EvaluatedOn.HasValue);
+    var resultSummary = ViewBag.ResultSummary as ResultCalculationSummaryDto;
+    var activePolicy = ViewBag.ActivePolicy as InstitutionalGradingPolicyViewModel;
 }
 
 <div class="container-fluid py-4">
+    <div id="ia-csrf-token-container" style="display:none;">
+        @Html.AntiForgeryToken()
+    </div>
+
     <a asp-action="@(isAdmin ? "AdminDashboard" : "FacultyDashboard")" class="btn btn-outline-secondary mb-3">Back</a>
     <partial name="_StatusModal" />
     <h2>@assessment.Title - Evaluation</h2>
-    <p>@assessment.Type | Max marks: @assessment.MaxMarks | Results: @(assessment.ResultsPublished ? "Published" : "Not published")</p>
+    <p class="text-muted">@assessment.Type | Max marks: @assessment.MaxMarks | Results: @(assessment.ResultsPublished ? "Published" : "Not published")</p>
 
-    <div class="alert alert-light border mb-3">
-        <strong>Result status:</strong>
-        <span>@(assessment.ResultsPublished ? "Published to students" : "Not published")</span>
-        @if (assessment.IsPublished)
-        {
-            <form method="post" asp-action="PublishResults" class="d-inline ms-2 ia-confirm-form"
-                  data-confirm-title="@(assessment.ResultsPublished ? "Hide results?" : "Publish results?")"
-                  data-confirm-message="@(assessment.ResultsPublished ? "Students will no longer see their marks." : "All submissions must be evaluated. Early publishing is allowed only if every actively enrolled student has submitted; otherwise wait until the deadline and schedule end. Published results become visible to students.")">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="id" value="@assessment.Id" />
-                <input type="hidden" name="publish" value="@(assessment.ResultsPublished ? "false" : "true")" />
-                <button class="btn btn-sm @(assessment.ResultsPublished ? "btn-outline-danger" : "btn-success")" type="submit">
-                    @(assessment.ResultsPublished ? "Hide Results" : "Publish Results")
-                </button>
-            </form>
-        }
-        else
-        {
-            <span class="text-muted ms-2">Publish the assessment before publishing results.</span>
-        }
+    <div class="alert alert-light border mb-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div>
+            <strong>Result status:</strong>
+            <span class="badge @(assessment.ResultsPublished ? "bg-success" : "bg-secondary") ms-1">
+                @(assessment.ResultsPublished ? "Published to students" : "Not published")
+            </span>
+            @if (assessment.IsCompartmental || assessment.AttemptNumber > 1)
+            {
+                <span class="badge bg-warning text-dark border ms-2">
+                    <i class="bi bi-arrow-repeat me-1"></i> Compartmental (Attempt #@assessment.AttemptNumber)
+                </span>
+            }
+        </div>
+        <div>
+            @if (assessment.IsPublished)
+            {
+                <form method="post" asp-action="PublishResults" class="d-inline ms-2 ia-confirm-form"
+                      data-confirm-title="@(assessment.ResultsPublished ? "Hide results?" : "Publish results?")"
+                      data-confirm-message="@(assessment.ResultsPublished ? "Students will no longer see their marks." : "All submissions must be evaluated. Early publishing is allowed only if every actively enrolled student has submitted; otherwise wait until the deadline and schedule end. Published results become visible to students.")">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@assessment.Id" />
+                    <input type="hidden" name="publish" value="@(assessment.ResultsPublished ? "false" : "true")" />
+                    <button class="btn btn-sm @(assessment.ResultsPublished ? "btn-outline-danger" : "btn-success")" type="submit">
+                        <i class="bi @(assessment.ResultsPublished ? "bi-eye-slash" : "bi-globe") me-1"></i>
+                        @(assessment.ResultsPublished ? "Hide Results" : "Publish Results")
+                    </button>
+                </form>
+            }
+            else
+            {
+                <span class="text-muted ms-2"><i class="bi bi-info-circle me-1"></i> Publish the assessment before publishing results.</span>
+            }
+        </div>
+    </div>
+
+    <!-- Automated Result Processing & CBCS Institutional Grading Section -->
+    <div class="card border-primary border-opacity-25 shadow-sm mb-4">
+        <div class="card-header bg-primary bg-opacity-10 d-flex flex-wrap align-items-center justify-content-between py-2 px-3">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-mortarboard-fill text-primary fs-5"></i>
+                <h5 class="mb-0 text-primary fw-bold" style="font-size: 1.05rem;">Automated Institutional Result Processing</h5>
+                <span class="badge bg-secondary-subtle text-secondary border ms-2" style="font-size: 0.75rem;">
+                    Policy: @(activePolicy?.PolicyName ?? "CBCS 10-Point Scale")
+                </span>
+            </div>
+            <div>
+                <span id="badgeCalculationStatus" class="badge @(resultSummary?.IsCalculated == true ? "bg-success" : "bg-warning text-dark")">
+                    <i class="bi @(resultSummary?.IsCalculated == true ? "bi-check2-circle" : "bi-hourglass-split") me-1"></i>
+                    @(resultSummary?.IsCalculated == true ? "Results Calculated & Verified" : "Pending Calculation")
+                </span>
+            </div>
+        </div>
+        <div class="card-body p-3">
+            <div class="row g-2 align-items-center mb-2">
+                <div class="col-lg-8">
+                    <p class="text-muted small mb-2">
+                        Institutional grading calculates final marks, percentages, CBCS letter grades (O, A+, A, B+, B, C, P, F, Ab), and Grade Points automatically according to institutional policy. Compartmental eligibility is determined for scores under the passing boundary (33%).
+                    </p>
+                    <div class="d-flex flex-wrap gap-2 align-items-center" id="resultMetricsContainer">
+                        <div class="badge bg-light text-dark border p-2 text-start">
+                            <span class="text-muted d-block small">Enrolled</span>
+                            <strong class="fs-6" id="statEnrolled">@(resultSummary?.TotalEnrolled ?? enrolled.Count)</strong>
+                        </div>
+                        <div class="badge bg-light text-dark border p-2 text-start">
+                            <span class="text-muted d-block small">Evaluated</span>
+                            <strong class="fs-6 text-primary" id="statEvaluated">@(resultSummary?.EvaluatedCount ?? evaluatedCount)</strong>
+                        </div>
+                        <div class="badge bg-light text-dark border p-2 text-start">
+                            <span class="text-muted d-block small">Passed</span>
+                            <strong class="fs-6 text-success" id="statPassed">@(resultSummary?.PassCount ?? 0)</strong>
+                        </div>
+                        <div class="badge bg-light text-dark border p-2 text-start">
+                            <span class="text-muted d-block small">Failed</span>
+                            <strong class="fs-6 text-danger" id="statFailed">@(resultSummary?.FailCount ?? 0)</strong>
+                        </div>
+                        <div class="badge bg-light text-dark border p-2 text-start">
+                            <span class="text-muted d-block small">Compartment</span>
+                            <strong class="fs-6 text-warning" id="statCompartment">@(resultSummary?.CompartmentEligibleCount ?? 0)</strong>
+                        </div>
+                        <div class="badge bg-light text-dark border p-2 text-start">
+                            <span class="text-muted d-block small">Absent</span>
+                            <strong class="fs-6 text-secondary" id="statAbsent">@(resultSummary?.AbsentCount ?? 0)</strong>
+                        </div>
+                        <div class="badge bg-light text-dark border p-2 text-start">
+                            <span class="text-muted d-block small">Avg Score</span>
+                            <strong class="fs-6 text-info" id="statAvg">@(resultSummary != null ? $"{resultSummary.AveragePercentage:0.##}%" : "-")</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 text-lg-end d-flex flex-column gap-2 justify-content-center mt-2 mt-lg-0">
+                    <button type="button" id="btnCalculateResults" class="btn btn-primary btn-sm px-3 shadow-sm" data-assessment-id="@assessment.Id">
+                        <i class="bi bi-gear-wide-connected me-1"></i> Calculate / Recalculate Grades
+                    </button>
+                    <button type="button" class="btn btn-outline-primary btn-sm px-3" data-bs-toggle="modal" data-bs-target="#modalCalculatedResults" id="btnOpenResultsModal">
+                        <i class="bi bi-file-earmark-spreadsheet me-1"></i> Verify &amp; Preview Grade Ledger
+                    </button>
+                    <button type="button" class="btn btn-outline-warning text-dark btn-sm px-3" data-bs-toggle="modal" data-bs-target="#modalCompartmentalExam" id="btnOpenCompartmentalModal">
+                        <i class="bi bi-arrow-repeat me-1"></i> Schedule Compartmental Exam
+                        <span class="badge bg-warning text-dark border ms-1" id="badgeCompartmentEligibleCount">@(resultSummary?.CompartmentEligibleCount ?? 0)</span>
+                    </button>
+                </div>
+            </div>
+            <div id="calculationAlert" class="alert d-none small py-2 px-3 mb-0" role="alert"></div>
+        </div>
     </div>
 
     <section class="card mb-3"><div class="card-body">
@@ -61,9 +152,24 @@
                 : hasSubmission ? (isEvaluated ? "SUBMITTED" : "PENDING") : "NOT SUBMITTED";
             var outcome = InternalAssessmentResultPolicy.AssessmentOutcome(assessment.ResultsPublished, hasSubmission, isEvaluated, submission?.Marks, assessment.MaxMarks);
             var marks = assessment.ResultsPublished && !hasSubmission ? $"0 / {assessment.MaxMarks:0.##}" : isEvaluated ? $"{submission!.Marks:0.##} / {assessment.MaxMarks:0.##}" : "-";
+            var procResult = resultSummary?.StudentResults?.FirstOrDefault(r => r.StudentId == student.Key);
             <tr data-ia-state="@state">
-                <td>@student.Key</td><td>@student.Value</td><td>@submissionStatus</td><td>@(isEvaluated ? "Evaluated" : hasSubmission ? "Pending" : "No submission")</td>
-                <td>@(hasSubmission ? submission!.SubmittedOn.ToLocalTime().ToString("dd MMM yyyy HH:mm") : "-")</td><td>@marks</td><td><strong>@outcome</strong></td><td>
+                <td>@student.Key</td>
+                <td>@student.Value</td>
+                <td>@submissionStatus</td>
+                <td>@(isEvaluated ? "Evaluated" : hasSubmission ? "Pending" : "No submission")</td>
+                <td>@(hasSubmission ? submission!.SubmittedOn.ToLocalTime().ToString("dd MMM yyyy HH:mm") : "-")</td>
+                <td>@marks</td>
+                <td>
+                    <strong>@outcome</strong>
+                    @if (procResult != null && !string.IsNullOrEmpty(procResult.Grade))
+                    {
+                        <span class="badge bg-light text-dark border ms-1" title="CBCS Grade @procResult.Grade (Grade Point: @procResult.GradePoint.ToString("0.0"))">
+                            @procResult.Grade
+                        </span>
+                    }
+                </td>
+                <td>
                 @if (hasSubmission && hasQuestions) { <a class="btn btn-sm btn-outline-primary" asp-action="GradeQuestions" asp-route-submissionId="@submission!.Id">@(gradingLocked ? "View" : isEvaluated ? "View / Edit" : "Evaluate")</a> }
                 else if (hasSubmission) { <a class="btn btn-sm btn-outline-primary" href="#ia-submission-@submission!.Id">@(gradingLocked ? "View" : isEvaluated ? "View marks" : "Evaluate")</a> }
                 else { <span class="text-muted">Recorded as ABSENT only when results are published</span> }
@@ -99,4 +205,449 @@
     }
 </div>
 
+<!-- Modal 1: Calculated Results Verification Ledger -->
+<div class="modal fade" id="modalCalculatedResults" tabindex="-1" aria-labelledby="modalCalculatedResultsLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-light py-2">
+                <div>
+                    <h5 class="modal-title fw-bold" id="modalCalculatedResultsLabel">
+                        <i class="bi bi-award me-1 text-primary"></i> Institutional Assessment Grade Ledger
+                    </h5>
+                    <small class="text-muted">
+                        @assessment.Title | Course Max: @assessment.MaxMarks | Attempt #@(assessment.AttemptNumber > 0 ? assessment.AttemptNumber : 1)
+                    </small>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3">
+                <!-- Summary bar -->
+                <div class="d-flex flex-wrap align-items-center justify-content-between p-2 bg-light border rounded mb-3 gap-2">
+                    <div class="d-flex flex-wrap gap-3 small">
+                        <span><strong>Total Enrolled:</strong> <span id="modalStatTotal">@(resultSummary?.TotalEnrolled ?? enrolled.Count)</span></span>
+                        <span><strong>Passed:</strong> <span class="text-success fw-bold" id="modalStatPassed">@(resultSummary?.PassCount ?? 0)</span></span>
+                        <span><strong>Failed:</strong> <span class="text-danger fw-bold" id="modalStatFailed">@(resultSummary?.FailCount ?? 0)</span></span>
+                        <span><strong>Compartment:</strong> <span class="text-warning fw-bold" id="modalStatComp">@(resultSummary?.CompartmentEligibleCount ?? 0)</span></span>
+                        <span><strong>Absent:</strong> <span class="text-secondary fw-bold" id="modalStatAbsent">@(resultSummary?.AbsentCount ?? 0)</span></span>
+                        <span><strong>Average:</strong> <span class="text-info fw-bold" id="modalStatAvg">@(resultSummary != null ? $"{resultSummary.AveragePercentage:0.##}%" : "-")</span></span>
+                    </div>
+                    <div class="d-flex gap-2 align-items-center">
+                        <input type="text" id="filterLedgerSearch" class="form-control form-control-sm" placeholder="Search name or ID..." style="width: 180px;">
+                        <select id="filterLedgerStatus" class="form-select form-select-sm" style="width: 140px;">
+                            <option value="ALL">All Statuses</option>
+                            <option value="PASS">Pass Only</option>
+                            <option value="FAIL">Fail Only</option>
+                            <option value="COMPARTMENT_ELIGIBLE">Compartment</option>
+                            <option value="ABSENT">Absent Only</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Ledger Table -->
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover table-bordered align-middle mb-0" id="tableLedgerResults">
+                        <thead class="table-light">
+                            <tr class="text-center text-nowrap">
+                                <th style="width: 80px;">Student ID</th>
+                                <th class="text-start">Student Name</th>
+                                <th style="width: 90px;">Max Marks</th>
+                                <th style="width: 100px;">Obtained</th>
+                                <th style="width: 90px;">Percentage</th>
+                                <th style="width: 80px;">Grade</th>
+                                <th style="width: 90px;">Grade Point</th>
+                                <th style="width: 140px;">Result Status</th>
+                                <th style="width: 100px;">Published</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyLedgerResults">
+                            @if (resultSummary?.StudentResults != null && resultSummary.StudentResults.Any())
+                            {
+                                foreach (var r in resultSummary.StudentResults)
+                                {
+                                    var gradeBadgeClass = r.Grade switch
+                                    {
+                                        "O" => "bg-primary text-white",
+                                        "A+" => "bg-info text-dark",
+                                        "A" => "bg-success text-white",
+                                        "B+" => "bg-primary-subtle text-primary border",
+                                        "B" => "bg-secondary-subtle text-secondary border",
+                                        "C" or "P" => "bg-warning-subtle text-warning border",
+                                        _ => "bg-danger text-white"
+                                    };
+                                    var statusBadgeClass = r.Status switch
+                                    {
+                                        "PASS" => "bg-success text-white",
+                                        "FAIL" => "bg-danger text-white",
+                                        "COMPARTMENT_ELIGIBLE" => "bg-warning text-dark border",
+                                        "ABSENT" => "bg-secondary text-white",
+                                        _ => "bg-info text-dark"
+                                    };
+                                    <tr data-student-id="@r.StudentId" data-student-name="@r.StudentName.ToLowerInvariant()" data-status="@r.Status">
+                                        <td class="text-center text-muted">@r.StudentId</td>
+                                        <td>
+                                            <div class="fw-semibold">@r.StudentName</div>
+                                            @if (!string.IsNullOrEmpty(r.Email))
+                                            {
+                                                <small class="text-muted">@r.Email</small>
+                                            }
+                                        </td>
+                                        <td class="text-center">@r.MaximumMarks.ToString("0.##")</td>
+                                        <td class="text-center fw-bold">@(r.ObtainedMarks.HasValue ? r.ObtainedMarks.Value.ToString("0.##") : "—")</td>
+                                        <td class="text-center">@r.Percentage.ToString("0.##")%</td>
+                                        <td class="text-center">
+                                            <span class="badge @gradeBadgeClass px-2 py-1">@r.Grade</span>
+                                        </td>
+                                        <td class="text-center fw-bold text-secondary">@r.GradePoint.ToString("0.0")</td>
+                                        <td class="text-center">
+                                            <span class="badge @statusBadgeClass">@r.Status.Replace("_", " ")</span>
+                                        </td>
+                                        <td class="text-center">
+                                            @if (r.IsPublished)
+                                            {
+                                                <span class="badge bg-success-subtle text-success border border-success"><i class="bi bi-check-lg"></i> Yes</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary-subtle text-secondary border">No</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr id="rowLedgerEmpty">
+                                    <td colspan="9" class="text-center py-4 text-muted">
+                                        <i class="bi bi-calculator display-6 text-muted d-block mb-2"></i>
+                                        <span>No processed results generated yet. Click <strong>"Calculate / Recalculate Grades"</strong> above to apply institutional grading.</span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print();">
+                    <i class="bi bi-printer me-1"></i> Print Ledger
+                </button>
+                @if (assessment.IsPublished)
+                {
+                    <button type="button" id="btnModalTogglePublish" class="btn btn-sm @(assessment.ResultsPublished ? "btn-outline-danger" : "btn-success")" data-publish="@(assessment.ResultsPublished ? "false" : "true")">
+                        <i class="bi @(assessment.ResultsPublished ? "bi-eye-slash" : "bi-globe") me-1"></i>
+                        @(assessment.ResultsPublished ? "Hide Results from Students" : "Publish Results to Grade Cards")
+                    </button>
+                }
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 2: Schedule Compartmental Examination -->
+<div class="modal fade" id="modalCompartmentalExam" tabindex="-1" aria-labelledby="modalCompartmentalExamLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning-subtle py-2">
+                <h5 class="modal-title fw-bold text-dark" id="modalCompartmentalExamLabel">
+                    <i class="bi bi-arrow-repeat me-1 text-warning"></i> Schedule Compartmental Examination
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3">
+                <div class="alert alert-info py-2 small mb-3">
+                    <i class="bi bi-info-circle-fill me-1"></i>
+                    A compartmental assessment clones all questions and settings from this original assessment for <strong>Attempt #@((assessment.AttemptNumber > 0 ? assessment.AttemptNumber : 1) + 1)</strong>. Historical submission marks and transcripts are preserved in the institutional record.
+                </div>
+
+                <form id="formCompartmentalExam">
+                    <div class="mb-3">
+                        <label for="compTitle" class="form-label fw-semibold">Assessment Title</label>
+                        <input type="text" class="form-control" id="compTitle" name="compTitle"
+                               value="@(assessment.Title) (Compartmental - Attempt #@((assessment.AttemptNumber > 0 ? assessment.AttemptNumber : 1) + 1))" required maxlength="200" />
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label for="compDueDate" class="form-label fw-semibold">Due Date &amp; Time</label>
+                            <input type="datetime-local" class="form-control" id="compDueDate" name="compDueDate"
+                                   value="@(DateTime.Now.AddDays(7).ToString("yyyy-MM-ddTHH:mm"))" required />
+                        </div>
+                        <div class="col-md-6 d-flex align-items-center pt-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="compAllowLate" name="compAllowLate" />
+                                <label class="form-check-label" for="compAllowLate">
+                                    Allow Late Submissions
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label fw-semibold mb-0">Eligible Students Roster</label>
+                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="btnToggleAllCompartmentStudents">
+                                Select All / Deselect All
+                            </button>
+                        </div>
+                        <div class="border rounded p-2" style="max-height: 220px; overflow-y: auto;" id="compStudentsContainer">
+                            <div class="text-center py-3 text-muted small" id="compLoadingIndicator">
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span> Loading eligible students...
+                            </div>
+                            <div id="compStudentsList"></div>
+                        </div>
+                        <small class="text-muted">Includes students with failing or compartment-eligible grades, as well as students with recorded absences.</small>
+                    </div>
+
+                    <div id="compAlertMessage" class="alert d-none small py-2 px-3 mb-0" role="alert"></div>
+                </form>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" id="btnSubmitCompartmentalExam">
+                    <i class="bi bi-check-circle me-1"></i> Create Compartmental Assessment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="~/js/internal-assessment.js" asp-append-version="true"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const assessmentId = @assessment.Id;
+
+    // Helper to get CSRF token
+    function getCsrfToken() {
+        return document.querySelector('#ia-csrf-token-container input[name="__RequestVerificationToken"]')?.value || '';
+    }
+
+    // 1. Calculate Results Handler
+    const btnCalc = document.getElementById('btnCalculateResults');
+    if (btnCalc) {
+        btnCalc.addEventListener('click', async function () {
+            const token = getCsrfToken();
+            const alertBox = document.getElementById('calculationAlert');
+
+            btnCalc.disabled = true;
+            btnCalc.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Calculating...';
+
+            try {
+                const resp = await fetch('@Url.Action("CalculateResults", "InternalAssessment")', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': token
+                    },
+                    body: JSON.stringify({ assessmentId: assessmentId })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    if (alertBox) {
+                        alertBox.className = 'alert alert-success small py-2 px-3 mb-0';
+                        alertBox.textContent = data.message || 'Results calculated successfully!';
+                        alertBox.classList.remove('d-none');
+                    }
+                    setTimeout(() => window.location.reload(), 800);
+                } else {
+                    if (alertBox) {
+                        alertBox.className = 'alert alert-danger small py-2 px-3 mb-0';
+                        alertBox.textContent = data.message || 'Failed to calculate results.';
+                        alertBox.classList.remove('d-none');
+                    }
+                    btnCalc.disabled = false;
+                    btnCalc.innerHTML = '<i class="bi bi-gear-wide-connected me-1"></i> Calculate / Recalculate Grades';
+                }
+            } catch (err) {
+                if (alertBox) {
+                    alertBox.className = 'alert alert-danger small py-2 px-3 mb-0';
+                    alertBox.textContent = 'Server communication error: ' + err.message;
+                    alertBox.classList.remove('d-none');
+                }
+                btnCalc.disabled = false;
+                btnCalc.innerHTML = '<i class="bi bi-gear-wide-connected me-1"></i> Calculate / Recalculate Grades';
+            }
+        });
+    }
+
+    // 2. Publish / Hide from modal
+    const btnModalPublish = document.getElementById('btnModalTogglePublish');
+    if (btnModalPublish) {
+        btnModalPublish.addEventListener('click', async function () {
+            const publish = btnModalPublish.getAttribute('data-publish') === 'true';
+            const confirmMsg = publish 
+                ? 'Publish verified grades to student grade cards? All evaluated marks will become officially visible.'
+                : 'Hide results from students?';
+            if (!confirm(confirmMsg)) return;
+
+            const token = getCsrfToken();
+            btnModalPublish.disabled = true;
+            try {
+                const resp = await fetch('@Url.Action("PublishProcessedResults", "InternalAssessment")', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': token
+                    },
+                    body: JSON.stringify({ assessmentId: assessmentId, publish: publish })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Could not update publication state.');
+                    btnModalPublish.disabled = false;
+                }
+            } catch (err) {
+                alert('Error updating results: ' + err.message);
+                btnModalPublish.disabled = false;
+            }
+        });
+    }
+
+    // 3. Ledger Search & Status Filter
+    function filterLedgerRows() {
+        const q = (document.getElementById('filterLedgerSearch')?.value || '').trim().toLowerCase();
+        const st = document.getElementById('filterLedgerStatus')?.value || 'ALL';
+        const rows = document.querySelectorAll('#tbodyLedgerResults tr[data-student-id]');
+        rows.forEach(r => {
+            const name = r.getAttribute('data-student-name') || '';
+            const id = r.getAttribute('data-student-id') || '';
+            const status = r.getAttribute('data-status') || '';
+
+            const matchQ = !q || name.includes(q) || id.includes(q);
+            const matchSt = st === 'ALL' || status === st;
+            r.style.display = (matchQ && matchSt) ? '' : 'none';
+        });
+    }
+    document.getElementById('filterLedgerSearch')?.addEventListener('input', filterLedgerRows);
+    document.getElementById('filterLedgerStatus')?.addEventListener('change', filterLedgerRows);
+
+    // 4. Compartmental Exam Modal Logic
+    const modalCompEl = document.getElementById('modalCompartmentalExam');
+    if (modalCompEl) {
+        modalCompEl.addEventListener('show.bs.modal', async function () {
+            const listDiv = document.getElementById('compStudentsList');
+            const loader = document.getElementById('compLoadingIndicator');
+            if (!listDiv) return;
+
+            loader?.classList.remove('d-none');
+            listDiv.innerHTML = '';
+
+            try {
+                const resp = await fetch('@Url.Action("GetCompartmentEligibleStudents", "InternalAssessment")?assessmentId=' + assessmentId);
+                const data = await resp.json();
+                loader?.classList.add('d-none');
+
+                if (data.success && data.students && data.students.length > 0) {
+                    let html = '<div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th style="width:30px;"><input type="checkbox" id="chkAllStudents" checked /></th><th>ID</th><th>Student</th><th>Marks</th><th>Grade</th><th>Status</th></tr></thead><tbody>';
+                    data.students.forEach(s => {
+                        const statusBadge = s.status === 'COMPARTMENT_ELIGIBLE' 
+                            ? '<span class="badge bg-warning text-dark border">Compartment</span>' 
+                            : (s.status === 'ABSENT' ? '<span class="badge bg-secondary">Absent</span>' : '<span class="badge bg-danger">Fail</span>');
+                        const marks = s.obtainedMarks != null ? s.obtainedMarks.toFixed(1) : '—';
+                        html += `<tr>
+                            <td><input type="checkbox" class="comp-student-chk form-check-input" value="${s.studentId}" checked /></td>
+                            <td class="text-muted small">${s.studentId}</td>
+                            <td class="fw-semibold">${s.studentName}</td>
+                            <td>${marks}</td>
+                            <td><span class="badge bg-light text-dark border">${s.grade}</span></td>
+                            <td>${statusBadge}</td>
+                        </tr>`;
+                    });
+                    html += '</tbody></table></div>';
+                    listDiv.innerHTML = html;
+
+                    document.getElementById('chkAllStudents')?.addEventListener('change', function () {
+                        const checked = this.checked;
+                        document.querySelectorAll('.comp-student-chk').forEach(c => c.checked = checked);
+                    });
+                } else {
+                    listDiv.innerHTML = '<div class="text-center py-3 text-muted small"><i class="bi bi-info-circle me-1"></i> No students are currently eligible for compartmental retake. Ensure grades have been calculated and evaluations are completed.</div>';
+                }
+            } catch (err) {
+                loader?.classList.add('d-none');
+                listDiv.innerHTML = `<div class="text-danger small py-2">Failed to load students: ${err.message}</div>`;
+            }
+        });
+
+        document.getElementById('btnToggleAllCompartmentStudents')?.addEventListener('click', function () {
+            const checkboxes = document.querySelectorAll('.comp-student-chk');
+            const allChecked = Array.from(checkboxes).every(c => c.checked);
+            checkboxes.forEach(c => c.checked = !allChecked);
+            const master = document.getElementById('chkAllStudents');
+            if (master) master.checked = !allChecked;
+        });
+
+        const btnSubmitComp = document.getElementById('btnSubmitCompartmentalExam');
+        if (btnSubmitComp) {
+            btnSubmitComp.addEventListener('click', async function () {
+                const title = (document.getElementById('compTitle')?.value || '').trim();
+                const dueDate = document.getElementById('compDueDate')?.value;
+                const allowLate = document.getElementById('compAllowLate')?.checked || false;
+                const alertBox = document.getElementById('compAlertMessage');
+                const token = getCsrfToken();
+
+                const selectedStudentIds = Array.from(document.querySelectorAll('.comp-student-chk:checked')).map(c => parseInt(c.value, 10));
+
+                if (!title) {
+                    alert('Please enter a compartmental assessment title.');
+                    return;
+                }
+                if (!dueDate) {
+                    alert('Please select a valid due date.');
+                    return;
+                }
+
+                btnSubmitComp.disabled = true;
+                btnSubmitComp.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Creating...';
+
+                try {
+                    const resp = await fetch('@Url.Action("CreateCompartmentalAssessment", "InternalAssessment")', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': token
+                        },
+                        body: JSON.stringify({
+                            originalAssessmentId: assessmentId,
+                            title: title,
+                            dueDate: dueDate,
+                            allowLateSubmission: allowLate,
+                            eligibleStudentIds: selectedStudentIds
+                        })
+                    });
+                    const data = await resp.json();
+                    if (data.success) {
+                        if (alertBox) {
+                            alertBox.className = 'alert alert-success small py-2 px-3 mb-0';
+                            alertBox.textContent = data.message || 'Compartmental assessment created successfully!';
+                            alertBox.classList.remove('d-none');
+                        }
+                        setTimeout(() => {
+                            window.location.href = '@Url.Action("Submissions", "InternalAssessment")/' + data.assessmentId;
+                        }, 900);
+                    } else {
+                        if (alertBox) {
+                            alertBox.className = 'alert alert-danger small py-2 px-3 mb-0';
+                            alertBox.textContent = data.message || 'Failed to create compartmental assessment.';
+                            alertBox.classList.remove('d-none');
+                        }
+                        btnSubmitComp.disabled = false;
+                        btnSubmitComp.innerHTML = '<i class="bi bi-check-circle me-1"></i> Create Compartmental Assessment';
+                    }
+                } catch (err) {
+                    if (alertBox) {
+                        alertBox.className = 'alert alert-danger small py-2 px-3 mb-0';
+                        alertBox.textContent = 'Error: ' + err.message;
+                        alertBox.classList.remove('d-none');
+                    }
+                    btnSubmitComp.disabled = false;
+                    btnSubmitComp.innerHTML = '<i class="bi bi-check-circle me-1"></i> Create Compartmental Assessment';
+                }
+            });
+        }
+    }
+});
+</script>

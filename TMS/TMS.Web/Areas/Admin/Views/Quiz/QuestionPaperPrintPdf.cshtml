@@ -1,0 +1,309 @@
+@model TMS.Models.Assessments.QuestionPaper
+@{
+    Layout = null;
+    var sections = ViewBag.Sections as IEnumerable<IGrouping<string, TMS.Models.Assessments.QuestionPaperQuestion>> ?? Enumerable.Empty<IGrouping<string, TMS.Models.Assessments.QuestionPaperQuestion>>();
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>@Model.Title - Official Question Paper</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --paper-font: 'Crimson Pro', Georgia, serif;
+            --sans-font: 'Inter', -apple-system, sans-serif;
+            --text-color: #111827;
+            --border-color: #374151;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: var(--paper-font);
+            color: var(--text-color);
+            background: #f3f4f6;
+            line-height: 1.5;
+            font-size: 16px;
+        }
+        .action-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #1f2937;
+            color: #fff;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-family: var(--sans-font);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+        .btn-print {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-print:hover {
+            background: #1d4ed8;
+        }
+        .page-container {
+            max-width: 850px;
+            margin: 80px auto 40px auto;
+            background: #fff;
+            padding: 48px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            border-radius: 4px;
+        }
+        .inst-header {
+            text-align: center;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 16px;
+            margin-bottom: 20px;
+        }
+        .inst-title {
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .inst-subtitle {
+            font-size: 15px;
+            font-family: var(--sans-font);
+            color: #4b5563;
+            margin-top: 4px;
+        }
+        .exam-badge {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 4px 12px;
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            font-family: var(--sans-font);
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px 16px;
+            font-family: var(--sans-font);
+            font-size: 14px;
+            margin-bottom: 20px;
+            border-bottom: 1px dashed #9ca3af;
+            padding-bottom: 14px;
+        }
+        .meta-item strong {
+            color: #374151;
+        }
+        .student-fields {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 16px;
+            font-family: var(--sans-font);
+            font-size: 13px;
+            border: 1px solid #d1d5db;
+            padding: 10px 14px;
+            margin-bottom: 20px;
+            background: #fafafa;
+        }
+        .instructions-box {
+            background: #fdfdfd;
+            border-left: 3px solid #4b5563;
+            padding: 10px 14px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            font-style: italic;
+        }
+        .section-header {
+            margin: 28px 0 16px 0;
+            border-top: 2px solid #111827;
+            border-bottom: 1px solid #111827;
+            padding: 8px 0;
+            text-align: center;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .section-instruction {
+            font-size: 13px;
+            font-family: var(--sans-font);
+            color: #4b5563;
+            margin-top: 2px;
+        }
+        .question-item {
+            margin-bottom: 20px;
+            page-break-inside: avoid;
+        }
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            font-size: 16.5px;
+            font-weight: 600;
+        }
+        .q-marks {
+            font-family: var(--sans-font);
+            font-weight: 700;
+            font-size: 13px;
+            white-space: nowrap;
+            margin-left: 12px;
+        }
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px 24px;
+            margin-top: 8px;
+            padding-left: 24px;
+            font-size: 15px;
+        }
+        .option-item {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+        .opt-label {
+            font-family: var(--sans-font);
+            font-weight: 600;
+            font-size: 13px;
+        }
+        .watermark {
+            display: none;
+        }
+        @@media print {
+            body {
+                background: #fff;
+                font-size: 14pt;
+            }
+            .action-bar {
+                display: none;
+            }
+            .page-container {
+                margin: 0;
+                padding: 0;
+                max-width: 100%;
+                box-shadow: none;
+            }
+            .section-header {
+                page-break-after: avoid;
+            }
+            .question-item {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="action-bar">
+        <div>
+            <strong>@Model.Title</strong> &bull; Total Marks: @Model.TotalMarks &bull; Status: @Model.Status
+        </div>
+        <div>
+            <button class="btn-print" onclick="window.print()">
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z"/><path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2H5zm7 4V3a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v2h8zM1 7a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v-1a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v1H2a1 1 0 0 1-1-1V7zm3 4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v3H4v-3z"/></svg>
+                Print / Save as PDF
+            </button>
+        </div>
+    </div>
+
+    <div class="page-container">
+        <div class="inst-header">
+            <div class="inst-title">EduDigi Classes Institute of Higher Learning</div>
+            <div class="inst-subtitle">Autonomous Examination System &bull; Quality Assurance Division</div>
+            <div class="exam-badge">@Model.AssessmentType &bull; Academic Year 2026-2027</div>
+        </div>
+
+        <div class="meta-grid">
+            <div class="meta-item"><strong>Course:</strong> @(Model.Course?.Name ?? "General Course") (@(Model.Course?.CourseCode ?? "N/A"))</div>
+            <div class="meta-item"><strong>Semester:</strong> @(Model.Semester?.Name ?? "Current Semester")</div>
+            <div class="meta-item"><strong>Subject:</strong> @(Model.Subject?.Name ?? "Core Subject") (@(Model.Subject?.SubjectCode ?? "N/A"))</div>
+            <div class="meta-item"><strong>Maximum Marks:</strong> @Model.TotalMarks</div>
+            <div class="meta-item"><strong>Duration:</strong> @(Model.DurationMinutes ?? 180) Minutes</div>
+            <div class="meta-item"><strong>Faculty / Examiner:</strong> @(Model.Faculty?.Name ?? "Course Faculty")</div>
+        </div>
+
+        <div class="student-fields">
+            <div><strong>Student Name:</strong> _____________________________</div>
+            <div><strong>Roll No:</strong> ____________</div>
+            <div><strong>Sign:</strong> ___________</div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.Instructions))
+        {
+            <div class="instructions-box">
+                <strong>General Instructions:</strong><br />
+                @Html.Raw(Model.Instructions.Replace("\n", "<br/>"))
+            </div>
+        }
+
+        @{
+            int qCounter = 1;
+        }
+
+        @foreach (var section in sections)
+        {
+            var firstItem = section.FirstOrDefault();
+            <div class="section-header">
+                <div class="section-title">@(section.Key)</div>
+                @if (!string.IsNullOrWhiteSpace(firstItem?.SectionInstructions))
+                {
+                    <div class="section-instruction">@firstItem.SectionInstructions</div>
+                }
+            </div>
+
+            @foreach (var item in section.OrderBy(q => q.DisplayOrder))
+            {
+                var qb = item.QuestionBank;
+                if (qb == null) continue;
+
+                <div class="question-item">
+                    <div class="question-header">
+                        <div>
+                            <span>Q@(qCounter++).</span> @qb.QuestionText
+                        </div>
+                        <div class="q-marks">[@item.Marks Mark@(item.Marks > 1 ? "s" : "")]</div>
+                    </div>
+
+                    @if (qb.QuestionType.Equals("MCQ", StringComparison.OrdinalIgnoreCase) && qb.Options.Any())
+                    {
+                        var optLabels = new[] { "A", "B", "C", "D", "E", "F" };
+                        int oIndex = 0;
+                        <div class="options-grid">
+                            @foreach (var opt in qb.Options.OrderBy(o => o.Id))
+                            {
+                                var label = oIndex < optLabels.Length ? optLabels[oIndex++] : $"({oIndex++})";
+                                <div class="option-item">
+                                    <span class="opt-label">(@label)</span>
+                                    <span>@opt.OptionText</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        }
+
+        <div style="text-align: center; margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: var(--sans-font); font-size: 12px; color: #6b7280;">
+            *** END OF QUESTION PAPER &bull; OFFICIAL EVALUATION DOCUMENT ***
+        </div>
+    </div>
+</body>
+</html>

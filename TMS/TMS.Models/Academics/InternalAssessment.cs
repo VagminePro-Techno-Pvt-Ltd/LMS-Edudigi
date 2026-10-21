@@ -26,6 +26,11 @@ public class InternalAssessment
     public bool ResultApproved { get; set; }
     public int? ResultApprovedBy { get; set; }
     public DateTime? ResultApprovedOn { get; set; }
+    public bool IsCompartmental { get; set; } = false;
+    public int AttemptNumber { get; set; } = 1;
+    public int? OriginalAssessmentId { get; set; }
+    [ForeignKey(nameof(OriginalAssessmentId))]
+    public virtual InternalAssessment? OriginalAssessment { get; set; }
 }
 
 [Table("InternalAssessmentSubmissions")]

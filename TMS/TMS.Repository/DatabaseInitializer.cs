@@ -80,6 +80,256 @@ BEGIN
     );
 END
 
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('QuestionBank') AND name = 'SemesterId')
+BEGIN
+    ALTER TABLE QuestionBank ADD SemesterId INT NULL;
+    ALTER TABLE QuestionBank ADD CONSTRAINT FK_QuestionBank_SemesterMaster_SemesterId FOREIGN KEY (SemesterId) REFERENCES SemesterMaster(Id);
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('QuestionBank') AND name = 'SubjectId')
+BEGIN
+    ALTER TABLE QuestionBank ADD SubjectId INT NULL;
+    ALTER TABLE QuestionBank ADD CONSTRAINT FK_QuestionBank_SubjectMaster_SubjectId FOREIGN KEY (SubjectId) REFERENCES SubjectMaster(Id);
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('QuestionBank') AND name = 'CorrectAnswer')
+BEGIN
+    ALTER TABLE QuestionBank ADD CorrectAnswer NVARCHAR(MAX) NULL;
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('QuestionBank') AND name = 'Status')
+BEGIN
+    ALTER TABLE QuestionBank ADD Status NVARCHAR(50) NOT NULL DEFAULT 'Active';
+END
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'QuestionPaper')
+BEGIN
+    CREATE TABLE [dbo].[QuestionPaper](
+        [Id] [int] IDENTITY(1,1) NOT NULL,
+        [CourseId] [int] NOT NULL,
+        [SemesterId] [int] NULL,
+        [SubjectId] [int] NULL,
+        [Title] [nvarchar](250) NOT NULL,
+        [AssessmentType] [nvarchar](100) NOT NULL,
+        [TotalMarks] [decimal](18,2) NOT NULL,
+        [Status] [nvarchar](50) NOT NULL DEFAULT 'Draft',
+        [FacultyId] [int] NOT NULL,
+        [PublishedOn] [datetime2](7) NULL,
+        [IsActive] [bit] NOT NULL DEFAULT 1,
+        [CreatedBy] [int] NOT NULL,
+        [CreatedOn] [datetime2](7) NOT NULL DEFAULT GETUTCDATE(),
+        [UpdatedBy] [int] NULL,
+        [UpdatedOn] [datetime2](7) NULL,
+        CONSTRAINT [PK_QuestionPaper] PRIMARY KEY CLUSTERED ([Id] ASC),
+        CONSTRAINT [FK_QuestionPaper_CourseMaster_CourseId] FOREIGN KEY ([CourseId]) REFERENCES [dbo].[CourseMaster]([Id]),
+        CONSTRAINT [FK_QuestionPaper_SemesterMaster_SemesterId] FOREIGN KEY ([SemesterId]) REFERENCES [dbo].[SemesterMaster]([Id]),
+        CONSTRAINT [FK_QuestionPaper_SubjectMaster_SubjectId] FOREIGN KEY ([SubjectId]) REFERENCES [dbo].[SubjectMaster]([Id]),
+        CONSTRAINT [FK_QuestionPaper_UserMaster_FacultyId] FOREIGN KEY ([FacultyId]) REFERENCES [dbo].[UserMaster]([Id])
+    );
+    CREATE NONCLUSTERED INDEX [IX_QuestionPaper_CourseId] ON [dbo].[QuestionPaper]([CourseId]);
+    CREATE NONCLUSTERED INDEX [IX_QuestionPaper_FacultyId] ON [dbo].[QuestionPaper]([FacultyId]);
+END
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'QuestionPaperQuestion')
+BEGIN
+    CREATE TABLE [dbo].[QuestionPaperQuestion](
+        [Id] [int] IDENTITY(1,1) NOT NULL,
+        [QuestionPaperId] [int] NOT NULL,
+        [QuestionBankId] [int] NOT NULL,
+        [DisplayOrder] [int] NOT NULL DEFAULT 1,
+        [Marks] [decimal](18,2) NOT NULL DEFAULT 1,
+        [IsActive] [bit] NOT NULL DEFAULT 1,
+        [CreatedOn] [datetime2](7) NOT NULL DEFAULT GETUTCDATE(),
+        CONSTRAINT [PK_QuestionPaperQuestion] PRIMARY KEY CLUSTERED ([Id] ASC),
+        CONSTRAINT [FK_QuestionPaperQuestion_QuestionPaper_QuestionPaperId] FOREIGN KEY ([QuestionPaperId]) REFERENCES [dbo].[QuestionPaper]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_QuestionPaperQuestion_QuestionBank_QuestionBankId] FOREIGN KEY ([QuestionBankId]) REFERENCES [dbo].[QuestionBank]([Id])
+    );
+    CREATE NONCLUSTERED INDEX [IX_QuestionPaperQuestion_QuestionPaperId] ON [dbo].[QuestionPaperQuestion]([QuestionPaperId]);
+    CREATE NONCLUSTERED INDEX [IX_QuestionPaperQuestion_QuestionBankId] ON [dbo].[QuestionPaperQuestion]([QuestionBankId]);
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('QuestionPaper') AND name = 'DurationMinutes')
+    ALTER TABLE QuestionPaper ADD DurationMinutes INT NULL;
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('QuestionPaper') AND name = 'Instructions')
+    ALTER TABLE QuestionPaper ADD Instructions NVARCHAR(MAX) NULL;
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('QuestionPaperQuestion') AND name = 'SectionName')
+    ALTER TABLE QuestionPaperQuestion ADD SectionName NVARCHAR(100) NULL;
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('QuestionPaperQuestion') AND name = 'SectionInstructions')
+    ALTER TABLE QuestionPaperQuestion ADD SectionInstructions NVARCHAR(MAX) NULL;
+
+-- ─── PHASE 3: QUESTION BANK INTELLIGENCE & AUTOMATED RESULT PROCESSING ───
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('QuestionBank') AND name = 'UnitId')
+    ALTER TABLE QuestionBank ADD UnitId INT NULL CONSTRAINT FK_QuestionBank_Unit FOREIGN KEY REFERENCES UnitMaster(Id);
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('QuestionBank') AND name = 'TopicId')
+    ALTER TABLE QuestionBank ADD TopicId INT NULL CONSTRAINT FK_QuestionBank_Topic FOREIGN KEY REFERENCES TopicMaster(Id);
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('QuestionBank') AND name = 'LearningOutcome')
+    ALTER TABLE QuestionBank ADD LearningOutcome NVARCHAR(250) NULL;
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('QuestionBank') AND name = 'NormalizedText')
+    ALTER TABLE QuestionBank ADD NormalizedText NVARCHAR(MAX) NULL;
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('InternalAssessments') AND name = 'IsCompartmental')
+    ALTER TABLE InternalAssessments ADD IsCompartmental BIT NOT NULL CONSTRAINT DF_IA_IsCompartmental DEFAULT 0;
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('InternalAssessments') AND name = 'AttemptNumber')
+    ALTER TABLE InternalAssessments ADD AttemptNumber INT NOT NULL CONSTRAINT DF_IA_AttemptNumber DEFAULT 1;
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('InternalAssessments') AND name = 'OriginalAssessmentId')
+    ALTER TABLE InternalAssessments ADD OriginalAssessmentId INT NULL CONSTRAINT FK_IA_OriginalAssessment FOREIGN KEY REFERENCES InternalAssessments(Id);
+
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'InstitutionalGradingPolicy')
+BEGIN
+    CREATE TABLE InstitutionalGradingPolicy (
+        Id INT IDENTITY(1,1) PRIMARY KEY,
+        Name NVARCHAR(150) NOT NULL,
+        Code NVARCHAR(50) NOT NULL,
+        PassingPercentage DECIMAL(5,2) NOT NULL DEFAULT 33.00,
+        CompartmentalMinPercentage DECIMAL(5,2) NOT NULL DEFAULT 20.00,
+        MaxCompartmentSubjects INT NOT NULL DEFAULT 2,
+        RoundingMethod NVARCHAR(50) NOT NULL DEFAULT 'Standard',
+        GradeBoundariesJson NVARCHAR(MAX) NOT NULL,
+        IsDefault BIT NOT NULL DEFAULT 1,
+        IsActive BIT NOT NULL DEFAULT 1,
+        CreatedBy INT NOT NULL DEFAULT 0,
+        CreatedOn DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+        UpdatedBy INT NULL,
+        UpdatedOn DATETIME2 NULL
+    );
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'ProcessedAssessmentResult')
+BEGIN
+    CREATE TABLE ProcessedAssessmentResult (
+        Id INT IDENTITY(1,1) PRIMARY KEY,
+        AssessmentId INT NOT NULL CONSTRAINT FK_PAR_Assessment REFERENCES InternalAssessments(Id),
+        StudentId INT NOT NULL CONSTRAINT FK_PAR_Student REFERENCES UserMaster(Id),
+        CourseId INT NOT NULL CONSTRAINT FK_PAR_Course REFERENCES CourseMaster(Id),
+        SemesterId INT NULL CONSTRAINT FK_PAR_Semester REFERENCES SemesterMaster(Id),
+        PolicyId INT NULL CONSTRAINT FK_PAR_Policy REFERENCES InstitutionalGradingPolicy(Id),
+        MaxMarks DECIMAL(10,2) NOT NULL,
+        ObtainedMarks DECIMAL(10,2) NOT NULL DEFAULT 0,
+        Percentage DECIMAL(5,2) NOT NULL DEFAULT 0,
+        Grade NVARCHAR(10) NOT NULL DEFAULT 'F',
+        GradePoint DECIMAL(4,2) NOT NULL DEFAULT 0,
+        ResultStatus NVARCHAR(50) NOT NULL DEFAULT 'PENDING',
+        IsCompartmental BIT NOT NULL DEFAULT 0,
+        AttemptNumber INT NOT NULL DEFAULT 1,
+        OriginalResultId INT NULL,
+        IsEvaluated BIT NOT NULL DEFAULT 0,
+        IsPublished BIT NOT NULL DEFAULT 0,
+        PublishedOn DATETIME2 NULL,
+        PublishedBy INT NULL,
+        CalculatedOn DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+        CalculatedBy INT NOT NULL DEFAULT 0,
+        IsActive BIT NOT NULL DEFAULT 1,
+        AuditRemark NVARCHAR(500) NULL
+    );
+    CREATE UNIQUE INDEX IX_PAR_Assess_Student_Attempt ON ProcessedAssessmentResult(AssessmentId, StudentId, AttemptNumber);
+    CREATE INDEX IX_PAR_Course_Student ON ProcessedAssessmentResult(CourseId, StudentId);
+END
+
+-- ─── PHASE 3 COMPLETION: PROCTORING, BLUEPRINT & GRACE MARKS ───
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('QuestionPaper') AND name = 'Instructions')
+    ALTER TABLE QuestionPaper ADD Instructions NVARCHAR(1000) NULL;
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('QuestionPaper') AND name = 'DurationMinutes')
+    ALTER TABLE QuestionPaper ADD DurationMinutes INT NULL CONSTRAINT DF_QP_Duration DEFAULT 180;
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('QuestionPaperQuestion') AND name = 'SectionName')
+    ALTER TABLE QuestionPaperQuestion ADD SectionName NVARCHAR(50) NOT NULL CONSTRAINT DF_QPQ_Section DEFAULT 'Section A';
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('QuestionPaperQuestion') AND name = 'SectionInstructions')
+    ALTER TABLE QuestionPaperQuestion ADD SectionInstructions NVARCHAR(500) NULL;
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ExamMaster') AND name = 'IsProctored')
+    ALTER TABLE ExamMaster ADD IsProctored BIT NOT NULL CONSTRAINT DF_EM_IsProctored DEFAULT 0;
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ExamMaster') AND name = 'RequireCamera')
+    ALTER TABLE ExamMaster ADD RequireCamera BIT NOT NULL CONSTRAINT DF_EM_RequireCamera DEFAULT 0;
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ExamMaster') AND name = 'TrackTabSwitches')
+    ALTER TABLE ExamMaster ADD TrackTabSwitches BIT NOT NULL CONSTRAINT DF_EM_TrackTabSwitches DEFAULT 1;
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ExamMaster') AND name = 'RequireFullScreen')
+    ALTER TABLE ExamMaster ADD RequireFullScreen BIT NOT NULL CONSTRAINT DF_EM_RequireFullScreen DEFAULT 0;
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ExamMaster') AND name = 'MaxAllowedViolations')
+    ALTER TABLE ExamMaster ADD MaxAllowedViolations INT NOT NULL CONSTRAINT DF_EM_MaxViolations DEFAULT 5;
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ExamMaster') AND name = 'RetentionDays')
+    ALTER TABLE ExamMaster ADD RetentionDays INT NOT NULL CONSTRAINT DF_EM_RetentionDays DEFAULT 90;
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ExamMaster') AND name = 'EnableAiFaceCheck')
+    ALTER TABLE ExamMaster ADD EnableAiFaceCheck BIT NOT NULL CONSTRAINT DF_EM_AiFaceCheck DEFAULT 0;
+
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'ProctoringSession')
+BEGIN
+    CREATE TABLE ProctoringSession (
+        Id INT IDENTITY(1,1) PRIMARY KEY,
+        AttemptId INT NOT NULL CONSTRAINT FK_ProcSession_Attempt REFERENCES StudentExamAttempt(Id),
+        ExamId INT NOT NULL CONSTRAINT FK_ProcSession_Exam REFERENCES ExamMaster(Id),
+        StudentId INT NOT NULL CONSTRAINT FK_ProcSession_Student REFERENCES UserMaster(Id),
+        StartedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+        EndedAt DATETIME2 NULL,
+        CameraConsentGiven BIT NOT NULL DEFAULT 0,
+        ConsentTimestamp DATETIME2 NULL,
+        IdentityVerified BIT NOT NULL DEFAULT 0,
+        VerificationMethod NVARCHAR(50) NOT NULL DEFAULT 'SystemProfile',
+        TotalViolationsCount INT NOT NULL DEFAULT 0,
+        Status NVARCHAR(50) NOT NULL DEFAULT 'Active',
+        ReviewerRemarks NVARCHAR(1000) NULL,
+        ReviewedBy INT NULL,
+        ReviewedOn DATETIME2 NULL
+    );
+    CREATE INDEX IX_ProcSession_Attempt ON ProctoringSession(AttemptId);
+    CREATE INDEX IX_ProcSession_Exam ON ProctoringSession(ExamId);
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'ProctoringIncident')
+BEGIN
+    CREATE TABLE ProctoringIncident (
+        Id INT IDENTITY(1,1) PRIMARY KEY,
+        SessionId INT NOT NULL CONSTRAINT FK_ProcIncident_Session REFERENCES ProctoringSession(Id) ON DELETE CASCADE,
+        AttemptId INT NULL,
+        EventType NVARCHAR(50) NOT NULL,
+        Severity NVARCHAR(20) NOT NULL DEFAULT 'Medium',
+        ServerTimestamp DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+        ClientTimestamp DATETIME2 NULL,
+        Details NVARCHAR(1000) NULL,
+        RequiresReview BIT NOT NULL DEFAULT 1,
+        IsReviewed BIT NOT NULL DEFAULT 0,
+        ReviewedBy INT NULL,
+        ReviewNotes NVARCHAR(500) NULL
+    );
+    CREATE INDEX IX_ProcIncident_Session ON ProctoringIncident(SessionId);
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('InstitutionalGradingPolicy') AND name = 'MaxGraceMarks')
+    ALTER TABLE InstitutionalGradingPolicy ADD MaxGraceMarks DECIMAL(5,2) NOT NULL CONSTRAINT DF_IGP_MaxGrace DEFAULT 0.00;
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('InstitutionalGradingPolicy') AND name = 'EnableGraceMarks')
+    ALTER TABLE InstitutionalGradingPolicy ADD EnableGraceMarks BIT NOT NULL CONSTRAINT DF_IGP_EnableGrace DEFAULT 0;
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ProcessedAssessmentResult') AND name = 'GraceMarksAwarded')
+    ALTER TABLE ProcessedAssessmentResult ADD GraceMarksAwarded DECIMAL(5,2) NOT NULL CONSTRAINT DF_PAR_GraceAwarded DEFAULT 0.00;
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ProcessedAssessmentResult') AND name = 'IsGraceApplied')
+    ALTER TABLE ProcessedAssessmentResult ADD IsGraceApplied BIT NOT NULL CONSTRAINT DF_PAR_IsGraceApplied DEFAULT 0;
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ProcessedAssessmentResult') AND name = 'ExamMasterId')
+    ALTER TABLE ProcessedAssessmentResult ADD ExamMasterId INT NULL CONSTRAINT FK_PAR_ExamMaster REFERENCES ExamMaster(Id);
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ProcessedAssessmentResult') AND name = 'StudentExamAttemptId')
+    ALTER TABLE ProcessedAssessmentResult ADD StudentExamAttemptId INT NULL CONSTRAINT FK_PAR_StudentAttempt REFERENCES StudentExamAttempt(Id);
+
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ProcessedAssessmentResult') AND name = 'AssessmentId' AND is_nullable = 0)
+    ALTER TABLE ProcessedAssessmentResult ALTER COLUMN AssessmentId INT NULL;
+
 -- ─── KEEP ONLY BBA & BCA PROGRAMS & COURSES ───
 -- 1. Identify or create primary BCA category
 DECLARE @BcaId INT = (
@@ -221,6 +471,11 @@ BEGIN
         [UpdatedBy] INT NULL,
         [UpdatedOn] DATETIME2 NULL
     );
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('TopicMaster') AND name = 'Description')
+BEGIN
+    ALTER TABLE [dbo].[TopicMaster] ADD [Description] NVARCHAR(200) NULL;
 END
 
 -- ─── SEED DEMO ACCOUNTS ───

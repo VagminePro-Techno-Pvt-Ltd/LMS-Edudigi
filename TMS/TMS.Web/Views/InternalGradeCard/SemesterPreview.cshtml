@@ -50,7 +50,7 @@
         <div><small>GENERATED ON</small><strong>@Model.GeneratedOn.ToString("dd MMM yyyy, hh:mm tt")</strong></div>
     </section>
     <table class="isgc-table">
-        <thead><tr><th>#</th><th>Subject Code</th><th>Subject</th><th>Evaluated</th><th>Absent</th><th>Pending</th><th>Max Marks</th><th>Obtained</th><th>Percentage</th><th>Outcome</th></tr></thead>
+        <thead><tr><th>#</th><th>Subject Code</th><th>Subject</th><th>Evaluated</th><th>Absent</th><th>Pending</th><th>Max Marks</th><th>Obtained</th><th>Percentage</th><th>Grade</th><th>Outcome</th></tr></thead>
         <tbody>
         @{ var serial = 0; }
         @foreach (var course in Model.Courses)
@@ -64,6 +64,7 @@
                 <td>@(course.MaximumMarks.HasValue ? course.MaximumMarks.Value.ToString("0.##") : "—")</td>
                 <td>@(course.ObtainedMarks.HasValue ? course.ObtainedMarks.Value.ToString("0.##") : "—")</td>
                 <td>@(course.Percentage.HasValue ? course.Percentage.Value.ToString("0.00") + "%" : "—")</td>
+                <td><strong>@(string.IsNullOrEmpty(course.Grade) ? "—" : $"{course.Grade} ({course.GradePoint?.ToString("0.0") ?? "0.0"})")</strong></td>
                 <td><strong style="color:@(course.ResultStatus == "FAIL" ? "#b42318" : course.ResultStatus == "PASS" ? "#087443" : "#9a6700")">@course.ResultStatus</strong></td>
             </tr>
         }
@@ -72,6 +73,7 @@
             <td>@(Model.TotalMaximumMarks.HasValue ? Model.TotalMaximumMarks.Value.ToString("0.##") : "—")</td>
             <td>@(Model.TotalObtainedMarks.HasValue ? Model.TotalObtainedMarks.Value.ToString("0.##") : "—")</td>
             <td>@(Model.Percentage.HasValue ? Model.Percentage.Value.ToString("0.00") + "%" : "—")</td>
+            <td>—</td>
             <td><strong>@Model.ResultStatus</strong></td>
         </tr></tfoot>
     </table>

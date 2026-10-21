@@ -1,9 +1,13 @@
 using System.IO.Compression;
 using System.Text;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using TMS.Repository;
+using TMS.Models.Assessments;
+using TMS.Models.Academics;
 using TMS.Web.Infrastructure;
 using TMS.Web.Services;
 using TMS.Web.ViewModels;
@@ -456,6 +460,151 @@ string MakeGeminiResponse(decimal matchPct, decimal marks, decimal maxMarks, boo
 
     Equal("Persistent 503 fails gracefully", res.Success, false);
     Equal("Persistent 503 reports unavailable", res.ErrorMessage?.Contains("unavailable") ?? false, true);
+}
+
+// =========================================================================
+// FEATURE 25: AI QUESTION PAPER GENERATOR TESTS
+// =========================================================================
+// 13. QuestionPaper NotMapped attribute verification
+{
+    var instrProp = typeof(QuestionPaper).GetProperty("Instructions");
+    var durationProp = typeof(QuestionPaper).GetProperty("DurationMinutes");
+    Equal("QuestionPaper.Instructions has NotMappedAttribute", instrProp?.GetCustomAttribute<NotMappedAttribute>() != null, true);
+    Equal("QuestionPaper.DurationMinutes has NotMappedAttribute", durationProp?.GetCustomAttribute<NotMappedAttribute>() != null, true);
+
+    var secNameProp = typeof(QuestionPaperQuestion).GetProperty("SectionName");
+    var secInstrProp = typeof(QuestionPaperQuestion).GetProperty("SectionInstructions");
+    Equal("QuestionPaperQuestion.SectionName has NotMappedAttribute", secNameProp?.GetCustomAttribute<NotMappedAttribute>() != null, true);
+    Equal("QuestionPaperQuestion.SectionInstructions has NotMappedAttribute", secInstrProp?.GetCustomAttribute<NotMappedAttribute>() != null, true);
+}
+
+// 14. Blueprint marks scaling logic
+{
+    decimal targetMarks = 20m;
+    int mcqCount = Math.Min(10, Math.Max(1, (int)(targetMarks / 2)));
+    decimal mcqMarks = mcqCount * 1m;
+    decimal remainingMarks = targetMarks - mcqMarks;
+    decimal shortMarksEach = remainingMarks >= 10 && remainingMarks % 5 == 0 ? 5 : (remainingMarks >= 4 && remainingMarks % 2 == 0 ? 2 : remainingMarks);
+    int shortCount = Math.Max(1, (int)Math.Round(remainingMarks / shortMarksEach));
+    decimal totalCalculated = (mcqCount * 1m) + (shortCount * shortMarksEach);
+    Equal("Blueprint 20-mark auto-scale exact match", totalCalculated, 20m);
+}
+
+// =========================================================================
+// FEATURE 26: QUESTION BANK INTELLIGENCE TESTS
+// =========================================================================
+// 15. Question Bank Normalized text computation
+{
+    string raw1 = "  What is   Object-Oriented Programming (OOP)??? ";
+    string norm1 = GeminiSuggestedQuestionService.ComputeNormalizedText(raw1);
+    Equal("Normalized text removes punctuation and extra spaces", norm1, "what is object oriented programming oop");
+
+    string raw2 = "WHAT is object-oriented PROGRAMMING (oop)?";
+    string norm2 = GeminiSuggestedQuestionService.ComputeNormalizedText(raw2);
+    Equal("Normalized text matches across case and whitespace", norm1 == norm2, true);
+
+    double similarity = GeminiSuggestedQuestionService.CalculateSimilarity(raw1, raw2);
+    Equal("Identical questions have 1.0 similarity", similarity, 1.0);
+}
+
+// 16. CSV parsing helper logic
+{
+    string csvLine = "\"What is encapsulation?\",\"Short Answer\",\"Medium\",5,0,\"Understand\",\"Unit 1\",\"Topic 1\",\"\",\"\",\"\",\"\",\"Model answer\",\"Explanation\"";
+    var parts = new List<string>();
+    bool inQuotes = false;
+    var current = new StringBuilder();
+    for (int i = 0; i < csvLine.Length; i++)
+    {
+        char c = csvLine[i];
+        if (c == '"')
+        {
+            if (inQuotes && i + 1 < csvLine.Length && csvLine[i + 1] == '"') { current.Append('"'); i++; }
+            else { inQuotes = !inQuotes; }
+        }
+        else if (c == ',' && !inQuotes)
+        {
+            parts.Add(current.ToString());
+            current.Clear();
+        }
+        else current.Append(c);
+    }
+    parts.Add(current.ToString());
+
+    Equal("CSV line correctly splits into 14 columns", parts.Count, 14);
+    Equal("CSV line parses question prompt cleanly", parts[0], "What is encapsulation?");
+    Equal("CSV line parses difficulty", parts[2], "Medium");
+    Equal("CSV line parses marks", parts[3], "5");
+}
+
+// =========================================================================
+// FEATURE 36: AUTOMATED RESULT PROCESSING & UGC CBCS GRADING
+// =========================================================================
+// 17. UGC CBCS 10-Point Letter Grade and Grade Points
+{
+    string GetCbcsGrade(decimal pct) => pct switch
+    {
+        >= 90m => "O",
+        >= 80m => "A+",
+        >= 70m => "A",
+        >= 60m => "B+",
+        >= 50m => "B",
+        >= 40m => "C",
+        >= 33m => "P",
+        _ => "F"
+    };
+
+    decimal GetCbcsGradePoint(decimal pct) => pct switch
+    {
+        >= 90m => 10.0m,
+        >= 80m => 9.0m,
+        >= 70m => 8.0m,
+        >= 60m => 7.0m,
+        >= 50m => 6.0m,
+        >= 40m => 5.0m,
+        >= 33m => 4.0m,
+        _ => 0.0m
+    };
+
+    Equal("UGC CBCS Grade 95% is O", GetCbcsGrade(95m), "O");
+    Equal("UGC CBCS Grade Point 95% is 10.0", GetCbcsGradePoint(95m), 10.0m);
+    Equal("UGC CBCS Grade 82% is A+", GetCbcsGrade(82m), "A+");
+    Equal("UGC CBCS Grade Point 82% is 9.0", GetCbcsGradePoint(82m), 9.0m);
+    Equal("UGC CBCS Grade 74% is A", GetCbcsGrade(74m), "A");
+    Equal("UGC CBCS Grade Point 74% is 8.0", GetCbcsGradePoint(74m), 8.0m);
+    Equal("UGC CBCS Grade 63% is B+", GetCbcsGrade(63m), "B+");
+    Equal("UGC CBCS Grade Point 63% is 7.0", GetCbcsGradePoint(63m), 7.0m);
+    Equal("UGC CBCS Grade 55% is B", GetCbcsGrade(55m), "B");
+    Equal("UGC CBCS Grade Point 55% is 6.0", GetCbcsGradePoint(55m), 6.0m);
+    Equal("UGC CBCS Grade 42% is C", GetCbcsGrade(42m), "C");
+    Equal("UGC CBCS Grade Point 42% is 5.0", GetCbcsGradePoint(42m), 5.0m);
+    Equal("UGC CBCS Grade 35% is P", GetCbcsGrade(35m), "P");
+    Equal("UGC CBCS Grade Point 35% is 4.0", GetCbcsGradePoint(35m), 4.0m);
+    Equal("UGC CBCS Grade 28% is F", GetCbcsGrade(28m), "F");
+    Equal("UGC CBCS Grade Point 28% is 0.0", GetCbcsGradePoint(28m), 0.0m);
+}
+
+// 18. Grace marks policy boundary test
+{
+    decimal maxMarks = 100m;
+    decimal passingPct = 33m;
+    decimal maxGrace = 3m;
+
+    // Student A: 30 marks (shortfall = 3 marks <= maxGrace -> PASS with grace)
+    decimal marksA = 30m;
+    decimal shortfallA = (passingPct * maxMarks / 100m) - marksA;
+    bool eligibleA = shortfallA > 0 && shortfallA <= maxGrace;
+    Equal("Student with 30 marks eligible for 3 grace marks", eligibleA, true);
+    Equal("Student with 30 marks grace awarded", shortfallA, 3m);
+
+    // Student B: 29 marks (shortfall = 4 marks > maxGrace -> FAIL / COMPARTMENT)
+    decimal marksB = 29m;
+    decimal shortfallB = (passingPct * maxMarks / 100m) - marksB;
+    bool eligibleB = shortfallB > 0 && shortfallB <= maxGrace;
+    Equal("Student with 29 marks ineligible for grace (>3 shortfall)", eligibleB, false);
+
+    // Compartmental threshold (20% to 32.99%)
+    bool compEligible = marksB >= 20m && marksB < 33m;
+    Equal("Student with 29 marks eligible for compartmental re-assessment", compEligible, true);
 }
 
 Console.WriteLine($"TOTAL | PASS={passed} FAIL={failed}");

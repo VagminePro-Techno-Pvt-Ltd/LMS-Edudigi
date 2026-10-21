@@ -43,6 +43,10 @@ builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddExpressiveAnnotations();
 builder.Services.AddSession();
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "RequestVerificationToken";
+});
 
 //Additional dependencies
 builder.Services.AddRepositoryDependencies();
@@ -61,6 +65,13 @@ builder.Services.AddHttpClient<TMS.Web.Services.IAiEvaluationService, TMS.Web.Se
     var timeoutSeconds = builder.Configuration.GetValue<int>("Gemini:TimeoutSeconds", 45);
     client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
 });
+builder.Services.AddHttpClient<TMS.Web.Services.ISuggestedQuestionService, TMS.Web.Services.GeminiSuggestedQuestionService>(client =>
+{
+    var timeoutSeconds = builder.Configuration.GetValue<int>("Gemini:TimeoutSeconds", 45);
+    client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+});
+
+builder.Services.AddScoped<TMS.Web.Services.IAutomatedResultService, TMS.Web.Services.AutomatedResultService>();
 
 
 // Reverse-proxy / ngrok: honor X-Forwarded-Proto, X-Forwarded-Host so Request.Scheme and Request.Host

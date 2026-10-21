@@ -303,11 +303,12 @@
     <table class="igc-marks">
         <thead>
             <tr>
-                <th style="width:7%">#</th>
+                <th style="width:5%">#</th>
                 <th>Assessment</th>
                 <th>Type</th>
-                <th style="width:15%">Max Marks</th>
-                <th style="width:17%">Obtained</th>
+                <th style="width:13%">Max Marks</th>
+                <th style="width:14%">Obtained</th>
+                <th style="width:10%">Grade</th>
                 <th>Submission</th>
                 <th>Outcome</th>
             </tr>
@@ -322,13 +323,35 @@
             {
                 <tr>
                     <td>@serial</td>
-                    <td>@row.AssessmentTitle</td>
+                    <td>
+                        @row.AssessmentTitle
+                        @if (row.IsCompartmental || row.AttemptNumber > 1)
+                        {
+                            <span style="font-size:10px; background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:4px;">
+                                Compartmental (Attempt @row.AttemptNumber)
+                            </span>
+                        }
+                    </td>
                     <td>@row.AssessmentType</td>
                     <td>@row.MaximumMarks.ToString("0.##")</td>
                     <td>
                         @(row.ObtainedMarks.HasValue
                             ? row.ObtainedMarks.Value.ToString("0.##")
                             : "—")
+                    </td>
+                    <td>
+                        @if (!string.IsNullOrEmpty(row.Grade))
+                        {
+                            <strong style="color:#155bb7;">@row.Grade</strong>
+                            @if (row.GradePoint.HasValue)
+                            {
+                                <small style="color:#6b7280; margin-left:3px;">(@row.GradePoint.Value.ToString("0.0"))</small>
+                            }
+                        }
+                        else
+                        {
+                            <span>—</span>
+                        }
                     </td>
                     <td>@row.SubmissionStatus</td>
                     <td>@row.Outcome</td>
@@ -345,6 +368,9 @@
                     @(complete
                         ? Model.TotalMaximumMarks.ToString("0.##")
                         : "—")
+                </td>
+                <td>
+                    @(complete && !string.IsNullOrEmpty(Model.OverallGrade) ? Model.OverallGrade : "—")
                 </td>
                 <td>
                     @(complete
@@ -364,6 +390,15 @@
             <strong>
                 @(Model.Percentage.HasValue
                     ? Model.Percentage.Value.ToString("0.00") + "%"
+                    : "Not available")
+            </strong>
+        </div>
+
+        <div>
+            <small>INSTITUTIONAL GRADE (CBCS)</small>
+            <strong>
+                @(complete && !string.IsNullOrEmpty(Model.OverallGrade)
+                    ? $"{Model.OverallGrade} (Grade Point: {Model.OverallGradePoint?.ToString("0.0") ?? "0.0"})"
                     : "Not available")
             </strong>
         </div>

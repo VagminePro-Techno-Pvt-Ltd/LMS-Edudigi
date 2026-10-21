@@ -147,6 +147,12 @@ namespace TMS.Repository
         public DbSet<StudentExamAnswer> StudentExamAnswers { get; set; }
         public DbSet<FacultyEvaluation> FacultyEvaluations { get; set; }
         public DbSet<ExamResult> ExamResults { get; set; }
+        public DbSet<QuestionPaper> QuestionPapers { get; set; }
+        public DbSet<QuestionPaperQuestion> QuestionPaperQuestions { get; set; }
+        public DbSet<InstitutionalGradingPolicy> InstitutionalGradingPolicies { get; set; }
+        public DbSet<ProcessedAssessmentResult> ProcessedAssessmentResults { get; set; }
+        public DbSet<ProctoringSession> ProctoringSessions { get; set; }
+        public DbSet<ProctoringIncident> ProctoringIncidents { get; set; }
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public ApplicationDBContext(DbContextOptions<ApplicationDBContext> options) : base(options)
@@ -302,11 +308,49 @@ namespace TMS.Repository
                 .IsUnique()
                 .HasDatabaseName("IX_VideoQuizAttempt_Student_Question");
 
-            // ─── LectureQuizAttempt: unique per student+question ───
-            builder.Entity<LectureQuizAttempt>()
-                .HasIndex(a => new { a.StudentId, a.LectureQuizQuestionId })
-                .IsUnique()
-                .HasDatabaseName("IX_LectureQuizAttempt_Student_Question");
+            // ─── QuestionPaper & QuestionPaperQuestion ───
+            builder.Entity<QuestionPaper>(entity =>
+            {
+                entity.HasIndex(x => x.CourseId);
+                entity.HasIndex(x => x.FacultyId);
+                entity.HasOne(x => x.Course).WithMany().HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.Semester).WithMany().HasForeignKey(x => x.SemesterId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.Subject).WithMany().HasForeignKey(x => x.SubjectId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.Faculty).WithMany().HasForeignKey(x => x.FacultyId).OnDelete(DeleteBehavior.NoAction);
+            });
+
+            builder.Entity<QuestionPaperQuestion>(entity =>
+            {
+                entity.HasIndex(x => x.QuestionPaperId);
+                entity.HasIndex(x => x.QuestionBankId);
+                entity.HasOne(x => x.QuestionPaper).WithMany(p => p.Questions).HasForeignKey(x => x.QuestionPaperId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(x => x.QuestionBank).WithMany().HasForeignKey(x => x.QuestionBankId).OnDelete(DeleteBehavior.NoAction);
+            });
+
+            // ─── ProcessedAssessmentResult ───
+            builder.Entity<ProcessedAssessmentResult>(entity =>
+            {
+                entity.HasIndex(x => new { x.AssessmentId, x.StudentId, x.AttemptNumber }).IsUnique();
+                entity.HasIndex(x => new { x.CourseId, x.StudentId });
+                entity.HasOne(x => x.Assessment).WithMany().HasForeignKey(x => x.AssessmentId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.Student).WithMany().HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.Course).WithMany().HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.Semester).WithMany().HasForeignKey(x => x.SemesterId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.Policy).WithMany().HasForeignKey(x => x.PolicyId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.OriginalResult).WithMany().HasForeignKey(x => x.OriginalResultId).OnDelete(DeleteBehavior.NoAction);
+            });
+
+            // ─── QuestionBank Navigation Relations ───
+            builder.Entity<QuestionBank>(entity =>
+            {
+                entity.HasOne(x => x.Unit).WithMany().HasForeignKey(x => x.UnitId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.Topic).WithMany().HasForeignKey(x => x.TopicId).OnDelete(DeleteBehavior.NoAction);
+            });
+
+            builder.Entity<TopicMaster>(entity =>
+            {
+                entity.Ignore(x => x.Description);
+            });
 
             base.OnModelCreating(builder);
         }

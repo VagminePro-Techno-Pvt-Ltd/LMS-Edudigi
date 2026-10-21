@@ -18,6 +18,10 @@ public sealed class InternalGradeCardRow
     public DateTime? EvaluatedOn { get; set; }
     public string SubmissionStatus { get; set; } = "";
     public string Outcome { get; set; } = "";
+    public string? Grade { get; set; }
+    public decimal? GradePoint { get; set; }
+    public bool IsCompartmental { get; set; }
+    public int AttemptNumber { get; set; } = 1;
 }
 
 public sealed class InternalGradeCardViewModel
@@ -33,6 +37,8 @@ public sealed class InternalGradeCardViewModel
     public decimal TotalMaximumMarks { get; set; }
     public decimal TotalObtainedMarks { get; set; }
     public decimal? Percentage { get; set; }
+    public string? OverallGrade { get; set; }
+    public decimal? OverallGradePoint { get; set; }
     public int PendingCount { get; set; }
     public string ResultStatus => Rows.Any(r => r.Outcome == "FAIL")
         ? "FAIL"
@@ -67,6 +73,8 @@ public sealed class InternalSemesterGradeCardCourse
     public decimal? MaximumMarks { get; set; }
     public decimal? ObtainedMarks { get; set; }
     public decimal? Percentage { get; set; }
+    public string? Grade { get; set; }
+    public decimal? GradePoint { get; set; }
     public bool Complete => PublishedAssessments > 0 && PendingAssessments == 0;
     public string SubjectCode { get; set; } = "";
     public bool HasFailedAssessment { get; set; }
