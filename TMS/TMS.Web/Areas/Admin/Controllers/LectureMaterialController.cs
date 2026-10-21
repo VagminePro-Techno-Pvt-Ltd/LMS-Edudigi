@@ -14,6 +14,7 @@ using TMS.ViewModels.Academics;
 using TMS.ViewModels.Masters;
 using TMS.Web.Controllers;
 using TMS.Web.Models;
+using TMS.Web.Services;
 
 namespace TMS.Web.Areas.Admin.Controllers
 {
@@ -32,6 +33,8 @@ namespace TMS.Web.Areas.Admin.Controllers
         private readonly IMasterBaseManager<CourseMaterialMappingViewModel> _courseMaterialMappingManager;
         private readonly IMasterManager<SemesterMasterViewModel> _semesterManager;
         private readonly TMS.Repository.ApplicationDBContext _db;
+        private readonly IDocumentIndexService? _documentIndexService;
+        private readonly ILearningAssistantCacheService? _cacheService;
 
         public LectureMaterialController(
             IMasterBaseManager<LectureMaterialViewModel> lectureMaterialManager,
@@ -43,7 +46,9 @@ namespace TMS.Web.Areas.Admin.Controllers
             IMasterBaseManager<CourseMeetingViewModel> meetingManager,
             IMasterBaseManager<CourseMaterialMappingViewModel> mappingManager,
             IMasterManager<SemesterMasterViewModel> semesterManager,
-            TMS.Repository.ApplicationDBContext db)
+            TMS.Repository.ApplicationDBContext db,
+            IDocumentIndexService? documentIndexService = null,
+            ILearningAssistantCacheService? cacheService = null)
         {
             _lectureMaterialManager = lectureMaterialManager;
             _courseManager = courseManager;
@@ -55,6 +60,8 @@ namespace TMS.Web.Areas.Admin.Controllers
             _courseMaterialMappingManager = mappingManager;
             _semesterManager = semesterManager;
             _db = db;
+            _documentIndexService = documentIndexService;
+            _cacheService = cacheService;
         }
 
 
@@ -360,6 +367,33 @@ namespace TMS.Web.Areas.Admin.Controllers
 
             // 2. Delete material
             var res = await _lectureMaterialManager.DeleteAsync(id);
+
+            // 3. Remove document index & chunks
+            if (_documentIndexService != null && id > 0)
+            {
+                try
+                {
+                    await _documentIndexService.RemoveIndexForMaterialAsync(id);
+                }
+                catch
+                {
+                    // Non-fatal for material deletion
+                }
+            }
+
+            // 4. Invalidate affected cached answers
+            if (_cacheService != null && id > 0)
+            {
+                try
+                {
+                    await _cacheService.InvalidateMaterialCacheAsync(id);
+                }
+                catch
+                {
+                    // Non-fatal
+                }
+            }
+
             return Json(new { success = res, message = res ? "Content deleted successfully." : "Failed to delete content." });
         }
 
@@ -635,6 +669,32 @@ namespace TMS.Web.Areas.Admin.Controllers
                         };
 
                         await _courseMaterialMappingManager.AddUpdateAsync(mapping, userId);
+                    }
+                }
+
+                // 3. Index or re-index document text for AI Companion
+                if (_documentIndexService != null && model.Id > 0)
+                {
+                    try
+                    {
+                        await _documentIndexService.IndexMaterialAsync(model.Id);
+                    }
+                    catch
+                    {
+                        // Indexing is non-fatal for upload completion
+                    }
+                }
+
+                // 4. Invalidate affected cached answers for updated material
+                if (_cacheService != null && model.Id > 0)
+                {
+                    try
+                    {
+                        await _cacheService.InvalidateMaterialCacheAsync(model.Id);
+                    }
+                    catch
+                    {
+                        // Non-fatal
                     }
                 }
 

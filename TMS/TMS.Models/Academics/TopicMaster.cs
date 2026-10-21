@@ -6,6 +6,9 @@ namespace TMS.Models.Academics
     [Table(nameof(TopicMaster))]
     public class TopicMaster : BaseMasterModel
     {
+        [NotMapped]
+        public override string? Description { get; set; }
+
         /// <summary>Parent unit this topic belongs to.</summary>
         [Required]
         public int UnitId { get; set; }

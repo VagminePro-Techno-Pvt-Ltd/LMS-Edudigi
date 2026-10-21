@@ -320,6 +320,10 @@ public class InternalGradeCardController : BaseController
                 assessmentIds.Contains(s.AssessmentId))
             .ToListAsync();
 
+        var processedResults = await _db.ProcessedAssessmentResults.AsNoTracking()
+            .Where(r => r.StudentId == studentId && r.AssessmentId.HasValue && assessmentIds.Contains(r.AssessmentId.Value) && r.IsPublished)
+            .ToListAsync();
+
         var model = new InternalGradeCardViewModel
         {
             StudentId = student.Id,
@@ -335,6 +339,8 @@ public class InternalGradeCardController : BaseController
                 .Where(s => s.AssessmentId == assessment.Id)
                 .OrderByDescending(s => s.SubmittedOn)
                 .FirstOrDefault();
+
+            var proc = processedResults.FirstOrDefault(r => r.AssessmentId == assessment.Id);
 
             var evaluated =
                 submission != null &&
@@ -360,7 +366,11 @@ public class InternalGradeCardController : BaseController
                     : null,
                 SubmissionStatus = InternalAssessmentResultPolicy.SubmissionStatus(hasSubmission, evaluated),
                 Outcome = InternalAssessmentResultPolicy.AssessmentOutcome(
-                    true, hasSubmission, evaluated, marks, assessment.MaxMarks)
+                    true, hasSubmission, evaluated, marks, assessment.MaxMarks),
+                Grade = proc?.Grade,
+                GradePoint = proc?.GradePoint,
+                IsCompartmental = proc != null ? proc.AttemptNumber > 1 || assessment.IsCompartmental : assessment.IsCompartmental,
+                AttemptNumber = proc != null ? proc.AttemptNumber : assessment.AttemptNumber
             });
         }
 
@@ -385,6 +395,10 @@ public class InternalGradeCardController : BaseController
                     model.TotalMaximumMarks * 100m,
                     2,
                     MidpointRounding.AwayFromZero);
+
+                var p = model.Percentage.Value;
+                model.OverallGrade = p >= 90m ? "O" : p >= 80m ? "A+" : p >= 70m ? "A" : p >= 60m ? "B+" : p >= 50m ? "B" : p >= 40m ? "C" : p >= 33m ? "P" : "F";
+                model.OverallGradePoint = p >= 90m ? 10m : p >= 80m ? 9m : p >= 70m ? 8m : p >= 60m ? 7m : p >= 50m ? 6m : p >= 40m ? 5m : p >= 33m ? 4m : 0m;
             }
         }
 
@@ -477,7 +491,17 @@ public class InternalGradeCardController : BaseController
             }
 
             var complete = pending == 0;
-            var subject = group.Key.HasValue && subjectInfo.TryGetValue(group.Key.Value, out var subjectRow) ? subjectRow : null;
+            var coursePct = complete && maximum > 0m ? Math.Round(obtained / maximum * 100m, 2, MidpointRounding.AwayFromZero) : (decimal?)null;
+            string? courseGrade = null;
+            decimal? courseGradePoint = null;
+            if (coursePct.HasValue)
+            {
+                var cp = coursePct.Value;
+                courseGrade = cp >= 90m ? "O" : cp >= 80m ? "A+" : cp >= 70m ? "A" : cp >= 60m ? "B+" : cp >= 50m ? "B" : cp >= 40m ? "C" : cp >= 33m ? "P" : "F";
+                courseGradePoint = cp >= 90m ? 10m : cp >= 80m ? 9m : cp >= 70m ? 8m : cp >= 60m ? 7m : cp >= 50m ? 6m : cp >= 40m ? 5m : cp >= 33m ? 4m : 0m;
+            }
+
+            var subject = group.Key.HasValue && subjectInfo.TryGetValue(group.Key.Value, out var sInfo) ? sInfo : null;
             model.Courses.Add(new InternalSemesterGradeCardCourse
             {
                 CourseId = list.Select(a => a.CourseId).First(),
@@ -489,7 +513,9 @@ public class InternalGradeCardController : BaseController
                 PendingAssessments = pending,
                 MaximumMarks = complete ? maximum : null,
                 ObtainedMarks = complete ? obtained : null,
-                Percentage = complete && maximum > 0m ? Math.Round(obtained / maximum * 100m, 2, MidpointRounding.AwayFromZero) : null,
+                Percentage = coursePct,
+                Grade = courseGrade,
+                GradePoint = courseGradePoint,
                 HasFailedAssessment = failed
             });
         }

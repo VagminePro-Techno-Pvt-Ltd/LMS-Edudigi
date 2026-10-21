@@ -1,6 +1,6 @@
 # EduDigi Classes LMS - Verified Project Context
 
-Last source audit: 2026-10-15
+Last source audit: 2026-10-19
 
 This handoff covers the application under `TMS/`. “Implemented” means present in audited source, not proven in deployment.
 
@@ -24,11 +24,11 @@ This handoff covers the application under `TMS/`. “Implemented” means presen
 | Academic structure | `Areas/Admin/Controllers/CourseStructureController.cs`, `CourseController.cs`, `FacultyMappingController.cs`, `CourseEnrollmentController.cs` | Programs/categories, semesters, subjects, courses, credits, faculty mapping and enrollment lifecycle exist. |
 | Learning/content | `StudentCourseController.cs`, `StudentUnitController.cs`, `StudentQuadrantController.cs`, `StudentCourseContentController.cs`, `Services/StudentLearningService.cs` | Course/subject/unit/quadrant hubs, materials and progress exist. |
 | Classes/attendance | `CalendarController.cs`, `VirtualClassroomController.cs`, `AttendanceController.cs`, `BackgroundServices/AttendanceBackgroundJob.cs` | Scheduling, meetings and attendance paths exist; integrations were not exercised. |
-| Assignments/quizzes | `AssignmentController.cs`, `StudentQuizController.cs`, `FacultyQuizAssessmentController.cs`, Admin Quiz controllers | Creation, submission/attempt and evaluation paths exist. |
+| Assignments/quizzes | `AssignmentController.cs`, `StudentQuizController.cs`, `FacultyQuizAssessmentController.cs`, `Areas/Admin/Controllers/QuizController.cs`, `Areas/Admin/Views/Quiz/Index.cshtml` | Creation, submission/attempt, evaluation, plus full AI Question Bank (Gemini suggested questions), duplicate detection, Question Paper generator, and print preview. |
 | Formal examinations | `FacultyExamController.cs`, `StudentExamController.cs`, `Areas/Admin/Controllers/AdminExamController.cs`; `TMS.Models/Assessments/` | Exam, section, question bank, assignment, attempt, evaluation and `ExamResult` flows exist. They are separate from IA grade cards. |
-| Internal Assessment | `InternalAssessmentController.cs`, `Views/InternalAssessment/`, `wwwroot/js/internal-assessment.js` | Scheduling, types, creation/edit, questions, submissions, evaluation and legacy approval/publication exist. |
+| Internal Assessment | `InternalAssessmentController.cs`, `Views/InternalAssessment/`, `wwwroot/js/internal-assessment.js`, `Services/AutomatedResultService.cs` | Scheduling, types, creation/edit, questions, submissions, evaluation, automated UGC 10-point result calculation, grace marks engine, and compartmental re-assessments. |
 | Internal marks entry | `InternalMarksEntryController.cs`, `Views/InternalMarksEntry/Index.cshtml` | Updates existing non-question submissions only; it cannot create missing/offline marks rows. |
-| Internal grade cards | `InternalGradeCardController.cs`, `ViewModels/InternalGradeCardViewModel.cs`, `Views/InternalGradeCard/` | Interactive dashboard and printable course/semester IA statements exist; they are not official immutable grade cards. |
+| Internal grade cards | `InternalGradeCardController.cs`, `ViewModels/InternalGradeCardViewModel.cs`, `Views/InternalGradeCard/` | Interactive dashboard and printable course/semester previews with UGC 10-point grades (`O`-`F`), grade points (`10`-`0`), and compartmental attempt indicators linked to `ProcessedAssessmentResult`. |
 | PPT/video | `InteractivePPTController.cs`, `FacultyPPTController.cs`, `StudentPPTController.cs`, `VideoLearningController.cs` | Interactive PPT, video/lecture progress and embedded quizzes exist. |
 | Communications/reports | `AnnouncementController.cs`, `DiscussionController.cs`, `ChatController.cs`, `NotificationsController.cs`, `ProgressReportController.cs` | Communication and progress/monitoring views exist. No registrar transcript subsystem exists. |
 
@@ -163,9 +163,9 @@ Confirmed from source:
 2. Several unpublish/evaluation/marks paths clear approval fields, risking loss of historical approval state.
 3. IA migrations/snapshot mismatch and duplicate table creation block safe deployment.
 4. Marks entry cannot record offline/missing submissions; help/approval wording is misleading.
-5. Grade cards lack official snapshot/PDF/verification and all external/credit/GPA data.
+5. [Partially Resolved 2026-10-19] Grade cards now calculate and render institutional UGC 10-point scale letter grades (`O`, `A+`, `A`, `B+`, `B`, `C`, `P`, `F`) and grade points (`10.0` to `0.0`) backed by `InstitutionalGradingPolicy` and `ProcessedAssessmentResult`. (Formal registrar snapshot/PDF verification remains pending).
 6. Null-subject semester grouping and inconsistent enrollment `IsActive` filtering can produce incorrect visibility/aggregation.
-7. No compartment/repeat/improvement model exists.
+7. [Resolved 2026-10-19] Compartmental examination model implemented: `InternalAssessment.IsCompartmental`, `AttemptNumber`, `OriginalAssessmentId`, and automated re-assessment creation (`CreateCompartmentalAssessmentAsync`).
 8. Official student/institution identity fields are missing.
 9. UX mixes modals with raw `BadRequest`; `_StatusModal.cshtml` contains a mis-encoded checkmark literal.
 10. Missing-role admin-style menu and inconsistent branding remain.
@@ -257,5 +257,100 @@ Do not run `database update`, add/remove migrations, enable `DatabaseInitializat
   - `dotnet build TMS.sln`: 0 errors.
   - `TMS.IA.RuntimeChecks`: **65/65 passed (100% success)**.
   - `TMS.Web`: Running live on `http://localhost:5022`.
+
+## AI Question Bank, Paper Generator & Automated UGC Grading Engine (Added 2026-10-19)
+
+### Architecture & Components
+- **Services & Dependency Injection (`TMS.Web/Program.cs`)**:
+  - `ISuggestedQuestionService` & `GeminiSuggestedQuestionService`: Google Gemini REST integration for curriculum-aligned question generation, option generation, and real-time single-question regeneration.
+  - `IAutomatedResultService` & `AutomatedResultService`: Automated evaluation processing engine supporting UGC 10-point grading, grace marks distribution, and compartmental exam generation.
+- **Entities & Schema (`TMS.Models/` & `TMS.Repository/ApplicationDBContext.cs`)**:
+  - `QuestionBank`: Extended with `SemesterId`, `SubjectId`, `UnitId`, `TopicId`, `LearningOutcome`, `NormalizedText`, `NegativeMarks`, `CorrectAnswer`, and `Status`.
+  - `QuestionPaper`: Formal exam paper entity storing title, code, course, semester, subject, faculty, total marks, pass marks, duration minutes, instructions, and status (`Draft`, `Published`).
+  - `QuestionPaperQuestion`: Junction entity mapping `QuestionPaper` to `QuestionBank` with `SectionName` (e.g., Section A, Section B), `QuestionOrder`, and `MarksAllocated`.
+  - `InstitutionalGradingPolicy`: Stores grading scheme rules (UGC 10-point scale, percentage cutoffs, letter grades `O` through `F`, grade points `10.0` through `0.0`, and max allowable grace marks).
+  - `ProcessedAssessmentResult`: Persists evaluated student assessment records with raw marks, percentage, UGC letter grade, grade points, grace marks awarded, attempt number, compartmental status, and publication flags.
+  - `InternalAssessment`: Added `IsCompartmental` (BIT), `AttemptNumber` (INT DEFAULT 1), and `OriginalAssessmentId` self-referential foreign key.
+- **DTOs / ViewModels (`TMS.ViewModels/Academics/`)**:
+  - `QuestionBankViewModels.cs`: `QuestionBankFilterViewModel`, `QuestionBankItemViewModel`, `SuggestedQuestionRequestViewModel`, `SuggestedQuestionItemViewModel`, `SaveSuggestedQuestionsRequestViewModel`, `QuestionPaperCreateViewModel`, `QuestionPaperItemViewModel`.
+  - `ResultProcessingViewModels.cs`: `CalculateResultsRequestDto`, `PublishProcessedResultsRequestDto`, `ResultCalculationSummaryDto`, `StudentProcessedResultDto`, `CompartmentalAssessmentCreateDto`, `InstitutionalGradingPolicyViewModel`.
+
+### Core Capabilities Delivered
+
+#### 1. Gemini AI Suggested Question Generator
+- **Curriculum-Grounded Prompts**: Prompts are contextualized by Course, Semester, Subject, Unit/Module, Topic, Bloom's Taxonomy level (Remember, Understand, Apply, Analyze, Evaluate, Create), and Difficulty (Easy, Medium, Hard).
+- **Interactive Review & Batch Saving**: Faculty can review AI generated questions, inspect suggested options, edit question text, and save in bulk directly to the institutional `QuestionBank`.
+- **In-Place Question Regeneration**: `RegenerateQuestion` allows faculty to replace a single unsatisfactory question in real time while preserving the rest of the generated batch.
+
+#### 2. Question Bank Hierarchy, Duplicate Detection & Analytics
+- **Curriculum Mapping**: Every question maps to Course -> Semester -> Subject -> Unit -> Topic.
+- **Duplicate Question Detection**: `CheckDuplicateQuestion` normalizes question text (case folding, punctuation stripping, whitespace condensing) and checks for duplicates within the target topic/subject to avoid clutter.
+- **Question Bank Intelligence**: `GetQuestionBankAnalytics` aggregates questions by difficulty, Bloom's taxonomy distribution, and question type (`MCQ`, `Short Answer`, `Long Answer`).
+
+#### 3. Formal Examination Paper Generator & Print Center
+- **Section-Based Paper Builder**: Faculty can assemble formal papers with configurable sections (Section A: MCQs, Section B: Short Notes, Section C: Long Problems), allocating custom marks per question.
+- **Institutional Hardcopy Print View**: Formatted with print-specific CSS (`@media print`) generating clean, standardized exam papers containing college header, instructions, student roll number blanks, duration, and maximum marks.
+- **Lifecycle Management**: Supports drafting, editing, previewing, and publishing question papers.
+
+#### 4. Automated Result Calculation & UGC 10-Point Grading Engine
+- **UGC Standard 10-Point Scale**: Implemented statutory grading bands:
+  - `O` (Outstanding): ≥ 90% (Grade Point: 10.0)
+  - `A+` (Excellent): 80% – 89.99% (Grade Point: 9.0)
+  - `A` (Very Good): 70% – 79.99% (Grade Point: 8.0)
+  - `B+` (Good): 60% – 69.99% (Grade Point: 7.0)
+  - `B` (Above Average): 50% – 59.99% (Grade Point: 6.0)
+  - `C` (Average): 40% – 49.99% (Grade Point: 5.0)
+  - `P` (Pass): 33% / 40% based on policy (Grade Point: 4.0)
+  - `F` (Fail): Below passing mark (Grade Point: 0.0)
+- **Grace Marks Engine**: Automatically identifies borderline failing students within the configured maximum grace mark threshold (e.g., 1–5 marks) and applies discretionary grace marks with audit logging.
+- **Guarded Publication Policy**: Results cannot be prematurely published unless all active enrolled students have submitted, or the scheduled deadline has fully elapsed.
+
+#### 5. Compartmental Examination Workflow
+- **Failed Candidate Roster**: `GetCompartmentEligibleStudents` identifies students with `Outcome == "FAIL"` or grade `F`.
+- **Automated Re-Assessment Creation**: `CreateCompartmentalAssessment` clones the assessment as a supplementary exam with `IsCompartmental = true`, increments `AttemptNumber = 2`, links `OriginalAssessmentId`, and restricts eligibility to compartmental candidates.
+
+#### 6. Student Grade Card & Preview Upgrades
+- `InternalGradeCardController.cs`, `Preview.cshtml`, and `SemesterPreview.cshtml` now render processed letter grades, grade points, overall percentage, and compartmental attempt badges (`Attempt #2`).
+
+#### 7. Assessment Center UI & Accessibility Contrast Fixes
+- `Quiz/Index.cshtml` overhauled with hero statistics counters, modern tab navigation (*Question Bank*, *Suggested Questions*, *Create Question Paper*, *Active Course Quizzes*), and global CSS overrides ensuring select dropdowns, inputs, and options have high contrast and readability.
+
+#### 8. Database & Cloud Resiliency
+- Configured resilient Azure SQL Server connection provider and retry execution strategies in `appsettings.json` and startup (`bb2c95f`).
+- `DatabaseInitializer.cs` updated to seed default institutional grading policies and sample question bank taxonomy items.
+
+---
+
+## Real Browser E2E Testing & Button Functional Fixes (Completed 2026-10-21)
+
+### Features In-Scope
+- **Feature 25: AI Question Paper Generator** (1-Click Blueprint Auto-Assembly, Add from Bank, Preview, Save Draft, Publish, PDF Export/Print)
+- **Feature 26: Question Bank Intelligence** (Analytics, Reset Filters, Add Question Form, Bulk CSV Import, AI Auto-Tag, Use Selected (0) Dynamic Counter)
+- **Feature 29: AI Descriptive Answer Evaluation** (Evaluate AI, Evaluate All AI, Rubric Saving, 50% Conceptual Threshold, Faculty Override)
+- **Feature 36: Automated Result Processing** (UGC CBCS 10-Point Grading, Grace Marks Engine, Compartmental Exam Scheduling, Result Publishing Guard, Student Grade Card)
+*(Note: Feature 31 strictly excluded from this phase).*
+
+### Key Bugs Resolved
+1. **Database Schema Persistence (Feature 25)**:
+   - Added DDL nullable columns `DurationMinutes INT NULL` and `Instructions NVARCHAR(MAX) NULL` to table `QuestionPaper`, and `SectionName NVARCHAR(100) NULL` and `SectionInstructions NVARCHAR(MAX) NULL` to table `QuestionPaperQuestion`.
+   - Removed `[NotMapped]` from `QuestionPaper.cs` and `QuestionPaperQuestion.cs`, added migration/bootstrapping guards in `DatabaseInitializer.cs`. Paper durations, instructions, and section metadata now persist 100% to SQL Server.
+2. **Tab Navigation Selector Mismatch (Features 25 & 26)**:
+   - Fixed `Index.cshtml` tab switcher which previously targeted `#tab-papers-link` (plural) instead of the actual DOM ID `#tab-paper-link` (singular), preventing silent navigation failures.
+3. **Modal Course & Subject Dropdown Populators (Feature 26)**:
+   - Fixed Bulk Import and AI Auto-Tag modals which were reading from non-existent DOM IDs `#filterCourse` / `#filterSubject` instead of `#bankCourseFilter` / `#bankSubjectFilter`.
+4. **"Use Selected (0)" Button & Dynamic Counter (Feature 26)**:
+   - Wired up click event and change listener for `#btnCreatePaperWithSelected`. Button is disabled when 0 questions are checked, dynamically updates counter (`0` -> `N`), enables upon selection, accumulates question items into paper builder, and navigates to the builder tab without duplicate entries.
+5. **Blueprint Auto-Assembly DTO Validation (Feature 25)**:
+   - Relaxed overly strict `[Required] int SubjectId` in `AutoAssemblePaperRequestDto` to `int? SubjectId` to match database schema where `SubjectId` is optional for course-level papers.
+   - Refined `AutoAssemblePaperFromBlueprint` in `QuizController.cs` to match questions gracefully when Bloom's taxonomy LearningOutcome is untagged.
+6. **Evaluation Controller Null Reference (Feature 29)**:
+   - Added null guards in `FacultyExamController.EvaluateAttempt` to avoid 500 NRE when `attempt.Exam` is null or faculty is unassigned.
+
+### Verification Status
+- `dotnet build TMS/TMS.sln`: **0 Errors, 0 Warnings** (excluding third-party package advisories).
+- Automated Chrome E2E Suite (`scratch/run_full_browser_e2e.js`): All 16 action points across Admin, Faculty, and Student portals verified passing in real browser execution.
+- Documentation: Detailed test results recorded in [FEATURE_FUNCTIONAL_TEST_REPORT.md](file:///e:/LMS/FEATURE_FUNCTIONAL_TEST_REPORT.md).
+
+
 
 

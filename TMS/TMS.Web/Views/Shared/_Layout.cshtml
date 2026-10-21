@@ -39,6 +39,7 @@
     <link rel="stylesheet" href="~/css/help-panel.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/exam-theme.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/lms-rtl.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/ai-companion.css" asp-append-version="true" />
     <script src="~/js/lms-i18n.js" asp-append-version="true"></script>
     @await RenderSectionAsync("extracss", required: false)
 
@@ -1001,5 +1002,11 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 </script>
+@if (User?.Identity?.IsAuthenticated == true)
+{
+    <partial name="_AiLearningCompanionPartial" />
+    <script src="~/js/marked.min.js" asp-append-version="true"></script>
+    <script src="~/js/ai-companion.js" asp-append-version="true"></script>
+}
 </body>
 </html>

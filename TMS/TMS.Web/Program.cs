@@ -43,6 +43,10 @@ builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddExpressiveAnnotations();
 builder.Services.AddSession();
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "RequestVerificationToken";
+});
 
 //Additional dependencies
 builder.Services.AddRepositoryDependencies();
@@ -56,11 +60,27 @@ builder.Services.AddScoped<TMS.Web.Services.IViewRenderService, TMS.Web.Services
 builder.Services.AddSingleton<TMS.Web.Services.IWebHostEnvironmentAccessor, TMS.Web.Services.WebHostEnvironmentAccessor>();
 builder.Services.AddScoped<TMS.Web.Services.IInteractivePPTService, TMS.Web.Services.InteractivePPTService>();
 builder.Services.AddScoped<TMS.Web.Services.IStudentLearningService, TMS.Web.Services.StudentLearningService>();
+builder.Services.AddScoped<TMS.Web.Services.IAcademicRecordsService, TMS.Web.Services.DbAcademicRecordsService>();
+builder.Services.AddScoped<TMS.Web.Services.IDocumentProcessingService, TMS.Web.Services.DocumentProcessingService>();
+builder.Services.AddScoped<TMS.Web.Services.IDocumentIndexService, TMS.Web.Services.DocumentIndexService>();
+builder.Services.AddScoped<TMS.Web.Services.ILearningAssistantCacheService, TMS.Web.Services.LearningAssistantCacheService>();
 builder.Services.AddHttpClient<TMS.Web.Services.IAiEvaluationService, TMS.Web.Services.GeminiAiEvaluationService>(client =>
 {
     var timeoutSeconds = builder.Configuration.GetValue<int>("Gemini:TimeoutSeconds", 45);
     client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
 });
+builder.Services.AddHttpClient<TMS.Web.Services.ILearningAssistantService, TMS.Web.Services.GeminiLearningAssistantService>(client =>
+{
+    var timeoutSeconds = builder.Configuration.GetValue<int>("Gemini:TimeoutSeconds", 45);
+    client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+});
+builder.Services.AddHttpClient<TMS.Web.Services.ISuggestedQuestionService, TMS.Web.Services.GeminiSuggestedQuestionService>(client =>
+{
+    var timeoutSeconds = builder.Configuration.GetValue<int>("Gemini:TimeoutSeconds", 45);
+    client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+});
+
+builder.Services.AddScoped<TMS.Web.Services.IAutomatedResultService, TMS.Web.Services.AutomatedResultService>();
 
 
 // Reverse-proxy / ngrok: honor X-Forwarded-Proto, X-Forwarded-Host so Request.Scheme and Request.Host

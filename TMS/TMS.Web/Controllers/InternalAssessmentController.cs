@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using TMS.Models.Academics;
 using TMS.Repository;
 using TMS.Web.Services;
+using TMS.ViewModels.Academics;
 
 namespace TMS.Web.Controllers;
 
@@ -21,9 +22,15 @@ public class InternalAssessmentController : BaseController
     private readonly ApplicationDBContext db;
     private readonly IWebHostEnvironment environment;
     private readonly IAiEvaluationService aiService;
+    private readonly IAutomatedResultService _resultService;
     private static readonly string[] Types = { "Assignment", "Written", "Practical", "Project", "Presentation", "Viva", "MCQ" };
-    public InternalAssessmentController(ApplicationDBContext db, IWebHostEnvironment environment, IAiEvaluationService aiService)
-    { this.db = db; this.environment = environment; this.aiService = aiService; }
+    public InternalAssessmentController(ApplicationDBContext db, IWebHostEnvironment environment, IAiEvaluationService aiService, IAutomatedResultService resultService)
+    { 
+        this.db = db; 
+        this.environment = environment; 
+        this.aiService = aiService; 
+        this._resultService = resultService;
+    }
 
     private IActionResult IaNotice(string action, string message, string kind = "warning", object? route = null)
     {
@@ -240,10 +247,192 @@ public class InternalAssessmentController : BaseController
         // Faculty publishes directly; no administrator approval is required.
         a.ResultApprovalRequested = false;
         a.ResultApproved = false;
-        a.ResultApprovedBy = null;
-        a.ResultApprovedOn = null;
+        a.ResultApprovedBy = publish ? GetUserId() : null;
+        a.ResultApprovedOn = publish ? DateTime.UtcNow : null;
         await db.SaveChangesAsync();
+
+        // Sync with ProcessedAssessmentResults table
+        try
+        {
+            await _resultService.PublishAssessmentResultsAsync(id, GetUserId(), publish);
+        }
+        catch { /* Processed results may not have been calculated yet; preserve standard flow */ }
+
         return IaNotice(nameof(Submissions), publish ? "Results published. Students can now view their marks." : "Results hidden from students.", "success", new { id });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> CalculateResults([FromBody] CalculateResultsRequestDto? dto, [FromForm] int? assessmentId, [FromForm] int? policyId)
+    {
+        if (!Staff) return Forbid();
+        var targetId = dto?.AssessmentId ?? assessmentId ?? 0;
+        var targetPolicyId = dto?.PolicyId ?? policyId;
+        if (targetId <= 0)
+            return Json(new { success = false, message = "Invalid assessment." });
+
+        var a = await db.InternalAssessments.FindAsync(targetId);
+        if (a == null || a.IsDeleted) return Json(new { success = false, message = "Assessment not found." });
+        if (!await CanManage(a) || !await CanTeach(a.CourseId)) return Json(new { success = false, message = "Unauthorized access." });
+
+        try
+        {
+            var summary = await _resultService.CalculateAssessmentResultsAsync(targetId, GetUserId(), targetPolicyId);
+            return Json(new { success = true, summary, message = "Automated assessment results calculated successfully according to institutional grading policy." });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetCalculatedResults(int assessmentId)
+    {
+        if (!Staff) return Forbid();
+        var a = await db.InternalAssessments.FindAsync(assessmentId);
+        if (a == null || a.IsDeleted) return Json(new { success = false, message = "Assessment not found." });
+        if (!await CanManage(a) || !await CanTeach(a.CourseId)) return Json(new { success = false, message = "Unauthorized access." });
+
+        try
+        {
+            var summary = await _resultService.GetAssessmentResultsAsync(assessmentId);
+            return Json(new { success = true, summary });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> PublishProcessedResults([FromBody] PublishProcessedResultsRequestDto? dto, [FromForm] int? assessmentId, [FromForm] bool? publish)
+    {
+        if (!Staff) return Forbid();
+        var targetId = dto?.AssessmentId ?? assessmentId ?? 0;
+        var targetPublish = dto?.Publish ?? publish ?? true;
+        if (targetId <= 0)
+            return Json(new { success = false, message = "Invalid assessment parameter." });
+
+        var a = await db.InternalAssessments.FindAsync(targetId);
+        if (a == null || a.IsDeleted) return Json(new { success = false, message = "Assessment not found." });
+        if (!await CanManage(a) || !await CanTeach(a.CourseId)) return Json(new { success = false, message = "Unauthorized access." });
+
+        if (targetPublish)
+        {
+            var validation = await ValidateResultsReady(a);
+            if (validation != null)
+                return Json(new { success = false, message = validation });
+        }
+
+        a.ResultsPublished = targetPublish;
+        a.ResultApprovalRequested = false;
+        a.ResultApproved = false;
+        a.ResultApprovedBy = targetPublish ? GetUserId() : null;
+        a.ResultApprovedOn = targetPublish ? DateTime.UtcNow : null;
+        await db.SaveChangesAsync();
+
+        await _resultService.PublishAssessmentResultsAsync(targetId, GetUserId(), targetPublish);
+
+        return Json(new
+        {
+            success = true,
+            isPublished = targetPublish,
+            message = targetPublish ? "Results published successfully to student grade cards." : "Results hidden from students."
+        });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ApplyAuthorizedGraceMarks([FromBody] ApplyGraceMarksRequestDto? dto)
+    {
+        if (!Staff) return Forbid();
+        if (dto == null || dto.ResultId <= 0 || dto.GraceMarks <= 0 || string.IsNullOrWhiteSpace(dto.ApprovalReason))
+            return Json(new { success = false, message = "Valid Result ID, positive grace marks, and approval reason are required." });
+
+        var res = await db.ProcessedAssessmentResults.FindAsync(dto.ResultId);
+        if (res == null) return Json(new { success = false, message = "Assessment result record not found." });
+
+        if (res.AssessmentId.HasValue)
+        {
+            var a = await db.InternalAssessments.FindAsync(res.AssessmentId.Value);
+            if (a == null || !await CanManage(a) || !await CanTeach(a.CourseId))
+                return Json(new { success = false, message = "Unauthorized access to award grace marks for this assessment." });
+        }
+
+        var success = await _resultService.ApplyAuthorizedGraceMarksAsync(dto.ResultId, dto.GraceMarks, dto.ApprovalReason, GetUserId());
+        return Json(new
+        {
+            success,
+            message = success ? "Grace marks awarded and audited successfully." : "Failed to apply grace marks."
+        });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> CalculateExamResults([FromBody] CalculateExamResultsRequestDto? dto)
+    {
+        if (!Staff) return Forbid();
+        if (dto == null || dto.ExamId <= 0)
+            return Json(new { success = false, message = "Valid Exam ID is required." });
+
+        var exam = await db.ExamMasters.FindAsync(dto.ExamId);
+        if (exam == null) return Json(new { success = false, message = "Exam not found." });
+        if (!await CanTeach(exam.CourseId)) return Json(new { success = false, message = "Unauthorized access." });
+
+        try
+        {
+            var summary = await _resultService.CalculateExamMasterResultsAsync(dto.ExamId, GetUserId(), dto.PolicyId);
+            return Json(new
+            {
+                success = true,
+                summary,
+                message = "Formal examination results successfully processed and mapped to UGC CBCS institutional grade ledger."
+            });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetCompartmentEligibleStudents(int assessmentId)
+    {
+        if (!Staff) return Forbid();
+        var a = await db.InternalAssessments.FindAsync(assessmentId);
+        if (a == null || a.IsDeleted) return Json(new { success = false, message = "Assessment not found." });
+        if (!await CanManage(a) || !await CanTeach(a.CourseId)) return Json(new { success = false, message = "Unauthorized access." });
+
+        var list = await _resultService.GetEligibleCompartmentalStudentsAsync(assessmentId);
+        return Json(new { success = true, students = list });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateCompartmentalAssessment([FromBody] CompartmentalAssessmentCreateDto? dto, [FromForm] int? originalAssessmentId, [FromForm] string? title, [FromForm] DateTime? dueDate, [FromForm] bool? allowLateSubmission)
+    {
+        if (!Staff) return Forbid();
+        var targetOriginalId = dto?.OriginalAssessmentId ?? originalAssessmentId ?? 0;
+        if (targetOriginalId <= 0)
+            return Json(new { success = false, message = "Invalid compartmental assessment parameters." });
+
+        var a = await db.InternalAssessments.FindAsync(targetOriginalId);
+        if (a == null || a.IsDeleted) return Json(new { success = false, message = "Original assessment not found." });
+        if (!await CanManage(a) || !await CanTeach(a.CourseId)) return Json(new { success = false, message = "Unauthorized access." });
+
+        try
+        {
+            var createDto = dto ?? new CompartmentalAssessmentCreateDto
+            {
+                OriginalAssessmentId = targetOriginalId,
+                Title = title ?? $"{a.Title} (Compartmental)",
+                DueDate = dueDate ?? DateTime.Now.AddDays(7),
+                AllowLateSubmission = allowLateSubmission ?? false
+            };
+            var compId = await _resultService.CreateCompartmentalAssessmentAsync(createDto, GetUserId());
+            return Json(new { success = true, assessmentId = compId, message = "Compartmental assessment created successfully." });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { success = false, message = ex.Message });
+        }
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -323,6 +512,14 @@ public class InternalAssessmentController : BaseController
         ViewBag.EnrolledStudents = roster.ToDictionary(u => u.Id, u => u.Name);
         ViewBag.StudentNames=await db.UserMasters.Where(u=>userIds.Contains(u.Id)).ToDictionaryAsync(u=>u.Id,u=>u.Name);
         ViewBag.IsAdmin = Admin;
+
+        try
+        {
+            ViewBag.ResultSummary = await _resultService.GetAssessmentResultsAsync(id);
+            ViewBag.ActivePolicy = await _resultService.GetActiveGradingPolicyAsync();
+        }
+        catch { }
+
         return View(items);
     }
 
