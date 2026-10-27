@@ -140,6 +140,7 @@ Desktop.ini
 /publish/
 /publish_lms/
 /publish_framework_win64/
+/LMS_VM_Deploy/
 /edudigi_publish.zip
 /.runtime/
 **/DataProtection-Keys/
