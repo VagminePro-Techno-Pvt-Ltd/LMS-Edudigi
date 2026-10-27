@@ -253,6 +253,11 @@ window.openFilePreview = function(filePath, title, materialId, matType) {
     _ytVideoId = "";
     if (_ytPlayer) { try { _ytPlayer.destroy(); } catch(e){} _ytPlayer = null; }
 
+    // Auto mark reading material / PDF as viewed
+    if (materialId > 0 && matType !== 'video' && matType !== 'videourl' && FPM_VIDEOS.indexOf(ext) === -1 && filePath.indexOf('youtu') === -1 && filePath.indexOf('vimeo') === -1) {
+        fetch('/StudentCourseContent/MarkMaterialViewed?materialId=' + materialId, { method: 'POST' }).catch(function(){});
+    }
+
     // ── YouTube
     if (filePath.indexOf('youtu') >= 0) {
         var m = filePath.match(/(?:v=|youtu\.be\/)([0-9A-Za-z_-]{11})/);

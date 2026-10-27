@@ -1,23 +1,29 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TMS.Repository.Managers;
 using TMS.ViewModels.Academics;
 using TMS.ViewModels.Masters;
+using TMS.Web.Services;
 
 namespace TMS.Web.Controllers
 {
     [ApiController]
+    [Authorize]
     [Route("api/video-progress")]
     public class VideoProgressApiController : BaseController
     {
         private readonly IMasterBaseManager<VideoProgressViewModel> _progressManager;
         private readonly IMasterBaseManager<LectureMaterialViewModel> _materialManager;
+        private readonly IStudentLearningService _learningService;
 
         public VideoProgressApiController(
             IMasterBaseManager<VideoProgressViewModel> progressManager,
-            IMasterBaseManager<LectureMaterialViewModel> materialManager)
+            IMasterBaseManager<LectureMaterialViewModel> materialManager,
+            IStudentLearningService learningService)
         {
             _progressManager = progressManager;
             _materialManager = materialManager;
+            _learningService = learningService;
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -41,6 +47,14 @@ namespace TMS.Web.Controllers
                 if (material == null)
                 {
                     return NotFound(new { success = false, message = "Material not found." });
+                }
+
+                bool isStaff = User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("Faculty") || User.IsInRole("Exam Coordinator");
+                if (!isStaff)
+                {
+                    bool enrolled = await _learningService.IsStudentEnrolledInMaterialAsync(studentId, request.MaterialId);
+                    if (!enrolled)
+                        return StatusCode(403, new { success = false, message = "Access denied. Not enrolled in this course." });
                 }
 
                 // Get existing progress
@@ -116,6 +130,14 @@ namespace TMS.Web.Controllers
             try
             {
                 int studentId = GetUserId();
+
+                bool isStaff = User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("Faculty") || User.IsInRole("Exam Coordinator");
+                if (!isStaff)
+                {
+                    bool enrolled = await _learningService.IsStudentEnrolledInMaterialAsync(studentId, materialId);
+                    if (!enrolled)
+                        return StatusCode(403, new { success = false, message = "Access denied. Not enrolled in this course." });
+                }
 
                 var progress = await _progressManager.GetAsync(
                     predicate: p => p.StudentId == studentId && p.VideoId == materialId && p.IsActive

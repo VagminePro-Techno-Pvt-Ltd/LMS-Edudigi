@@ -373,9 +373,11 @@ namespace TMS.Repository.Managers.Implementations.Masters
                         {
                             Name = row.Name ?? row.Email.Split('@')[0],
                             Email = row.Email.Trim(),
-                            ContactNo = int.TryParse(row.ContactNo, out int cno) ? cno : null,
+                            ContactNo = string.IsNullOrWhiteSpace(row.ContactNo) ? null : row.ContactNo.Trim(),
                             RoleId = studentRole.Id,
-                            Password = "Welcome@123", // Default Password
+                            Password = SecurityUtility.HashPassword(Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))),
+                            ForcePasswordChange = true,
+                            PasswordLastChanged = DateTime.Now,
                             IsActive = true,
                             CreatedOn = DateTime.Now,
                             CreatedBy = userId

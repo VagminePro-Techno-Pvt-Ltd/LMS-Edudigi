@@ -53,7 +53,7 @@ namespace TMS.Web.Controllers
                 return View(model);
             }
 
-            var user = await _manager.Login(model!.Email!, model.Password);
+            var user = await _manager.Login(model!.Email!.Trim(), model.Password);
             if (user == null || string.IsNullOrWhiteSpace(user.Email))
             {
                 ModelState.AddModelError(nameof(LoginViewModel.Password), "Invalid credentials");
@@ -285,7 +285,7 @@ namespace TMS.Web.Controllers
                 return RedirectToAction("ForgotPasswordFlow", new { step = 3, email });
             }
 
-            user.Password = EncriptorUtility.Encrypt(newPassword);
+            user.Password = newPassword;
             bool status = await _manager.UpdatePassword(user);
             if (!status)
             {

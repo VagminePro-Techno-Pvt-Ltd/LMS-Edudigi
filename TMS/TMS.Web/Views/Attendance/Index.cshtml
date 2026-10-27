@@ -102,48 +102,51 @@
                     }
                     @foreach (var item in Model)
                     {
-                        <tr>
+                        <tr class="attendance-row">
                             <td class="ps-4">
                                 <div class="d-flex align-items-center">
-                                    <div class="rounded-circle bg-light p-2 me-2 text-center" style="width: 35px;">
-                                        <i class="fa-solid fa-user text-muted small"></i>
+                                    <div class="rounded-circle bg-light p-2 me-2 text-center" style="width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fa-solid fa-user text-primary small"></i>
                                     </div>
                                     <div>
-                                        <div class="fw-bold">@item.StudentName</div>
-                                        <div class="text-muted small">ID: #@item.StudentId</div>
+                                        <div class="fw-bold text-dark student-name">@item.StudentName</div>
+                                        <div class="text-muted small">ID: #@item.StudentId • @(item.Student?.Email ?? item.Student?.Name ?? "Student")</div>
                                     </div>
                                 </div>
                             </td>
                             <td>
                                 @if (item.LoginTime.HasValue)
                                 {
-                                    <span class="text-muted">@item.LoginTime.Value.ToString("hh:mm tt")</span>
+                                    <span class="badge bg-light text-dark border px-2 py-1"><i class="fa-regular fa-clock me-1 text-primary"></i>@item.LoginTime.Value.ToString("hh:mm tt")</span>
                                 }
                                 else
                                 {
-                                    <span class="text-muted">—</span>
+                                    <span class="text-muted small">—</span>
                                 }
                             </td>
                             <td>
                                 @switch (item.AttendanceStatus)
                                 {
                                     case 1:
-                                        <span class="badge bg-light-success text-success px-3 py-2 rounded-pill">Present</span>
+                                        <span class="badge bg-light-success text-success px-3 py-2 rounded-pill"><i class="fa-solid fa-circle-check me-1"></i>Present</span>
                                         break;
                                     case 2:
-                                        <span class="badge bg-light-warning text-warning px-3 py-2 rounded-pill">Late</span>
+                                        <span class="badge bg-light-warning text-warning px-3 py-2 rounded-pill"><i class="fa-solid fa-clock me-1"></i>Late</span>
+                                        break;
+                                    case 3:
+                                        <span class="badge bg-light-info text-info px-3 py-2 rounded-pill"><i class="fa-solid fa-file-lines me-1"></i>Excused</span>
                                         break;
                                     default:
-                                        <span class="badge bg-light-danger text-danger px-3 py-2 rounded-pill">Absent</span>
+                                        <span class="badge bg-light-danger text-danger px-3 py-2 rounded-pill"><i class="fa-solid fa-circle-xmark me-1"></i>Absent</span>
                                         break;
                                 }
                             </td>
-                            <td class="text-muted small text-truncate" style="max-width: 200px;">
+                            <td class="text-muted small text-truncate" style="max-width: 220px;">
                                 @(item.Remarks ?? "No remarks")
                             </td>
                             <td class="text-end pe-4">
-                                <button class="btn btn-light btn-sm rounded-3 px-3" onclick="openOverrideModal(@item.Id, '@item.StudentName', @item.AttendanceStatus)">
-                                    <i class="fa-solid fa-pen-to-square"></i> Override
+                                <button type="button" class="btn btn-outline-primary btn-sm rounded-3 px-3" onclick="openOverrideModal(@item.Id, @item.StudentId, '@item.StudentName.Replace("'", "\\'") ', @item.AttendanceStatus)">
+                                    <i class="fa-solid fa-pen-to-square me-1"></i> Update
                                 </button>
                             </td>
                         </tr>
@@ -159,33 +162,36 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg rounded-4">
             <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-bold">Override Attendance</h5>
+                <h5 class="modal-title fw-bold"><i class="fa-solid fa-user-pen me-2 text-primary"></i>Update Attendance Status</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="overrideForm">
                 <div class="modal-body py-4">
                     <input type="hidden" id="overrideId" name="id" />
+                    <input type="hidden" id="overrideStudentId" name="studentId" />
+                    <input type="hidden" id="overrideDate" name="date" value="@selectedDate.ToString("yyyy-MM-dd")" />
+
                     <div class="mb-3">
                         <label class="form-label small fw-bold text-muted">Student Name</label>
-                        <input type="text" id="overrideName" class="form-control bg-light border-0" readonly />
+                        <input type="text" id="overrideName" class="form-control bg-light border-0 fw-semibold" readonly />
                     </div>
                     <div class="mb-3">
-                        <label class="form-label small fw-bold text-muted">Status</label>
-                        <select id="overrideStatus" name="status" class="form-select border-0 bg-light">
-                            <option value="1">Present</option>
+                        <label class="form-label small fw-bold text-muted">Attendance Status</label>
+                        <select id="overrideStatus" name="status" class="form-select border bg-light">
+                            <option value="1">Present (Logged In / Attended)</option>
                             <option value="0">Absent</option>
                             <option value="2">Late</option>
                             <option value="3">Excused</option>
                         </select>
                     </div>
                     <div class="mb-0">
-                        <label class="form-label small fw-bold text-muted">Remarks</label>
-                        <textarea id="overrideRemarks" name="remarks" class="form-control border-0 bg-light" rows="3" placeholder="Reason for override..."></textarea>
+                        <label class="form-label small fw-bold text-muted">Remarks / Reason</label>
+                        <textarea id="overrideRemarks" name="remarks" class="form-control border bg-light" rows="3" placeholder="Add remarks or reason for update..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-light rounded-3 px-4" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary rounded-3 px-4">Save Changes</button>
+                    <button type="submit" class="btn btn-primary rounded-3 px-4"><i class="fa-solid fa-check me-1"></i> Save Changes</button>
                 </div>
             </form>
         </div>
@@ -197,18 +203,27 @@
     .bg-light-success { background-color: #f0fdf4; }
     .bg-light-danger { background-color: #fef2f2; }
     .bg-light-warning { background-color: #fffbeb; }
+    .bg-light-info { background-color: #f0f9ff; }
     .rounded-4 { border-radius: 1rem !important; }
     .italic { font-style: italic; }
 </style>
 
 @section Scripts {
     <script>
-        function openOverrideModal(id, name, status) {
+        function openOverrideModal(id, studentId, name, status) {
             $('#overrideId').val(id);
+            $('#overrideStudentId').val(studentId);
             $('#overrideName').val(name);
             $('#overrideStatus').val(status);
             $('#overrideRemarks').val('');
-            $('#overrideModal').modal('show');
+
+            var modalElem = document.getElementById('overrideModal');
+            if (window.bootstrap && bootstrap.Modal) {
+                var modal = bootstrap.Modal.getInstance(modalElem) || new bootstrap.Modal(modalElem);
+                modal.show();
+            } else {
+                $('#overrideModal').modal('show');
+            }
         }
 
         $('#overrideForm').on('submit', function(e) {

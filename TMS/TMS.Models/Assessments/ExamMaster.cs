@@ -58,6 +58,15 @@ namespace TMS.Models.Assessments
         [StringLength(50)]
         public string Status { get; set; } = "Draft"; // Draft, Active, Archived
 
+        // ─── Phase 3 Proctoring Configuration (Default OFF) ───
+        public bool IsProctored { get; set; } = false;
+        public bool RequireCamera { get; set; } = false;
+        public bool TrackTabSwitches { get; set; } = true;
+        public bool RequireFullScreen { get; set; } = false;
+        public int MaxAllowedViolations { get; set; } = 5;
+        public int RetentionDays { get; set; } = 90;
+        public bool EnableAiFaceCheck { get; set; } = false;
+
         public virtual ICollection<ExamSection> Sections { get; set; } = new List<ExamSection>();
         public virtual ICollection<ExamQuestionMap> QuestionMaps { get; set; } = new List<ExamQuestionMap>();
         public virtual ICollection<ExamAssignment> Assignments { get; set; } = new List<ExamAssignment>();

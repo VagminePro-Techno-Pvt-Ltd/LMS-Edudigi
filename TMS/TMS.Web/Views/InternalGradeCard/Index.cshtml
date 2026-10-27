@@ -1,0 +1,248 @@
+
+@model List<TMS.Web.ViewModels.InternalGradeCardListItem>
+
+@{
+    ViewData["Title"] = "Internal Assessment Grade Cards";
+
+    var isAdmin =
+        User.IsInRole("Admin") ||
+        User.IsInRole("Super Admin") ||
+        User.IsInRole("super admin") ||
+        User.IsInRole("Management");
+
+    var isStudent = User.IsInRole("Student");
+}
+
+<style>
+    .igc-page {
+        padding: 24px;
+        max-width: 1500px;
+        margin: 0 auto;
+        color: #102b49;
+    }
+
+    .igc-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 24px;
+    }
+
+    .igc-header h2 {
+        font-size: 26px;
+        font-weight: 750;
+        margin: 0;
+    }
+
+    .igc-header p {
+        color: #70839b;
+        margin: 5px 0 0;
+    }
+
+    .igc-card {
+        background: #fff;
+        border: 1px solid #dce6f6;
+        border-radius: 16px;
+        padding: 22px;
+        box-shadow: 0 6px 20px rgba(20, 45, 90, .04);
+    }
+
+    .igc-summary {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        margin-bottom: 22px;
+    }
+
+    .igc-summary strong {
+        display: block;
+        font-size: 30px;
+        margin-top: 8px;
+    }
+
+    .igc-summary span {
+        color: #61738b;
+        font-weight: 600;
+    }
+
+    .igc-table-wrap {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .igc-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 750px;
+    }
+
+    .igc-table th {
+        background: #f3f7ff;
+        color: #1551a4;
+        text-align: left;
+        padding: 14px;
+        font-size: 13px;
+    }
+
+    .igc-table td {
+        padding: 15px 14px;
+        border-bottom: 1px solid #e8eef7;
+        vertical-align: middle;
+    }
+
+    .igc-btn {
+        display: inline-block;
+        background: #1358b7;
+        color: white !important;
+        border-radius: 8px;
+        padding: 9px 15px;
+        font-weight: 600;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .igc-btn:hover {
+        background: #0d438d;
+    }
+
+    .igc-muted {
+        color: #71829b;
+        font-size: 13px;
+    }
+
+    .igc-empty {
+        text-align: center;
+        padding: 50px 15px;
+        color: #6d7f96;
+    }
+
+    @@media (max-width: 768px) {
+        .igc-page { padding: 12px; }
+        .igc-summary { grid-template-columns: 1fr; }
+        .igc-card { padding: 15px; }
+    }
+</style>
+
+@if (!isStudent || isAdmin)
+{
+    <div style="padding:12px 24px;text-align:right"><a asp-controller="InternalMarksEntry" asp-action="Index" class="igc-btn">Faculty Marks Entry</a></div>
+}
+<div class="igc-page">
+    <div class="igc-header">
+        <div>
+            <h2>Internal Assessment Grade Cards</h2>
+            <p>
+                View subject-wise or semester-wise published
+                Internal Assessment marks statements
+            </p>
+        </div>
+    </div>
+
+    <div class="igc-summary">
+        <div class="igc-card">
+            <span>Available Grade Cards</span>
+            <strong>@Model.Count</strong>
+        </div>
+
+        <div class="igc-card">
+            <span>Published Assessment Entries</span>
+            <strong>@Model.Sum(x => x.PublishedAssessments)</strong>
+        </div>
+
+        <div class="igc-card">
+            <span>Evaluated Entries</span>
+            <strong>@Model.Sum(x => x.EvaluatedAssessments)</strong>
+        </div>
+    </div>
+
+    <div class="igc-card">
+        <h4 style="margin:0 0 18px;font-weight:700">
+            @(isAdmin ? "All Student Grade Cards" :
+              isStudent ? "My Grade Cards" :
+              "Faculty Grade Cards")
+        </h4>
+
+        @if (Model.Count == 0)
+        {
+            <div class="igc-empty">
+                <h5>No published internal grade cards available</h5>
+                <p>
+                    Grade cards appear after faculty
+                    publishes internal assessment results.
+                </p>
+            </div>
+        }
+        else
+        {
+            <div class="igc-table-wrap">
+                <table class="igc-table">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Course</th>
+                            <th>Semester</th>
+                            <th>Published</th>
+                            <th>Evaluated</th>
+                            <th>Absent</th>
+                            <th>Pending</th>
+                            <th>Outcome</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            var complete =
+                                item.PublishedAssessments > 0 &&
+                                item.PublishedAssessments ==
+                                item.EvaluatedAssessments;
+
+                            <tr>
+                                <td>
+                                    <strong>@item.StudentName</strong>
+                                    <div class="igc-muted">
+                                        Student ID: @item.StudentId
+                                    </div>
+                                </td>
+                                <td>@item.CourseName</td>
+                                <td>
+                                    @(item.SemesterId.HasValue
+                                        ? $"Semester {item.SemesterId}"
+                                        : "Not assigned")
+                                </td>
+                                <td>@item.PublishedAssessments</td>
+                                <td>@item.EvaluatedAssessments</td>
+                                <td>@item.AbsentAssessments</td>
+                                <td>@item.PendingAssessments</td>
+                                <td>
+                                    <span class="badge @(item.ResultStatus == "PASS" ? "bg-success" : item.ResultStatus == "FAIL" ? "bg-danger" : "bg-warning text-dark")">@item.ResultStatus</span>
+                                </td>
+                                <td>
+                                    <a class="igc-btn"
+                                       asp-controller="InternalGradeCard"
+                                       asp-action="Preview"
+                                       asp-route-studentId="@item.StudentId"
+                                       asp-route-courseId="@item.CourseId">
+                                        Subject-wise
+                                    </a>
+                                    @if (item.SemesterId.HasValue)
+                                    {
+                                        <a class="igc-btn" style="margin-top:5px;background:#0f766e"
+                                           asp-controller="InternalGradeCard"
+                                           asp-action="SemesterPreview"
+                                           asp-route-studentId="@item.StudentId"
+                                           asp-route-semesterId="@item.SemesterId.Value">
+                                            Semester-wise
+                                        </a>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

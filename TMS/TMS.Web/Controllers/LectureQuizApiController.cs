@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TMS.Models.Academics;
 using TMS.Repository;
+using TMS.Web.Services;
 
 namespace TMS.Web.Controllers
 {
@@ -16,11 +17,16 @@ namespace TMS.Web.Controllers
     public class LectureQuizApiController : BaseController
     {
         private readonly ApplicationDBContext _db;
+        private readonly IStudentLearningService _learningService;
         private readonly ILogger<LectureQuizApiController> _logger;
 
-        public LectureQuizApiController(ApplicationDBContext db, ILogger<LectureQuizApiController> logger)
+        public LectureQuizApiController(
+            ApplicationDBContext db,
+            IStudentLearningService learningService,
+            ILogger<LectureQuizApiController> logger)
         {
-            _db     = db;
+            _db = db;
+            _learningService = learningService;
             _logger = logger;
         }
 
@@ -35,6 +41,14 @@ namespace TMS.Web.Controllers
             int studentId = GetUserId();
             if (studentId == 0)
                 return Json(new { success = false, message = "Not authenticated." });
+
+            bool isStaff = User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("Faculty") || User.IsInRole("Exam Coordinator");
+            if (!isStaff)
+            {
+                bool enrolled = await _learningService.IsStudentEnrolledInMaterialAsync(studentId, materialId);
+                if (!enrolled)
+                    return StatusCode(403, new { success = false, message = "Access denied. Not enrolled in this course." });
+            }
 
             try
             {
@@ -103,6 +117,14 @@ namespace TMS.Web.Controllers
 
                 if (question == null)
                     return Json(new { success = false, message = "Question not found or has been removed." });
+
+                bool isStaff = User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("Faculty") || User.IsInRole("Exam Coordinator");
+                if (!isStaff)
+                {
+                    bool enrolled = await _learningService.IsStudentEnrolledInMaterialAsync(studentId, question.LectureMaterialId);
+                    if (!enrolled)
+                        return StatusCode(403, new { success = false, message = "Access denied. Not enrolled in this course." });
+                }
 
                 // Idempotent: return existing answer if already submitted
                 var existing = await _db.LectureQuizAttempts

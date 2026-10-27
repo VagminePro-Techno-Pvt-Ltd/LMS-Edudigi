@@ -1,7 +1,6 @@
-﻿using System;
+using System;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Security.Policy;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -9,11 +8,19 @@ using TMS.ViewModels;
 
 namespace TMS.Utilities
 {
+    public class ZoomMeetingResult
+    {
+        public string JoinUrl { get; set; } = string.Empty;
+        public string HostUrl { get; set; } = string.Empty;
+        public string? MeetingId { get; set; }
+        public string? Password { get; set; }
+    }
+
     public class ZoomService
     {
-       
         private readonly HttpClient _client;
         private readonly ZoomSettings _zoomSettings;
+
         public ZoomService(ZoomSettings zoomSettings)
         {
             _zoomSettings = zoomSettings;
@@ -35,10 +42,10 @@ namespace TMS.Utilities
 
             var json = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(json);
-            return doc.RootElement.GetProperty("access_token").GetString();
+            return doc.RootElement.GetProperty("access_token").GetString() ?? string.Empty;
         }
 
-        public async Task<string> CreateMeetingAsync(string topic, DateTime startTime, int durationMinutes, string timezone = "Asia/Kolkata")
+        public async Task<ZoomMeetingResult> CreateZoomMeetingAsync(string topic, DateTime startTime, int durationMinutes, string timezone = "Asia/Kolkata")
         {
             var token = await GetAccessTokenAsync();
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -54,8 +61,12 @@ namespace TMS.Utilities
                 {
                     host_video = true,
                     participant_video = true,
-                    join_before_host = false,
-                    mute_upon_entry = true
+                    join_before_host = true,
+                    waiting_room = false,
+                    mute_upon_entry = false,
+                    approval_type = 2, // Automatically approve / no registration required
+                    audio = "both",
+                    auto_recording = "none"
                 }
             };
 
@@ -67,7 +78,24 @@ namespace TMS.Utilities
             var responseJson = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(responseJson);
 
-            return doc.RootElement.GetProperty("join_url").GetString();
+            string joinUrl = doc.RootElement.TryGetProperty("join_url", out var joinEl) ? (joinEl.GetString() ?? "") : "";
+            string startUrl = doc.RootElement.TryGetProperty("start_url", out var startEl) ? (startEl.GetString() ?? "") : "";
+            string meetingId = doc.RootElement.TryGetProperty("id", out var idEl) ? idEl.ToString() : "";
+            string password = doc.RootElement.TryGetProperty("password", out var pwdEl) ? (pwdEl.GetString() ?? "") : "";
+
+            return new ZoomMeetingResult
+            {
+                JoinUrl = string.IsNullOrWhiteSpace(joinUrl) ? startUrl : joinUrl,
+                HostUrl = string.IsNullOrWhiteSpace(startUrl) ? joinUrl : startUrl,
+                MeetingId = meetingId,
+                Password = password
+            };
+        }
+
+        public async Task<string> CreateMeetingAsync(string topic, DateTime startTime, int durationMinutes, string timezone = "Asia/Kolkata")
+        {
+            var result = await CreateZoomMeetingAsync(topic, startTime, durationMinutes, timezone);
+            return result.JoinUrl;
         }
     }
 }

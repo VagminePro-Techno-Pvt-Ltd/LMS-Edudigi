@@ -34,6 +34,7 @@ namespace TMS.ViewModels.Academics
         [MapToDTO]
         public string? MeetingProvider { get; set; } = "External";
 
+        public string? HostUrl { get; set; }
         public string? CourseName { get; set; }
         public string? Description { get; set; }
     }

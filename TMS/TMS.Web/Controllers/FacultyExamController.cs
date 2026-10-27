@@ -6,8 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using TMS.Models.Assessments;
+using TMS.Models.Academics;
 using TMS.Repository.Managers;
 using TMS.Repository;
+using TMS.Web.Services;
 
 namespace TMS.Web.Controllers
 {
@@ -15,11 +17,19 @@ namespace TMS.Web.Controllers
     {
         private readonly IAssessmentManager _assessmentManager;
         private readonly ApplicationDBContext _context; // Direct DB query for lightweight lists
+        private readonly IAiEvaluationService _aiService;
+        private readonly IAutomatedResultService _resultService;
 
-        public FacultyExamController(IAssessmentManager assessmentManager, ApplicationDBContext context)
+        public FacultyExamController(
+            IAssessmentManager assessmentManager, 
+            ApplicationDBContext context,
+            IAiEvaluationService aiService,
+            IAutomatedResultService resultService)
         {
             _assessmentManager = assessmentManager;
             _context = context;
+            _aiService = aiService;
+            _resultService = resultService;
         }
 
         // =========================================================================
@@ -287,7 +297,7 @@ namespace TMS.Web.Controllers
         public async Task<IActionResult> EvaluateAttempt(int attemptId)
         {
             var attempt = await _assessmentManager.GetAttemptDetailsAsync(attemptId);
-            if (attempt == null || attempt.Exam!.FacultyId != GetUserId())
+            if (attempt == null || attempt.Exam == null || attempt.Exam.FacultyId != GetUserId())
             {
                 return Unauthorized();
             }
@@ -297,17 +307,86 @@ namespace TMS.Web.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EvaluateSubjectiveAnswerAi(int attemptId, int questionId, System.Threading.CancellationToken cancellationToken)
+        {
+            int facultyId = GetUserId();
+            var attempt = await _context.StudentExamAttempts
+                .Include(a => a.Exam)
+                .Include(a => a.Answers)
+                .FirstOrDefaultAsync(a => a.Id == attemptId, cancellationToken);
+
+            if (attempt == null || attempt.Exam == null || attempt.Exam.FacultyId != facultyId)
+            {
+                return Forbid();
+            }
+
+            var studentAnswer = attempt.Answers.FirstOrDefault(a => a.QuestionId == questionId);
+            var question = await _context.QuestionBanks.FindAsync(new object[] { questionId }, cancellationToken);
+
+            if (question == null)
+            {
+                return NotFound(new { success = false, message = "Question not found." });
+            }
+
+            var request = new AiEvaluationRequest
+            {
+                QuestionId = question.Id,
+                QuestionType = question.QuestionType ?? "Written",
+                QuestionText = question.QuestionText,
+                MaxMarks = question.Marks,
+                ExpectedAnswer = !string.IsNullOrWhiteSpace(question.Explanation) ? question.Explanation : question.CorrectAnswer,
+                Rubric = question.Explanation,
+                RubricVersion = 1,
+                StudentAnswer = studentAnswer?.SubjectiveAnswer ?? ""
+            };
+
+            var eval = await _aiService.EvaluateQuestionAsync(request, cancellationToken);
+
+            return Json(new
+            {
+                success = eval.Success,
+                errorMessage = eval.ErrorMessage,
+                questionId = question.Id,
+                evaluation = eval
+            });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> SaveEvaluation(int attemptId, decimal totalMarksAwarded, string? feedback, Dictionary<int, decimal> questionMarks)
         {
+            var attempt = await _context.StudentExamAttempts.FindAsync(attemptId);
             var success = await _assessmentManager.SaveFacultyEvaluationAsync(attemptId, GetUserId(), feedback, totalMarksAwarded, questionMarks);
             if (success)
             {
+                if (attempt != null)
+                {
+                    try
+                    {
+                        await _resultService.CalculateExamMasterResultsAsync(attempt.ExamId, GetUserId());
+                    }
+                    catch (Exception)
+                    {
+                        // Preserve faculty evaluation if secondary institutional sync encounters policy warning
+                    }
+                }
                 SetApplicationResult(true, "Evaluation saved and results published successfully.");
                 return RedirectToAction(nameof(EvaluateList));
             }
 
             SetApplicationResult(false, "Failed to save evaluation.");
             return RedirectToAction(nameof(EvaluateAttempt), new { attemptId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CalculateExamResults(int examId, System.Threading.CancellationToken cancellationToken)
+        {
+            var exam = await _context.ExamMasters.FindAsync(new object[] { examId }, cancellationToken);
+            if (exam == null || exam.FacultyId != GetUserId()) return Forbid();
+
+            var summary = await _resultService.CalculateExamMasterResultsAsync(examId, GetUserId(), cancellationToken: cancellationToken);
+            return Json(new { success = true, summary });
         }
 
         // =========================================================================

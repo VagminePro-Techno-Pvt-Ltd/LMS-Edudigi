@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using TMS.Models.Account;
 using TMS.Repository.Managers.Implementations.Masters;
 using TMS.Models.Masters;
+using TMS.Common;
 
 namespace TMS.Repository.Managers.Implementations
 {
@@ -23,6 +24,8 @@ namespace TMS.Repository.Managers.Implementations
             if (model.Id == 0)
             {
                 var createModel = _mapper.Map<UserMaster>(model);
+                createModel.Password = SecurityUtility.HashPassword(model.Password!);
+                createModel.PasswordLastChanged = DateTime.Now;
                 createModel.IsActive = true;
                 createModel.CreatedOn = DateTime.Now;
                 createModel.CreatedBy = userId;
@@ -34,6 +37,11 @@ namespace TMS.Repository.Managers.Implementations
             {  //Edit mode
                 var oldModel = await _repository.GetAsync(model.Id);
                 var updatedModel = model.MapToDTO(oldModel!);
+                if (!string.IsNullOrWhiteSpace(model.Password))
+                {
+                    updatedModel.Password = SecurityUtility.HashPassword(model.Password);
+                    updatedModel.PasswordLastChanged = DateTime.Now;
+                }
                 updatedModel.UpdatedOn = DateTime.Now;
                 updatedModel.UpdatedBy = userId;
                 var editResult = await _repository.UpdateAsync(updatedModel);

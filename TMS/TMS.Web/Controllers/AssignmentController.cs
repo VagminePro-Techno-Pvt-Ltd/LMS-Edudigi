@@ -25,11 +25,18 @@ namespace TMS.Web.Controllers
             _context = context;
         }
 
+        private static bool IsAllowedUpload(IFormFile file)
+        {
+            if (file.Length <= 0 || file.Length > 10 * 1024 * 1024) return false;
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+            return new[] { ".pdf", ".docx", ".pptx", ".jpg", ".jpeg", ".png" }.Contains(ext);
+        }
+
         // ═══════════════════════════════════════════════════
         //  MAIN ROUTER: Directs based on Role
         // ═══════════════════════════════════════════════════
 
-        public async Task<IActionResult> Index()
+        public IActionResult Index()
         {
             var role = (GetUserRole() ?? "").ToLower().Trim();
             var userId = GetUserId();
@@ -55,7 +62,7 @@ namespace TMS.Web.Controllers
         //  FACULTY APIs & VIEWS
         // ═══════════════════════════════════════════════════
 
-        [Authorize]
+        [Authorize(Roles = "Faculty,Admin,Super Admin,super admin,Exam Coordinator")]
         public async Task<IActionResult> FacultyDashboard(int? programId)
         {
             var userId = GetUserId();
@@ -90,12 +97,25 @@ namespace TMS.Web.Controllers
         }
 
         [HttpPost]
-        [Authorize]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Faculty,Admin,Super Admin,super admin,Exam Coordinator")]
         public async Task<IActionResult> CreateAssignment(AssignmentMaster model, IFormFile? attachment)
         {
             try
             {
                 var userId = GetUserId();
+                if (userId <= 0 || string.IsNullOrWhiteSpace(model.Title) || model.MaxMarks <= 0 ||
+                    model.PassMarks < 0 || model.PassMarks > model.MaxMarks || model.DueDate <= DateTime.UtcNow)
+                {
+                    SetApplicationResult(false, "Invalid title, marks or due date.");
+                    return RedirectToAction(nameof(FacultyDashboard));
+                }
+                if (!await _context.CourseCategoryMasters.AnyAsync(p => p.Id == model.ProgramId && p.IsActive) ||
+                    (model.CourseId.HasValue && !await _context.CourseMasters.AnyAsync(c => c.Id == model.CourseId.Value && c.CourseCategoryId == model.ProgramId && c.IsActive)))
+                {
+                    SetApplicationResult(false, "Invalid program/course mapping.");
+                    return RedirectToAction(nameof(FacultyDashboard));
+                }
                 model.CreatedBy = userId;
                 model.CreatedOn = DateTime.UtcNow;
                 model.IsActive = true;
@@ -103,6 +123,11 @@ namespace TMS.Web.Controllers
 
                 if (attachment != null && attachment.Length > 0)
                 {
+                    if (!IsAllowedUpload(attachment))
+                    {
+                        SetApplicationResult(false, "Only PDF, DOCX, PPTX, JPG or PNG files up to 10 MB are allowed.");
+                        return RedirectToAction(nameof(FacultyDashboard));
+                    }
                     var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "assignments");
                     if (!Directory.Exists(uploadsDir))
                     {
@@ -133,7 +158,7 @@ namespace TMS.Web.Controllers
             return RedirectToAction(nameof(FacultyDashboard));
         }
 
-        [Authorize]
+        [Authorize(Roles = "Faculty,Admin,Super Admin,super admin,Exam Coordinator")]
         public async Task<IActionResult> ViewSubmissions(int assignmentId)
         {
             var assignment = await _context.AssignmentMasters
@@ -162,12 +187,19 @@ namespace TMS.Web.Controllers
         }
 
         [HttpPost]
-        [Authorize]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Faculty,Admin,Super Admin,super admin,Exam Coordinator")]
         public async Task<IActionResult> GradeSubmission(AssignmentGrade grade)
         {
             try
             {
                 var userId = GetUserId();
+                var submissionForGrade = await _context.AssignmentSubmissions
+                    .Include(s => s.Assignment)
+                    .FirstOrDefaultAsync(s => s.Id == grade.SubmissionId && !s.IsDeleted);
+                if (submissionForGrade?.Assignment == null || submissionForGrade.Assignment.IsDeleted ||
+                    grade.Marks < 0 || grade.Marks > submissionForGrade.Assignment.MaxMarks)
+                    return Json(new { success = false, message = "Invalid submission or marks." });
                 grade.CreatedBy = userId;
                 grade.CreatedOn = DateTime.UtcNow;
                 grade.EvaluatedBy = userId;
@@ -211,7 +243,7 @@ namespace TMS.Web.Controllers
             }
         }
 
-        [Authorize]
+        [Authorize(Roles = "Faculty,Admin,Super Admin,super admin,Exam Coordinator")]
         public async Task<IActionResult> DownloadAllSubmissions(int assignmentId)
         {
             var submissions = await _context.AssignmentSubmissions
@@ -296,7 +328,8 @@ namespace TMS.Web.Controllers
         }
 
         [HttpPost]
-        [Authorize]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Student")]
         public async Task<IActionResult> SubmitAssignment(int assignmentId, string? submissionText, IFormFile? attachment)
         {
             try
@@ -304,8 +337,34 @@ namespace TMS.Web.Controllers
                 var studentId = GetUserId();
                 var assignment = await _context.AssignmentMasters.FindAsync(assignmentId);
 
-                if (assignment == null) return NotFound();
+                if (assignment == null || assignment.IsDeleted || !assignment.IsActive) return NotFound();
 
+                bool isStaff = User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("Faculty") || User.IsInRole("Exam Coordinator");
+                if (!isStaff)
+                {
+                    var enrollments = await _context.CourseEnrollments
+                        .Where(e => e.StudentId == studentId && e.IsActive && (e.Status == 0 || e.Status == 1))
+                        .ToListAsync();
+                    var enrolledCourseIds = enrollments.Select(e => e.CourseId).ToList();
+                    var enrolledPrograms = await _context.CourseMasters
+                        .Where(c => enrolledCourseIds.Contains(c.Id))
+                        .Select(c => c.CourseCategoryId)
+                        .Distinct()
+                        .ToListAsync();
+
+                    bool isEnrolled = (assignment.CourseId.HasValue && enrolledCourseIds.Contains(assignment.CourseId.Value))
+                                      || enrolledPrograms.Contains(assignment.ProgramId);
+                    if (!isEnrolled)
+                    {
+                        return Forbid();
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(submissionText) && (attachment == null || attachment.Length == 0))
+                {
+                    SetApplicationResult(false, "Provide submission text or a file.");
+                    return RedirectToAction(nameof(StudentDashboard));
+                }
                 // Validate due date logic
                 var isLate = DateTime.UtcNow > assignment.DueDate;
                 if (isLate && !assignment.AllowLateSubmission)
@@ -336,6 +395,11 @@ namespace TMS.Web.Controllers
 
                 if (attachment != null && attachment.Length > 0)
                 {
+                    if (!IsAllowedUpload(attachment))
+                    {
+                        SetApplicationResult(false, "Only PDF, DOCX, PPTX, JPG or PNG files up to 10 MB are allowed.");
+                        return RedirectToAction(nameof(StudentDashboard));
+                    }
                     var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "submissions");
                     if (!Directory.Exists(uploadsDir))
                     {
@@ -370,6 +434,30 @@ namespace TMS.Web.Controllers
         public async Task<IActionResult> GetSubmissionHistory(int assignmentId)
         {
             var studentId = GetUserId();
+            var assignment = await _context.AssignmentMasters.FindAsync(assignmentId);
+            if (assignment == null) return NotFound();
+
+            bool isStaff = User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("Faculty") || User.IsInRole("Exam Coordinator");
+            if (!isStaff)
+            {
+                var enrollments = await _context.CourseEnrollments
+                    .Where(e => e.StudentId == studentId && e.IsActive && (e.Status == 0 || e.Status == 1))
+                    .ToListAsync();
+                var enrolledCourseIds = enrollments.Select(e => e.CourseId).ToList();
+                var enrolledPrograms = await _context.CourseMasters
+                    .Where(c => enrolledCourseIds.Contains(c.Id))
+                    .Select(c => c.CourseCategoryId)
+                    .Distinct()
+                    .ToListAsync();
+
+                bool isEnrolled = (assignment.CourseId.HasValue && enrolledCourseIds.Contains(assignment.CourseId.Value))
+                                  || enrolledPrograms.Contains(assignment.ProgramId);
+                if (!isEnrolled)
+                {
+                    return Forbid();
+                }
+            }
+
             var submissions = await _context.AssignmentSubmissions
                 .Where(s => s.AssignmentId == assignmentId && s.StudentId == studentId && !s.IsDeleted)
                 .OrderByDescending(s => s.AttemptNumber)
@@ -389,7 +477,7 @@ namespace TMS.Web.Controllers
         //  ADMIN APIs & VIEWS
         // ═══════════════════════════════════════════════════
 
-        [Authorize]
+        [Authorize(Roles = "Admin,Super Admin,super admin,Exam Coordinator,Management")]
         public async Task<IActionResult> AdminDashboard()
         {
             var assignments = await _context.AssignmentMasters

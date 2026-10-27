@@ -1,87 +1,430 @@
 @model TMS.ViewModels.Academics.StudentQuizAttemptViewModel
 @{
-    ViewData["Title"] = "Attempt Quiz";
+    ViewData["Title"] = Model.QuizTitle ?? "Attempt Quiz";
+    var totalQuestions = Model.Answers?.Count ?? 0;
 }
 
-<div class="exam-page" style="max-width: 800px; margin: 40px auto; padding: 0 20px;">
-    <!-- Head Card -->
-    <div class="exam-page-header" style="background: #ffffff; border-radius: 12px; padding: 24px 32px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); border: 1px solid #f1f5f9; margin-bottom: 24px; display: flex; align-items: center; gap: 20px;">
-        <div style="background: #ecfdf5; color: #10b981; width: 56px; height: 56px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 24px;">
-            <i class="fa-solid fa-file-circle-question"></i>
+<style>
+    .quiz-attempt-shell {
+        max-width: 1100px;
+        margin: 20px auto 40px;
+        padding: 0 16px;
+        font-family: 'Jost', sans-serif;
+    }
+
+    .quiz-header-card {
+        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+        border-radius: 18px;
+        padding: 24px 30px;
+        color: #ffffff;
+        margin-bottom: 24px;
+        box-shadow: 0 10px 30px -5px rgba(49, 46, 129, 0.35);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+        position: relative;
+        overflow: hidden;
+    }
+    .quiz-header-card::after {
+        content: '';
+        position: absolute;
+        bottom: -30px;
+        right: -30px;
+        width: 160px;
+        height: 160px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .quiz-progress-bar-wrap {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 9999px;
+        height: 8px;
+        overflow: hidden;
+        margin-top: 12px;
+        width: 100%;
+    }
+    .quiz-progress-bar-fill {
+        background: #4ade80;
+        height: 100%;
+        width: 0%;
+        border-radius: 9999px;
+        transition: width 0.3s ease;
+    }
+
+    .quiz-layout-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 280px;
+        gap: 24px;
+        align-items: start;
+    }
+    @@media (max-width: 900px) {
+        .quiz-layout-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .question-card {
+        background: #ffffff;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+        padding: 28px 32px;
+        margin-bottom: 20px;
+        transition: all 0.2s ease;
+    }
+    .question-card:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
+    }
+
+    .question-badge {
+        background: #eef2ff;
+        color: #4338ca;
+        border: 1px solid #c7d2fe;
+        font-weight: 800;
+        padding: 4px 12px;
+        border-radius: 9999px;
+        font-size: 0.82rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .option-label {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 18px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 12px;
+        cursor: pointer;
+        background: #f8fafc;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        margin-bottom: 10px;
+    }
+    .option-label:hover {
+        background: #f1f5f9;
+        border-color: #94a3b8;
+        transform: translateX(4px);
+    }
+    .option-label.selected {
+        background: #eff6ff;
+        border-color: #3b82f6;
+        box-shadow: 0 2px 10px rgba(59, 130, 246, 0.15);
+    }
+    .option-label input[type="radio"] {
+        width: 20px;
+        height: 20px;
+        accent-color: #3b82f6;
+        cursor: pointer;
+    }
+
+    /* Navigator Sidebar */
+    .quiz-palette-card {
+        background: #ffffff;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        padding: 20px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+        position: sticky;
+        top: 80px;
+    }
+
+    .palette-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+        margin-top: 14px;
+    }
+
+    .palette-btn {
+        aspect-ratio: 1;
+        border-radius: 10px;
+        border: 1.5px solid #e2e8f0;
+        background: #f8fafc;
+        color: #475569;
+        font-weight: 700;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        text-decoration: none;
+    }
+    .palette-btn:hover {
+        background: #e2e8f0;
+        color: #1e293b;
+    }
+    .palette-btn.answered {
+        background: #dcfce7;
+        color: #15803d;
+        border-color: #86efac;
+    }
+    .palette-btn.active {
+        border-color: #4338ca;
+        box-shadow: 0 0 0 2px rgba(67, 56, 202, 0.25);
+    }
+</style>
+
+<div class="quiz-attempt-shell">
+    <!-- Header Card -->
+    <div class="quiz-header-card">
+        <div style="flex: 1; min-width: 260px;">
+            <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                <span class="badge bg-white bg-opacity-20 text-white border border-white border-opacity-25 px-2 py-1 rounded-pill small">
+                    <i class="fa-solid fa-graduation-cap me-1"></i> @ViewBag.CourseName
+                </span>
+                <span class="badge bg-white bg-opacity-20 text-white border border-white border-opacity-25 px-2 py-1 rounded-pill small">
+                    <i class="fa-solid fa-layer-group me-1"></i> @ViewBag.QuadrantName
+                </span>
+            </div>
+            <h3 class="fw-bold mb-1 text-white">@(Model.QuizTitle ?? "Learning Assessment")</h3>
+            <p class="mb-0 text-light opacity-80 small">
+                Answer all @totalQuestions questions carefully. Minimum score to pass: <strong>@ViewBag.PassingMarks%</strong>.
+            </p>
+
+            <div class="quiz-progress-bar-wrap">
+                <div class="quiz-progress-bar-fill" id="quizProgressFill"></div>
+            </div>
         </div>
-        <div>
-            <h1 style="font-size: 22px; font-weight: 800; color: #1e293b; margin: 0 0 4px 0; font-family: 'Jost', sans-serif;">Learning Checkpoint</h1>
-            <p style="font-size: 13px; color: #64748b; margin: 0; font-family: 'Jost', sans-serif;">Please answer all the questions below to test your understanding of this module.</p>
+
+        <div class="text-end">
+            <span class="d-block small text-light opacity-75">Answered</span>
+            <div class="fs-4 fw-bold text-white">
+                <span id="answeredCount">0</span> / @totalQuestions
+            </div>
         </div>
     </div>
 
-    <!-- Form -->
-    <form asp-action="Submit" method="post">
+    <!-- Main Grid -->
+    <form asp-action="Submit" method="post" id="quizAttemptForm">
+        @Html.AntiForgeryToken()
         <input type="hidden" name="QuizId" value="@Model.QuizId" />
         <input type="hidden" name="StudentId" value="@Model.StudentId" />
         <input type="hidden" name="CourseId" value="@Model.CourseId" />
         <input type="hidden" name="CourseQuadrantId" value="@Model.CourseQuadrantId" />
 
-        @for (int i = 0; i < Model.Answers.Count; i++)
-        {
-            var q = Model.Answers[i];
-            <div class="exam-section-box" style="background: #ffffff; border-radius: 12px; padding: 24px 32px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); border: 1px solid #f1f5f9; margin-bottom: 20px; font-family: 'Jost', sans-serif;">
-                <div style="font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 16px; display: flex; gap: 10px;">
-                    <span style="color: #6366f1; font-weight: 800;">Q@(i + 1).</span>
-                    <span>@q.QuestionText</span>
-                </div>
-                
-                <div class="options-container" style="display: flex; flex-direction: column; gap: 12px;">
-                    @if (q.QuestionType == TMS.Models.Masters.QuestionType.Objective.ToString())
+        <div class="quiz-layout-grid">
+            <!-- Questions Column -->
+            <div class="questions-column">
+                @if (Model.Answers == null || !Model.Answers.Any())
+                {
+                    <div class="question-card text-center py-5">
+                        <i class="fa-solid fa-clipboard-question fa-3x text-muted mb-3 opacity-50"></i>
+                        <h5 class="fw-bold text-dark">No questions found</h5>
+                        <p class="text-muted small mb-0">This quiz does not have any questions published yet.</p>
+                    </div>
+                }
+                else
+                {
+                    for (int i = 0; i < Model.Answers.Count; i++)
                     {
-                        @for (int j = 0; j < q.Options.Count; j++)
-                        {
-                            var opt = q.Options[j];
-                            <label class="option-card" for="q@i-opt@j" style="display: flex; align-items: center; gap: 12px; padding: 14px 18px; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
-                                <input class="form-check-input"
-                                       type="radio"
-                                       name="Answers[@i].SelectedOptionId"
-                                       value="@opt.Id"
-                                       id="q@i-opt@j"
-                                       style="width: 18px; height: 18px; border-color: #cbd5e1; cursor: pointer;" />
-                                <span style="font-size: 13px; color: #334155; font-weight: 500;">@opt.OptionText</span>
-                            </label>
-                        }
-                    }
-                    else 
-                    {
-                        <textarea class="form-control"
-                                  name="Answers[@i].WrittenAnswer"
-                                  rows="4"
-                                  placeholder="Write your detailed explanation here..."
-                                  style="font-size: 13px; border-radius: 8px; border-color: #e2e8f0; padding: 14px 18px; font-family: 'Jost', sans-serif; resize: vertical;"></textarea>
-                    }
-                </div>
+                        var q = Model.Answers[i];
+                        <div class="question-card" id="qBlock_@i" data-qindex="@i">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="question-badge">
+                                    <i class="fa-solid fa-circle-question"></i> Question @(i + 1) of @totalQuestions
+                                </span>
+                                <span class="badge bg-light text-muted border px-2 py-1 small">
+                                    @(q.QuestionType == TMS.Models.Masters.QuestionType.Objective.ToString() ? "Multiple Choice" : "Subjective Response")
+                                </span>
+                            </div>
 
-                <input type="hidden" name="Answers[@i].QuizQuestionId" value="@q.QuizQuestionId" />
+                            <h5 class="fw-bold text-dark mb-4" style="line-height: 1.5; font-size: 1.05rem;">
+                                @q.QuestionText
+                            </h5>
+
+                            <input type="hidden" name="Answers[@i].QuizQuestionId" value="@q.QuizQuestionId" />
+                            <input type="hidden" name="Answers[@i].QuestionType" value="@q.QuestionType" />
+
+                            <div class="options-wrap">
+                                @if (q.QuestionType == TMS.Models.Masters.QuestionType.Objective.ToString() && q.Options != null)
+                                {
+                                    for (int j = 0; j < q.Options.Count; j++)
+                                    {
+                                        var opt = q.Options[j];
+                                        <label class="option-label" for="opt_@(i)_@(j)">
+                                            <input type="radio"
+                                                   name="Answers[@i].SelectedOptionId"
+                                                   value="@opt.Id"
+                                                   id="opt_@(i)_@(j)"
+                                                   class="quiz-radio-input"
+                                                   data-qindex="@i" />
+                                            <span class="fw-semibold text-dark" style="font-size: 0.92rem;">@opt.OptionText</span>
+                                        </label>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="form-group">
+                                        <label class="form-label fw-bold small text-muted text-uppercase mb-2">Your Answer / Detailed Solution</label>
+                                        <textarea class="form-control quiz-textarea-input"
+                                                  name="Answers[@i].WrittenAnswer"
+                                                  rows="5"
+                                                  data-qindex="@i"
+                                                  placeholder="Type your structured answer here..."
+                                                  style="border-radius: 12px; font-size: 0.9rem; padding: 14px; border-color: #cbd5e1;"></textarea>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                }
             </div>
-        }
 
-        <!-- Actions -->
-        <div style="display: flex; justify-content: flex-end; margin-top: 24px;">
-            <button type="submit" class="exam-btn exam-btn-primary" style="padding: 12px 32px; border-radius: 8px; font-weight: 700; font-size: 14px; font-family: 'Jost', sans-serif; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);">
-                <i class="fa-solid fa-circle-check"></i> Submit Quiz
-            </button>
+            <!-- Navigator Sidebar -->
+            <aside class="quiz-sidebar-col">
+                <div class="quiz-palette-card">
+                    <h6 class="fw-bold text-dark mb-1">
+                        <i class="fa-solid fa-list-check text-primary me-2"></i>Question Navigator
+                    </h6>
+                    <small class="text-muted d-block">Click to jump directly to question</small>
+
+                    <div class="palette-grid">
+                        @for (int i = 0; i < totalQuestions; i++)
+                        {
+                            <a href="#qBlock_@i" class="palette-btn" id="palBtn_@i" data-qindex="@i">
+                                @(i + 1)
+                            </a>
+                        }
+                    </div>
+
+                    <hr class="my-3 text-muted opacity-25" />
+
+                    <div class="d-flex flex-column gap-2 mb-3">
+                        <div class="d-flex align-items-center gap-2 small text-muted">
+                            <span class="d-inline-block rounded-2" style="width: 14px; height: 14px; background: #dcfce7; border: 1px solid #86efac;"></span>
+                            <span>Answered</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 small text-muted">
+                            <span class="d-inline-block rounded-2" style="width: 14px; height: 14px; background: #f8fafc; border: 1px solid #e2e8f0;"></span>
+                            <span>Unanswered</span>
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn btn-primary w-100 fw-bold py-2 rounded-3 shadow-sm" id="btnOpenSubmitModal" style="background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); border:none;">
+                        <i class="fa-solid fa-circle-check me-1"></i> Submit Quiz
+                    </button>
+                </div>
+            </aside>
         </div>
     </form>
 </div>
 
-<style>
-    .option-card:hover {
-        background: #f8fafc;
-        border-color: #cbd5e1;
-    }
-    .option-card input:checked + span {
-        color: #6366f1;
-        font-weight: 700;
-    }
-    .option-card input:checked {
-        border-color: #6366f1;
-        background-color: #6366f1;
-    }
-</style>
+<!-- Submit Confirmation Modal -->
+<div class="modal fade" id="submitConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark">
+                    <i class="fa-solid fa-clipboard-check text-success me-2"></i>Submit Assessment
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-4 text-center">
+                <div class="rounded-circle bg-success bg-opacity-10 text-success d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px; font-size: 28px;">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </div>
+                <h5 class="fw-bold text-dark mb-1">Ready to finish?</h5>
+                <p class="text-muted small mb-3">
+                    You have completed <strong id="modalAnsweredText">0 of @totalQuestions</strong> questions.
+                </p>
+                <div id="unansweredWarning" class="alert alert-warning py-2 small text-start d-flex align-items-center gap-2 mb-0" style="display:none;">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>You have unanswered questions. Are you sure you want to proceed?</span>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0 bg-light rounded-bottom-4">
+                <button type="button" class="btn btn-outline-secondary px-3 rounded-pill" data-bs-dismiss="modal">Review Answers</button>
+                <button type="button" class="btn btn-success fw-bold px-4 rounded-pill" id="btnConfirmSubmitFinal">
+                    Yes, Submit Now
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(function () {
+            var totalQ = @totalQuestions;
+
+            function updateProgress() {
+                var answered = 0;
+
+                // Check radio answers
+                var answeredRadioGroups = {};
+                $(".quiz-radio-input:checked").each(function () {
+                    var idx = $(this).data("qindex");
+                    answeredRadioGroups[idx] = true;
+                });
+
+                // Check textarea answers
+                $(".quiz-textarea-input").each(function () {
+                    var idx = $(this).data("qindex");
+                    if ($(this).val().trim().length > 0) {
+                        answeredRadioGroups[idx] = true;
+                    }
+                });
+
+                // Update palette buttons
+                for (var i = 0; i < totalQ; i++) {
+                    var btn = $("#palBtn_" + i);
+                    if (answeredRadioGroups[i]) {
+                        btn.addClass("answered");
+                        answered++;
+                    } else {
+                        btn.removeClass("answered");
+                    }
+                }
+
+                $("#answeredCount").text(answered);
+                var pct = totalQ > 0 ? (answered / totalQ) * 100 : 0;
+                $("#quizProgressFill").css("width", pct + "%");
+
+                return { answered: answered, total: totalQ };
+            }
+
+            // Radio option styling & change
+            $(document).on("change", ".quiz-radio-input", function () {
+                var qindex = $(this).data("qindex");
+                $(`#qBlock_${qindex} .option-label`).removeClass("selected");
+                $(this).closest(".option-label").addClass("selected");
+                updateProgress();
+            });
+
+            // Textarea input change
+            $(document).on("input", ".quiz-textarea-input", function () {
+                updateProgress();
+            });
+
+            // Open Submit Modal
+            $("#btnOpenSubmitModal").on("click", function () {
+                var stats = updateProgress();
+                $("#modalAnsweredText").text(`${stats.answered} of ${stats.total}`);
+
+                if (stats.answered < stats.total) {
+                    $("#unansweredWarning").show();
+                } else {
+                    $("#unansweredWarning").hide();
+                }
+
+                $("#submitConfirmModal").modal("show");
+            });
+
+            // Confirm Submit Final
+            $("#btnConfirmSubmitFinal").on("click", function () {
+                $(this).prop("disabled", true).html('<i class="fa fa-spinner fa-spin me-1"></i> Submitting...');
+                $("#quizAttemptForm").submit();
+            });
+
+            // Initialize progress
+            updateProgress();
+        });
+    </script>
+}

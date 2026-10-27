@@ -495,29 +495,40 @@
         <!-- Summary Row -->
         <div class="row g-3 mb-4">
             <!-- My Attendance -->
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <a asp-controller="Attendance" asp-action="MyAttendance" class="summary-card text-decoration-none" style="cursor: pointer;">
                     <div class="card-icon blue"><i class="fa-solid fa-scale-balanced"></i></div>
                     <div class="card-info">
-                        <div class="card-value">86.00%</div>
+                        <div class="card-value">@(Model.AttendancePercentage.ToString("0.00"))%</div>
                         <div class="card-label">My Attendance</div>
-                        <div class="card-subtext">TL-350 | P-301 | PF-0 | Ab-49</div>
+                        <div class="card-subtext">TL-@Model.AttendanceTotal | P-@Model.AttendancePresent | PF-0 | Ab-@Model.AttendanceAbsent</div>
+                    </div>
+                </a>
+            </div>
+            <!-- Course Progress -->
+            <div class="col-md-3">
+                <a asp-controller="ProgressReport" asp-action="Index" class="summary-card text-decoration-none" style="cursor: pointer;">
+                    <div class="card-icon green" style="background: #ecfdf5; color: #059669;"><i class="fa-solid fa-chart-line"></i></div>
+                    <div class="card-info">
+                        <div class="card-value text-success">@Model.OverallProgressPercent%</div>
+                        <div class="card-label">Learning Progress</div>
+                        <div class="card-subtext">@Model.CompletedMaterials/@Model.TotalMaterials Topics Consumed</div>
                     </div>
                 </a>
             </div>
             <!-- My Documents -->
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <a asp-controller="StudentCourse" asp-action="Index" class="summary-card text-decoration-none" style="cursor: pointer;">
                     <div class="card-icon purple"><i class="fa-solid fa-folder-open"></i></div>
                     <div class="card-info">
                         <div class="card-value">@(Model.RecentDocuments?.Count ?? 0)</div>
                         <div class="card-label">My Documents</div>
-                        <div class="card-subtext">View your enrolled courses and study materials</div>
+                        <div class="card-subtext">View enrolled courses & files</div>
                     </div>
                 </a>
             </div>
             <!-- Job Inbox -->
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="summary-card">
                     <div class="card-icon orange"><i class="fa-solid fa-briefcase"></i></div>
                     <div class="card-info">
@@ -537,7 +548,7 @@
                         <img src="https://img.icons8.com/color/96/student-male.png" alt="Student Photo" class="profile-avatar" />
                     </div>
                     <h5 class="student-name">@Model.StudentName</h5>
-                    <span class="student-class">EduDigi-STUDENT-IV-A</span>
+                    <span class="student-class">@Model.ProgramName</span>
                 </div>
                 <div class="col-md-9">
                     <div class="mission-quote">
@@ -558,7 +569,7 @@
                         <div class="detail-icon"><i class="fa-solid fa-id-card"></i></div>
                         <div class="detail-info">
                             <div class="detail-label">University Roll No.</div>
-                            <div class="detail-value">2201640130001</div>
+                            <div class="detail-value">@Model.RollNumber</div>
                         </div>
                     </div>
                 </div>
@@ -567,7 +578,7 @@
                         <div class="detail-icon"><i class="fa-solid fa-users"></i></div>
                         <div class="detail-info">
                             <div class="detail-label">Section</div>
-                            <div class="detail-value">LMS-SEC-A</div>
+                            <div class="detail-value">@Model.Section</div>
                         </div>
                     </div>
                 </div>
@@ -576,7 +587,7 @@
                         <div class="detail-icon"><i class="fa-solid fa-barcode"></i></div>
                         <div class="detail-info">
                             <div class="detail-label">Library Code</div>
-                            <div class="detail-value">2211072</div>
+                            <div class="detail-value">@Model.LibraryCode</div>
                         </div>
                     </div>
                 </div>
@@ -585,7 +596,7 @@
                         <div class="detail-icon"><i class="fa-solid fa-phone"></i></div>
                         <div class="detail-info">
                             <div class="detail-label">Mobile No.</div>
-                            <div class="detail-value">8604538435</div>
+                            <div class="detail-value">@Model.ContactNo</div>
                         </div>
                     </div>
                 </div>
@@ -594,7 +605,7 @@
                         <div class="detail-icon"><i class="fa-solid fa-envelope"></i></div>
                         <div class="detail-info">
                             <div class="detail-label">Email</div>
-                            <div class="detail-value">@(User?.Claims?.FirstOrDefault(c => c.Type == "user")?.Value ?? "student@edudigiclass.com")</div>
+                            <div class="detail-value">@Model.Email</div>
                         </div>
                     </div>
                 </div>
@@ -603,7 +614,7 @@
                         <div class="detail-icon"><i class="fa-solid fa-cake-candles"></i></div>
                         <div class="detail-info">
                             <div class="detail-label">Birth Date</div>
-                            <div class="detail-value">21-07-2005</div>
+                            <div class="detail-value">@Model.BirthDate</div>
                         </div>
                     </div>
                 </div>
@@ -612,7 +623,7 @@
                         <div class="detail-icon"><i class="fa-solid fa-location-dot"></i></div>
                         <div class="detail-info">
                             <div class="detail-label">Address</div>
-                            <div class="detail-value">80/A BARRA-6 KANPUR-208027</div>
+                            <div class="detail-value">@Model.Address</div>
                         </div>
                     </div>
                 </div>
@@ -630,7 +641,7 @@
                     <i class="fa-solid fa-file-invoice"></i>
                 </div>
                 <div class="card-title-text">Today's Exams</div>
-                <div class="card-date">@DateTime.Now.ToString("15 Apr")</div>
+                <div class="card-date">@DateTime.Now.ToString("dd MMM")</div>
             </div>
             <div class="card-body-custom">
                 @if (Model.TodayExams != null && Model.TodayExams.Any())
@@ -832,28 +843,80 @@
 
     <!-- My Enrolled Courses Section -->
     <div style="margin-top: 40px;">
-        <h5 style="font-weight: 700; color: var(--text-primary); margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
-            <i class="fa-solid fa-book-bookmark text-primary"></i> My Enrolled Courses
-        </h5>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 style="font-weight: 700; color: var(--text-primary); margin-bottom: 0; display: flex; align-items: center; gap: 10px;">
+                <i class="fa-solid fa-book-bookmark text-primary"></i> My Enrolled Courses
+            </h5>
+            <a asp-controller="StudentCourse" asp-action="Index" class="btn btn-sm btn-outline-primary" style="border-radius: 20px; font-weight: 600; font-size: 12px; padding: 4px 14px;">
+                View All Courses <i class="fa-solid fa-arrow-right ms-1"></i>
+            </a>
+        </div>
         <div class="courses-grid">
             @if (Model.EnrolledCourses != null && Model.EnrolledCourses.Any())
             {
                 foreach (var course in Model.EnrolledCourses)
                 {
-                    <div class="course-premium-card">
-                        <div class="course-banner">
-                            <i class="fa-solid fa-graduation-cap" style="font-size: 50px; opacity: 0.8;"></i>
-                        </div>
-                        <div class="course-body">
-                            <div class="course-tag">@course.CourseCategory?.Name</div>
-                            <h6 class="course-name">@course.Name</h6>
-                            <div class="course-meta">
-                                <span><i class="fa-solid fa-clock me-1"></i> @course.CourseDurationMonths Months</span>
-                                <span><i class="fa-solid fa-barcode me-1"></i> @course.CourseCode</span>
+                    var prog = Model.CourseProgress.ContainsKey(course.Id) ? Model.CourseProgress[course.Id] : null;
+                    var pPct = prog?.ProgressPercent ?? 0;
+                    var pDone = prog?.CompletedMaterials ?? 0;
+                    var pTot = prog?.TotalMaterials ?? 0;
+                    var isCourseDone = pPct >= 100 && pTot > 0;
+
+                    <div class="course-premium-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+                        <div>
+                            <div class="course-banner" style="position: relative; @(isCourseDone ? "background: linear-gradient(135deg, #059669, #10b981);" : "")">
+                                <i class="fa-solid fa-graduation-cap" style="font-size: 45px; opacity: 0.85;"></i>
+                                @if (isCourseDone)
+                                {
+                                    <span style="position: absolute; top: 12px; right: 12px; background: rgba(255,255,255,0.92); color: #059669; font-weight: 800; font-size: 11px; padding: 4px 10px; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+                                        <i class="fa-solid fa-circle-check"></i> Completed
+                                    </span>
+                                }
+                                else if (pPct > 0)
+                                {
+                                    <span style="position: absolute; top: 12px; right: 12px; background: rgba(255,255,255,0.92); color: #2563eb; font-weight: 800; font-size: 11px; padding: 4px 10px; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+                                        @pPct% Done
+                                    </span>
+                                }
                             </div>
-                            <a asp-controller="StudentCourseContent" asp-action="Index" asp-route-id="@course.Id" class="btn btn-primary w-100" style="border-radius: 10px; font-weight: 600; padding: 10px;">
-                                View Content <i class="fa-solid fa-arrow-right ms-1"></i>
-                            </a>
+                            <div class="course-body">
+                                <div class="course-tag">@course.CourseCategory?.Name</div>
+                                <h6 class="course-name" style="min-height: 44px;">@course.Name</h6>
+                                <div class="course-meta" style="margin-bottom: 14px;">
+                                    <span><i class="fa-solid fa-clock me-1"></i> @course.CourseDurationMonths Months</span>
+                                    <span><i class="fa-solid fa-barcode me-1"></i> @course.CourseCode</span>
+                                </div>
+
+                                <!-- Progress Bar -->
+                                <div class="mb-3" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px;">
+                                    <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 11.5px; font-weight: 700;">
+                                        <span class="text-muted"><i class="fa-solid fa-chart-pie me-1 text-primary"></i> Course Progress</span>
+                                        <span class="@(isCourseDone ? "text-success" : "text-primary")">@pPct%</span>
+                                    </div>
+                                    <div class="progress" style="height: 6px; border-radius: 10px; background: #e2e8f0; margin: 4px 0;">
+                                        <div class="progress-bar @(isCourseDone ? "bg-success" : "")" role="progressbar"
+                                             style="width: @pPct%; border-radius: 10px; @(!isCourseDone ? "background: linear-gradient(90deg, #2563eb, #06b6d4);" : "")"
+                                             aria-valuenow="@pPct" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                    <div class="d-flex justify-content-between text-muted" style="font-size: 11px; margin-top: 4px;">
+                                        <span>@(pDone)/@(pTot) topics consumed</span>
+                                        @if (isCourseDone)
+                                        {
+                                            <span class="text-success fw-bold"><i class="fa-solid fa-check"></i> Finished</span>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="padding: 0 20px 20px;">
+                            <div class="d-flex gap-2">
+                                <a asp-controller="StudentCourse" asp-action="Details" asp-route-id="@course.Id" class="btn btn-primary flex-grow-1" style="border-radius: 10px; font-weight: 600; padding: 9px 12px; font-size: 13.5px;">
+                                    Continue Learning <i class="fa-solid fa-arrow-right ms-1"></i>
+                                </a>
+                                <a asp-controller="StudentCourseContent" asp-action="Index" asp-route-id="@course.Id" class="btn btn-outline-secondary" title="View Syllabus & Content" style="border-radius: 10px; padding: 9px 12px;">
+                                    <i class="fa-solid fa-list-ul"></i>
+                                </a>
+                            </div>
                         </div>
                     </div>
                 }

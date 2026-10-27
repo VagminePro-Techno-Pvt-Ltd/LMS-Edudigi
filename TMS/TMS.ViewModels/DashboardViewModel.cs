@@ -21,7 +21,9 @@ namespace TMS.Web.Models.ViewModels
         public int MyCourses { get; set; }
         public int MyStudents { get; set; }
         public int PendingAssessments { get; set; }
-        public List<string> RecentActivities { get; set; }
+        public List<string> RecentActivities { get; set; } = new();
+        public List<TMS.ViewModels.UserViewModel> RecentUsers { get; set; } = new();
+        public List<TMS.ViewModels.Masters.CourseMasterViewModel> FacultyCourses { get; set; } = new();
         public bool IsFaculty { get; set; }
         public bool IsAdmin { get; set; }
         public string LastLoginString { get; set; }

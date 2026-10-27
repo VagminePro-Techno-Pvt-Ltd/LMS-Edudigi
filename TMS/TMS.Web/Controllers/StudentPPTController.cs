@@ -2,6 +2,7 @@ using System;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using TMS.Common;
 using TMS.Repository;
 
 namespace TMS.Web.Controllers
@@ -30,7 +31,7 @@ namespace TMS.Web.Controllers
 
             // Minimal safe listing: show active PPTs uploaded for student's enrolled courses.
             var enrolledCourseIds = await _db.CourseEnrollments
-                .Where(e => e.StudentId == studentId && e.IsActive)
+                .Where(e => e.StudentId == studentId && e.IsActive && (e.Status == 0 || e.Status == (int)EnrollmentStatus.Active))
                 .Select(e => e.CourseId)
                 .Distinct()
                 .ToListAsync();
@@ -60,6 +61,20 @@ namespace TMS.Web.Controllers
 
             if (ppt == null)
                 return NotFound();
+
+            bool isStaff = User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("Faculty") || User.IsInRole("Exam Coordinator");
+            if (!isStaff)
+            {
+                int studentId = GetUserId();
+                bool enrolled = await _db.CourseEnrollments.AnyAsync(e =>
+                    e.StudentId == studentId &&
+                    e.CourseId == ppt.CourseId &&
+                    e.IsActive &&
+                    (e.Status == 0 || e.Status == (int)EnrollmentStatus.Active));
+
+                if (!enrolled)
+                    return Forbid();
+            }
 
             var request = HttpContext.Request;
             var domain = $"{request.Scheme}://{request.Host}{request.PathBase.Value?.TrimEnd('/')}";

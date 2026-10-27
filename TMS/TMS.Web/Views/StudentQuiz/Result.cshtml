@@ -1,64 +1,268 @@
 @model TMS.ViewModels.Academics.StudentQuizAttemptViewModel
 @{
-    ViewData["Title"] = "Quiz Result";
-    var totalQuestions = Model.Answers.Count;
+    ViewData["Title"] = "Quiz Scorecard";
+    var totalQuestions = Model.Answers?.Count ?? 0;
     var score = Model.Score ?? 0;
-    var percentage = totalQuestions > 0 ? (double)score / totalQuestions * 100 : 0;
-    var passMarks = ViewBag.PassingMarks as int? ?? 50; 
+    var quiz = ViewBag.Quiz as TMS.ViewModels.Masters.QuizMasterViewModel;
+    var totalMaxMarks = quiz?.TotalMarks ?? (quiz?.Questions?.Sum(q => q.MaxMarks ?? 1) ?? totalQuestions);
+    if (totalMaxMarks <= 0) totalMaxMarks = totalQuestions > 0 ? totalQuestions : 1;
+    var percentage = totalMaxMarks > 0 ? ((double)score / totalMaxMarks) * 100 : 0;
+    var passMarks = ViewBag.PassingMarks as int? ?? 50;
     var isPassed = percentage >= passMarks;
 }
 
-<div class="exam-page" style="max-width: 600px; margin: 50px auto; padding: 0 20px; font-family: 'Jost', sans-serif;">
-    <div class="exam-section-box" style="background: #ffffff; border-radius: 16px; padding: 40px; box-shadow: 0 8px 30px rgba(0,0,0,0.04); border: 1px solid #f1f5f9; text-align: center;">
-        
-        <!-- Pass/Fail Badge Header -->
-        @if (isPassed)
-        {
-            <div style="background: #eff6ff; color: #3b82f6; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 36px; margin: 0 auto 24px auto;">
-                <i class="fa-solid fa-trophy"></i>
-            </div>
-            <h1 style="font-size: 24px; font-weight: 800; color: #1e293b; margin: 0 0 8px 0;">Congratulations!</h1>
-            <p style="font-size: 14px; color: #64748b; margin: 0 0 32px 0;">You have successfully passed this learning checkpoint.</p>
-        }
-        else
-        {
-            <div style="background: #fff1f2; color: #f43f5e; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 36px; margin: 0 auto 24px auto;">
-                <i class="fa-solid fa-circle-xmark"></i>
-            </div>
-            <h1 style="font-size: 24px; font-weight: 800; color: #1e293b; margin: 0 0 8px 0;">Keep Practicing!</h1>
-            <p style="font-size: 14px; color: #64748b; margin: 0 0 32px 0;">You did not achieve the required passing score of @passMarks% for this checkpoint.</p>
-        }
+<style>
+    .scorecard-shell {
+        max-width: 860px;
+        margin: 30px auto 50px;
+        padding: 0 16px;
+        font-family: 'Jost', sans-serif;
+    }
 
-        <!-- Percentage Ring -->
-        <div style="margin-bottom: 32px;">
-            <div style="font-size: 48px; font-weight: 900; color: @(isPassed ? "#3b82f6" : "#f43f5e"); line-height: 1;">@Math.Round(percentage)%</div>
-            <div style="font-size: 12px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 8px; letter-spacing: 1px;">Your Score</div>
+    .scorecard-hero {
+        background: @(isPassed ? "linear-gradient(135deg, #065f46 0%, #047857 50%, #10b981 100%)" : "linear-gradient(135deg, #881337 0%, #9f1239 50%, #e11d48 100%)");
+        border-radius: 20px;
+        padding: 36px 32px;
+        color: #ffffff;
+        text-align: center;
+        box-shadow: 0 12px 32px -8px @(isPassed ? "rgba(16, 185, 129, 0.35)" : "rgba(225, 29, 72, 0.35)");
+        margin-bottom: 24px;
+        position: relative;
+        overflow: hidden;
+    }
+    .scorecard-hero::after {
+        content: '';
+        position: absolute;
+        bottom: -40px;
+        right: -40px;
+        width: 180px;
+        height: 180px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .scorecard-stat-card {
+        background: #ffffff;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        padding: 20px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+        text-align: center;
+        transition: all 0.2s ease;
+    }
+    .scorecard-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+    }
+
+    .review-q-card {
+        background: #ffffff;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        padding: 20px 24px;
+        margin-bottom: 14px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+    }
+    .review-q-card.is-correct {
+        border-left: 4px solid #10b981;
+    }
+    .review-q-card.is-wrong {
+        border-left: 4px solid #ef4444;
+    }
+
+    .review-opt-pill {
+        padding: 10px 14px;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        font-size: 0.88rem;
+        margin-bottom: 6px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #f8fafc;
+    }
+    .review-opt-pill.chosen-correct {
+        background: #f0fdf4;
+        border-color: #86efac;
+        color: #166534;
+        font-weight: 600;
+    }
+    .review-opt-pill.chosen-wrong {
+        background: #fef2f2;
+        border-color: #fca5a5;
+        color: #991b1b;
+        font-weight: 600;
+    }
+    .review-opt-pill.is-key {
+        background: #eff6ff;
+        border-color: #93c5fd;
+        color: #1e40af;
+        font-weight: 600;
+    }
+</style>
+
+<div class="scorecard-shell">
+    <!-- Hero Banner -->
+    <div class="scorecard-hero">
+        <div class="rounded-circle bg-white bg-opacity-20 d-inline-flex align-items-center justify-content-center mb-3" style="width: 76px; height: 76px; font-size: 34px;">
+            <i class="fa-solid @(isPassed ? "fa-trophy" : "fa-award")"></i>
         </div>
 
-        <!-- Metrics Grid -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 40px; text-align: left;">
-            <div style="background: #f8fafc; border: 1px solid #f1f5f9; padding: 16px 20px; border-radius: 12px;">
-                <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Correct Answers</span>
-                <strong style="font-size: 18px; color: #1e293b;">@score / @totalQuestions</strong>
-            </div>
-            <div style="background: #f8fafc; border: 1px solid #f1f5f9; padding: 16px 20px; border-radius: 12px;">
-                <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Result Status</span>
-                <strong style="font-size: 18px; color: @(isPassed ? "#059669" : "#ef4444");">@(isPassed ? "PASSED" : "FAILED")</strong>
+        <h2 class="fw-bold mb-1 text-white">@(isPassed ? "Assessment Passed!" : "Needs Improvement")</h2>
+        <p class="text-light opacity-90 small mb-4 mx-auto" style="max-width: 500px;">
+            @(isPassed
+                ? "Excellent job! You have satisfied the passing score requirement for this module."
+                : $"You achieved {Math.Round(percentage)}%. A minimum of {passMarks}% is required to pass this checkpoint.")
+        </p>
+
+        <div class="d-inline-flex align-items-center gap-3 bg-black bg-opacity-20 px-4 py-2 rounded-pill border border-white border-opacity-25">
+            <span class="small text-light opacity-75">Score Obtained:</span>
+            <strong class="fs-4 text-white">@score / @totalMaxMarks Marks</strong>
+            <span class="badge bg-white @(isPassed ? "text-success" : "text-danger") fw-bold px-3 py-2 rounded-pill">
+                @Math.Round(percentage)%
+            </span>
+        </div>
+    </div>
+
+    <!-- Quick Stats Grid -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="scorecard-stat-card">
+                <span class="d-block small text-muted text-uppercase fw-bold mb-1">Status</span>
+                <strong class="fs-5 @(isPassed ? "text-success" : "text-danger")">
+                    <i class="fa-solid @(isPassed ? "fa-circle-check" : "fa-circle-xmark") me-1"></i>
+                    @(isPassed ? "PASSED" : "FAILED")
+                </strong>
             </div>
         </div>
+        <div class="col-6 col-md-3">
+            <div class="scorecard-stat-card">
+                <span class="d-block small text-muted text-uppercase fw-bold mb-1">Questions</span>
+                <strong class="fs-5 text-dark">@totalQuestions Total</strong>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="scorecard-stat-card">
+                <span class="d-block small text-muted text-uppercase fw-bold mb-1">Passing Mark</span>
+                <strong class="fs-5 text-primary">@passMarks%</strong>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="scorecard-stat-card">
+                <span class="d-block small text-muted text-uppercase fw-bold mb-1">Attempt Date</span>
+                <strong class="fs-6 text-secondary">@Model.AttemptDate.ToString("dd MMM yyyy")</strong>
+            </div>
+        </div>
+    </div>
 
-        <!-- Action Buttons -->
-        <div style="display: flex; gap: 12px; justify-content: center;">
-            <a asp-controller="Home" asp-action="StudentDashboard" class="exam-btn exam-btn-secondary" style="padding: 12px 24px; border-radius: 8px; font-weight: 700; font-size: 13px; text-decoration: none;">
-                <i class="fa-solid fa-house"></i> Return to Dashboard
-            </a>
-            @if (!isPassed)
+    <!-- Detailed Question Breakdown -->
+    @if (quiz != null && quiz.Questions != null && quiz.Questions.Any())
+    {
+        <div class="mb-4">
+            <h5 class="fw-bold text-dark mb-3">
+                <i class="fa-solid fa-list-check text-primary me-2"></i>Question Breakdown & Review
+            </h5>
+
+            @for (int i = 0; i < quiz.Questions.Count; i++)
             {
-                <a asp-action="Attempt" asp-route-courseId="@Model.CourseId" asp-route-quadrantId="@Model.CourseQuadrantId" class="exam-btn exam-btn-primary" style="padding: 12px 24px; border-radius: 8px; font-weight: 700; font-size: 13px; text-decoration: none; box-shadow: 0 4px 12px rgba(99,102,241,0.2);">
-                    <i class="fa-solid fa-rotate-right"></i> Try Again
-                </a>
+                var q = quiz.Questions[i];
+                var studentAns = Model.Answers?.FirstOrDefault(a => a.QuizQuestionId == q.Id);
+                var isObjective = q.QuestionType == TMS.Models.Masters.QuestionType.Objective;
+                var correctOpt = q.Options?.FirstOrDefault(o => o.IsCorrectOption == true);
+                var isAnsCorrect = isObjective && studentAns != null && correctOpt != null && studentAns.SelectedOptionId == correctOpt.Id;
+
+                <div class="review-q-card @(isObjective ? (isAnsCorrect ? "is-correct" : "is-wrong") : "")">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge bg-light text-dark border px-2 py-1 small">Question @(i + 1)</span>
+                        @if (isObjective)
+                        {
+                            <span class="badge @(isAnsCorrect ? "bg-success" : "bg-danger") px-3 py-1 rounded-pill">
+                                <i class="fa-solid @(isAnsCorrect ? "fa-check" : "fa-times") me-1"></i>
+                                @(isAnsCorrect ? "Correct (+1)" : "Incorrect (0)")
+                            </span>
+                        }
+                    </div>
+
+                    <h6 class="fw-bold text-dark mb-3" style="font-size: 0.96rem;">@q.QuestionText</h6>
+
+                    @if (isObjective && q.Options != null)
+                    {
+                        <div class="options-review">
+                            @foreach (var opt in q.Options)
+                            {
+                                var isChosen = studentAns?.SelectedOptionId == opt.Id;
+                                var isCorrectKey = opt.IsCorrectOption == true;
+                                var pillClass = "";
+
+                                if (isChosen && isCorrectKey)
+                                {
+                                    pillClass = "chosen-correct";
+                                }
+                                else if (isChosen && !isCorrectKey)
+                                {
+                                    pillClass = "chosen-wrong";
+                                }
+                                else if (isCorrectKey)
+                                {
+                                    pillClass = "is-key";
+                                }
+
+                                <div class="review-opt-pill @pillClass">
+                                    <div class="d-flex align-items-center gap-2">
+                                        @if (isChosen && isCorrectKey)
+                                        {
+                                            <i class="fa-solid fa-circle-check text-success"></i>
+                                        }
+                                        else if (isChosen)
+                                        {
+                                            <i class="fa-solid fa-circle-xmark text-danger"></i>
+                                        }
+                                        else if (isCorrectKey)
+                                        {
+                                            <i class="fa-solid fa-check text-primary"></i>
+                                        }
+                                        else
+                                        {
+                                            <i class="fa-regular fa-circle text-muted"></i>
+                                        }
+                                        <span>@opt.OptionText</span>
+                                    </div>
+                                    @if (isChosen && isCorrectKey)
+                                    {
+                                        <span class="small fw-bold text-success">Your Answer (Correct)</span>
+                                    }
+                                    else if (isChosen)
+                                    {
+                                        <span class="small fw-bold text-danger">Your Answer</span>
+                                    }
+                                    else if (isCorrectKey)
+                                    {
+                                        <span class="small fw-bold text-primary">Correct Answer</span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="p-3 bg-light rounded-3 border">
+                            <small class="text-muted fw-bold text-uppercase d-block mb-1">Your Written Submission:</small>
+                            <p class="mb-0 text-dark small" style="white-space: pre-wrap;">@(studentAns?.WrittenAnswer ?? "No response submitted.")</p>
+                        </div>
+                    }
+                </div>
             }
         </div>
+    }
 
+    <!-- Action Buttons -->
+    <div class="d-flex justify-content-center gap-3 flex-wrap">
+        <a asp-controller="StudentCourse" asp-action="Index" class="btn btn-outline-secondary px-4 py-2 rounded-pill fw-semibold">
+            <i class="fa-solid fa-arrow-left me-1"></i> My Courses
+        </a>
+        <a asp-controller="Home" asp-action="StudentDashboard" class="btn btn-primary px-4 py-2 rounded-pill fw-bold" style="background: linear-gradient(135deg, #4338ca 0%, #3b82f6 100%); border:none;">
+            <i class="fa-solid fa-house me-1"></i> Back to Dashboard
+        </a>
     </div>
 </div>

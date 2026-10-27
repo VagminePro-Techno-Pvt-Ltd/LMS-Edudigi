@@ -17,7 +17,7 @@ namespace TMS.ViewModels.Masters
         [MapToDTO, Required, Display(Name = "Material Type")]
         public string? MaterialType { get; set; }  // e.g., "Video", "Document", "VideoURL"
 
-        [MapToDTO, Required, Display(Name = "File Path")]
+        [MapToDTO, Display(Name = "File Path")]
         public string? FilePath { get; set; }
 
         [MapToDTO, Display(Name = "Title"), MaxLength(200)]

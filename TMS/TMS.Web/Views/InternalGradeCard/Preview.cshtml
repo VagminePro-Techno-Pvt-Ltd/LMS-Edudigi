@@ -1,0 +1,436 @@
+
+@model TMS.Web.ViewModels.InternalGradeCardViewModel
+
+@{
+    ViewData["Title"] = "Internal Assessment Marks Statement";
+    var complete = Model.Rows.Count > 0 && Model.PendingCount == 0;
+    var resultStatus = Model.ResultStatus;
+}
+
+<style>
+    .igc-toolbar {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin: 22px auto;
+    }
+
+    .igc-toolbar button,
+    .igc-toolbar a {
+        border: 0;
+        border-radius: 8px;
+        padding: 11px 18px;
+        text-decoration: none;
+        font-weight: 650;
+        cursor: pointer;
+    }
+
+    .igc-print-btn {
+        background: #155bb7;
+        color: #fff;
+    }
+
+    .igc-back-btn {
+        background: #eaf1fb;
+        color: #173c70;
+    }
+
+    .igc-sheet {
+        width: 210mm;
+        min-height: 297mm;
+        max-width: 100%;
+        margin: 0 auto 30px;
+        background: white;
+        color: #172c45;
+        padding: 16mm;
+        border: 1px solid #dbe4f0;
+        box-shadow: 0 8px 30px rgba(0,0,0,.07);
+        font-family: Arial, sans-serif;
+        box-sizing: border-box;
+    }
+
+    .igc-brand {
+        text-align: center;
+        border-bottom: 3px solid #1754a5;
+        padding-bottom: 15px;
+        margin-bottom: 22px;
+    }
+
+    .igc-brand h1 {
+        color: #1455ae;
+        font-size: 29px;
+        margin: 0;
+        font-weight: 800;
+    }
+
+    .igc-brand p {
+        color: #6c7d91;
+        font-size: 11px;
+        letter-spacing: 2px;
+        margin: 5px 0 16px;
+    }
+
+    .igc-brand h2 {
+        font-size: 17px;
+        font-weight: 750;
+        margin: 0;
+        text-transform: uppercase;
+    }
+
+    .igc-subtitle {
+        font-size: 12px;
+        margin-top: 5px;
+        color: #6c7d91;
+    }
+
+    .igc-info {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px 22px;
+        margin: 25px 0;
+        font-size: 13px;
+    }
+
+    .igc-info-label {
+        color: #667990;
+        font-size: 11px;
+        margin-bottom: 5px;
+    }
+
+    .igc-info-value {
+        font-weight: 700;
+        overflow-wrap: anywhere;
+    }
+
+    .igc-marks {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 18px;
+        font-size: 12px;
+    }
+
+    .igc-marks th {
+        background: #eaf2fd;
+        color: #164c96;
+        padding: 11px 8px;
+        border: 1px solid #d2dff0;
+        text-align: left;
+    }
+
+    .igc-marks td {
+        border: 1px solid #dbe3ee;
+        padding: 11px 8px;
+        vertical-align: top;
+    }
+
+    .igc-marks tfoot td {
+        font-weight: 750;
+        background: #f5f8fd;
+    }
+
+    .igc-result {
+        margin-top: 24px;
+        padding: 18px;
+        border: 1px solid #d4e2f3;
+        border-radius: 10px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .igc-result small {
+        display: block;
+        color: #687b90;
+        margin-bottom: 7px;
+    }
+
+    .igc-result strong {
+        font-size: 20px;
+        color: #114e9c;
+    }
+
+    .igc-note {
+        font-size: 11px;
+        color: #62768e;
+        line-height: 1.7;
+        margin-top: 22px;
+    }
+
+    .igc-footer {
+        margin-top: 65px;
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        font-size: 11px;
+        color: #687b90;
+        border-top: 1px solid #d8e1ed;
+        padding-top: 15px;
+    }
+
+    @@page {
+        size: A4 portrait;
+        margin: 0;
+    }
+
+    @@media print {
+        html, body {
+            background: #fff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .igc-toolbar,
+        .sidebar-wrapper,
+        .page-header,
+        footer,
+        .page-footer,
+        .footer {
+            display: none !important;
+        }
+
+        .page-body,
+        .page-body-wrapper,
+        .page-wrapper,
+        .container-fluid {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            max-width: none !important;
+            min-height: 0 !important;
+        }
+
+        .igc-sheet {
+            width: 210mm !important;
+            max-width: none !important;
+            min-height: 297mm;
+            margin: 0 !important;
+            padding: 16mm !important;
+            border: 0 !important;
+            box-shadow: none !important;
+        }
+
+        .igc-brand,
+        .igc-marks th,
+        .igc-marks tfoot td {
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+        }
+
+        .igc-marks tr {
+            break-inside: avoid;
+        }
+    }
+
+    @@media (max-width: 700px) {
+        .igc-sheet {
+            padding: 18px;
+            min-height: auto;
+        }
+
+        .igc-info {
+            grid-template-columns: 1fr;
+        }
+
+        .igc-result {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="igc-toolbar">
+    <a class="igc-back-btn"
+       asp-controller="InternalGradeCard"
+       asp-action="Index">
+        Back to Grade Cards
+    </a>
+
+    <button type="button"
+            class="igc-print-btn"
+            onclick="window.print()">
+        Print / Save as PDF
+    </button>
+</div>
+
+<div class="igc-sheet">
+    <header class="igc-brand">
+        <h1>EduDigi Classes</h1>
+        <p>LMS PLATFORM</p>
+        <h2>Internal Assessment Marks Statement</h2>
+        <div class="igc-subtitle">
+            Course-wise Published Assessment Results
+        </div>
+    </header>
+
+    <section class="igc-info">
+        <div>
+            <div class="igc-info-label">STUDENT NAME</div>
+            <div class="igc-info-value">@Model.StudentName</div>
+        </div>
+
+        <div>
+            <div class="igc-info-label">STUDENT ID</div>
+            <div class="igc-info-value">@Model.StudentId</div>
+        </div>
+
+        <div>
+            <div class="igc-info-label">COURSE</div>
+            <div class="igc-info-value">@Model.CourseName</div>
+        </div>
+
+        <div>
+            <div class="igc-info-label">SEMESTER</div>
+            <div class="igc-info-value">
+                @(Model.SemesterId.HasValue
+                    ? $"Semester {Model.SemesterId}"
+                    : "Not assigned")
+            </div>
+        </div>
+
+        <div>
+            <div class="igc-info-label">REPORT TYPE</div>
+            <div class="igc-info-value">Internal Assessment Only</div>
+        </div>
+
+        <div>
+            <div class="igc-info-label">GENERATED ON</div>
+            <div class="igc-info-value">
+                @Model.GeneratedOn.ToString("dd MMM yyyy, hh:mm tt")
+            </div>
+        </div>
+    </section>
+
+    <table class="igc-marks">
+        <thead>
+            <tr>
+                <th style="width:5%">#</th>
+                <th>Assessment</th>
+                <th>Type</th>
+                <th style="width:13%">Max Marks</th>
+                <th style="width:14%">Obtained</th>
+                <th style="width:10%">Grade</th>
+                <th>Submission</th>
+                <th>Outcome</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            @{
+                var serial = 1;
+            }
+
+            @foreach (var row in Model.Rows)
+            {
+                <tr>
+                    <td>@serial</td>
+                    <td>
+                        @row.AssessmentTitle
+                        @if (row.IsCompartmental || row.AttemptNumber > 1)
+                        {
+                            <span style="font-size:10px; background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:4px;">
+                                Compartmental (Attempt @row.AttemptNumber)
+                            </span>
+                        }
+                    </td>
+                    <td>@row.AssessmentType</td>
+                    <td>@row.MaximumMarks.ToString("0.##")</td>
+                    <td>
+                        @(row.ObtainedMarks.HasValue
+                            ? row.ObtainedMarks.Value.ToString("0.##")
+                            : "—")
+                    </td>
+                    <td>
+                        @if (!string.IsNullOrEmpty(row.Grade))
+                        {
+                            <strong style="color:#155bb7;">@row.Grade</strong>
+                            @if (row.GradePoint.HasValue)
+                            {
+                                <small style="color:#6b7280; margin-left:3px;">(@row.GradePoint.Value.ToString("0.0"))</small>
+                            }
+                        }
+                        else
+                        {
+                            <span>—</span>
+                        }
+                    </td>
+                    <td>@row.SubmissionStatus</td>
+                    <td>@row.Outcome</td>
+                </tr>
+
+                serial++;
+            }
+        </tbody>
+
+        <tfoot>
+            <tr>
+                <td colspan="3">TOTAL</td>
+                <td colspan="2">
+                    @(complete
+                        ? Model.TotalMaximumMarks.ToString("0.##")
+                        : "—")
+                </td>
+                <td>
+                    @(complete && !string.IsNullOrEmpty(Model.OverallGrade) ? Model.OverallGrade : "—")
+                </td>
+                <td>
+                    @(complete
+                        ? Model.TotalObtainedMarks.ToString("0.##")
+                        : "—")
+                </td>
+                <td>
+                    @resultStatus
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <section class="igc-result">
+        <div>
+            <small>OVERALL PERCENTAGE</small>
+            <strong>
+                @(Model.Percentage.HasValue
+                    ? Model.Percentage.Value.ToString("0.00") + "%"
+                    : "Not available")
+            </strong>
+        </div>
+
+        <div>
+            <small>INSTITUTIONAL GRADE (CBCS)</small>
+            <strong>
+                @(complete && !string.IsNullOrEmpty(Model.OverallGrade)
+                    ? $"{Model.OverallGrade} (Grade Point: {Model.OverallGradePoint?.ToString("0.0") ?? "0.0"})"
+                    : "Not available")
+            </strong>
+        </div>
+
+        <div>
+            <small>ASSESSMENT STATUS</small>
+            <strong>
+                @resultStatus
+            </strong>
+        </div>
+    </section>
+
+    <div class="igc-note">
+        <strong>Important:</strong>
+        This document contains published Internal Assessment
+        results only. It is not a final university examination
+        grade card. SGPA and CGPA are not calculated. PASS requires at least 33% in each published assessment. A published non-submission is
+        recorded as ABSENT with 0 marks and a FAIL outcome. A submitted but incomplete evaluation remains PENDING.
+
+        <br />
+        The statement reflects the results available at the
+        time of generation and is not an independently
+        approved or digitally signed certificate.
+    </div>
+
+    <div class="igc-footer">
+        <span>
+            Generated from EduDigi Classes LMS
+        </span>
+
+        <span>
+            Internal Assessment Marks Statement
+        </span>
+    </div>
+</div>

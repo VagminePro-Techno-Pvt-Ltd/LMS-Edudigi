@@ -55,6 +55,20 @@ namespace TMS.Web.Controllers
             if (ppt == null)
                 return NotFound("PPT not found.");
 
+            bool isStaff = User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("Faculty") || User.IsInRole("Exam Coordinator");
+            if (!isStaff)
+            {
+                int studentId = GetUserId();
+                bool enrolled = await _db.CourseEnrollments.AnyAsync(e =>
+                    e.StudentId == studentId &&
+                    e.CourseId == ppt.CourseId &&
+                    e.IsActive &&
+                    (e.Status == 0 || e.Status == (int)TMS.Common.EnrollmentStatus.Active));
+
+                if (!enrolled)
+                    return Forbid();
+            }
+
             // Resolve physical path of the PPT file
             var physPath = Path.Combine(_env.WebRootPath,
                 ppt.FilePath.Replace("~/", "").TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
@@ -84,8 +98,27 @@ namespace TMS.Web.Controllers
         // ══════════════════════════════════════════════════════════════
         [HttpGet]
         [Route("InteractivePPT/Slide/{pptId:int}/{num:int}")]
-        public IActionResult Slide(int pptId, int num)
+        public async Task<IActionResult> Slide(int pptId, int num)
         {
+            var ppt = await _db.InteractivePPTs
+                .FirstOrDefaultAsync(p => p.Id == pptId && p.IsActive);
+            if (ppt == null)
+                return NotFound();
+
+            bool isStaff = User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("Faculty") || User.IsInRole("Exam Coordinator");
+            if (!isStaff)
+            {
+                int studentId = GetUserId();
+                bool enrolled = await _db.CourseEnrollments.AnyAsync(e =>
+                    e.StudentId == studentId &&
+                    e.CourseId == ppt.CourseId &&
+                    e.IsActive &&
+                    (e.Status == 0 || e.Status == (int)TMS.Common.EnrollmentStatus.Active));
+
+                if (!enrolled)
+                    return Forbid();
+            }
+
             var dir = _pptService.GetSlideOutputDir(pptId, _env.WebRootPath);
             var path = Path.Combine(dir, $"slide_{num}.png");
             if (!System.IO.File.Exists(path))
@@ -121,14 +154,16 @@ namespace TMS.Web.Controllers
         // ══════════════════════════════════════════════════════════════
         // FACULTY: GET /InteractivePPT/ManageInteractions/{pptId}
         // ══════════════════════════════════════════════════════════════
+        [Authorize(Roles = "Faculty,Admin,Super Admin,Exam Coordinator")]
         [HttpGet]
         [Route("InteractivePPT/ManageInteractions/{pptId:int}")]
         public async Task<IActionResult> ManageInteractions(int pptId)
         {
             var facultyId = GetUserId();
+            bool isAdmin = User.IsInRole("Admin") || User.IsInRole("Super Admin");
             var ppt = await _db.InteractivePPTs
                 .Include(p => p.Course)
-                .FirstOrDefaultAsync(p => p.Id == pptId && p.UploadedBy == facultyId);
+                .FirstOrDefaultAsync(p => p.Id == pptId && (isAdmin || p.UploadedBy == facultyId));
 
             if (ppt == null)
             {
@@ -185,6 +220,7 @@ namespace TMS.Web.Controllers
         // ══════════════════════════════════════════════════════════════
         // FACULTY: POST /InteractivePPT/AddInteraction
         // ══════════════════════════════════════════════════════════════
+        [Authorize(Roles = "Faculty,Admin,Super Admin,Exam Coordinator")]
         [HttpPost]
         [Route("InteractivePPT/AddInteraction")]
         [ValidateAntiForgeryToken]
@@ -193,8 +229,9 @@ namespace TMS.Web.Controllers
             string buttonText, int displayOrder = 0)
         {
             var facultyId = GetUserId();
+            bool isAdmin = User.IsInRole("Admin") || User.IsInRole("Super Admin");
             var pptOwned = await _db.InteractivePPTs
-                .AnyAsync(p => p.Id == pptId && p.UploadedBy == facultyId);
+                .AnyAsync(p => p.Id == pptId && (isAdmin || p.UploadedBy == facultyId));
             if (!pptOwned)
                 return Json(new { success = false, message = "Access denied." });
 
@@ -222,15 +259,17 @@ namespace TMS.Web.Controllers
         // ══════════════════════════════════════════════════════════════
         // FACULTY: POST /InteractivePPT/DeleteInteraction/{id}
         // ══════════════════════════════════════════════════════════════
+        [Authorize(Roles = "Faculty,Admin,Super Admin,Exam Coordinator")]
         [HttpPost]
         [Route("InteractivePPT/DeleteInteraction/{id:int}")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteInteraction(int id)
         {
             var facultyId = GetUserId();
+            bool isAdmin = User.IsInRole("Admin") || User.IsInRole("Super Admin");
             var interaction = await _db.PPTSlideInteractions
                 .Include(i => i.PPT)
-                .FirstOrDefaultAsync(i => i.Id == id && i.IsActive && i.PPT!.UploadedBy == facultyId);
+                .FirstOrDefaultAsync(i => i.Id == id && i.IsActive && (isAdmin || i.PPT!.UploadedBy == facultyId));
 
             if (interaction == null)
                 return Json(new { success = false, message = "Not found or access denied." });
@@ -247,6 +286,25 @@ namespace TMS.Web.Controllers
         [HttpGet]
         public async Task<IActionResult> GetInteractionsForSlide(int pptId, int slideNumber)
         {
+            var ppt = await _db.InteractivePPTs
+                .FirstOrDefaultAsync(p => p.Id == pptId && p.IsActive);
+            if (ppt == null)
+                return NotFound();
+
+            bool isStaff = User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("Faculty") || User.IsInRole("Exam Coordinator");
+            if (!isStaff)
+            {
+                int studentId = GetUserId();
+                bool enrolled = await _db.CourseEnrollments.AnyAsync(e =>
+                    e.StudentId == studentId &&
+                    e.CourseId == ppt.CourseId &&
+                    e.IsActive &&
+                    (e.Status == 0 || e.Status == (int)TMS.Common.EnrollmentStatus.Active));
+
+                if (!enrolled)
+                    return Forbid();
+            }
+
             var items = await _db.PPTSlideInteractions
                 .Where(i => i.PPTId == pptId && i.SlideNumber == slideNumber && i.IsActive)
                 .OrderBy(i => i.DisplayOrder)

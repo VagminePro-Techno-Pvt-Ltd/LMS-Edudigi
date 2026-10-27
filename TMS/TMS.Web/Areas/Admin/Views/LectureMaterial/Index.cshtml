@@ -228,7 +228,10 @@
                 <text>$('#globalLibraryBtn').click();</text>
             }
 
-            // ═══════ COURSE SELECTION (AJAX) ═══════
+            // Browse Central Library button inside course board
+            $(document).on('click', '#browseLibraryForCourseBtn', function () {
+                $('#globalLibraryBtn').click();
+            });
             $(document).on('click', '.cl-course-item', function () {
                 var courseId = $(this).data('course-id');
                 $('.cl-course-item').removeClass('active');
@@ -296,7 +299,9 @@
             $(document).on('click', '.view-file-link', function () {
                 const filePath = $(this).data('filepath');
                 const title = $(this).data('title') || 'Preview';
-                const ext = filePath.split('.').pop().toLowerCase();
+                const materialType = String($(this).data('material-type') || '').toLowerCase();
+                const cleanPath = String(filePath || '').split('?')[0].split('#')[0];
+                const ext = cleanPath.includes('.') ? cleanPath.split('.').pop().toLowerCase() : '';
 
                 $('#filePreviewLabel').text(title);
                 let content = '';
@@ -308,7 +313,21 @@
                         content = `<div id="youtube-player-container" class="ratio ratio-16x9"></div>`;
                         $('#filePreviewBody').html(content);
                         ytPlayer = new YT.Player('youtube-player-container', { videoId: videoId, width: '100%', height: '500', playerVars: { autoplay: 1, rel: 0 } });
+                    } else {
+                        content = `<div class="p-4 text-center"><a href="${filePath}" target="_blank" rel="noopener" class="btn btn-primary">Open Video</a></div>`;
+                        $('#filePreviewBody').html(content);
                     }
+                } else if (filePath.includes("vimeo.com")) {
+                    const vimeoMatch = filePath.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+                    if (vimeoMatch) {
+                        content = `<div class="ratio ratio-16x9"><iframe src="https://player.vimeo.com/video/${vimeoMatch[1]}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen style="border:0;"></iframe></div>`;
+                    } else {
+                        content = `<div class="p-4 text-center"><a href="${filePath}" target="_blank" rel="noopener" class="btn btn-primary">Open Video</a></div>`;
+                    }
+                    $('#filePreviewBody').html(content);
+                } else if (materialType === 'videourl') {
+                    content = `<div class="p-4 text-center"><p class="text-muted mb-3">This video URL cannot be embedded safely in the preview.</p><a href="${filePath}" target="_blank" rel="noopener" class="btn btn-primary"><i class="fa fa-external-link-alt"></i> Open Video</a></div>`;
+                    $('#filePreviewBody').html(content);
                 } else if (['mp4', 'webm', 'ogg'].includes(ext)) {
                     content = `<video width="100%" height="500" controls autoplay><source src="${filePath}" type="video/${ext}"></video>`;
                     $('#filePreviewBody').html(content);
@@ -505,6 +524,41 @@
                         } else {
                             alert(res.message);
                         }
+                    });
+                }
+            });
+
+            // ═══════ DELETE MATERIAL ═══════
+            $(document).on('click', '.delete-material-btn', function (e) {
+                e.stopPropagation();
+                var materialId = $(this).data('material-id');
+                var title = $(this).data('title') || 'this content';
+                var $btn = $(this);
+
+                if (confirm(`Are you sure you want to permanently delete "${title}"? This will remove all course assignments and delete the material from Central Library.`)) {
+                    $btn.prop('disabled', true);
+                    $.post('@Url.Action("DeleteMaterial")', { id: materialId }, function (res) {
+                        if (res.success) {
+                            var $item = $btn.closest('.gl-item, .cl-file-item');
+                            $item.fadeOut(300, function() {
+                                $(this).remove();
+                            });
+                            // If on course board or global library, update sidebar count if available
+                            var $activeCourse = $('.cl-course-item.active');
+                            if ($('#globalLibraryBtn').hasClass('active')) {
+                                var count = parseInt($('#globalLibraryBtn .cl-global-count').text()) || 1;
+                                $('#globalLibraryBtn .cl-global-count').text(Math.max(0, count - 1));
+                            } else if ($activeCourse.length) {
+                                var count = parseInt($activeCourse.find('.item-count').text()) || 1;
+                                $activeCourse.find('.item-count').text(Math.max(0, count - 1));
+                            }
+                        } else {
+                            alert(res.message || 'Failed to delete material.');
+                            $btn.prop('disabled', false);
+                        }
+                    }).fail(function () {
+                        alert('Network error while deleting material.');
+                        $btn.prop('disabled', false);
                     });
                 }
             });

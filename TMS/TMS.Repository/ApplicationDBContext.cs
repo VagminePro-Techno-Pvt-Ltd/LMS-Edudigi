@@ -16,6 +16,7 @@ using TMS.Models.Training;
 using TMS.Repository.SeedData;
 using TMS.ViewModels.Masters;
 using TMS.Models.Assessments;
+using TMS.Models.LearningAssistant;
 
 namespace TMS.Repository
 {
@@ -64,6 +65,8 @@ namespace TMS.Repository
         public DbSet<QuizOption> QuizOptions { get; set; }
         public DbSet<LectureMaterial> LectureMaterials { get; set; }
         public DbSet<CourseMaterialMapping> CourseMaterialMappings { get; set; }
+        public DbSet<DocumentChunk> DocumentChunks { get; set; }
+        public DbSet<DocumentIndexStatus> DocumentIndexStatuses { get; set; }
 
         public DbSet<CourseQuadrantMaster> CourseQuadrantMasters { get; set; }
         public DbSet<SemesterMaster> SemesterMasters { get; set; }
@@ -99,6 +102,12 @@ namespace TMS.Repository
         // ─── Announcements ───
         public DbSet<Announcement> Announcements { get; set; }
         public DbSet<AssignmentMaster> AssignmentMasters { get; set; }
+        public DbSet<InternalAssessment> InternalAssessments { get; set; }
+        public DbSet<InternalAssessmentSubmission> InternalAssessmentSubmissions { get; set; }
+        public DbSet<InternalAssessmentPolicy> InternalAssessmentPolicies { get; set; }
+        public DbSet<InternalAssessmentWindow> InternalAssessmentWindows { get; set; }
+        public DbSet<InternalAssessmentQuestion> InternalAssessmentQuestions { get; set; }
+        public DbSet<InternalAssessmentQuestionAnswer> InternalAssessmentQuestionAnswers { get; set; }
         public DbSet<AssignmentSubmission> AssignmentSubmissions { get; set; }
         public DbSet<AssignmentGrade> AssignmentGrades { get; set; }
 
@@ -130,6 +139,9 @@ namespace TMS.Repository
         public DbSet<ChatAttachment> ChatAttachments { get; set; }
         #endregion
 
+        // ─── AI Learning Companion Caching ───
+        public DbSet<LearningAssistantAnswerCache> LearningAssistantAnswerCaches { get; set; }
+
         // ─── Enterprise Assessment Module ───
         public DbSet<ExamMaster> ExamMasters { get; set; }
         public DbSet<ExamSection> ExamSections { get; set; }
@@ -141,6 +153,12 @@ namespace TMS.Repository
         public DbSet<StudentExamAnswer> StudentExamAnswers { get; set; }
         public DbSet<FacultyEvaluation> FacultyEvaluations { get; set; }
         public DbSet<ExamResult> ExamResults { get; set; }
+        public DbSet<QuestionPaper> QuestionPapers { get; set; }
+        public DbSet<QuestionPaperQuestion> QuestionPaperQuestions { get; set; }
+        public DbSet<InstitutionalGradingPolicy> InstitutionalGradingPolicies { get; set; }
+        public DbSet<ProcessedAssessmentResult> ProcessedAssessmentResults { get; set; }
+        public DbSet<ProctoringSession> ProctoringSessions { get; set; }
+        public DbSet<ProctoringIncident> ProctoringIncidents { get; set; }
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public ApplicationDBContext(DbContextOptions<ApplicationDBContext> options) : base(options)
@@ -151,6 +169,54 @@ namespace TMS.Repository
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
+            // Internal Assessment relational contract. Keep this model definition
+            // authoritative; deployment remains an additive, separately reviewed migration.
+            builder.Entity<InternalAssessment>(entity =>
+            {
+                entity.HasIndex(x => x.CourseId);
+                entity.HasIndex(x => x.SubjectId);
+                entity.HasIndex(x => x.WindowId);
+                entity.HasIndex(x => x.CreatedBy);
+                entity.HasOne<CourseMaster>().WithMany().HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<SubjectMaster>().WithMany().HasForeignKey(x => x.SubjectId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<InternalAssessmentWindow>().WithMany().HasForeignKey(x => x.WindowId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<UserMaster>().WithMany().HasForeignKey(x => x.CreatedBy).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<UserMaster>().WithMany().HasForeignKey(x => x.ResultApprovedBy).OnDelete(DeleteBehavior.NoAction);
+            });
+            builder.Entity<InternalAssessmentSubmission>(entity =>
+            {
+                entity.HasIndex(x => new { x.AssessmentId, x.StudentId }).IsUnique();
+                entity.HasIndex(x => x.StudentId);
+                entity.HasIndex(x => x.EvaluatedBy);
+                entity.HasOne<InternalAssessment>().WithMany().HasForeignKey(x => x.AssessmentId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<UserMaster>().WithMany().HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<UserMaster>().WithMany().HasForeignKey(x => x.EvaluatedBy).OnDelete(DeleteBehavior.NoAction);
+            });
+            builder.Entity<InternalAssessmentPolicy>(entity =>
+            {
+                entity.HasIndex(x => x.SemesterId);
+                entity.HasOne<SemesterMaster>().WithMany().HasForeignKey(x => x.SemesterId).OnDelete(DeleteBehavior.NoAction);
+            });
+            builder.Entity<InternalAssessmentWindow>(entity =>
+            {
+                entity.HasIndex(x => x.PolicyId);
+                entity.HasIndex(x => x.CourseId);
+                entity.HasOne<InternalAssessmentPolicy>().WithMany().HasForeignKey(x => x.PolicyId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<CourseMaster>().WithMany().HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.NoAction);
+            });
+            builder.Entity<InternalAssessmentQuestion>(entity =>
+            {
+                entity.HasIndex(x => new { x.AssessmentId, x.SortOrder });
+                entity.HasOne<InternalAssessment>().WithMany().HasForeignKey(x => x.AssessmentId).OnDelete(DeleteBehavior.NoAction);
+            });
+            builder.Entity<InternalAssessmentQuestionAnswer>(entity =>
+            {
+                entity.HasIndex(x => new { x.SubmissionId, x.QuestionId }).IsUnique();
+                entity.HasIndex(x => x.QuestionId);
+                entity.HasOne<InternalAssessmentSubmission>().WithMany().HasForeignKey(x => x.SubmissionId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne<InternalAssessmentQuestion>().WithMany().HasForeignKey(x => x.QuestionId).OnDelete(DeleteBehavior.NoAction);
+            });
+
             foreach (var relations in builder.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
             {
                 relations.DeleteBehavior = DeleteBehavior.NoAction;
@@ -213,11 +279,16 @@ namespace TMS.Repository
                 .HasForeignKey(q => q.CorrectOptionId)
                 .OnDelete(DeleteBehavior.NoAction);
             builder.Entity<FacultyQuizQuestionAssessment>()
-        .HasOne(q => q.FacultyQuizAssessment)
-        .WithMany(a => a.Questions)
-        .HasForeignKey(q => q.FacultyQuizAssessmentId)
-        .OnDelete(DeleteBehavior.Cascade);
-        
+                .HasOne(q => q.FacultyQuizAssessment)
+                .WithMany(a => a.Questions)
+                .HasForeignKey(q => q.FacultyQuizAssessmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<StudentQuizAnswer>()
+                .HasOne(a => a.StudentQuizAttempt)
+                .WithMany(t => t.Answers)
+                .HasForeignKey(a => a.StudentQuizAttemptId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // ─── CourseEnrollment: Unique Constraint (CourseId + StudentId) ───
             builder.Entity<CourseEnrollment>()
@@ -243,11 +314,89 @@ namespace TMS.Repository
                 .IsUnique()
                 .HasDatabaseName("IX_VideoQuizAttempt_Student_Question");
 
-            // ─── LectureQuizAttempt: unique per student+question ───
-            builder.Entity<LectureQuizAttempt>()
-                .HasIndex(a => new { a.StudentId, a.LectureQuizQuestionId })
-                .IsUnique()
-                .HasDatabaseName("IX_LectureQuizAttempt_Student_Question");
+            // ─── QuestionPaper & QuestionPaperQuestion ───
+            builder.Entity<QuestionPaper>(entity =>
+            {
+                entity.HasIndex(x => x.CourseId);
+                entity.HasIndex(x => x.FacultyId);
+                entity.HasOne(x => x.Course).WithMany().HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.Semester).WithMany().HasForeignKey(x => x.SemesterId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.Subject).WithMany().HasForeignKey(x => x.SubjectId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.Faculty).WithMany().HasForeignKey(x => x.FacultyId).OnDelete(DeleteBehavior.NoAction);
+            });
+
+            builder.Entity<QuestionPaperQuestion>(entity =>
+            {
+                entity.HasIndex(x => x.QuestionPaperId);
+                entity.HasIndex(x => x.QuestionBankId);
+                entity.HasOne(x => x.QuestionPaper).WithMany(p => p.Questions).HasForeignKey(x => x.QuestionPaperId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(x => x.QuestionBank).WithMany().HasForeignKey(x => x.QuestionBankId).OnDelete(DeleteBehavior.NoAction);
+            });
+
+            // ─── ProcessedAssessmentResult ───
+            builder.Entity<ProcessedAssessmentResult>(entity =>
+            {
+                entity.HasIndex(x => new { x.AssessmentId, x.StudentId, x.AttemptNumber }).IsUnique();
+                entity.HasIndex(x => new { x.CourseId, x.StudentId });
+                entity.HasOne(x => x.Assessment).WithMany().HasForeignKey(x => x.AssessmentId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.Student).WithMany().HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.Course).WithMany().HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.Semester).WithMany().HasForeignKey(x => x.SemesterId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.Policy).WithMany().HasForeignKey(x => x.PolicyId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.OriginalResult).WithMany().HasForeignKey(x => x.OriginalResultId).OnDelete(DeleteBehavior.NoAction);
+            });
+
+            // ─── QuestionBank Navigation Relations ───
+            builder.Entity<QuestionBank>(entity =>
+            {
+                entity.HasOne(x => x.Unit).WithMany().HasForeignKey(x => x.UnitId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.Topic).WithMany().HasForeignKey(x => x.TopicId).OnDelete(DeleteBehavior.NoAction);
+            });
+
+            builder.Entity<TopicMaster>(entity =>
+            {
+                entity.Ignore(x => x.Description);
+            });
+
+            // ─── Document-Aware AI Assistant: Searchable Chunks & Index Status ───
+            builder.Entity<DocumentChunk>(b =>
+            {
+                b.ToTable("DocumentChunks");
+                b.HasKey(c => c.Id);
+                b.HasIndex(c => c.LectureMaterialId)
+                    .HasDatabaseName("IX_DocumentChunks_LectureMaterialId");
+                b.Property(c => c.Heading).HasMaxLength(300);
+            });
+
+            builder.Entity<DocumentIndexStatus>(b =>
+            {
+                b.ToTable("DocumentIndexStatuses");
+                b.HasKey(s => s.Id);
+                b.HasIndex(s => s.LectureMaterialId)
+                    .IsUnique()
+                    .HasDatabaseName("IX_DocumentIndexStatuses_LectureMaterialId");
+                b.Property(s => s.Status).HasMaxLength(50);
+                b.Property(s => s.FileHash).HasMaxLength(100);
+            });
+
+            builder.Entity<LearningAssistantAnswerCache>(b =>
+            {
+                b.ToTable("LearningAssistantAnswerCaches");
+                b.HasKey(c => c.Id);
+                b.HasIndex(c => c.CacheKey)
+                    .IsUnique()
+                    .HasDatabaseName("IX_LearningAssistantAnswerCaches_CacheKey");
+                b.HasIndex(c => c.LectureMaterialId)
+                    .HasDatabaseName("IX_LearningAssistantAnswerCaches_LectureMaterialId");
+                b.HasIndex(c => c.CourseId)
+                    .HasDatabaseName("IX_LearningAssistantAnswerCaches_CourseId");
+                b.HasIndex(c => c.ExpiresOn)
+                    .HasDatabaseName("IX_LearningAssistantAnswerCaches_ExpiresOn");
+                b.Property(c => c.CacheKey).HasMaxLength(128);
+                b.Property(c => c.NormalizedQuery).HasMaxLength(500);
+                b.Property(c => c.ModelName).HasMaxLength(50);
+                b.Property(c => c.Language).HasMaxLength(20);
+            });
 
             base.OnModelCreating(builder);
         }

@@ -1,8 +1,74 @@
 @model IEnumerable<TMS.Models.Assessments.ExamMaster>
 
 @{
-    ViewData["Title"] = "My Assessments";
+    ViewData["Title"] = "Assessments & Quizzes";
+    var exams = Model ?? Enumerable.Empty<TMS.Models.Assessments.ExamMaster>();
+    var quizzes = ViewBag.Quizzes as List<TMS.ViewModels.Masters.QuizMasterViewModel> ?? new List<TMS.ViewModels.Masters.QuizMasterViewModel>();
+    var quizAttempts = ViewBag.QuizAttempts as List<TMS.ViewModels.Academics.StudentQuizAttemptViewModel> ?? new List<TMS.ViewModels.Academics.StudentQuizAttemptViewModel>();
+    var totalExams = exams.Count();
+    var totalQuizzes = quizzes.Count;
+    var activeExams = exams.Count(e => e.Status == "Active" && e.StartDate <= DateTime.Now && e.EndDate >= DateTime.Now);
+    var completedQuizzes = quizAttempts.Count(a => a.IsSubmitted);
 }
+
+<style>
+    .assessment-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 24px;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 12px;
+    }
+    .assessment-tab-btn {
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        padding: 10px 22px;
+        border-radius: 30px;
+        font-weight: 700;
+        font-size: 14px;
+        color: #475569;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+    }
+    .assessment-tab-btn:hover {
+        background: #e2e8f0;
+        color: #1e293b;
+    }
+    .assessment-tab-btn.active {
+        background: #2563eb;
+        color: #ffffff;
+        border-color: #2563eb;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    }
+    .pill-count {
+        background: rgba(255,255,255,0.25);
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+    }
+    .assessment-tab-btn:not(.active) .pill-count {
+        background: #e2e8f0;
+        color: #334155;
+    }
+    .quiz-card {
+        background: #ffffff;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+    }
+    .quiz-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
+    }
+</style>
 
 <div class="exam-page">
     <!-- Page Header -->
@@ -12,57 +78,77 @@
                 <span class="header-icon" style="background:#eff6ff; color:#3b82f6;">
                     <i class="fa-solid fa-file-signature"></i>
                 </span>
-                My Assessments
+                Assessments &amp; Quizzes
             </h1>
-            <p>View your assigned exams, check schedules, and begin your assessments.</p>
+            <p>All your scheduled exams, evaluations, topic tests and quizzes in one single hub.</p>
         </div>
     </div>
 
     <!-- Stats Summary -->
     <div class="exam-stats-row">
         <div class="exam-stat-card blue">
-            <span class="stat-label">Total Assigned</span>
-            <span class="stat-value">@(Model?.Count() ?? 0)</span>
-            <span class="stat-sub">Assessments available</span>
+            <span class="stat-label">Formal Exams</span>
+            <span class="stat-value">@totalExams</span>
+            <span class="stat-sub">@activeExams active now</span>
         </div>
         <div class="exam-stat-card green">
-            <span class="stat-label">Active Now</span>
-            <span class="stat-value">@(Model?.Count(e => e.Status == "Active" && e.StartDate <= DateTime.Now && e.EndDate >= DateTime.Now) ?? 0)</span>
-            <span class="stat-sub">Ready to attempt</span>
+            <span class="stat-label">Course Quizzes</span>
+            <span class="stat-value">@totalQuizzes</span>
+            <span class="stat-sub">Faculty created</span>
         </div>
         <div class="exam-stat-card purple">
-            <span class="stat-label">Upcoming</span>
-            <span class="stat-value">@(Model?.Count(e => e.StartDate > DateTime.Now) ?? 0)</span>
-            <span class="stat-sub">Scheduled exams</span>
+            <span class="stat-label">Quizzes Completed</span>
+            <span class="stat-value">@completedQuizzes</span>
+            <span class="stat-sub">Evaluated submissions</span>
         </div>
         <div class="exam-stat-card orange">
-            <span class="stat-label">Completed</span>
-            <span class="stat-value">@(Model?.Count(e => e.EndDate < DateTime.Now) ?? 0)</span>
-            <span class="stat-sub">Past assessments</span>
+            <span class="stat-label">Total Tests Available</span>
+            <span class="stat-value">@(totalExams + totalQuizzes)</span>
+            <span class="stat-sub">Overall learning checks</span>
         </div>
     </div>
 
-    <!-- Exam Cards Grid -->
-    <div class="exam-section-box" style="padding:0; border:none; background:transparent; box-shadow:none;">
-        <div class="exam-section-title" style="padding: 0 0 14px 0;">
-            <span class="title-icon" style="background:#f5f3ff; color:#7c3aed;">
-                <i class="fa-solid fa-layer-group"></i>
-            </span>
-            Available Assessments
+    <!-- Navigation Filter Tabs -->
+    <div class="assessment-tabs">
+        <button class="assessment-tab-btn active" onclick="switchAssessmentTab('all', this)">
+            <i class="fa-solid fa-layer-group"></i> All Assessments &amp; Quizzes
+            <span class="pill-count">@(totalExams + totalQuizzes)</span>
+        </button>
+        <button class="assessment-tab-btn" onclick="switchAssessmentTab('exams', this)">
+            <i class="fa-solid fa-file-signature"></i> Formal Exams
+            <span class="pill-count">@totalExams</span>
+        </button>
+        <button class="assessment-tab-btn" onclick="switchAssessmentTab('quizzes', this)">
+            <i class="fa-solid fa-clipboard-question"></i> Course Quizzes
+            <span class="pill-count">@totalQuizzes</span>
+        </button>
+        <a class="assessment-tab-btn" asp-controller="InternalAssessment" asp-action="StudentDashboard" style="text-decoration:none"><i class="fa-solid fa-list-check"></i> Internal Assessments</a>
+    </div>
+
+    <!-- SECTION 1: FORMAL EXAMS -->
+    <div id="examsContainer" class="assessment-section mb-4">
+        <div class="exam-section-title" style="padding: 0 0 14px 0; display:flex; align-items:center; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span class="title-icon" style="background:#eff6ff; color:#2563eb;">
+                    <i class="fa-solid fa-file-signature"></i>
+                </span>
+                <span style="font-size:18px; font-weight:700; color:#1e293b;">Formal Exams &amp; Scheduled Assessments</span>
+            </div>
+            <span class="badge bg-primary rounded-pill px-3 py-2">@totalExams Scheduled</span>
         </div>
 
-        @if (Model == null || !Model.Any())
+        @if (!exams.Any())
         {
-            <div class="exam-empty-state">
+            <div class="exam-empty-state mb-4" style="background:#ffffff; border-radius:12px; padding:30px; border:1px solid #e2e8f0; text-align:center;">
                 <div class="empty-icon"><i class="fa-solid fa-clipboard-check"></i></div>
-                <h3>No Active Assessments</h3>
-                <p>You have no pending assessments assigned to you at the moment. Check back later!</p>
+                <h4 style="font-weight:700; color:#1e293b; margin-top:10px;">No Scheduled Exams</h4>
+                <p style="color:#64748b; font-size:13.5px; margin-bottom:0;">You have no pending formal exams assigned currently.</p>
             </div>
         }
         else
         {
-            <div class="exam-grid">
-                @foreach (var exam in Model)
+            <div class="exam-grid mb-4">
+                @foreach (var exam in exams)
                 {
                     var isActive = exam.Status == "Active" && exam.StartDate <= DateTime.Now && exam.EndDate >= DateTime.Now;
                     var isUpcoming = exam.StartDate > DateTime.Now;
@@ -122,7 +208,7 @@
                             @if (isActive)
                             {
                                 <a asp-action="Instructions" asp-route-examId="@exam.Id" class="exam-btn exam-btn-primary exam-btn-block">
-                                    <i class="fa-solid fa-play"></i> Begin Assessment
+                                    <i class="fa-solid fa-play"></i> Begin Exam
                                 </a>
                             }
                             else if (isUpcoming)
@@ -143,4 +229,121 @@
             </div>
         }
     </div>
+
+    <!-- SECTION 2: COURSE & TOPIC QUIZZES -->
+    <div id="quizzesContainer" class="assessment-section mb-4">
+        <div class="exam-section-title" style="padding: 0 0 14px 0; display:flex; align-items:center; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span class="title-icon" style="background:#ecfdf5; color:#059669;">
+                    <i class="fa-solid fa-clipboard-question"></i>
+                </span>
+                <span style="font-size:18px; font-weight:700; color:#1e293b;">Faculty Quizzes &amp; Topic Tests</span>
+            </div>
+            <span class="badge bg-success rounded-pill px-3 py-2">@totalQuizzes Quizzes</span>
+        </div>
+
+        @if (!quizzes.Any())
+        {
+            <div class="exam-empty-state mb-4" style="background:#ffffff; border-radius:12px; padding:30px; border:1px solid #e2e8f0; text-align:center;">
+                <div class="empty-icon" style="background:#f0fdf4; color:#16a34a;"><i class="fa-solid fa-circle-check"></i></div>
+                <h4 style="font-weight:700; color:#1e293b; margin-top:10px;">No Quizzes Available</h4>
+                <p style="color:#64748b; font-size:13.5px; margin-bottom:0;">No faculty quizzes have been published for your enrolled courses yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="exam-grid">
+                @foreach (var quiz in quizzes)
+                {
+                    var pastAttempt = quizAttempts.FirstOrDefault(a => a.QuizId == quiz.Id);
+                    var isCompleted = pastAttempt != null && pastAttempt.IsSubmitted;
+                    var qCount = quiz.Questions?.Count ?? 0;
+
+                    <div class="quiz-card">
+                        <!-- Top Accent Bar -->
+                        <div style="height:4px; background: @(isCompleted ? "linear-gradient(90deg, #10b981, #059669)" : "linear-gradient(90deg, #6366f1, #3b82f6)");"></div>
+                        <div class="p-3" style="flex:1; display:flex; flex-direction:column; justify-content:space-between;">
+                            <div>
+                                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                                    <span class="exam-course-tag" style="background:#f0fdf4; color:#16a34a;">
+                                        @(quiz.Course?.Name ?? "Course Quiz")
+                                    </span>
+                                    @if (isCompleted)
+                                    {
+                                        <span class="exam-badge" style="background:#dcfce7; color:#15803d;"><i class="fa-solid fa-check-circle"></i> Completed</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="exam-badge active"><i class="fa-solid fa-circle" style="font-size:6px;"></i> Ready</span>
+                                    }
+                                </div>
+
+                                <h3 style="font-size:16.5px; font-weight:700; color:#1e293b; margin-bottom:6px;">@quiz.Title</h3>
+                                <p style="font-size:12.5px; color:#64748b; margin-bottom:12px;">
+                                    Quadrant: <strong style="color:#334155;">@(quiz.CourseQuadrant?.Name ?? "Assessment")</strong>
+                                </p>
+
+                                <div class="exam-meta-row" style="margin-bottom:16px;">
+                                    <div class="exam-meta-item">
+                                        <i class="fa-solid fa-list-ol" style="color:#6366f1;"></i>
+                                        <strong>@qCount Questions</strong>
+                                    </div>
+                                    <div class="exam-meta-item">
+                                        <i class="fa-solid fa-bullseye" style="color:#059669;"></i>
+                                        <strong>Pass: @(quiz.PassingMarks ?? 50)%</strong>
+                                    </div>
+                                </div>
+
+                                @if (isCompleted)
+                                {
+                                    <div style="background:#f8fafc; border-radius:10px; padding:10px 14px; margin-bottom:16px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                                        <span style="font-size:12.5px; color:#64748b;">Your Score:</span>
+                                        <strong style="font-size:14px; color:@(pastAttempt!.Score >= (quiz.PassingMarks ?? 50) ? "#16a34a" : "#dc2626");">
+                                            @pastAttempt.Score% @(pastAttempt.Score >= (quiz.PassingMarks ?? 50) ? "(Passed)" : "(Needs Improvement)")
+                                        </strong>
+                                    </div>
+                                }
+                            </div>
+
+                            <div>
+                                @if (isCompleted)
+                                {
+                                    <a asp-controller="StudentQuiz" asp-action="Result" asp-route-attemptId="@pastAttempt!.Id" class="exam-btn exam-btn-secondary exam-btn-block" style="justify-content:center;">
+                                        <i class="fa-solid fa-square-poll-vertical"></i> View Score Card
+                                    </a>
+                                }
+                                else
+                                {
+                                    <a asp-controller="StudentQuiz" asp-action="Attempt" asp-route-quizId="@quiz.Id" class="exam-btn exam-btn-primary exam-btn-block" style="background:linear-gradient(135deg, #4f46e5, #6366f1); justify-content:center;">
+                                        <i class="fa-solid fa-pen-nib"></i> Start Quiz
+                                    </a>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
 </div>
+
+<script>
+    function switchAssessmentTab(tab, btn) {
+        document.querySelectorAll('.assessment-tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const examsSection = document.getElementById('examsContainer');
+        const quizzesSection = document.getElementById('quizzesContainer');
+
+        if (tab === 'all') {
+            examsSection.style.display = 'block';
+            quizzesSection.style.display = 'block';
+        } else if (tab === 'exams') {
+            examsSection.style.display = 'block';
+            quizzesSection.style.display = 'none';
+        } else if (tab === 'quizzes') {
+            examsSection.style.display = 'none';
+            quizzesSection.style.display = 'block';
+        }
+    }
+</script>

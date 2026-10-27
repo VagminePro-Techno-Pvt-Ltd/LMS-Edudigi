@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.HttpOverrides;
 using TMS.Repository;
 using TMS.ViewModels;
+using TMS.Web.Infrastructure;
 using UoN.ExpressiveAnnotations.NetCore.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -42,6 +43,10 @@ builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddExpressiveAnnotations();
 builder.Services.AddSession();
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "RequestVerificationToken";
+});
 
 //Additional dependencies
 builder.Services.AddRepositoryDependencies();
@@ -55,6 +60,27 @@ builder.Services.AddScoped<TMS.Web.Services.IViewRenderService, TMS.Web.Services
 builder.Services.AddSingleton<TMS.Web.Services.IWebHostEnvironmentAccessor, TMS.Web.Services.WebHostEnvironmentAccessor>();
 builder.Services.AddScoped<TMS.Web.Services.IInteractivePPTService, TMS.Web.Services.InteractivePPTService>();
 builder.Services.AddScoped<TMS.Web.Services.IStudentLearningService, TMS.Web.Services.StudentLearningService>();
+builder.Services.AddScoped<TMS.Web.Services.IAcademicRecordsService, TMS.Web.Services.DbAcademicRecordsService>();
+builder.Services.AddScoped<TMS.Web.Services.IDocumentProcessingService, TMS.Web.Services.DocumentProcessingService>();
+builder.Services.AddScoped<TMS.Web.Services.IDocumentIndexService, TMS.Web.Services.DocumentIndexService>();
+builder.Services.AddScoped<TMS.Web.Services.ILearningAssistantCacheService, TMS.Web.Services.LearningAssistantCacheService>();
+builder.Services.AddHttpClient<TMS.Web.Services.IAiEvaluationService, TMS.Web.Services.GeminiAiEvaluationService>(client =>
+{
+    var timeoutSeconds = builder.Configuration.GetValue<int>("Gemini:TimeoutSeconds", 45);
+    client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+});
+builder.Services.AddHttpClient<TMS.Web.Services.ILearningAssistantService, TMS.Web.Services.GeminiLearningAssistantService>(client =>
+{
+    var timeoutSeconds = builder.Configuration.GetValue<int>("Gemini:TimeoutSeconds", 45);
+    client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+});
+builder.Services.AddHttpClient<TMS.Web.Services.ISuggestedQuestionService, TMS.Web.Services.GeminiSuggestedQuestionService>(client =>
+{
+    var timeoutSeconds = builder.Configuration.GetValue<int>("Gemini:TimeoutSeconds", 45);
+    client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+});
+
+builder.Services.AddScoped<TMS.Web.Services.IAutomatedResultService, TMS.Web.Services.AutomatedResultService>();
 
 
 // Reverse-proxy / ngrok: honor X-Forwarded-Proto, X-Forwarded-Host so Request.Scheme and Request.Host
@@ -66,7 +92,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
         | ForwardedHeaders.XForwardedHost;
     if (builder.Environment.IsDevelopment())
     {
-        options.KnownNetworks.Clear();
+        options.KnownIPNetworks.Clear();
         options.KnownProxies.Clear();
     }
 });
@@ -106,7 +132,7 @@ else
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 
 // Configure static files with no-cache headers for development
 if (app.Environment.IsDevelopment())
@@ -173,8 +199,18 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
-//app.Run(async context =>
-//{
-//    context.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>().MaxRequestBodySize = 200000000;
-//});
+// Disabled by default. Enabling requires an explicit non-Production opt-in,
+// disposable-database confirmation, and an exact expected database-name match.
+if (DatabaseInitializationGuard.ShouldRun(builder.Configuration, builder.Environment))
+{
+    using var scope = app.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetService<TMS.Repository.ApplicationDBContext>();
+    if (dbContext != null)
+    {
+        await TMS.Repository.DatabaseInitializer.EnsureTablesCreatedAsync(
+            dbContext,
+            disposableDatabaseConfirmed: true);
+    }
+}
+
 app.Run();

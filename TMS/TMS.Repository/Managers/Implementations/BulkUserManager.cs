@@ -191,7 +191,7 @@ namespace TMS.Repository.Managers.Implementations
 
                             case BulkUploadMode.UpdateExisting:
                                 existingUser.Name = row.Name.Trim();
-                                existingUser.ContactNo = int.TryParse(row.Phone?.Trim(), out int ph) ? ph : existingUser.ContactNo;
+                                existingUser.ContactNo = string.IsNullOrWhiteSpace(row.Phone) ? existingUser.ContactNo : row.Phone.Trim();
                                 existingUser.RoleId = role.Id;
                                 existingUser.UpdatedOn = DateTime.Now;
                                 existingUser.UpdatedBy = createdByUserId;
@@ -208,7 +208,7 @@ namespace TMS.Repository.Managers.Implementations
                     {
                         Name = row.Name.Trim(),
                         Email = emailTrimmed,
-                        ContactNo = int.TryParse(row.Phone?.Trim(), out int phone) ? phone : null,
+                        ContactNo = string.IsNullOrWhiteSpace(row.Phone) ? null : row.Phone.Trim(),
                         RoleId = role.Id,
                         Password = hashedPassword,
                         ForcePasswordChange = true,

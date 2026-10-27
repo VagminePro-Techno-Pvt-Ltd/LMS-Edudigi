@@ -5,16 +5,23 @@
 
 <link rel="stylesheet" href="~/css/forum-premium.css" asp-append-version="true" />
 
-<div class="forum-page-bg py-4">
-    <div class="container">
-        <!-- Top Action Bar -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="forum-page-bg py-3">
+    <div class="container-fluid px-0">
+        <!-- Top Action Bar / Hero Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3 p-4 rounded-4 shadow-sm border bg-white">
             <div>
-                <h3 class="font-weight-bold text-dark m-0">Community Discussions</h3>
-                <p class="text-muted small">Connect, share and grow with your peers</p>
+                <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill bg-primary bg-opacity-10 text-primary fw-bold mb-2" style="font-size: 11px; letter-spacing: 0.8px; text-transform: uppercase;">
+                    <i class="fa-solid fa-comments"></i> Collaborative Learning Forum
+                </div>
+                <h2 class="fw-bold text-dark mb-1" style="font-size: 24px; letter-spacing: -0.3px;">
+                    Community Discussions
+                </h2>
+                <p class="text-muted small mb-0" style="font-size: 13.5px;">
+                    Connect, share knowledge, ask academic questions, and engage with peers and faculty.
+                </p>
             </div>
-            <button class="btn btn-premium-ask" data-bs-toggle="modal" data-bs-target="#askQuestionModal">
-                <i class="fas fa-plus mr-2"></i>Start a Discussion
+            <button class="btn btn-primary rounded-pill px-4 py-2 fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#askQuestionModal" style="display:inline-flex; align-items:center; gap:8px;">
+                <i class="fa-solid fa-plus"></i> Start a Discussion
             </button>
         </div>
 
@@ -22,7 +29,7 @@
             <!-- Main Feed -->
             <div class="col-lg-8">
                 <!-- Filters Tab -->
-                <div class="card premium-sidebar-card mb-4">
+                <div class="card premium-sidebar-card mb-4 border-0 shadow-sm rounded-4">
                     <div class="card-body p-2">
                         <ul class="nav nav-pills nav-fill">
                             <li class="nav-item">
@@ -40,12 +47,18 @@
 
                 @if (!Model.Any())
                 {
-                    <div class="card premium-post-card text-center py-5">
+                    <div class="card premium-post-card text-center py-5 rounded-4 shadow-sm border-0">
                         <div class="card-body">
-                            <img src="~/images/no-data.png" style="width: 150px; opacity: 0.5;" class="mb-3" />
+                            <div class="mb-3">
+                                <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-inline-flex align-items-center justify-content-center" style="width: 72px; height: 72px; font-size: 28px;">
+                                    <i class="fa-solid fa-comments"></i>
+                                </div>
+                            </div>
                             <h4 class="text-dark font-weight-bold">No discussions yet</h4>
-                            <p class="text-muted">Be the first one to start a conversation in this program!</p>
-                            <button class="btn btn-premium-ask mt-3" data-bs-toggle="modal" data-bs-target="#askQuestionModal">Ask Now</button>
+                            <p class="text-muted small">Be the first one to start a conversation in this program!</p>
+                            <button class="btn btn-primary rounded-pill px-4 py-2 mt-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#askQuestionModal">
+                                <i class="fa-solid fa-pen-to-square me-1"></i> Ask Now
+                            </button>
                         </div>
                     </div>
                 }

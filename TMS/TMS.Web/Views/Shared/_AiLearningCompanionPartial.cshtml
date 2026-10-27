@@ -1,0 +1,115 @@
+@* ═══════════════════════════════════════════════════════════════════════
+   EDUDIGI AI LEARNING COMPANION — Universal Floating Tutor Partial
+   ═══════════════════════════════════════════════════════════════════════ *@
+
+<!-- Floating Launcher Trigger Button -->
+<button type="button" class="ai-companion-launcher" id="aiCompanionLauncher" title="Open AI Learning Companion" aria-label="Open AI Learning Companion">
+    <div class="ai-launcher-icon-wrap">
+        <i class="fa-solid fa-graduation-cap"></i>
+        <div class="ai-launcher-pulse"></div>
+    </div>
+    <span class="ai-launcher-label">AI Tutor</span>
+    <span class="ai-launcher-badge">Live</span>
+</button>
+
+<!-- Main Floating Drawer Window -->
+<aside class="ai-companion-drawer ai-hidden" id="aiCompanionDrawer" aria-label="AI Learning Companion Window" role="region">
+    <!-- Header -->
+    <header class="ai-drawer-header">
+        <div class="ai-header-left">
+            <div class="ai-avatar">
+                <i class="fa-solid fa-robot"></i>
+                <span class="ai-online-dot"></span>
+            </div>
+            <div class="ai-header-meta">
+                <h4>EduDigi AI Companion</h4>
+                <p>
+                    <i class="fa-solid fa-sparkles"></i>
+                    <span>Socratic Academic Tutor</span>
+                </p>
+            </div>
+        </div>
+        <div class="ai-header-actions">
+            <button type="button" class="ai-btn-icon" id="aiBtnClear" title="Clear Conversation" aria-label="Clear Conversation">
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
+            <button type="button" class="ai-btn-icon" id="aiBtnMinimize" title="Minimize / Expand" aria-label="Minimize / Expand">
+                <i class="fa-solid fa-minus"></i>
+            </button>
+            <button type="button" class="ai-btn-icon" id="aiBtnClose" title="Close" aria-label="Close">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Context Banner -->
+    <div class="ai-context-banner" id="aiContextBanner">
+        <div class="ai-context-info">
+            <span class="ai-context-badge">Context</span>
+            <span id="aiContextCourseName" class="fw-semibold">LMS Portal</span>
+            <span id="aiContextUnitName" class="text-muted" style="display:none;"></span>
+        </div>
+        <button type="button" class="ai-context-selector-btn" id="aiBtnSwitchCourse" title="Switch Course Focus">
+            <i class="fa-solid fa-repeat"></i> Switch
+        </button>
+    </div>
+
+    <!-- Course Switcher Accordion Dropdown -->
+    <div class="ai-course-switcher" id="aiCourseSwitcher">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+            <span style="font-size:11px; font-weight:700; color:#1e293b; text-transform:uppercase; letter-spacing:0.5px;">Select Enrolled Course:</span>
+        </div>
+        <div id="aiCourseList"></div>
+    </div>
+
+    <!-- Quick Action Pills -->
+    <div class="ai-quick-actions" id="aiQuickActions">
+        <button type="button" class="ai-pill-btn" data-prompt="What is my attendance?">
+            <i class="fa-solid fa-calendar-check"></i> My Attendance
+        </button>
+        <button type="button" class="ai-pill-btn" data-prompt="Show my grades">
+            <i class="fa-solid fa-award"></i> My Grades
+        </button>
+        <button type="button" class="ai-pill-btn" data-prompt="What are my enrolled courses?">
+            <i class="fa-solid fa-book"></i> Enrolled Courses
+        </button>
+        <button type="button" class="ai-pill-btn" data-prompt="What assignments are due?">
+            <i class="fa-solid fa-file-earmark-text"></i> Assignments
+        </button>
+        <button type="button" class="ai-pill-btn" data-prompt="What is my class schedule?">
+            <i class="fa-solid fa-clock"></i> Timetable
+        </button>
+        <button type="button" class="ai-pill-btn" data-prompt="Can you explain the key concepts of this unit in simple terms?">
+            <i class="fa-solid fa-lightbulb"></i> Key Concepts
+        </button>
+        <button type="button" class="ai-pill-btn" data-prompt="Generate a practice quiz question with an explanation for revision.">
+            <i class="fa-solid fa-circle-question"></i> Practice Quiz
+        </button>
+    </div>
+
+    <!-- Message Stream -->
+    <div class="ai-drawer-body" id="aiDrawerBody" role="log" aria-live="polite">
+        <!-- Messages dynamically rendered here -->
+    </div>
+
+    <!-- Typing Indicator (Hidden by Default) -->
+    <div class="ai-typing-indicator" id="aiTypingIndicator" style="display:none; margin: 0 16px 8px 16px;">
+        <span class="ai-typing-dot"></span>
+        <span class="ai-typing-dot"></span>
+        <span class="ai-typing-dot"></span>
+        <span style="font-size:11px; color:#64748b; margin-left:6px;">Thinking...</span>
+    </div>
+
+    <!-- Footer Input Bar -->
+    <footer class="ai-drawer-footer">
+        <div class="ai-input-wrap">
+            <textarea class="ai-input-textarea" id="aiInputTextarea" placeholder="Ask anything about this course or topic... (Enter to send)" rows="1"></textarea>
+            <button type="button" class="ai-send-btn" id="aiBtnSend" title="Send Question" disabled>
+                <i class="fa-solid fa-paper-plane"></i>
+            </button>
+        </div>
+        <p class="ai-footer-disclaimer">
+            <i class="fa-solid fa-shield-halved me-1"></i> Academic Socratic AI • Answers grounded in authorized course materials
+        </p>
+    </footer>
+</aside>
