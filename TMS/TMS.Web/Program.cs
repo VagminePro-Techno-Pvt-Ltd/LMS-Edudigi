@@ -79,6 +79,11 @@ builder.Services.AddHttpClient<TMS.Web.Services.ISuggestedQuestionService, TMS.W
     var timeoutSeconds = builder.Configuration.GetValue<int>("Gemini:TimeoutSeconds", 45);
     client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
 });
+builder.Services.AddHttpClient<TMS.Web.Services.IAiAssignmentService, TMS.Web.Services.GeminiAiAssignmentService>(client =>
+{
+    var timeoutSeconds = builder.Configuration.GetValue<int>("Gemini:TimeoutSeconds", 45);
+    client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+});
 
 builder.Services.AddScoped<TMS.Web.Services.IAutomatedResultService, TMS.Web.Services.AutomatedResultService>();
 
@@ -190,6 +195,21 @@ app.MapControllerRoute(
     name: "quadrantContent",
     pattern: "Subject/{courseId:int}/Unit/{unitId:int}/Quadrant/{quadrantId:int}",
     defaults: new { controller = "StudentQuadrant", action = "Content" });
+
+app.MapControllerRoute(
+    name: "aiAssignment",
+    pattern: "AiAssignment",
+    defaults: new { controller = "Assignment", action = "AiGenerator" });
+
+app.MapControllerRoute(
+    name: "aiAssignmentHyphen",
+    pattern: "ai-assignment",
+    defaults: new { controller = "Assignment", action = "AiGenerator" });
+
+app.MapControllerRoute(
+    name: "assignmentsHub",
+    pattern: "Assignments",
+    defaults: new { controller = "Assignment", action = "Index" });
 
 app.MapControllerRoute(
     name: "defaultArea",

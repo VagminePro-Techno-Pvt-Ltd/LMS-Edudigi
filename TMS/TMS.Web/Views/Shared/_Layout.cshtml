@@ -40,6 +40,12 @@
     <link rel="stylesheet" href="~/css/exam-theme.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/lms-rtl.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/ai-companion.css" asp-append-version="true" />
+    <script src="~/lib/jquery/dist/jquery.min.js" asp-append-version="true"></script>
+    <script>
+        if (typeof window.jQuery === 'undefined' && typeof window.$ === 'undefined') {
+            document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"><\/script>');
+        }
+    </script>
     <script src="~/js/lms-i18n.js" asp-append-version="true"></script>
     @await RenderSectionAsync("extracss", required: false)
 

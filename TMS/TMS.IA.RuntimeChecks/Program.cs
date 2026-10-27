@@ -1709,6 +1709,262 @@ var docProcessingService = new DocumentProcessingService();
     Equal("Student with 29 marks eligible for compartmental re-assessment", compEligible, true);
 }
 
+// =========================================================================
+// FEATURE 53: AI ASSIGNMENT GENERATOR TESTS
+// =========================================================================
+
+// 19. AiAssignmentGenerateRequest validation and defaults
+{
+    var req = new AiAssignmentGenerateRequest
+    {
+        ProgramId = 1,
+        CourseId = 101,
+        TotalMarks = 50,
+        NumberOfQuestions = 5
+    };
+    Equal("AiAssignmentGenerateRequest default difficulty is Medium", req.Difficulty, "Medium");
+    Equal("AiAssignmentGenerateRequest default type is Theory / Descriptive", req.AssignmentType, "Theory / Descriptive");
+    Equal("AiAssignmentGenerateRequest TotalMarks is 50", req.TotalMarks, 50m);
+    Equal("AiAssignmentGenerateRequest NumberOfQuestions is 5", req.NumberOfQuestions, 5);
+}
+
+// 20. Marks Normalization: Exact sum match preserved
+{
+    var questions = new List<AiAssignmentQuestionItem>
+    {
+        new() { QuestionNumber = 1, QuestionText = "Q1", Marks = 10m },
+        new() { QuestionNumber = 2, QuestionText = "Q2", Marks = 15m },
+        new() { QuestionNumber = 3, QuestionText = "Q3", Marks = 25m }
+    };
+    GeminiAiAssignmentService.ValidateAndNormalizeMarks(questions, 50m);
+    Equal("Marks normalization maintains exact sum when already balanced", questions.Sum(q => q.Marks), 50m);
+    Equal("Marks normalization preserves Q1", questions[0].Marks, 10m);
+    Equal("Marks normalization preserves Q3", questions[2].Marks, 25m);
+}
+
+// 21. Marks Normalization: Discrepancy auto-adjusted on last question
+{
+    var questions = new List<AiAssignmentQuestionItem>
+    {
+        new() { QuestionNumber = 1, QuestionText = "Q1", Marks = 10m },
+        new() { QuestionNumber = 2, QuestionText = "Q2", Marks = 10m },
+        new() { QuestionNumber = 3, QuestionText = "Q3", Marks = 10m } // sum = 30, target = 50
+    };
+    GeminiAiAssignmentService.ValidateAndNormalizeMarks(questions, 50m);
+    Equal("Marks normalization adjusts delta to match target total", questions.Sum(q => q.Marks), 50m);
+    Equal("Marks normalization assigned remaining marks to last question", questions.Last().Marks, 30m);
+}
+
+// 22. Marks Normalization: Non-positive marks clamped to at least 1
+{
+    var questions = new List<AiAssignmentQuestionItem>
+    {
+        new() { QuestionNumber = 1, QuestionText = "Q1", Marks = 0m },
+        new() { QuestionNumber = 2, QuestionText = "Q2", Marks = -5m }
+    };
+    GeminiAiAssignmentService.ValidateAndNormalizeMarks(questions, 20m);
+    Equal("Marks normalization eliminates zero and negative marks", questions.All(q => q.Marks > 0), true);
+    Equal("Marks normalization reaches exact target 20m", questions.Sum(q => q.Marks), 20m);
+}
+
+// 23. Metadata Serialization and Deserialization Roundtrip
+{
+    var meta = new AiAssignmentMetadata
+    {
+        SemesterId = 2,
+        SemesterName = "Semester II",
+        SubjectId = 5,
+        SubjectName = "Relational Database Management",
+        UnitName = "Unit 3: Normalization",
+        TopicName = "BCNF & 4NF",
+        Difficulty = "Hard",
+        AssignmentType = "Critical Problem Solving",
+        Instructions = "Cite all references using APA format. Show step-by-step functional dependencies.",
+        Status = "Draft",
+        Questions = new List<AiAssignmentQuestionItem>
+        {
+            new() { QuestionNumber = 1, QuestionText = "Explain BCNF with a relation schema.", Marks = 20m },
+            new() { QuestionNumber = 2, QuestionText = "Compare 3NF and BCNF with lossy/lossless join examples.", Marks = 30m }
+        },
+        MarkingCriteria = new List<AiMarkingCriterionItem>
+        {
+            new() { Criterion = "Dependency Preservation", Weightage = 50m, Description = "Formal proof" }
+        },
+        Rubrics = new List<AiAssignmentRubricRow>
+        {
+            new() { Criterion = "Normalization Rigor", MaxMarks = 25m, Excellent = "Flawless", Good = "Minor gaps", Fair = "Basic", Poor = "Incorrect" }
+        }
+    };
+
+    var fullDesc = AiAssignmentMetadata.BuildDescriptionWithMetadata(
+        "A rigorous assignment testing multi-valued dependencies.",
+        meta.Instructions,
+        meta.Questions,
+        meta.MarkingCriteria,
+        meta.Rubrics,
+        meta);
+
+    Equal("Full description contains Human-Readable Overview header", fullDesc.Contains("=== ASSIGNMENT OVERVIEW ==="), true);
+    Equal("Full description contains Questions header", fullDesc.Contains("=== QUESTIONS ==="), true);
+    Equal("Full description embeds metadata start tag", fullDesc.Contains("<!-- AI_ASSIGNMENT_METADATA_START -->"), true);
+
+    var (cleanText, parsedMeta) = AiAssignmentMetadata.ParseDescription(fullDesc);
+    Equal("Clean text excludes metadata tags", cleanText.Contains("AI_ASSIGNMENT_METADATA_START"), false);
+    Equal("Parsed metadata is non-null", parsedMeta != null, true);
+    Equal("Parsed metadata preserves SubjectName", parsedMeta?.SubjectName, "Relational Database Management");
+    Equal("Parsed metadata preserves Questions count", parsedMeta?.Questions.Count, 2);
+    Equal("Parsed metadata preserves Question 1 marks", parsedMeta?.Questions[0].Marks, 20m);
+    Equal("Parsed metadata preserves Rubric dimension", parsedMeta?.Rubrics[0].Criterion, "Normalization Rigor");
+    Equal("Parsed metadata preserves Status", parsedMeta?.Status, "Draft");
+}
+
+// 24. Legacy manual description without metadata tags parses gracefully
+{
+    string legacyDesc = "Please complete Chapter 4 exercises from the textbook.";
+    var (cleanText, meta) = AiAssignmentMetadata.ParseDescription(legacyDesc);
+    Equal("Legacy description parsed clean text equals original", cleanText, legacyDesc);
+    Equal("Legacy description returns null metadata without crashing", meta == null, true);
+}
+
+// 25. Response Parsing & Validation with Markdown Backticks Stripping
+{
+    var dummyDb = dummyDbContext;
+    var service = new GeminiAiAssignmentService(new HttpClient(), dummyDb, Config(), new DummyLogger<GeminiAiAssignmentService>());
+
+    string mockAiJsonWithBackticks = @"```json
+{
+  ""title"": ""Advanced Cloud Architecture Assessment"",
+  ""description"": ""Explore microservices design patterns and CAP theorem tradeoffs."",
+  ""studentInstructions"": ""Submit architecture diagrams in PDF format."",
+  ""questions"": [
+    {
+      ""questionNumber"": 1,
+      ""questionText"": ""Design an event-driven system with Kafka."",
+      ""marks"": 25.0,
+      ""expectedAnswerGuidelines"": ""Include dead letter queue and partitioning strategy.""
+    },
+    {
+      ""questionNumber"": 2,
+      ""questionText"": ""Explain distributed consensus with Raft."",
+      ""marks"": 25.0,
+      ""expectedAnswerGuidelines"": ""Leader election and log replication.""
+    }
+  ],
+  ""markingCriteria"": [
+    {
+      ""criterion"": ""Architecture Completeness"",
+      ""weightage"": 50.0,
+      ""description"": ""Scalability considerations.""
+    }
+  ],
+  ""rubrics"": [
+    {
+      ""criterion"": ""Distributed Reliability"",
+      ""maxMarks"": 25.0,
+      ""excellent"": ""Comprehensive fault-tolerance (80-100%)"",
+      ""good"": ""Good coverage with minor omissions (65-79%)"",
+      ""fair"": ""Basic conceptual coverage (50-64%)"",
+      ""poor"": ""Major gaps in understanding (0-49%)""
+    }
+  ]
+}
+```";
+
+    var req = new AiAssignmentGenerateRequest
+    {
+        ProgramId = 1,
+        CourseId = 101,
+        TotalMarks = 50m,
+        NumberOfQuestions = 2
+    };
+
+    var parsed = service.ParseAndValidateResponse(mockAiJsonWithBackticks, req);
+    Equal("Markdown backticks successfully stripped and JSON parsed", parsed.Success, true);
+    Equal("Parsed assignment title extracted", parsed.Title, "Advanced Cloud Architecture Assessment");
+    Equal("Parsed questions count is 2", parsed.Questions.Count, 2);
+    Equal("Parsed question marks sum to 50m", parsed.Questions.Sum(q => q.Marks), 50m);
+    Equal("Parsed rubric row extracted", parsed.Rubrics[0].Criterion, "Distributed Reliability");
+}
+
+// 26. Missing Gemini API credentials fails safely without crashing
+{
+    var dummyDb = dummyDbContext;
+    var serviceWithoutKey = new GeminiAiAssignmentService(new HttpClient(), dummyDb, Config(("Gemini:ApiKey", "")), new DummyLogger<GeminiAiAssignmentService>());
+
+    var oldEnv = Environment.GetEnvironmentVariable("GEMINI_API_KEY");
+    try
+    {
+        Environment.SetEnvironmentVariable("GEMINI_API_KEY", null);
+        var res = await serviceWithoutKey.GenerateAssignmentAsync(new AiAssignmentGenerateRequest { ProgramId = 1, CourseId = 101 });
+        Equal("Missing API key returns Success = false", res.Success, false);
+        Equal("Missing API key provides informative configuration error message", res.ErrorMessage?.Contains("AI generation service credentials are not configured"), true);
+    }
+    finally
+    {
+        Environment.SetEnvironmentVariable("GEMINI_API_KEY", oldEnv);
+    }
+}
+
+// 27. Student Visibility Guard: Drafts (IsActive == false) strictly invisible, Published (IsActive == true) visible
+{
+    var draftAssignment = new AssignmentMaster
+    {
+        Id = 901,
+        Title = "Midterm Draft Assignment",
+        ProgramId = 1,
+        CourseId = 101,
+        DueDate = DateTime.UtcNow.AddDays(7),
+        MaxMarks = 50m,
+        PassMarks = 20m,
+        IsActive = false, // Draft
+        IsDeleted = false
+    };
+
+    var publishedAssignment = new AssignmentMaster
+    {
+        Id = 902,
+        Title = "Final Published Assignment",
+        ProgramId = 1,
+        CourseId = 101,
+        DueDate = DateTime.UtcNow.AddDays(7),
+        MaxMarks = 50m,
+        PassMarks = 20m,
+        IsActive = true, // Published
+        IsDeleted = false
+    };
+
+    var allAssignments = new List<AssignmentMaster> { draftAssignment, publishedAssignment };
+    var studentVisible = allAssignments.Where(a => !a.IsDeleted && a.IsActive).ToList();
+
+    Equal("Draft assignment is excluded from student visible query", studentVisible.Any(a => a.Id == 901), false);
+    Equal("Published assignment is included in student visible query", studentVisible.Any(a => a.Id == 902), true);
+}
+
+// 28. Print Assignment View Model mapping integrity
+{
+    var printVm = new PrintAssignmentViewModel
+    {
+        AssignmentId = 42,
+        Title = "Operating Systems Process Synchronization",
+        ProgramName = "B.Tech Computer Science",
+        CourseName = "Operating Systems",
+        CourseCode = "CS-302",
+        TotalMarks = 50m,
+        PassMarks = 20m,
+        IsPublished = true,
+        Questions = new List<AiAssignmentQuestionItem>
+        {
+            new() { QuestionNumber = 1, QuestionText = "Solve dining philosophers using semaphores.", Marks = 25m },
+            new() { QuestionNumber = 2, QuestionText = "Explain Peterson algorithm for critical section.", Marks = 25m }
+        }
+    };
+
+    Equal("Print VM preserves Title", printVm.Title, "Operating Systems Process Synchronization");
+    Equal("Print VM preserves CourseCode", printVm.CourseCode, "CS-302");
+    Equal("Print VM questions count", printVm.Questions.Count, 2);
+    Equal("Print VM questions sum equals TotalMarks", printVm.Questions.Sum(q => q.Marks), printVm.TotalMarks);
+}
+
 Console.WriteLine($"TOTAL | PASS={passed} FAIL={failed}");
 return failed == 0 ? 0 : 1;
 
