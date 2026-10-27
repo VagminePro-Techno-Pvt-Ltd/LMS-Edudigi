@@ -52,6 +52,11 @@ builder.Services.AddAntiforgery(options =>
 builder.Services.AddRepositoryDependencies();
 builder.Services.AddHostedService<TMS.Web.BackgroundServices.AttendanceBackgroundJob>();
 
+// ─── Two-Way Content Sync & Drive Provisioning ───
+builder.Services.AddSingleton<TMS.Web.Services.ContentSync.LocalContentStorageProvider>();
+builder.Services.AddHttpClient<TMS.Web.Services.ContentSync.GoogleDriveContentStorageProvider>();
+builder.Services.AddSingleton<TMS.Web.Services.ContentSync.IContentFolderProvisioner, TMS.Web.Services.ContentSync.ContentFolderProvisioner>();
+builder.Services.AddHostedService<TMS.Web.BackgroundServices.ContentSyncBackgroundWorker>();
 
 builder.Services.Configure<TMS.ViewModels.StorageSettings>(builder.Configuration.GetSection("StorageSettings"));
 builder.Services.Configure<TMS.ViewModels.RateConfiguration>(builder.Configuration.GetSection("RateConfiguration"));
@@ -192,6 +197,11 @@ app.MapControllerRoute(
     defaults: new { controller = "StudentQuadrant", action = "Content" });
 
 app.MapControllerRoute(
+    name: "contentSyncRoot",
+    pattern: "ContentSync/{action=Index}/{id?}",
+    defaults: new { area = "Admin", controller = "ContentSync" });
+
+app.MapControllerRoute(
     name: "defaultArea",
     pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");
 
@@ -210,6 +220,17 @@ if (DatabaseInitializationGuard.ShouldRun(builder.Configuration, builder.Environ
         await TMS.Repository.DatabaseInitializer.EnsureTablesCreatedAsync(
             dbContext,
             disposableDatabaseConfirmed: true);
+    }
+}
+
+// Ensure ContentSync database tables exist
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetService<TMS.Repository.ApplicationDBContext>();
+    if (dbContext != null)
+    {
+        var logger = scope.ServiceProvider.GetService<ILogger<TMS.Repository.ApplicationDBContext>>();
+        await TMS.Repository.ContentSyncDatabaseMigrator.EnsureTablesCreatedAsync(dbContext, logger);
     }
 }
 

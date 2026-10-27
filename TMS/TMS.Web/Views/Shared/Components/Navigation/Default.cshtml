@@ -276,6 +276,18 @@
                 iIndex++;
             }
 
+            if (string.Equals(mainMenu.Name, "ACADEMICS", StringComparison.OrdinalIgnoreCase) && (navigationIsAdmin || User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("SuperAdmin")))
+            {
+                <li>
+                    <a asp-area="Admin" asp-controller="ContentSync" asp-action="Index">
+                        <span class="icon-badge" style="--ibg:#e0e7ff; --iclr:#4338ca;">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                        </span>
+                        <span>Auto Content Sync</span>
+                    </a>
+                </li>
+            }
+
             sectionIndex++;
         }
     }

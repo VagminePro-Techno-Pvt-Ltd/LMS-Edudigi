@@ -1709,6 +1709,11 @@ var docProcessingService = new DocumentProcessingService();
     Equal("Student with 29 marks eligible for compartmental re-assessment", compEligible, true);
 }
 
+// ------------------------------------------------------------------------------------------------
+// TWO-WAY LMS-TO-DRIVE CONTENT SYNC ACCEPTANCE TESTS (1 to 10)
+// ------------------------------------------------------------------------------------------------
+await TMS.IA.RuntimeChecks.ContentSyncAcceptanceTests.RunAllAcceptanceTestsAsync();
+
 Console.WriteLine($"TOTAL | PASS={passed} FAIL={failed}");
 return failed == 0 ? 0 : 1;
 

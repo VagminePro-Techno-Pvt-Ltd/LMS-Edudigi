@@ -17,6 +17,7 @@ using TMS.Repository.SeedData;
 using TMS.ViewModels.Masters;
 using TMS.Models.Assessments;
 using TMS.Models.LearningAssistant;
+using TMS.Models.ContentSync;
 
 namespace TMS.Repository
 {
@@ -115,10 +116,11 @@ namespace TMS.Repository
         public DbSet<InteractivePPT> InteractivePPTs { get; set; }
         public DbSet<PPTSlideInteraction> PPTSlideInteractions { get; set; }
 
-
-
-
-
+        // ─── Two-Way Content Sync & Folder Provisioning ───
+        public DbSet<ContentSyncConfig> ContentSyncConfigs { get; set; }
+        public DbSet<ContentFolderMapping> ContentFolderMappings { get; set; }
+        public DbSet<ContentSyncOutboxJob> ContentSyncOutboxJobs { get; set; }
+        public DbSet<ContentSyncFileRecord> ContentSyncFileRecords { get; set; }
 
         #endregion
         #region Training schedule

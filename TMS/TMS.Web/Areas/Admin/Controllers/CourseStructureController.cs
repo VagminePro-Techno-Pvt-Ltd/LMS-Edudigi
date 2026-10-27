@@ -24,6 +24,7 @@ namespace TMS.Web.Areas.Admin.Controllers
         private readonly IMasterBaseManager<LectureMaterialViewModel> _lectureMaterialManager;
         private readonly IMasterBaseManager<CourseQuadrantViewModel> _quadrantManager;
         private readonly ApplicationDBContext _db;
+        private readonly TMS.Web.Services.ContentSync.IContentFolderProvisioner _provisioner;
 
         public CourseStructureController(
             IMasterManager<CourseMasterViewModel> courseManager,
@@ -35,7 +36,8 @@ namespace TMS.Web.Areas.Admin.Controllers
             IMasterBaseManager<CourseMaterialMappingViewModel> materialMappingManager,
             IMasterBaseManager<LectureMaterialViewModel> lectureMaterialManager,
             IMasterBaseManager<CourseQuadrantViewModel> quadrantManager,
-            ApplicationDBContext db)
+            ApplicationDBContext db,
+            TMS.Web.Services.ContentSync.IContentFolderProvisioner provisioner)
         {
             _courseManager = courseManager;
             _semesterManager = semesterManager;
@@ -47,6 +49,7 @@ namespace TMS.Web.Areas.Admin.Controllers
             _lectureMaterialManager = lectureMaterialManager;
             _quadrantManager = quadrantManager;
             _db = db;
+            _provisioner = provisioner;
         }
 
         public async Task<IActionResult> Index(int? programId, string? view = null)
@@ -769,6 +772,7 @@ namespace TMS.Web.Areas.Admin.Controllers
             if (created != null)
             {
                 await EnsureAndGetProgramSemestersAsync(semCount);
+                await _provisioner.EnqueueProvisioningAsync("Program", created.Id, "CreateOrUpdate");
             }
 
             return Json(new
@@ -819,6 +823,7 @@ namespace TMS.Web.Areas.Admin.Controllers
             }
 
             await EnsureAndGetProgramSemestersAsync(semCount);
+            await _provisioner.EnqueueProvisioningAsync("Program", program.Id, "Rename");
 
             return Json(new
             {
@@ -934,6 +939,11 @@ namespace TMS.Web.Areas.Admin.Controllers
                 {
                     return Json(new { success = false, message = $"Failed to save course '{course.CourseCode}'." });
                 }
+
+                if (course.Id > 0)
+                {
+                    await _provisioner.EnqueueProvisioningAsync("Course", course.Id, "CreateOrUpdate");
+                }
             }
 
             return Json(new
@@ -985,6 +995,11 @@ namespace TMS.Web.Areas.Admin.Controllers
                 return Json(new { success = false, message = $"Course Code '{model.CourseCode}' is already in use." });
 
             bool saved = await _courseManager.AddUpdateAsync(model, GetUserId());
+            if (saved && model.Id > 0)
+            {
+                await _provisioner.EnqueueProvisioningAsync("Course", model.Id, "RenameOrMove");
+            }
+
             return Json(new
             {
                 success = saved,
@@ -1209,6 +1224,11 @@ namespace TMS.Web.Areas.Admin.Controllers
                 }
             }
 
+            if (model.CourseId > 0)
+            {
+                await _provisioner.EnqueueProvisioningAsync("Course", model.CourseId, "CreateOrUpdate");
+            }
+
             // Sync SubjectMaster, UnitMasters, TopicMasters
             var subject = await _db.SubjectMasters
                 .FirstOrDefaultAsync(s => s.SemesterId == model.SemesterId && (s.SubjectCode == model.CourseCode || s.Name == model.CourseTitle) && s.IsActive);
@@ -1373,6 +1393,11 @@ namespace TMS.Web.Areas.Admin.Controllers
                 course,
                 GetUserId());
 
+            if (result && course.Id > 0)
+            {
+                await _provisioner.EnqueueProvisioningAsync("Course", course.Id, "CreateOrUpdate");
+            }
+
             return Json(new { success = result });
         }
 
@@ -1431,6 +1456,8 @@ namespace TMS.Web.Areas.Admin.Controllers
                 return Json(new { success = false });
             }
 
+            await _provisioner.EnqueueProvisioningAsync("Semester", semester.Id, "CreateOrUpdate");
+
             var newVariant = new CourseMasterViewModel
             {
                 Name = baseCourse.Name,
@@ -1443,6 +1470,11 @@ namespace TMS.Web.Areas.Admin.Controllers
             var result = await _courseManager.AddUpdateAsync(
                 newVariant,
                 GetUserId());
+
+            if (result && newVariant.Id > 0)
+            {
+                await _provisioner.EnqueueProvisioningAsync("Course", newVariant.Id, "CreateOrUpdate");
+            }
 
             return Json(new { success = result });
         }

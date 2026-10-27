@@ -13,13 +13,16 @@ namespace TMS.Web.Areas.Admin.Controllers
         : MastersAjaxController<CourseCategoryMasterViewModel>
     {
         private readonly IMasterManager<SemesterMasterViewModel> _semesterManager;
+        private readonly TMS.Web.Services.ContentSync.IContentFolderProvisioner _provisioner;
 
         public CourseCategoryController(
             IMasterManager<CourseCategoryMasterViewModel> manager,
-            IMasterManager<SemesterMasterViewModel> semesterManager)
+            IMasterManager<SemesterMasterViewModel> semesterManager,
+            TMS.Web.Services.ContentSync.IContentFolderProvisioner provisioner)
             : base(manager, "Programs Offered", "Programs Offered")
         {
             _semesterManager = semesterManager;
+            _provisioner = provisioner;
         }
 
         [HttpPost]
@@ -44,6 +47,11 @@ namespace TMS.Web.Areas.Admin.Controllers
                         await _semesterManager.AddUpdateAsync(newSem, GetUserId());
                     }
                 }
+            }
+
+            if (model.Id > 0)
+            {
+                await _provisioner.EnqueueProvisioningAsync("Program", model.Id, "CreateOrUpdate");
             }
 
             return res;

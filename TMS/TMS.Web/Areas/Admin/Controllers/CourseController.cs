@@ -14,17 +14,31 @@ namespace TMS.Web.Areas.Admin.Controllers
     {
         private readonly IMasterManager<CourseCategoryMasterViewModel> _courseCategoryManager;
         private readonly IMasterManager<SemesterMasterViewModel> _semesterManager;
+        private readonly TMS.Web.Services.ContentSync.IContentFolderProvisioner _provisioner;
 
         public CourseController(
             IMasterManager<CourseMasterViewModel> manager,
             IMasterManager<CourseCategoryMasterViewModel> courseCategoryManager,
-            IMasterManager<SemesterMasterViewModel> semesterManager)
+            IMasterManager<SemesterMasterViewModel> semesterManager,
+            TMS.Web.Services.ContentSync.IContentFolderProvisioner provisioner)
             : base(manager, "Course", "Course",
                   new[] { "CourseCategory", "Semester" },
                   new[] { "CourseCategory", "Semester" })
         {
             _courseCategoryManager = courseCategoryManager;
             _semesterManager = semesterManager;
+            _provisioner = provisioner;
+        }
+
+        [HttpPost]
+        public override async Task<IActionResult> Item(CourseMasterViewModel model)
+        {
+            var res = await base.Item(model);
+            if (model.Id > 0)
+            {
+                await _provisioner.EnqueueProvisioningAsync("Course", model.Id, "CreateOrUpdate");
+            }
+            return res;
         }
 
         protected override Expression<Func<CourseMasterViewModel, bool>>? GetFilter(DataTableRequest request)
@@ -181,6 +195,11 @@ namespace TMS.Web.Areas.Admin.Controllers
                     return Json(GetResultModelFail(
                         $"Unable to create course '{course.CourseCode}'. No further courses were created."));
                 }
+
+                if (course.Id > 0)
+                {
+                    await _provisioner.EnqueueProvisioningAsync("Course", course.Id, "CreateOrUpdate");
+                }
             }
 
             return Json(GetResultModelSuccess(
@@ -270,12 +289,22 @@ namespace TMS.Web.Areas.Admin.Controllers
             if (!updated)
                 return Json(GetResultModelFail("Unable to update the course."));
 
+            if (model.Id > 0)
+            {
+                await _provisioner.EnqueueProvisioningAsync("Course", model.Id, "CreateOrUpdate");
+            }
+
             foreach (var course in cleanAdditionalCourses)
             {
                 var saved = await _manager.AddUpdateAsync(course, GetUserId());
                 if (!saved)
                     return Json(GetResultModelFail(
                         $"Course was updated, but additional course '{course.CourseCode}' could not be created."));
+
+                if (course.Id > 0)
+                {
+                    await _provisioner.EnqueueProvisioningAsync("Course", course.Id, "CreateOrUpdate");
+                }
             }
 
             return Json(GetResultModelSuccess(
@@ -330,7 +359,10 @@ namespace TMS.Web.Areas.Admin.Controllers
                     .FirstOrDefault();
 
                 if (created != null)
+                {
+                    await _provisioner.EnqueueProvisioningAsync("Semester", created.Id, "CreateOrUpdate");
                     result.Add(new { id = created.Id, name = created.Name });
+                }
             }
 
             return Json(result);

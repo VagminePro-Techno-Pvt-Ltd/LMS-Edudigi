@@ -1,4 +1,4 @@
-﻿using TMS.Repository.Managers;
+using TMS.Repository.Managers;
 using TMS.ViewModels;
 using TMS.ViewModels.Masters;
 using TMS.Web.Models;
@@ -12,9 +12,25 @@ namespace TMS.Web.Areas.Admin.Controllers
     [Area("Admin")]
     public class SemesterMasterController : MastersAjaxController<SemesterMasterViewModel>
     {
-        public SemesterMasterController(IMasterManager<SemesterMasterViewModel> manager)
+        private readonly TMS.Web.Services.ContentSync.IContentFolderProvisioner _provisioner;
+
+        public SemesterMasterController(
+            IMasterManager<SemesterMasterViewModel> manager,
+            TMS.Web.Services.ContentSync.IContentFolderProvisioner provisioner)
             : base(manager, "Semester Master", "Semester Master")
         {
+            _provisioner = provisioner;
+        }
+
+        [HttpPost]
+        public override async Task<IActionResult> Item(SemesterMasterViewModel model)
+        {
+            var res = await base.Item(model);
+            if (model.Id > 0)
+            {
+                await _provisioner.EnqueueProvisioningAsync("Semester", model.Id, "CreateOrUpdate");
+            }
+            return res;
         }
 
         protected override Expression<Func<SemesterMasterViewModel, bool>>? GetFilter(DataTableRequest request)
