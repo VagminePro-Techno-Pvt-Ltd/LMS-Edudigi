@@ -1,5 +1,5 @@
 @*
-    _MenuPartial.cshtml — Faculty + Admin Sidebar
+    _MenuPartial.cshtml â€” Faculty + Admin Sidebar
     Clean, Modern Light-Bluish SaaS Palette
 *@
 @{
@@ -12,7 +12,7 @@
     <nav class="enhanced-sidebar">
         <ul>
 
-            <!-- ── Brand Block ─────────────────────────────────── -->
+            <!-- â”€â”€ Brand Block â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
             <li class="main-title" style="display:flex; align-items:center; gap:12px; padding:16px 18px 14px 18px; border-bottom:1px solid #f1f5f9; margin-bottom:12px;">
                 <span class="brand-icon-wrap" style="width:40px; height:40px; border-radius:12px; background:linear-gradient(135deg, #2563eb, #1d4ed8); color:#ffffff; display:flex; align-items:center; justify-content:center; font-size:19px; box-shadow:0 4px 12px rgba(37,99,235,0.28); flex-shrink:0;">
                     <i class="fa-solid fa-graduation-cap"></i>
@@ -27,7 +27,7 @@
                 </div>
             </li>
 
-            <!-- ── Dashboard (Light Blue Active Pill) ─────────── -->
+            <!-- â”€â”€ Dashboard (Light Blue Active Pill) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
             <li style="margin: 0 10px 14px 10px;">
                 <a asp-area="" asp-controller="Home" asp-action="Index" data-title="Dashboard" class="active" style="background:#eff6ff !important; border:1px solid #bfdbfe; border-radius:12px; padding:10px 16px; display:flex; align-items:center; gap:12px; text-decoration:none;">
                     <span class="icon-badge" style="width:32px; height:32px; border-radius:8px; background:#dbeafe; color:#2563eb; display:flex; align-items:center; justify-content:center; font-size:15px;">
@@ -37,9 +37,9 @@
                 </a>
             </li>
 
-            @* ════════════════════════════════════════════════════════════════
+            @* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
                USER MANAGEMENT (Admin)
-            ════════════════════════════════════════════════════════════════ *@
+            â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• *@
             @if (isAdmin)
             {
                 <li class="menu-section-header" style="padding: 10px 18px 6px; font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: 0.8px; text-transform: uppercase;">
@@ -128,6 +128,12 @@
                     </a>
                 </li>
                 <li>
+                    <a asp-area="" asp-controller="CertificationExam" asp-action="AdminCertificates" data-title="Digital Certificates">
+                        <span class="icon-badge" style="--ibg:#fef3c7; --iclr:#d97706;"><i class="fa-solid fa-stamp"></i></span>
+                        <span>Digital Certificates</span>
+                    </a>
+                </li>
+                <li>
                     <a asp-area="" asp-controller="FacultyQuizAssessment" asp-action="Index" data-title="Quiz Assessments">
                         <span class="icon-badge" style="--ibg:#fdf4ff; --iclr:#a855f7;"><i class="fa-solid fa-spell-check"></i></span>
                         <span>Quiz Assessments</span>
@@ -158,6 +164,12 @@
                     </a>
                 </li>
                 <li>
+                    <a asp-area="" asp-controller="StudentAtRisk" asp-action="AdminDashboard" data-title="At-Risk Alerts">
+                        <span class="icon-badge" style="--ibg:#fee2e2; --iclr:#dc2626;"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                        <span>Student At-Risk Alerts</span>
+                    </a>
+                </li>
+                <li>
                     <a asp-area="" asp-controller="Discussion" asp-action="Index" data-title="Discussions">
                         <span class="icon-badge" style="--ibg:#f5f3ff; --iclr:#7c3aed;"><i class="fa-solid fa-comments"></i></span>
                         <span>Discussion Forum</span>
@@ -165,9 +177,9 @@
                 </li>
             }
 
-            @* ════════════════════════════════════════════════════════════════
+            @* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
                FACULTY MENU
-            ════════════════════════════════════════════════════════════════ *@
+            â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• *@
             @if (isFaculty)
             {
                 <li class="menu-section-header" style="padding: 10px 18px 6px; font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: 0.8px; text-transform: uppercase;">
@@ -246,6 +258,12 @@
                     </a>
                 </li>
                 <li>
+                    <a asp-area="" asp-controller="StudentAtRisk" asp-action="FacultyDashboard" data-title="Student At-Risk">
+                        <span class="icon-badge" style="--ibg:#fee2e2; --iclr:#dc2626;"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                        <span>Student At-Risk</span>
+                    </a>
+                </li>
+                <li>
                     <a asp-area="" asp-controller="Discussion" asp-action="Index" data-title="Discussions">
                         <span class="icon-badge" style="--ibg:#f5f3ff; --iclr:#7c3aed;"><i class="fa-solid fa-comments"></i></span>
                         <span>Discussion Forum</span>
@@ -255,7 +273,7 @@
 
         </ul>
 
-        <!-- ── Sidebar Bottom Promo Card (Light-Bluish Theme) ──── -->
+        <!-- â”€â”€ Sidebar Bottom Promo Card (Light-Bluish Theme) â”€â”€â”€â”€ -->
         <div style="padding: 16px 14px 10px 14px; margin-top: auto;">
             <div style="background: linear-gradient(135deg, #eff6ff 0%, #e0f2fe 50%, #f0f9ff 100%); border: 1px solid #bfdbfe; border-radius: 16px; padding: 14px; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 8px rgba(37,99,235,0.04);">
                 <div>

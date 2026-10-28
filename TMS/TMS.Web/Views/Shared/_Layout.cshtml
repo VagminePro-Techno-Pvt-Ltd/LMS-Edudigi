@@ -313,28 +313,126 @@
         }
 
         /* â”€â”€ Language Pill â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+        .lms-lang-pill,
         .lang-pill {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-            padding: 0 12px;
-            height: 36px;
-            border-radius: var(--badge-radius);
-            background: #f0fdf4;
-            cursor: pointer;
-            transition: var(--transition);
-            font-size: 13px;
-            font-weight: 500;
-            color: #16a34a;
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            padding: 6px 14px !important;
+            height: 38px !important;
+            border-radius: 10px !important;
+            background: #ffffff !important;
+            border: 1.5px solid #e2e8f0 !important;
+            cursor: pointer !important;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            font-size: 13.5px !important;
+            font-weight: 600 !important;
+            color: #1e293b !important;
+            user-select: none !important;
+            outline: none !important;
         }
 
-        .lang-pill i.globe-icon { font-size: 14px; color: #16a34a; }
-        .lang-pill i.chevron    { font-size: 10px; color: #16a34a; opacity: 0.6; }
+        .lms-lang-pill .globe-icon,
+        .lang-pill .globe-icon {
+            font-size: 15px !important;
+            color: #3b82f6 !important;
+        }
 
+        .lms-lang-pill .current-lang-text,
+        .lang-pill .current-lang-text {
+            font-weight: 600 !important;
+            letter-spacing: 0.2px !important;
+            color: #1e293b !important;
+        }
+
+        .lms-lang-pill .chevron-icon,
+        .lang-pill .chevron-icon {
+            font-size: 10px !important;
+            color: #64748b !important;
+            opacity: 0.8 !important;
+            transition: transform 0.2s ease !important;
+        }
+
+        .lms-lang-pill:hover,
+        .lms-lang-pill:focus-visible,
         .lang-pill:hover {
-            background: #dcfce7;
-            transform: scale(1.03);
-            box-shadow: 0 3px 10px rgba(22,163,74,0.12);
+            background: #f8fafc !important;
+            border-color: #3b82f6 !important;
+            color: #1d4ed8 !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.12) !important;
+        }
+
+        .lms-lang-switcher-wrap {
+            position: relative !important;
+        }
+
+        .lms-lang-menu {
+            position: absolute !important;
+            top: calc(100% + 8px) !important;
+            right: 0 !important;
+            min-width: 175px !important;
+            background: #ffffff !important;
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 12px !important;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+            padding: 6px !important;
+            list-style: none !important;
+            margin: 0 !important;
+            z-index: 10000 !important;
+        }
+
+        .lms-lang-option {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            width: 100% !important;
+            padding: 9px 12px !important;
+            border-radius: 8px !important;
+            border: none !important;
+            background: transparent !important;
+            color: #1e293b !important;
+            font-size: 13.5px !important;
+            font-weight: 600 !important;
+            cursor: pointer !important;
+            transition: background 0.15s ease, color 0.15s ease !important;
+            text-align: inherit !important;
+            text-decoration: none !important;
+        }
+
+        .lms-lang-option,
+        .lms-lang-option span,
+        .lms-lang-option .lang-label-group,
+        .lms-lang-option .lang-label-group span {
+            color: #1e293b !important;
+        }
+
+        .lms-lang-option:hover,
+        .lms-lang-option:focus-visible {
+            background: #eff6ff !important;
+            color: #2563eb !important;
+            outline: none !important;
+        }
+
+        .lms-lang-option:hover span,
+        .lms-lang-option:hover .lang-label-group span {
+            color: #2563eb !important;
+        }
+
+        .lms-lang-option.active {
+            background: #eff6ff !important;
+            color: #1d4ed8 !important;
+            font-weight: 700 !important;
+        }
+
+        .lms-lang-option.active span,
+        .lms-lang-option.active .lang-label-group span {
+            color: #1d4ed8 !important;
+        }
+
+        .lms-lang-option .lms-lang-check {
+            font-size: 12px !important;
+            color: #2563eb !important;
         }
 
         /* â”€â”€ Notification Bell â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -619,12 +717,12 @@
 
                         <!-- Notifications -->
                         <li class="notif-wrap">
-                            <a asp-area="" asp-controller="Notifications" asp-action="Index" style="text-decoration: none;" title="Notifications">
+                            <a asp-area="" asp-controller="@(User?.FindFirst("role")?.Value?.ToLower() == "student" || User.IsInRole("Student") ? "StudentAlerts" : "Notifications")" asp-action="Index" style="text-decoration: none;" title="Alerts & Notifications">
                                 <div class="nav-icon-badge" style="--ibg:#fef9c3; --iclr:#ca8a04;">
                                     <i class="fa-solid fa-bell"></i>
                                 </div>
                             </a>
-                            <span class="notif-count">0</span>
+                            <span class="notif-count" id="globalNotifCount">0</span>
                         </li>
 
                         <!-- Help & Support -->
@@ -1013,6 +1111,24 @@ document.addEventListener("DOMContentLoaded", function () {
     <partial name="_AiLearningCompanionPartial" />
     <script src="~/js/marked.min.js" asp-append-version="true"></script>
     <script src="~/js/ai-companion.js" asp-append-version="true"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            fetch('/StudentAlerts/GetUnreadCount')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data && typeof data.count !== 'undefined') {
+                        var badge = document.getElementById('globalNotifCount');
+                        if (badge) {
+                            badge.textContent = data.count;
+                            if (data.count > 0) {
+                                badge.style.display = 'inline-block';
+                            }
+                        }
+                    }
+                })
+                .catch(function() {});
+        });
+    </script>
 }
 </body>
 </html>

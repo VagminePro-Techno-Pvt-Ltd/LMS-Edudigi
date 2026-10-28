@@ -1,0 +1,619 @@
+@model TMS.ViewModels.Academics.StudentAlertsPageViewModel
+@{
+    ViewData["Title"] = "My Alerts";
+}
+
+<style>
+    .student-hero {
+        background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #38bdf8 100%);
+        border-radius: 16px;
+        padding: 24px 30px;
+        color: #ffffff;
+        margin-bottom: 24px;
+        box-shadow: 0 4px 20px rgba(37,99,235,0.15);
+    }
+    .student-badge-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.18) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        font-size: 11px;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        font-weight: 700;
+        padding: 5px 14px;
+        border-radius: 20px;
+    }
+    .all-caught-up-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.2) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        font-size: 13px;
+        font-weight: 700;
+        padding: 8px 18px;
+        border-radius: 50rem;
+    }
+    .stat-kpi-card {
+        background: #ffffff;
+        border-radius: 14px;
+        padding: 20px 22px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .stat-kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    }
+    .stat-kpi-icon-circle {
+        width: 52px;
+        height: 52px;
+        min-width: 52px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .stat-kpi-label {
+        color: #475569 !important;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .alert-card-item {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 20px 24px;
+        margin-bottom: 16px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        position: relative;
+    }
+    .alert-card-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+    }
+    .alert-card-item.unread {
+        border-left: 5px solid #2563eb !important;
+        background: #fafcff;
+    }
+    .alert-card-item.critical {
+        border-left: 5px solid #dc2626 !important;
+    }
+    .alert-card-item.high {
+        border-left: 5px solid #ea580c !important;
+    }
+    .alert-card-item.warning {
+        border-left: 5px solid #f59e0b !important;
+    }
+    .unread-dot {
+        width: 10px;
+        height: 10px;
+        background: #2563eb;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    .filter-bar-wrapper {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 50rem;
+        padding: 8px 12px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 24px;
+    }
+    .filter-pill {
+        border-radius: 50rem;
+        padding: 7px 18px;
+        font-weight: 600;
+        font-size: 13px;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        color: #334155 !important;
+        display: inline-flex;
+        align-items: center;
+        cursor: pointer;
+    }
+    .filter-pill:hover {
+        background: #f1f5f9;
+        color: #0f172a !important;
+        border-color: #94a3b8;
+    }
+    .filter-pill.active {
+        background: #2563eb !important;
+        color: #ffffff !important;
+        border-color: #2563eb !important;
+    }
+    .filter-pill.active i {
+        color: #ffffff !important;
+    }
+    .remaining-badge-overdue {
+        background: #fee2e2 !important;
+        color: #b91c1c !important;
+        border: 1px solid #fca5a5 !important;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 8px;
+        font-size: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .remaining-badge-approaching {
+        background: #fef3c7 !important;
+        color: #b45309 !important;
+        border: 1px solid #fde047 !important;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 8px;
+        font-size: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .action-link-btn {
+        background: #2563eb !important;
+        color: #ffffff !important;
+        border: 1px solid #1d4ed8 !important;
+        border-radius: 8px;
+        padding: 9px 18px;
+        font-weight: 700;
+        font-size: 13px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+    }
+    .action-link-btn:hover {
+        background: #1d4ed8 !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 12px rgba(37,99,235,0.25);
+    }
+    .activity-icon-box {
+        width: 50px;
+        height: 50px;
+        min-width: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+    }
+</style>
+
+<div class="container-fluid px-4 py-3">
+    <!-- Header Hero Banner -->
+    <div class="student-hero">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <span class="student-badge-pill mb-2">STUDENT WORKSPACE</span>
+                <h2 class="h3 fw-bold mb-1" style="color: #ffffff !important;">
+                    <i class="fa-solid fa-bell me-2" style="color: #fbbf24 !important;"></i>My Learning Alerts &amp; Deadlines
+                </h2>
+                <p class="mb-0" style="color: rgba(255, 255, 255, 0.9) !important; font-size: 14px;">
+                    Stay on track with upcoming assignment dates, quiz attempts, lecture reviews, and institutional notices.
+                </p>
+            </div>
+            <div class="d-flex align-items-center gap-2" id="headerActionWrap">
+                @if (Model.UnreadCount > 0)
+                {
+                    <button type="button" class="btn fw-bold rounded-pill px-4 shadow-sm"
+                            id="btnMarkAllRead"
+                            style="background: #ffffff !important; color: #1e40af !important; border: 1px solid #bfdbfe; font-size: 13px;"
+                            onclick="markAllAlertsAsRead()">
+                        <i class="fa-solid fa-check-double me-1" style="color: #2563eb !important;"></i>Mark All Read (@Model.UnreadCount)
+                    </button>
+                }
+                else
+                {
+                    <span class="all-caught-up-pill shadow-sm" id="spanAllCaughtUp">
+                        <i class="fa-solid fa-circle-check" style="color: #6ee7b7 !important;"></i>All Caught Up
+                    </span>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary KPI Stats -->
+    <div class="row g-3 mb-4">
+        <!-- Overdue KPI -->
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-kpi-card" style="border: 1px solid #fecaca; border-left: 5px solid #dc2626 !important;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="stat-kpi-label">Overdue Activities</span>
+                        <h3 class="mb-0 mt-1" style="color: #dc2626 !important; font-weight: 800; font-size: 28px;">@Model.OverdueCount</h3>
+                    </div>
+                    <div class="stat-kpi-icon-circle" style="background: #fee2e2 !important; border: 1px solid #fca5a5;">
+                        <i class="fa-solid fa-triangle-exclamation" style="color: #dc2626 !important; font-size: 22px !important;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Approaching KPI -->
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-kpi-card" style="border: 1px solid #fde68a; border-left: 5px solid #f59e0b !important;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="stat-kpi-label">Approaching Due Dates</span>
+                        <h3 class="mb-0 mt-1" style="color: #d97706 !important; font-weight: 800; font-size: 28px;">@Model.ApproachingCount</h3>
+                    </div>
+                    <div class="stat-kpi-icon-circle" style="background: #fef3c7 !important; border: 1px solid #fde68a;">
+                        <i class="fa-solid fa-clock" style="color: #d97706 !important; font-size: 22px !important;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Unread KPI -->
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-kpi-card" style="border: 1px solid #bae6fd; border-left: 5px solid #0284c7 !important;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="stat-kpi-label">Unread Notifications</span>
+                        <h3 id="unreadKpiCount" class="mb-0 mt-1" style="color: #0284c7 !important; font-weight: 800; font-size: 28px;">@Model.UnreadCount</h3>
+                    </div>
+                    <div class="stat-kpi-icon-circle" style="background: #e0f2fe !important; border: 1px solid #bae6fd;">
+                        <i class="fa-solid fa-envelope-open-text" style="color: #0284c7 !important; font-size: 22px !important;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Conduct KPI -->
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-kpi-card" style="border: 1px solid #e9d5ff; border-left: 5px solid #7c3aed !important;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="stat-kpi-label">Conduct Notices</span>
+                        <h3 class="mb-0 mt-1" style="color: #7c3aed !important; font-weight: 800; font-size: 28px;">@Model.WarningCount</h3>
+                    </div>
+                    <div class="stat-kpi-icon-circle" style="background: #f3e8ff !important; border: 1px solid #e9d5ff;">
+                        <i class="fa-solid fa-shield-halved" style="color: #7c3aed !important; font-size: 22px !important;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Pills Bar (Fast Instant Filtering) -->
+    <div class="filter-bar-wrapper">
+        <span style="color: #475569 !important; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; margin-left: 12px; margin-right: 8px;">FILTER:</span>
+        <a asp-action="Index" asp-route-filter="All" data-filter="All" class="filter-pill @(Model.Filter == "All" ? "active" : null)" onclick="return switchAlertFilter('All', event);">
+            All Alerts (@Model.TotalCount)
+        </a>
+        <a asp-action="Index" asp-route-filter="Overdue" data-filter="Overdue" class="filter-pill @(Model.Filter == "Overdue" ? "active" : null)" onclick="return switchAlertFilter('Overdue', event);">
+            <i class="fa-solid fa-circle-exclamation me-1" style="color: #dc2626 !important;"></i>Overdue (@Model.OverdueCount)
+        </a>
+        <a asp-action="Index" asp-route-filter="Approaching" data-filter="Approaching" class="filter-pill @(Model.Filter == "Approaching" ? "active" : null)" onclick="return switchAlertFilter('Approaching', event);">
+            <i class="fa-regular fa-clock me-1" style="color: #d97706 !important;"></i>Approaching (@Model.ApproachingCount)
+        </a>
+        <a asp-action="Index" asp-route-filter="Unread" data-filter="Unread" class="filter-pill @(Model.Filter == "Unread" ? "active" : null)" onclick="return switchAlertFilter('Unread', event);">
+            <i class="fa-regular fa-envelope me-1" style="color: #2563eb !important;"></i>Unread (<span id="pillUnreadCount">@Model.UnreadCount</span>)
+        </a>
+        <a asp-action="Index" asp-route-filter="Warnings" data-filter="Warnings" class="filter-pill @(Model.Filter == "Warnings" ? "active" : null)" onclick="return switchAlertFilter('Warnings', event);">
+            <i class="fa-solid fa-flag me-1" style="color: #7c3aed !important;"></i>Conduct Notices (@Model.WarningCount)
+        </a>
+    </div>
+
+    <!-- Alerts Feed -->
+    <div class="alerts-container">
+        @Html.AntiForgeryToken()
+        @if (!Model.Alerts.Any())
+        {
+            <div class="card border-0 shadow-sm rounded-4 text-center py-5" style="background: #ffffff; border: 1px solid #e2e8f0;" id="emptyAlertsCard">
+                <div class="py-4">
+                    <i class="fa-solid fa-circle-check fa-4x mb-3" style="color: #10b981 !important;"></i>
+                    <h4 class="fw-bold" style="color: #0f172a !important;">No Active Alerts</h4>
+                    <p class="mb-0" style="color: #64748b !important;">You are completely up to date with all your course activities and deadlines!</p>
+                </div>
+            </div>
+        }
+        @foreach (var alert in Model.Alerts)
+        {
+            string itemClass = "";
+            if (!alert.IsRead) itemClass += " unread";
+            if (alert.RiskLevel == "Critical") itemClass += " critical";
+            else if (alert.RiskLevel == "High") itemClass += " high";
+            else if (alert.RiskLevel == "Warning") itemClass += " warning";
+
+            string iconBg = alert.ActivityType switch
+            {
+                "Video" => "#fee2e2",
+                "Pdf" => "#eff6ff",
+                "Assignment" => "#fef3c7",
+                "Quiz" => "#e0f2fe",
+                "Moderation" => "#f3e8ff",
+                _ => "#f1f5f9"
+            };
+            string iconBorder = alert.ActivityType switch
+            {
+                "Video" => "#fca5a5",
+                "Pdf" => "#bfdbfe",
+                "Assignment" => "#fde68a",
+                "Quiz" => "#bae6fd",
+                "Moderation" => "#e9d5ff",
+                _ => "#cbd5e1"
+            };
+            string iconColor = alert.ActivityType switch
+            {
+                "Video" => "#b91c1c",
+                "Pdf" => "#1d4ed8",
+                "Assignment" => "#b45309",
+                "Quiz" => "#0369a1",
+                "Moderation" => "#6d28d9",
+                _ => "#334155"
+            };
+
+            <div class="alert-card-item @itemClass"
+                 id="alertCard-@alert.AlertId"
+                 data-risk="@alert.RiskLevel"
+                 data-type="@alert.ActivityType"
+                 data-read="@(alert.IsRead ? "true" : "false")">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+                    <div class="d-flex align-items-start gap-3 flex-grow-1">
+                        <!-- Activity Icon Box -->
+                        <div class="activity-icon-box mt-1"
+                             style="background: @iconBg !important; border: 1px solid @iconBorder !important; color: @iconColor !important;">
+                            @if (alert.ActivityType == "Video")
+                            {
+                                <i class="fa-solid fa-play"></i>
+                            }
+                            else if (alert.ActivityType == "Pdf")
+                            {
+                                <i class="fa-solid fa-file-pdf"></i>
+                            }
+                            else if (alert.ActivityType == "Assignment")
+                            {
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            }
+                            else if (alert.ActivityType == "Quiz")
+                            {
+                                <i class="fa-solid fa-circle-question"></i>
+                            }
+                            else if (alert.ActivityType == "Moderation")
+                            {
+                                <i class="fa-solid fa-shield-halved"></i>
+                            }
+                            else
+                            {
+                                <i class="fa-solid fa-comments"></i>
+                            }
+                        </div>
+
+                        <!-- Details -->
+                        <div class="flex-grow-1">
+                            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                                <span style="display: inline-flex; align-items: center; gap: 4px; background: #eff6ff !important; color: #1d4ed8 !important; border: 1px solid #bfdbfe !important; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">
+                                    <i class="fa-solid fa-book-open" style="font-size: 11px;"></i>@alert.CourseName
+                                </span>
+                                <span style="background: #f1f5f9 !important; color: #334155 !important; border: 1px solid #cbd5e1 !important; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px;">
+                                    @alert.ActivityType
+                                </span>
+                                <span class="badge-unread-indicator" id="unreadBadge-@alert.AlertId" style="@(!alert.IsRead ? "display:inline-flex;" : "display:none;") align-items:center; gap:6px;">
+                                    <span class="unread-dot" title="Unread Alert"></span>
+                                    <span style="background: #2563eb !important; color: #ffffff !important; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px;">
+                                        NEW
+                                    </span>
+                                </span>
+                            </div>
+                            <h5 class="fw-bold mb-1" style="color: #0f172a !important; font-size: 17px;">@alert.Title</h5>
+                            <p class="mb-2" style="color: #475569 !important; font-size: 14px; line-height: 1.5;">@alert.Message</p>
+
+                            <!-- Deadline Info -->
+                            @if (alert.DeadlineDate.HasValue)
+                            {
+                                <div class="d-flex flex-wrap align-items-center gap-3" style="color: #64748b; font-size: 13px;">
+                                    <span>
+                                        <i class="fa-solid fa-calendar-day me-1" style="color: #64748b !important;"></i>
+                                        Deadline: <strong style="color: #1e293b !important;">@alert.DeadlineDate.Value.ToString("dd MMM yyyy, hh:mm tt")</strong>
+                                    </span>
+                                    <span>
+                                        @if (alert.RiskLevel == "High" || alert.RiskLevel == "Critical")
+                                        {
+                                            <span class="remaining-badge-overdue">
+                                                <i class="fa-solid fa-circle-exclamation"></i>@alert.RemainingText
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="remaining-badge-approaching">
+                                                <i class="fa-regular fa-clock"></i>@alert.RemainingText
+                                            </span>
+                                        }
+                                    </span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex flex-column align-items-end gap-2">
+                        @if (!string.IsNullOrEmpty(alert.ActionUrl))
+                        {
+                            <a href="@alert.ActionUrl" class="action-link-btn shadow-sm">
+                                <span>Go to Activity</span>
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </a>
+                        }
+
+                        <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none"
+                                id="btnToggleRead-@alert.AlertId"
+                                style="font-size: 12px; color: #64748b !important; font-weight: 600;"
+                                onclick="toggleAlertRead(@alert.AlertId, @(alert.IsRead ? "false" : "true"))">
+                            @if (alert.IsRead)
+                            {
+                                <span><i class="fa-regular fa-envelope me-1" style="color: #64748b !important;"></i>Mark Unread</span>
+                            }
+                            else
+                            {
+                                <span><i class="fa-solid fa-check me-1" style="color: #10b981 !important;"></i>Mark Read</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // ══════════════════════════════════════════════════════════════════
+    // INSTANT CLIENT-SIDE FILTERING (0ms response, no page reload)
+    // ══════════════════════════════════════════════════════════════════
+    function switchAlertFilter(filterName, event) {
+        if (event && event.preventDefault) {
+            event.preventDefault();
+        }
+
+        $('.filter-pill').removeClass('active');
+        $(`.filter-pill[data-filter="${filterName}"]`).addClass('active');
+
+        var $cards = $('.alert-card-item');
+
+        if (filterName === 'All') {
+            $cards.show();
+        } else if (filterName === 'Overdue') {
+            $cards.hide();
+            $cards.filter('[data-risk="High"], [data-risk="Critical"]').show();
+        } else if (filterName === 'Approaching') {
+            $cards.hide();
+            $cards.filter('[data-risk="Medium"]').show();
+        } else if (filterName === 'Unread') {
+            $cards.hide();
+            $cards.filter('[data-read="false"]').show();
+        } else if (filterName === 'Warnings') {
+            $cards.hide();
+            $cards.filter('[data-risk="Warning"], [data-type="Moderation"]').show();
+        }
+
+        if (window.history && window.history.pushState) {
+            var url = '/StudentAlerts' + (filterName === 'All' ? '' : '?filter=' + filterName);
+            window.history.pushState(null, '', url);
+        }
+
+        return false;
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // OPTIMISTIC MARK AS READ / UNREAD (Immediate UI update, background sync)
+    // ══════════════════════════════════════════════════════════════════
+    function toggleAlertRead(alertId, newStatus) {
+        var card = document.getElementById('alertCard-' + alertId);
+        var badge = document.getElementById('unreadBadge-' + alertId);
+        var btn = document.getElementById('btnToggleRead-' + alertId);
+        var unreadKpi = document.getElementById('unreadKpiCount');
+        var pillUnread = document.getElementById('pillUnreadCount');
+        var globalBadge = document.getElementById('globalNotifCount');
+
+        var currentUnread = unreadKpi ? parseInt(unreadKpi.textContent) || 0 : 0;
+
+        if (newStatus === true) {
+            // Marking as READ
+            if (card) {
+                card.classList.remove('unread');
+                card.setAttribute('data-read', 'true');
+            }
+            if (badge) badge.style.display = 'none';
+            if (btn) {
+                btn.innerHTML = '<span><i class="fa-regular fa-envelope me-1" style="color: #64748b !important;"></i>Mark Unread</span>';
+                btn.setAttribute('onclick', 'toggleAlertRead(' + alertId + ', false)');
+            }
+            currentUnread = Math.max(0, currentUnread - 1);
+        } else {
+            // Marking as UNREAD
+            if (card) {
+                card.classList.add('unread');
+                card.setAttribute('data-read', 'false');
+            }
+            if (badge) badge.style.display = 'inline-flex';
+            if (btn) {
+                btn.innerHTML = '<span><i class="fa-solid fa-check me-1" style="color: #10b981 !important;"></i>Mark Read</span>';
+                btn.setAttribute('onclick', 'toggleAlertRead(' + alertId + ', true)');
+            }
+            currentUnread++;
+        }
+
+        if (unreadKpi) unreadKpi.textContent = currentUnread;
+        if (pillUnread) pillUnread.textContent = currentUnread;
+        if (globalBadge) {
+            globalBadge.textContent = currentUnread;
+            globalBadge.style.display = currentUnread > 0 ? 'inline-block' : 'none';
+        }
+
+        var headerWrap = document.getElementById('headerActionWrap');
+        if (headerWrap) {
+            if (currentUnread === 0) {
+                headerWrap.innerHTML = '<span class="all-caught-up-pill shadow-sm" id="spanAllCaughtUp"><i class="fa-solid fa-circle-check" style="color: #6ee7b7 !important;"></i>All Caught Up</span>';
+            } else {
+                headerWrap.innerHTML = '<button type="button" class="btn fw-bold rounded-pill px-4 shadow-sm" id="btnMarkAllRead" style="background: #ffffff !important; color: #1e40af !important; border: 1px solid #bfdbfe; font-size: 13px;" onclick="markAllAlertsAsRead()"><i class="fa-solid fa-check-double me-1" style="color: #2563eb !important;"></i>Mark All Read (' + currentUnread + ')</button>';
+            }
+        }
+
+        // Background synchronization
+        var token = $('input[name="__RequestVerificationToken"]').val();
+        $.ajax({
+            url: '/StudentAlerts/MarkRead',
+            type: 'POST',
+            data: { id: alertId, isRead: newStatus, __RequestVerificationToken: token },
+            error: function() {
+                // Revert on failure
+                location.reload();
+            }
+        });
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // OPTIMISTIC MARK ALL READ (Instant UI update)
+    // ══════════════════════════════════════════════════════════════════
+    function markAllAlertsAsRead() {
+        $('.alert-card-item').removeClass('unread').attr('data-read', 'true');
+        $('.badge-unread-indicator').hide();
+        $('.alert-card-item').each(function() {
+            var aId = this.id.replace('alertCard-', '');
+            var b = document.getElementById('btnToggleRead-' + aId);
+            if (b) {
+                b.innerHTML = '<span><i class="fa-regular fa-envelope me-1" style="color: #64748b !important;"></i>Mark Unread</span>';
+                b.setAttribute('onclick', 'toggleAlertRead(' + aId + ', false)');
+            }
+        });
+
+        var unreadKpi = document.getElementById('unreadKpiCount');
+        var pillUnread = document.getElementById('pillUnreadCount');
+        var globalBadge = document.getElementById('globalNotifCount');
+        if (unreadKpi) unreadKpi.textContent = '0';
+        if (pillUnread) pillUnread.textContent = '0';
+        if (globalBadge) {
+            globalBadge.textContent = '0';
+            globalBadge.style.display = 'none';
+        }
+
+        var headerWrap = document.getElementById('headerActionWrap');
+        if (headerWrap) {
+            headerWrap.innerHTML = '<span class="all-caught-up-pill shadow-sm" id="spanAllCaughtUp"><i class="fa-solid fa-circle-check" style="color: #6ee7b7 !important;"></i>All Caught Up</span>';
+        }
+
+        var token = $('input[name="__RequestVerificationToken"]').val();
+        $.ajax({
+            url: '/StudentAlerts/MarkAllRead',
+            type: 'POST',
+            data: { __RequestVerificationToken: token },
+            error: function() {
+                location.reload();
+            }
+        });
+    }
+</script>
+}

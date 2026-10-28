@@ -1,0 +1,571 @@
+@model TMS.ViewModels.Academics.AdminAtRiskAnalyticsViewModel
+@{
+    ViewData["Title"] = "Learning Analytics — Student At-Risk Alerts";
+}
+
+<style>
+    .admin-hero {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #334155 100%);
+        border-radius: 16px;
+        padding: 24px 30px;
+        color: #ffffff;
+        margin-bottom: 24px;
+        box-shadow: 0 4px 20px rgba(15,23,42,0.25);
+    }
+    .kpi-stat-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 18px 20px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .kpi-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+    }
+    .risk-badge-critical {
+        background-color: #fee2e2;
+        color: #dc2626;
+        border: 1px solid #fca5a5;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .risk-badge-high {
+        background-color: #ffedd5;
+        color: #ea580c;
+        border: 1px solid #fdba74;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .risk-badge-medium {
+        background-color: #fef9c3;
+        color: #ca8a04;
+        border: 1px solid #fde047;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .risk-badge-low {
+        background-color: #dcfce7;
+        color: #16a34a;
+        border: 1px solid #86efac;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .nav-tab-custom {
+        padding: 12px 22px;
+        border: none;
+        background: transparent;
+        font-weight: 700;
+        color: #64748b;
+        border-bottom: 3px solid transparent;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .nav-tab-custom.active {
+        color: #2563eb;
+        border-bottom: 3px solid #2563eb;
+        background: #f8fafc;
+    }
+    .custom-table th {
+        background: #f8fafc;
+        color: #475569;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .custom-table td {
+        vertical-align: middle;
+        font-size: 13.5px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+</style>
+
+<div class="container-fluid px-4 py-3">
+    <!-- Header Banner -->
+    <div class="admin-hero">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <span class="badge bg-primary px-3 py-1 fw-bold mb-2" style="font-size:12px;">LEARNING ANALYTICS</span>
+                <h2 class="h3 fw-bold mb-1"><i class="fa-solid fa-chart-line me-2"></i>Student At-Risk &amp; Conduct Analytics</h2>
+                <p class="mb-0 text-white-50">Institution-wide early warning alerts, deadline compliance monitoring, and discussion forum moderation.</p>
+            </div>
+            <div>
+                <span class="badge bg-white bg-opacity-10 text-white px-3 py-2 border border-white border-opacity-25 fs-6">
+                    <i class="fa-solid fa-shield-halved me-1"></i>Administrator Oversight
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics KPI Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="kpi-stat-card border-start border-danger border-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-muted small fw-bold text-uppercase">Critical Risk Students</span>
+                        <h3 class="fw-bold text-danger mb-0 mt-1">@Model.CriticalCount</h3>
+                        <span class="text-muted" style="font-size:11px;">&ge; 2 missed deadlines</span>
+                    </div>
+                    <div class="p-3 rounded-circle d-flex align-items-center justify-content-center" style="width:52px; height:52px; background:#fee2e2 !important; border:1px solid #fca5a5;">
+                        <i class="fa-solid fa-radiation fa-xl" style="color:#dc2626 !important;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="kpi-stat-card border-start border-warning border-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-muted small fw-bold text-uppercase">High Risk Students</span>
+                        <h3 class="fw-bold text-warning mb-0 mt-1" style="color:#ea580c !important;">@Model.HighCount</h3>
+                        <span class="text-muted" style="font-size:11px;">1 missed deadline</span>
+                    </div>
+                    <div class="p-3 rounded-circle d-flex align-items-center justify-content-center" style="width:52px; height:52px; background:#ffedd5 !important; border:1px solid #fed7aa;">
+                        <i class="fa-solid fa-triangle-exclamation fa-xl" style="color:#ea580c !important;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="kpi-stat-card border-start border-info border-4" style="border-left-color: #f59e0b !important;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-muted small fw-bold text-uppercase">Medium Risk (Approaching)</span>
+                        <h3 class="fw-bold text-warning mb-0 mt-1" style="color:#ca8a04 !important;">@Model.MediumCount</h3>
+                        <span class="text-muted" style="font-size:11px;">Upcoming due date window</span>
+                    </div>
+                    <div class="p-3 rounded-circle d-flex align-items-center justify-content-center" style="width:52px; height:52px; background:#fef9c3 !important; border:1px solid #fde047;">
+                        <i class="fa-solid fa-clock fa-xl" style="color:#ca8a04 !important;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="kpi-stat-card border-start border-purple border-4" style="border-left-color: #8b5cf6 !important;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-muted small fw-bold text-uppercase">Conduct Flags (Review)</span>
+                        <h3 class="fw-bold mb-0 mt-1" style="color:#7c3aed;">@Model.PendingModerationCount</h3>
+                        <span class="text-muted" style="font-size:11px;">Flagged forum language</span>
+                    </div>
+                    <div class="p-3 rounded-circle d-flex align-items-center justify-content-center" style="width:52px; height:52px; background:#f3e8ff !important; border:1px solid #e9d5ff;">
+                        <i class="fa-solid fa-flag fa-xl" style="color:#7c3aed !important;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Navigation Tabs -->
+    <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+        <div class="card-header bg-white border-bottom p-0 d-flex justify-content-between align-items-center">
+            <div class="d-flex" role="tablist">
+                <button class="nav-tab-custom active" id="tabRiskRosterBtn" onclick="switchAdminTab('roster')">
+                    <i class="fa-solid fa-users-viewfinder me-2"></i>Institution At-Risk Roster (@Model.Students.Count)
+                </button>
+                <button class="nav-tab-custom" id="tabModerationBtn" onclick="switchAdminTab('moderation')">
+                    <i class="fa-solid fa-shield-cat me-2"></i>Forum Moderation Review
+                    @if (Model.PendingModerationCount > 0)
+                    {
+                        <span class="badge bg-danger rounded-pill ms-2">@Model.PendingModerationCount</span>
+                    }
+                </button>
+            </div>
+            <div class="pe-3">
+                <span class="badge bg-light text-secondary border px-3 py-2 fw-semibold">
+                    <i class="fa-solid fa-graduation-cap me-1"></i>Total Monitored: @Model.TotalStudents
+                </span>
+            </div>
+        </div>
+
+        <div class="card-body p-4">
+            <!-- SECTION 1: AT-RISK ROSTER & FILTERS -->
+            <div id="sectionRiskRoster">
+                <!-- Filters Form -->
+                <form method="get" asp-action="AdminDashboard" class="row g-2 mb-4 p-3 bg-light rounded-3">
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label small fw-bold text-muted text-uppercase mb-1">Program / Category</label>
+                        <select name="programId" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Programs</option>
+                            @foreach (var p in Model.Programs)
+                            {
+                                <option value="@p.Id" selected="@(Model.SelectedProgramId == p.Id ? "selected" : null)">@p.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label small fw-bold text-muted text-uppercase mb-1">Course</label>
+                        <select name="courseId" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Courses</option>
+                            @foreach (var c in Model.Courses)
+                            {
+                                <option value="@c.Id" selected="@(Model.SelectedCourseId == c.Id ? "selected" : null)">@c.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-6">
+                        <label class="form-label small fw-bold text-muted text-uppercase mb-1">Risk Level</label>
+                        <select name="riskFilter" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="All" selected="@(Model.SelectedRiskFilter == "All" ? "selected" : null)">All Risk Levels</option>
+                            <option value="CRITICAL" selected="@(Model.SelectedRiskFilter == "CRITICAL" ? "selected" : null)">Critical (&ge; 2 missed)</option>
+                            <option value="HIGH" selected="@(Model.SelectedRiskFilter == "HIGH" ? "selected" : null)">High (1 missed)</option>
+                            <option value="MEDIUM" selected="@(Model.SelectedRiskFilter == "MEDIUM" ? "selected" : null)">Medium (Approaching)</option>
+                            <option value="LOW" selected="@(Model.SelectedRiskFilter == "LOW" ? "selected" : null)">Low (On Track)</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label small fw-bold text-muted text-uppercase mb-1">Student Search</label>
+                        <input type="text" name="search" class="form-control form-control-sm" placeholder="Search student name, email, course..." value="@Model.SearchTerm" />
+                    </div>
+                    <div class="col-lg-1 col-md-12 d-flex align-items-end">
+                        <button type="submit" class="btn btn-sm btn-primary w-100"><i class="fa-solid fa-filter me-1"></i>Filter</button>
+                    </div>
+                </form>
+
+                <!-- Student Grid -->
+                <div class="table-responsive">
+                    <table class="table custom-table">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Program &amp; Course</th>
+                                <th>Risk Level</th>
+                                <th>Pending Activities</th>
+                                <th>Overdue (Missed)</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (!Model.Students.Any())
+                            {
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">No students matching the selected filter criteria.</td>
+                                </tr>
+                            }
+                            @foreach (var s in Model.Students)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="avatar bg-light text-primary rounded-circle p-2 fw-bold" style="width:36px; height:36px; display:flex; align-items:center; justify-content:center;">
+                                                @(s.StudentName.Length > 0 ? s.StudentName.Substring(0, 1).ToUpper() : "S")
+                                            </div>
+                                            <div>
+                                                <strong class="text-dark">@s.StudentName</strong>
+                                                <div class="text-muted small">@s.StudentEmail</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-semibold text-dark">@s.CourseName</div>
+                                        <div class="text-muted small">@s.ProgramName</div>
+                                    </td>
+                                    <td>
+                                        @if (s.RiskLevel == "CRITICAL")
+                                        {
+                                            <span class="risk-badge-critical"><i class="fa-solid fa-radiation"></i> CRITICAL</span>
+                                        }
+                                        else if (s.RiskLevel == "HIGH")
+                                        {
+                                            <span class="risk-badge-high"><i class="fa-solid fa-triangle-exclamation"></i> HIGH</span>
+                                        }
+                                        else if (s.RiskLevel == "MEDIUM")
+                                        {
+                                            <span class="risk-badge-medium"><i class="fa-solid fa-clock"></i> MEDIUM</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="risk-badge-low"><i class="fa-solid fa-circle-check"></i> LOW</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold text-dark">@s.PendingCount</span> pending
+                                    </td>
+                                    <td>
+                                        @if (s.OverdueCount > 0)
+                                        {
+                                            <span class="badge bg-danger bg-opacity-10 text-danger fw-bold px-2 py-1">@s.OverdueCount missed</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">0</span>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3"
+                                                onclick="openAdminStudentDetailsModal(@s.CourseId, @s.StudentId)">
+                                            <i class="fa-solid fa-chart-pie me-1"></i>View Details
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SECTION 2: FORUM CONTENT MODERATION REVIEW -->
+            <div id="sectionModeration" style="display:none;">
+                <div class="alert alert-info border-0 shadow-sm rounded-3 p-3 mb-3 d-flex align-items-center gap-3">
+                    <i class="fa-solid fa-shield-halved fa-2x text-primary"></i>
+                    <div>
+                        <strong class="d-block text-dark">LMS Automated Language Moderation</strong>
+                        <span class="text-muted small">Discussion posts and replies flagged by the keyword moderation filter. Confirm violation or dismiss flag without automatic academic penalties.</span>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table custom-table">
+                        <thead>
+                            <tr>
+                                <th>Author Student</th>
+                                <th>Type &amp; Context</th>
+                                <th>Flagged Text Content</th>
+                                <th>Detected Keywords</th>
+                                <th>Date Flagged</th>
+                                <th>Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (!Model.ModerationFlags.Any())
+                            {
+                                <tr>
+                                    <td colspan="7" class="text-center py-4 text-muted">No content moderation flags currently recorded.</td>
+                                </tr>
+                            }
+                            @foreach (var flag in Model.ModerationFlags)
+                            {
+                                <tr id="flagRow-@flag.Id">
+                                    <td>
+                                        <strong>@flag.AuthorName</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border">@flag.ContentType</span>
+                                        @if (!string.IsNullOrEmpty(flag.ProgramName))
+                                        {
+                                            <div class="text-muted small mt-1">@flag.ProgramName</div>
+                                        }
+                                    </td>
+                                    <td style="max-width: 320px;">
+                                        <div class="text-break bg-light p-2 rounded-2 small font-monospace">@flag.FlaggedText</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-danger bg-opacity-10 text-danger fw-bold">@flag.DetectedKeywords</span>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">@flag.CreatedOn.ToString("dd MMM yyyy, hh:mm tt")</small>
+                                    </td>
+                                    <td>
+                                        @if (flag.Status == "PendingReview")
+                                        {
+                                            <span class="badge bg-warning bg-opacity-10 text-warning fw-bold px-2 py-1" style="color:#d97706 !important;">Pending Review</span>
+                                        }
+                                        else if (flag.Status == "Confirmed")
+                                        {
+                                            <span class="badge bg-danger bg-opacity-10 text-danger fw-bold px-2 py-1">Confirmed Violation</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success bg-opacity-10 text-success fw-bold px-2 py-1">Dismissed</span>
+                                        }
+                                    </td>
+                                    <td class="text-end text-nowrap">
+                                        @if (flag.Status == "PendingReview")
+                                        {
+                                            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1 me-1"
+                                                    onclick="reviewModerationFlag(@flag.Id, 'Confirm')">
+                                                <i class="fa-solid fa-check me-1"></i>Confirm
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1"
+                                                    onclick="reviewModerationFlag(@flag.Id, 'Dismiss')">
+                                                <i class="fa-solid fa-xmark me-1"></i>Dismiss
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <small class="text-muted">Reviewed by @(flag.ReviewedByName ?? "Staff")</small>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Student Risk Detail (Admin) -->
+<div class="modal fade" id="adminStudentDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-dark text-white border-0 rounded-top-4">
+                <h5 class="modal-title fw-bold"><i class="fa-solid fa-user-graduate me-2"></i>Student At-Risk Activity Audit</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-light rounded-3">
+                    <div>
+                        <h5 class="fw-bold mb-0 text-dark" id="adminDetailStudentName">Loading...</h5>
+                        <div class="text-muted small" id="adminDetailStudentEmail">...</div>
+                        <div class="text-primary small fw-semibold" id="adminDetailCourseName">...</div>
+                    </div>
+                    <div id="adminDetailRiskBadge"></div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table custom-table">
+                        <thead>
+                            <tr>
+                                <th>Activity</th>
+                                <th>Type</th>
+                                <th>Deadline</th>
+                                <th>Status</th>
+                                <th>Remaining / Overdue</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminDetailActivitiesBody">
+                            <tr><td colspan="5" class="text-center py-3 text-muted">Loading activities...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-0 rounded-bottom-4">
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function switchAdminTab(tab) {
+        if (tab === 'roster') {
+            $('#sectionRiskRoster').show();
+            $('#sectionModeration').hide();
+            $('#tabRiskRosterBtn').addClass('active');
+            $('#tabModerationBtn').removeClass('active');
+        } else {
+            $('#sectionRiskRoster').hide();
+            $('#sectionModeration').show();
+            $('#tabRiskRosterBtn').removeClass('active');
+            $('#tabModerationBtn').addClass('active');
+        }
+    }
+
+    function openAdminStudentDetailsModal(courseId, studentId) {
+        var modal = new bootstrap.Modal(document.getElementById('adminStudentDetailModal'));
+        modal.show();
+
+        $('#adminDetailStudentName').text('Loading...');
+        $('#adminDetailStudentEmail').text('');
+        $('#adminDetailCourseName').text('');
+        $('#adminDetailRiskBadge').html('');
+        $('#adminDetailActivitiesBody').html('<tr><td colspan="5" class="text-center py-3 text-muted">Loading activities...</td></tr>');
+
+        $.ajax({
+            url: `/StudentAtRisk/GetStudentDetails?courseId=${courseId}&studentId=${studentId}`,
+            type: 'GET',
+            success: function(resp) {
+                if (resp && resp.success && resp.data) {
+                    var d = resp.data;
+                    $('#adminDetailStudentName').text(d.studentName);
+                    $('#adminDetailStudentEmail').text(d.studentEmail);
+                    $('#adminDetailCourseName').text(d.courseName);
+
+                    var badgeHtml = '';
+                    if (d.riskLevel === 'CRITICAL') badgeHtml = '<span class="risk-badge-critical"><i class="fa-solid fa-radiation"></i> CRITICAL</span>';
+                    else if (d.riskLevel === 'HIGH') badgeHtml = '<span class="risk-badge-high"><i class="fa-solid fa-triangle-exclamation"></i> HIGH</span>';
+                    else if (d.riskLevel === 'MEDIUM') badgeHtml = '<span class="risk-badge-medium"><i class="fa-solid fa-clock"></i> MEDIUM</span>';
+                    else badgeHtml = '<span class="risk-badge-low"><i class="fa-solid fa-circle-check"></i> LOW</span>';
+                    $('#adminDetailRiskBadge').html(badgeHtml);
+
+                    var rows = '';
+                    if (!d.activities || d.activities.length === 0) {
+                        rows = '<tr><td colspan="5" class="text-center py-3 text-muted">No activities found for this course.</td></tr>';
+                    } else {
+                        d.activities.forEach(function(act) {
+                            var statusBadge = '';
+                            if (act.status === 'Completed') statusBadge = '<span class="badge bg-success bg-opacity-10 text-success fw-bold">Completed</span>';
+                            else if (act.status === 'Overdue') statusBadge = '<span class="badge bg-danger bg-opacity-10 text-danger fw-bold">Overdue</span>';
+                            else if (act.status === 'Approaching') statusBadge = '<span class="badge bg-warning bg-opacity-10 text-warning fw-bold" style="color:#ca8a04 !important;">Approaching</span>';
+                            else statusBadge = '<span class="badge bg-light text-muted">On Track</span>';
+
+                            var dlStr = act.deadlineDate ? new Date(act.deadlineDate).toLocaleString() : 'Not Set';
+
+                            rows += `<tr>
+                                <td><strong>${act.title}</strong></td>
+                                <td><span class="badge bg-light text-secondary border">${act.activityType}</span></td>
+                                <td><small class="text-muted">${dlStr}</small></td>
+                                <td>${statusBadge}</td>
+                                <td><small class="fw-semibold">${act.remainingText || '—'}</small></td>
+                            </tr>`;
+                        });
+                    }
+                    $('#adminDetailActivitiesBody').html(rows);
+                } else {
+                    $('#adminDetailActivitiesBody').html('<tr><td colspan="5" class="text-center py-3 text-danger">Failed to load student details.</td></tr>');
+                }
+            },
+            error: function() {
+                $('#adminDetailActivitiesBody').html('<tr><td colspan="5" class="text-center py-3 text-danger">Server communication error.</td></tr>');
+            }
+        });
+    }
+
+    function reviewModerationFlag(flagId, decision) {
+        if (!confirm(`Are you sure you want to ${decision.toLowerCase()} this moderation flag?`)) return;
+
+        var token = $('input[name="__RequestVerificationToken"]').val();
+
+        var payload = {
+            FlagId: flagId,
+            Decision: decision,
+            Remarks: `${decision}ed by administrator review`
+        };
+
+        $.ajax({
+            url: '/StudentAtRisk/ReviewModeration',
+            type: 'POST',
+            contentType: 'application/json',
+            headers: { 'RequestVerificationToken': token },
+            data: JSON.stringify(payload),
+            success: function(resp) {
+                if (resp && resp.success) {
+                    location.reload();
+                } else {
+                    alert(resp.message || 'Error updating moderation flag.');
+                }
+            },
+            error: function() {
+                alert('Server error while processing moderation review.');
+            }
+        });
+    }
+</script>
+}

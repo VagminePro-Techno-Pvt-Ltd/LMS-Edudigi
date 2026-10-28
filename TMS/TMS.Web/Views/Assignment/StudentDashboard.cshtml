@@ -204,7 +204,7 @@
                 var submission = submissions.Where(s => s.AssignmentId == item.Id).OrderByDescending(s => s.AttemptNumber).FirstOrDefault();
                 var grade = submission != null ? grades.FirstOrDefault(g => g.SubmissionId == submission.Id) : null;
 
-                <div class="col-xl-4 col-md-6 mb-4">
+                <div class="col-xl-4 col-md-6 mb-4" id="assignment-@item.Id">
                     <div class="card h-100 premium-card">
                         <div class="card-body p-4 d-flex flex-column">
                             <div class="d-flex justify-content-between align-items-center">

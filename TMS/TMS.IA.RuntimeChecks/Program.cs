@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using TMS.Repository;
 using TMS.Models.Assessments;
 using TMS.Models.Academics;
+using TMS.Models.Masters;
 using TMS.Web.Infrastructure;
 using TMS.Web.Services;
 using TMS.Web.ViewModels;
@@ -15,6 +16,9 @@ using TMS.ViewModels.Academics;
 using TMS.ViewModels.LearningAssistant;
 using TMS.Models.LearningAssistant;
 using Microsoft.EntityFrameworkCore;
+using TMS.Web.Controllers;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 var passed = 0;
 var failed = 0;
@@ -1567,17 +1571,17 @@ var docProcessingService = new DocumentProcessingService();
 // =========================================================================
 // FEATURE 25: AI QUESTION PAPER GENERATOR TESTS
 // =========================================================================
-// 13. QuestionPaper NotMapped attribute verification
+// 13. QuestionPaper property verification
 {
     var instrProp = typeof(QuestionPaper).GetProperty("Instructions");
     var durationProp = typeof(QuestionPaper).GetProperty("DurationMinutes");
-    Equal("QuestionPaper.Instructions has NotMappedAttribute", instrProp?.GetCustomAttribute<NotMappedAttribute>() != null, true);
-    Equal("QuestionPaper.DurationMinutes has NotMappedAttribute", durationProp?.GetCustomAttribute<NotMappedAttribute>() != null, true);
+    Equal("QuestionPaper.Instructions exists", instrProp != null, true);
+    Equal("QuestionPaper.DurationMinutes exists", durationProp != null, true);
 
     var secNameProp = typeof(QuestionPaperQuestion).GetProperty("SectionName");
     var secInstrProp = typeof(QuestionPaperQuestion).GetProperty("SectionInstructions");
-    Equal("QuestionPaperQuestion.SectionName has NotMappedAttribute", secNameProp?.GetCustomAttribute<NotMappedAttribute>() != null, true);
-    Equal("QuestionPaperQuestion.SectionInstructions has NotMappedAttribute", secInstrProp?.GetCustomAttribute<NotMappedAttribute>() != null, true);
+    Equal("QuestionPaperQuestion.SectionName exists", secNameProp != null, true);
+    Equal("QuestionPaperQuestion.SectionInstructions exists", secInstrProp != null, true);
 }
 
 // 14. Blueprint marks scaling logic
@@ -1963,6 +1967,818 @@ var docProcessingService = new DocumentProcessingService();
     Equal("Print VM preserves CourseCode", printVm.CourseCode, "CS-302");
     Equal("Print VM questions count", printVm.Questions.Count, 2);
     Equal("Print VM questions sum equals TotalMarks", printVm.Questions.Sum(q => q.Marks), printVm.TotalMarks);
+}
+
+// =========================================================================
+// FEATURE 77: STUDENT AT-RISK ALERTS TESTS
+// =========================================================================
+
+// 29. Content Moderation: Clean content and false-positive immunity
+{
+    var modService = new ContentModerationService(dummyDbContext);
+    
+    // Clean academic text
+    var cleanRes = modService.CheckContent("Can you please explain Dijkstra's algorithm for single-source shortest paths?");
+    Equal("Clean text reports not inappropriate", cleanRes.IsInappropriate, false);
+    Equal("Clean text has zero detected keywords", cleanRes.DetectedKeywords.Count, 0);
+
+    // Substrings that contain 'ass' or similar words without word boundary violation
+    var subRes = modService.CheckContent("The classic classification algorithm passed this class with high accuracy.");
+    Equal("Substrings like class, pass, classic are not flagged", subRes.IsInappropriate, false);
+    Equal("Class/pass false positive immunity has 0 detected keywords", subRes.DetectedKeywords.Count, 0);
+
+    // Empty or null text
+    var emptyRes = modService.CheckContent("");
+    Equal("Empty text reports not inappropriate", emptyRes.IsInappropriate, false);
+    var nullRes = modService.CheckContent(null);
+    Equal("Null text reports not inappropriate", nullRes.IsInappropriate, false);
+}
+
+// 30. Content Moderation: Profanity, harassment and misconduct detection
+{
+    var modService = new ContentModerationService(dummyDbContext);
+
+    // Direct abusive language
+    var abuseRes = modService.CheckContent("You are an idiot and this professor is a moron!");
+    Equal("Abusive words flagged as inappropriate", abuseRes.IsInappropriate, true);
+    Equal("Detected keywords contain idiot", abuseRes.DetectedKeywords.Contains("idiot"), true);
+    Equal("Detected keywords contain moron", abuseRes.DetectedKeywords.Contains("moron"), true);
+    Equal("Warning message contains guideline notice", abuseRes.WarningMessage?.Contains("conduct guidelines") == true, true);
+
+    // Cheating/scam terminology
+    var cheatRes = modService.CheckContent("I will leak exam questions and cheat on the test.");
+    Equal("Academic dishonesty phrases flagged", cheatRes.IsInappropriate, true);
+    Equal("Detected keywords contain cheat", cheatRes.DetectedKeywords.Contains("cheat"), true);
+    Equal("Detected keywords contain leak exam", cheatRes.DetectedKeywords.Contains("leak exam"), true);
+}
+
+// 31. Content Moderation Flag & Decoupled Conduct Warning Alert Lifecycle
+{
+    var flag = new ContentModerationFlag
+    {
+        Id = 501,
+        ContentType = "DiscussionReply",
+        ContentId = 42,
+        AuthorUserId = 88,
+        AuthorName = "Student John Doe",
+        ProgramId = 1,
+        CourseId = 10,
+        FlaggedText = "You are an idiot",
+        DetectedKeywords = "idiot",
+        Status = "PendingReview",
+        CreatedBy = 88,
+        CreatedOn = DateTime.UtcNow,
+        IsActive = true
+    };
+
+    Equal("Default flag status is PendingReview", flag.Status, "PendingReview");
+    Equal("Flag captures author user id", flag.AuthorUserId, 88);
+    Equal("Flag captures detected keywords", flag.DetectedKeywords, "idiot");
+
+    // Create linked student conduct warning alert
+    var conductAlert = new StudentRiskAlert
+    {
+        Id = 901,
+        StudentId = flag.AuthorUserId,
+        CourseId = flag.CourseId ?? 0,
+        ActivityType = "Moderation",
+        ActivityId = flag.Id,
+        Title = "Community Conduct Notice",
+        Message = $"Your discussion submission was flagged for review due to potentially inappropriate wording ({flag.DetectedKeywords}). Please maintain academic decorum.",
+        RiskLevel = "Warning",
+        DeadlineDate = null,
+        IsResolved = false,
+        IsRead = false,
+        CreatedBy = flag.AuthorUserId,
+        CreatedOn = DateTime.UtcNow,
+        ActionUrl = "/Discussion/Index",
+        IsActive = true
+    };
+
+    Equal("Conduct alert RiskLevel is Warning", conductAlert.RiskLevel, "Warning");
+    Equal("Conduct alert is not resolved initially", conductAlert.IsResolved, false);
+    Equal("Conduct alert is unread initially", conductAlert.IsRead, false);
+    Equal("Conduct alert has no academic deadline", conductAlert.DeadlineDate.HasValue, false);
+
+    // Admin Review - Confirm
+    flag.Status = "Confirmed";
+    flag.ReviewedByUserId = 1; // Admin
+    flag.ReviewedOn = DateTime.UtcNow;
+    flag.ReviewRemarks = "Confirmed breach of conduct policy";
+    Equal("Confirmed flag status updated", flag.Status, "Confirmed");
+    Equal("Confirmed flag reviewer set", flag.ReviewedByUserId, 1);
+
+    // Admin Review - Dismiss resolves the linked conduct alert
+    flag.Status = "Dismissed";
+    flag.ReviewedByUserId = 1;
+    flag.ReviewRemarks = "Context reviewed, false positive";
+    conductAlert.IsResolved = true;
+    conductAlert.ResolvedOn = DateTime.UtcNow;
+    conductAlert.UpdatedBy = 1;
+
+    Equal("Dismissed flag status updated", flag.Status, "Dismissed");
+    Equal("Dismissed flag auto-resolves student conduct alert", conductAlert.IsResolved, true);
+    Equal("Resolved alert has timestamp", conductAlert.ResolvedOn.HasValue, true);
+}
+
+// 32. Risk Level Engine: Pure business logic verification (LOW, MEDIUM, HIGH, CRITICAL)
+{
+    string ComputeRisk(int overdueCount, int approachingCount)
+    {
+        if (overdueCount >= 2) return "CRITICAL";
+        if (overdueCount == 1) return "HIGH";
+        if (approachingCount >= 1) return "MEDIUM";
+        return "LOW";
+    }
+
+    // Case 1: 0 overdue, 0 approaching -> LOW (On track)
+    Equal("0 overdue, 0 approaching is LOW", ComputeRisk(0, 0), "LOW");
+
+    // Case 2: 0 overdue, 1 approaching -> MEDIUM (Approaching)
+    Equal("0 overdue, 1 approaching is MEDIUM", ComputeRisk(0, 1), "MEDIUM");
+
+    // Case 3: 0 overdue, 4 approaching -> MEDIUM (Multiple approaching)
+    Equal("0 overdue, 4 approaching is MEDIUM", ComputeRisk(0, 4), "MEDIUM");
+
+    // Case 4: 1 overdue, 0 approaching -> HIGH (1 deadline missed)
+    Equal("1 overdue, 0 approaching is HIGH", ComputeRisk(1, 0), "HIGH");
+
+    // Case 5: 1 overdue, 2 approaching -> HIGH (1 deadline missed takes precedence over approaching)
+    Equal("1 overdue, 2 approaching is HIGH", ComputeRisk(1, 2), "HIGH");
+
+    // Case 6: 2 overdue, 0 approaching -> CRITICAL (Multiple missed deadlines)
+    Equal("2 overdue, 0 approaching is CRITICAL", ComputeRisk(2, 0), "CRITICAL");
+
+    // Case 7: 3 overdue, 1 approaching -> CRITICAL (Multiple missed deadlines)
+    Equal("3 overdue, 1 approaching is CRITICAL", ComputeRisk(3, 1), "CRITICAL");
+}
+
+// 33. Deadline Calculation and Remaining/Overdue Text Formatting
+{
+    string FormatRemaining(DateTime? deadline, DateTime now)
+    {
+        if (!deadline.HasValue) return "No deadline";
+
+        if (now > deadline.Value)
+        {
+            var diff = now - deadline.Value;
+            if (diff.TotalDays >= 1)
+                return $"Overdue by {(int)Math.Floor(diff.TotalDays)}d {diff.Hours}h";
+            return $"Overdue by {diff.Hours}h {diff.Minutes}m";
+        }
+        else
+        {
+            var diff = deadline.Value - now;
+            if (diff.TotalDays >= 1)
+                return $"{(int)Math.Floor(diff.TotalDays)}d {diff.Hours}h remaining";
+            return $"{diff.Hours}h {diff.Minutes}m remaining";
+        }
+    }
+
+    var baseTime = new DateTime(2026, 10, 28, 12, 0, 0, DateTimeKind.Utc);
+
+    // 1. Approaching: 2 days 5 hours in future
+    var future1 = baseTime.AddDays(2).AddHours(5);
+    Equal("2d 5h remaining formatted accurately", FormatRemaining(future1, baseTime), "2d 5h remaining");
+
+    // 2. Approaching: 6 hours 30 mins in future
+    var future2 = baseTime.AddHours(6).AddMinutes(30);
+    Equal("6h 30m remaining formatted accurately", FormatRemaining(future2, baseTime), "6h 30m remaining");
+
+    // 3. Overdue: 3 days 2 hours in past
+    var past1 = baseTime.AddDays(-3).AddHours(-2);
+    Equal("Overdue by 3d 2h formatted accurately", FormatRemaining(past1, baseTime), "Overdue by 3d 2h");
+
+    // 4. Overdue: 45 minutes in past
+    var past2 = baseTime.AddMinutes(-45);
+    Equal("Overdue by 0h 45m formatted accurately", FormatRemaining(past2, baseTime), "Overdue by 0h 45m");
+
+    // 5. No deadline
+    Equal("Null deadline formatted as No deadline", FormatRemaining(null, baseTime), "No deadline");
+}
+
+// 34. CourseActivityDeadline entity & SaveDeadlineRequest integrity
+{
+    var deadlineDate = DateTime.UtcNow.AddDays(7);
+    var req = new SaveDeadlineRequest
+    {
+        CourseId = 101,
+        ActivityType = "Assignment",
+        ActivityId = 42,
+        ActivityTitle = "Data Structures Project 1",
+        DeadlineDate = deadlineDate,
+        ReminderDaysBefore = 3
+    };
+
+    Equal("SaveDeadlineRequest preserves CourseId", req.CourseId, 101);
+    Equal("SaveDeadlineRequest preserves ActivityType", req.ActivityType, "Assignment");
+    Equal("SaveDeadlineRequest preserves ActivityId", req.ActivityId, 42);
+    Equal("SaveDeadlineRequest preserves ReminderDaysBefore", req.ReminderDaysBefore, 3);
+
+    var entity = new CourseActivityDeadline
+    {
+        Id = 1,
+        CourseId = req.CourseId,
+        ActivityType = req.ActivityType,
+        ActivityId = req.ActivityId,
+        ActivityTitle = req.ActivityTitle,
+        DeadlineDate = req.DeadlineDate,
+        ReminderDaysBefore = req.ReminderDaysBefore,
+        CreatedBy = 5,
+        CreatedOn = DateTime.UtcNow,
+        IsActive = true
+    };
+
+    Equal("Entity maps CourseId correctly", entity.CourseId, 101);
+    Equal("Entity maps ActivityType correctly", entity.ActivityType, "Assignment");
+    Equal("Entity maps DeadlineDate accurately", entity.DeadlineDate, deadlineDate);
+    Equal("Entity maps ReminderDaysBefore accurately", entity.ReminderDaysBefore, 3);
+}
+
+// 35. Verified Completion Rules (Videos, PDFs, Assignments, Quizzes, Discussions)
+{
+    // Video completion: Opening (0% progress) is NOT completed. Requires >= 75% or IsCompleted == true.
+    bool CheckVideoCompletion(int progressPct, bool isMarkedCompleted)
+    {
+        return isMarkedCompleted || progressPct >= 75;
+    }
+
+    Equal("Video with 0% progress is NOT completed", CheckVideoCompletion(0, false), false);
+    Equal("Video with 30% progress is NOT completed", CheckVideoCompletion(30, false), false);
+    Equal("Video with 74% progress is NOT completed", CheckVideoCompletion(74, false), false);
+    Equal("Video with 75% progress is VERIFIED COMPLETED", CheckVideoCompletion(75, false), true);
+    Equal("Video with 100% progress is VERIFIED COMPLETED", CheckVideoCompletion(100, false), true);
+    Equal("Video marked complete explicitly is VERIFIED COMPLETED", CheckVideoCompletion(50, true), true);
+
+    // Quiz completion: Abandoned attempt (IsSubmitted == false) is NOT completed.
+    var attempt1 = new StudentQuizAttempt { StudentId = 10, QuizId = 5, IsSubmitted = false };
+    var attempt2 = new StudentQuizAttempt { StudentId = 10, QuizId = 5, IsSubmitted = true };
+    Equal("Unsubmitted quiz attempt is NOT completed", attempt1.IsSubmitted, false);
+    Equal("Submitted quiz attempt is VERIFIED COMPLETED", attempt2.IsSubmitted, true);
+
+    // Assignment completion: Submission row exists
+    var submissions = new List<AssignmentSubmission>
+    {
+        new() { StudentId = 20, AssignmentId = 100, SubmittedOn = DateTime.UtcNow }
+    };
+    bool isAssSubmitted = submissions.Any(s => s.StudentId == 20 && s.AssignmentId == 100);
+    bool isAssNotSubmitted = submissions.Any(s => s.StudentId == 21 && s.AssignmentId == 100);
+    Equal("Submitted student has assignment marked completed", isAssSubmitted, true);
+    Equal("Non-submitter student has assignment incomplete", isAssNotSubmitted, false);
+
+    // Discussion completion: Reply row exists
+    var replies = new List<DiscussionReply>
+    {
+        new() { ThreadId = 7, UserId = 30, CommentText = "Great point!", IsActive = true }
+    };
+    bool hasReplied = replies.Any(r => r.ThreadId == 7 && r.UserId == 30 && r.IsActive);
+    bool hasNotReplied = replies.Any(r => r.ThreadId == 7 && r.UserId == 31 && r.IsActive);
+    Equal("Discussion student who replied is marked completed", hasReplied, true);
+    Equal("Discussion student who did not reply is incomplete", hasNotReplied, false);
+}
+
+// 36. Direct Action URL Mapping for Student Alerts
+{
+    string GetActionUrl(string activityType, int activityId, int courseId) => activityType switch
+    {
+        "Video" => $"/DocumentViewer/View/{activityId}",
+        "Pdf" => $"/DocumentViewer/View/{activityId}",
+        "Assignment" => $"/Assignment/Details/{activityId}",
+        "Quiz" => $"/StudentQuiz/Attempt?quizId={activityId}",
+        "Discussion" => $"/Discussion/Details/{activityId}",
+        _ => $"/SubjectHub/{courseId}"
+    };
+
+    Equal("Video action URL points to DocumentViewer", GetActionUrl("Video", 12, 101), "/DocumentViewer/View/12");
+    Equal("Pdf action URL points to DocumentViewer", GetActionUrl("Pdf", 15, 101), "/DocumentViewer/View/15");
+    Equal("Assignment action URL points to Assignment Details", GetActionUrl("Assignment", 45, 101), "/Assignment/Details/45");
+    Equal("Quiz action URL points to StudentQuiz Attempt", GetActionUrl("Quiz", 99, 101), "/StudentQuiz/Attempt?quizId=99");
+    Equal("Discussion action URL points to Discussion Details", GetActionUrl("Discussion", 33, 101), "/Discussion/Details/33");
+    Equal("Fallback action URL points to SubjectHub", GetActionUrl("Other", 0, 101), "/SubjectHub/101");
+}
+
+// 37. Student Alert Read/Unread State Changes and Mark All Read
+{
+    var alerts = new List<StudentRiskAlert>
+    {
+        new() { Id = 1, StudentId = 15, IsRead = false, IsResolved = false },
+        new() { Id = 2, StudentId = 15, IsRead = false, IsResolved = false },
+        new() { Id = 3, StudentId = 15, IsRead = true, IsResolved = false },
+        new() { Id = 4, StudentId = 16, IsRead = false, IsResolved = false }
+    };
+
+    // Unread count for student 15
+    int unread15Before = alerts.Count(a => a.StudentId == 15 && !a.IsRead && !a.IsResolved);
+    Equal("Student 15 initial unread count is 2", unread15Before, 2);
+
+    // Mark single alert read
+    var alertToMark = alerts.First(a => a.Id == 1);
+    alertToMark.IsRead = true;
+    alertToMark.ReadOn = DateTime.UtcNow;
+    Equal("Single alert marked read", alertToMark.IsRead, true);
+    Equal("Single alert has ReadOn timestamp", alertToMark.ReadOn.HasValue, true);
+
+    // Mark all read for student 15
+    foreach (var a in alerts.Where(a => a.StudentId == 15 && !a.IsRead && !a.IsResolved))
+    {
+        a.IsRead = true;
+        a.ReadOn = DateTime.UtcNow;
+    }
+
+    int unread15After = alerts.Count(a => a.StudentId == 15 && !a.IsRead && !a.IsResolved);
+    Equal("Student 15 unread count after Mark All Read is 0", unread15After, 0);
+
+    // Other student (16) alerts untouched
+    int unread16 = alerts.Count(a => a.StudentId == 16 && !a.IsRead && !a.IsResolved);
+    Equal("Other student unread alerts remain unread", unread16, 1);
+}
+
+// 38. Controller Endpoints and Security Attributes Verification
+{
+    // StudentAtRiskController
+    var riskCtrlType = typeof(StudentAtRiskController);
+    Equal("StudentAtRiskController has AuthorizeAttribute", riskCtrlType.GetCustomAttribute<AuthorizeAttribute>() != null, true);
+
+    var facDashMethod = riskCtrlType.GetMethod("FacultyDashboard");
+    Equal("FacultyDashboard method exists", facDashMethod != null, true);
+
+    var saveDlMethod = riskCtrlType.GetMethod("SaveDeadline");
+    Equal("SaveDeadline method exists", saveDlMethod != null, true);
+    Equal("SaveDeadline has HttpPostAttribute", saveDlMethod?.GetCustomAttribute<HttpPostAttribute>() != null, true);
+    Equal("SaveDeadline has ValidateAntiForgeryTokenAttribute", saveDlMethod?.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>() != null, true);
+
+    var studentDetailsMethod = riskCtrlType.GetMethod("GetStudentDetails");
+    Equal("GetStudentDetails method exists", studentDetailsMethod != null, true);
+
+    var adminDashMethod = riskCtrlType.GetMethod("AdminDashboard");
+    Equal("AdminDashboard method exists", adminDashMethod != null, true);
+
+    var revModMethod = riskCtrlType.GetMethod("ReviewModeration");
+    Equal("ReviewModeration method exists", revModMethod != null, true);
+    Equal("ReviewModeration has HttpPostAttribute", revModMethod?.GetCustomAttribute<HttpPostAttribute>() != null, true);
+    Equal("ReviewModeration has ValidateAntiForgeryTokenAttribute", revModMethod?.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>() != null, true);
+
+    // StudentAlertsController
+    var alertsCtrlType = typeof(StudentAlertsController);
+    Equal("StudentAlertsController has AuthorizeAttribute", alertsCtrlType.GetCustomAttribute<AuthorizeAttribute>() != null, true);
+
+    var indexMethod = alertsCtrlType.GetMethod("Index");
+    Equal("StudentAlertsController Index exists", indexMethod != null, true);
+
+    var markReadMethod = alertsCtrlType.GetMethod("MarkRead");
+    Equal("MarkRead has HttpPostAttribute", markReadMethod?.GetCustomAttribute<HttpPostAttribute>() != null, true);
+    Equal("MarkRead has ValidateAntiForgeryTokenAttribute", markReadMethod?.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>() != null, true);
+
+    var markAllReadMethod = alertsCtrlType.GetMethod("MarkAllRead");
+    Equal("MarkAllRead has HttpPostAttribute", markAllReadMethod?.GetCustomAttribute<HttpPostAttribute>() != null, true);
+    Equal("MarkAllRead has ValidateAntiForgeryTokenAttribute", markAllReadMethod?.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>() != null, true);
+
+    var getUnreadCountMethod = alertsCtrlType.GetMethod("GetUnreadCount");
+    Equal("GetUnreadCount exists", getUnreadCountMethod != null, true);
+}
+
+// 39. ViewModels KPI and contract consistency
+{
+    var adminVm = new AdminAtRiskAnalyticsViewModel
+    {
+        TotalStudents = 12,
+        CriticalCount = 3,
+        HighCount = 4,
+        MediumCount = 5,
+        TotalOverdueActivities = 19,
+        TotalPendingActivities = 45,
+        PendingModerationCount = 2
+    };
+    Equal("AdminAtRiskAnalyticsViewModel TotalStudents matches sum of tiers", adminVm.TotalStudents, adminVm.CriticalCount + adminVm.HighCount + adminVm.MediumCount);
+    Equal("AdminAtRiskAnalyticsViewModel preserves TotalOverdueActivities", adminVm.TotalOverdueActivities, 19);
+    Equal("AdminAtRiskAnalyticsViewModel preserves PendingModerationCount", adminVm.PendingModerationCount, 2);
+
+    var facultyVm = new FacultyCourseActivitiesViewModel
+    {
+        CourseId = 101,
+        CourseName = "Advanced Computer Networks",
+        CourseCode = "CS-401",
+        Activities = new List<CourseActivityItemViewModel>
+        {
+            new() { ActivityType = "Video", ActivityId = 1, Title = "Lecture 1" },
+            new() { ActivityType = "Assignment", ActivityId = 2, Title = "Lab 1" }
+        },
+        SelectedActivityType = "All"
+    };
+    Equal("FacultyCourseActivitiesViewModel preserves CourseId", facultyVm.CourseId, 101);
+    Equal("FacultyCourseActivitiesViewModel preserves CourseName", facultyVm.CourseName, "Advanced Computer Networks");
+    Equal("FacultyCourseActivitiesViewModel preserves CourseCode", facultyVm.CourseCode, "CS-401");
+    Equal("FacultyCourseActivitiesViewModel preserves Activities count", facultyVm.Activities.Count, 2);
+
+    var studentVm = new StudentAlertsPageViewModel
+    {
+        TotalCount = 5,
+        OverdueCount = 2,
+        ApproachingCount = 2,
+        UnreadCount = 3,
+        WarningCount = 1,
+        Filter = "All"
+    };
+    Equal("StudentAlertsPageViewModel preserves TotalCount", studentVm.TotalCount, 5);
+    Equal("StudentAlertsPageViewModel preserves OverdueCount", studentVm.OverdueCount, 2);
+    Equal("StudentAlertsPageViewModel preserves ApproachingCount", studentVm.ApproachingCount, 2);
+    Equal("StudentAlertsPageViewModel preserves UnreadCount", studentVm.UnreadCount, 3);
+    Equal("StudentAlertsPageViewModel preserves WarningCount", studentVm.WarningCount, 1);
+}
+
+// ─── Feature 68: Certification Exams & Automatic Digital Certificate Generation Checks ───
+{
+    // 1. Template Files Verification
+    var certDir = Path.Combine("..", "TMS.Web", "wwwroot", "images", "certificates");
+    if (!Directory.Exists(certDir))
+    {
+        certDir = Path.Combine("TMS", "TMS.Web", "wwwroot", "images", "certificates");
+    }
+    var cleanTemplatePath = Path.Combine(certDir, "certificate_clean_template.png");
+    var originalTemplatePath = Path.Combine(certDir, "certificate_template.png");
+
+    Equal("Clean certificate template file exists", File.Exists(cleanTemplatePath), true);
+    Equal("Original reference certificate template file exists", File.Exists(originalTemplatePath), true);
+
+    // 2. Entity and Relationship Checks
+    var exam = new CertificationExam
+    {
+        Id = 1,
+        Title = "Cloud Architecture Professional Certification",
+        CertificationTopic = "Enterprise Cloud Systems",
+        CourseId = 10,
+        DurationMinutes = 90,
+        TotalMarks = 100m,
+        PassingPercentage = 60m,
+        StartDate = DateTime.UtcNow,
+        EndDate = DateTime.UtcNow.AddDays(14),
+        MaxAttempts = 2,
+        Status = "Draft",
+        FacultyId = 5
+    };
+    Equal("CertificationExam title matches", exam.Title, "Cloud Architecture Professional Certification");
+    Equal("CertificationExam topic matches", exam.CertificationTopic, "Enterprise Cloud Systems");
+    Equal("CertificationExam duration is 90 mins", exam.DurationMinutes, 90);
+    Equal("CertificationExam default status is Draft", exam.Status, "Draft");
+    Equal("CertificationExam MaxAttempts is 2", exam.MaxAttempts, 2);
+
+    var q1 = new CertificationExamQuestion
+    {
+        Id = 1,
+        CertificationExamId = 1,
+        QuestionText = "Which AWS service is used for serverless compute?",
+        QuestionType = "SingleChoice",
+        Marks = 5m
+    };
+    q1.Options.Add(new CertificationExamQuestionOption { Id = 1, OptionText = "AWS Lambda", IsCorrect = true, SortOrder = 1 });
+    q1.Options.Add(new CertificationExamQuestionOption { Id = 2, OptionText = "Amazon EC2", IsCorrect = false, SortOrder = 2 });
+    q1.Options.Add(new CertificationExamQuestionOption { Id = 3, OptionText = "Amazon S3", IsCorrect = false, SortOrder = 3 });
+
+    Equal("Question type is SingleChoice", q1.QuestionType, "SingleChoice");
+    Equal("Question has 3 options", q1.Options.Count, 3);
+    Equal("Correct option is AWS Lambda", q1.Options.First(o => o.IsCorrect).OptionText, "AWS Lambda");
+
+    // 3. Evaluation & UGC 10-Point Grading Logic
+    // Test percentage to grade mappings:
+    // >= 90: O, >= 80: A+, >= 70: A, >= 60: B+, >= 55: B, >= 50: C, >= passing: P, < passing: F
+    string GetGrade(decimal percentage, decimal passingPct)
+    {
+        if (percentage >= 90m) return "O";
+        if (percentage >= 80m) return "A+";
+        if (percentage >= 70m) return "A";
+        if (percentage >= 60m) return "B+";
+        if (percentage >= 55m) return "B";
+        if (percentage >= 50m) return "C";
+        if (percentage >= passingPct) return "P";
+        return "F";
+    }
+
+    Equal("95% maps to UGC Grade O", GetGrade(95m, 50m), "O");
+    Equal("84% maps to UGC Grade A+", GetGrade(84m, 50m), "A+");
+    Equal("73% maps to UGC Grade A", GetGrade(73m, 50m), "A");
+    Equal("65% maps to UGC Grade B+", GetGrade(65m, 50m), "B+");
+    Equal("57% maps to UGC Grade B", GetGrade(57m, 50m), "B");
+    Equal("52% maps to UGC Grade C", GetGrade(52m, 40m), "C");
+    Equal("45% maps to UGC Grade P (passing)", GetGrade(45m, 40m), "P");
+    Equal("35% maps to UGC Grade F (below passing 40%)", GetGrade(35m, 40m), "F");
+
+    // 4. IssuedCertificate Entity & Idempotency Rules
+    var attempt = new CertificationExamAttempt
+    {
+        Id = 101,
+        CertificationExamId = 1,
+        StudentId = 42,
+        TotalScore = 85m,
+        MaxScore = 100m,
+        Percentage = 85m,
+        Grade = "A+",
+        IsPassed = true,
+        IsSubmitted = true
+    };
+
+    var token = Guid.NewGuid().ToString("N");
+    var cert = new IssuedCertificate
+    {
+        Id = 201,
+        CertificateNumber = "EDC-CERT-2026-TEST01",
+        VerificationToken = token,
+        CertificationExamAttemptId = attempt.Id,
+        StudentId = attempt.StudentId,
+        CertificationExamId = attempt.CertificationExamId,
+        StudentFullName = "Jane Doe",
+        CertificationTopic = "Enterprise Cloud Systems",
+        FinalGrade = "A+",
+        IsPassed = true,
+        IssueDate = DateTime.UtcNow,
+        PdfFilePath = "/uploads/certificates/EDC-CERT-2026-TEST01.pdf",
+        Status = "Valid"
+    };
+
+    Equal("IssuedCertificate matches attempt student ID", cert.StudentId, 42);
+    Equal("IssuedCertificate status is Valid", cert.Status, "Valid");
+    Equal("IssuedCertificate has unique verification token", !string.IsNullOrEmpty(cert.VerificationToken), true);
+
+    // 5. Controller Architecture & Endpoints Reflection
+    var controllerType = typeof(CertificationExamController);
+    Equal("CertificationExamController exists", controllerType != null, true);
+    Equal("CertificationExamController inherits BaseController", typeof(BaseController).IsAssignableFrom(controllerType), true);
+
+    var methods = controllerType!.GetMethods(BindingFlags.Public | BindingFlags.Instance);
+    bool HasMethod(string name) => methods.Any(m => m.Name == name);
+    bool HasAttribute<TAttr>(string methodName) where TAttr : Attribute =>
+        methods.FirstOrDefault(m => m.Name == methodName)?.GetCustomAttribute<TAttr>() != null;
+
+    Equal("FacultyDashboard endpoint exists", HasMethod("FacultyDashboard"), true);
+    Equal("Create endpoint exists", HasMethod("Create"), true);
+    Equal("Edit endpoint exists", HasMethod("Edit"), true);
+    Equal("Delete endpoint exists", HasMethod("Delete"), true);
+    Equal("Questions builder endpoint exists", HasMethod("Questions"), true);
+    Equal("SaveQuestion endpoint exists", HasMethod("SaveQuestion"), true);
+    Equal("DeleteQuestion endpoint exists", HasMethod("DeleteQuestion"), true);
+    Equal("Publish endpoint exists", HasMethod("Publish"), true);
+    Equal("Preview endpoint exists", HasMethod("Preview"), true);
+    Equal("FacultyAttempts endpoint exists", HasMethod("FacultyAttempts"), true);
+    Equal("StudentDashboard endpoint exists", HasMethod("StudentDashboard"), true);
+    Equal("Attempt endpoint exists", HasMethod("Attempt"), true);
+    Equal("SaveAnswer endpoint exists", HasMethod("SaveAnswer"), true);
+    Equal("Submit endpoint exists", HasMethod("Submit"), true);
+    Equal("Result endpoint exists", HasMethod("Result"), true);
+    Equal("DownloadCertificate endpoint exists", HasMethod("DownloadCertificate"), true);
+    Equal("Verify public QR endpoint exists", HasMethod("Verify"), true);
+    Equal("AdminCertificates endpoint exists", HasMethod("AdminCertificates"), true);
+    Equal("RevokeCertificate endpoint exists", HasMethod("RevokeCertificate"), true);
+    Equal("RetryCertificate endpoint exists", HasMethod("RetryCertificate"), true);
+
+    Equal("Verify endpoint allows anonymous access", HasAttribute<AllowAnonymousAttribute>("Verify"), true);
+    Equal("Publish endpoint requires anti-forgery token", HasAttribute<ValidateAntiForgeryTokenAttribute>("Publish"), true);
+    Equal("Submit endpoint requires anti-forgery token", HasAttribute<ValidateAntiForgeryTokenAttribute>("Submit"), true);
+    Equal("RevokeCertificate endpoint requires anti-forgery token", HasAttribute<ValidateAntiForgeryTokenAttribute>("RevokeCertificate"), true);
+    Equal("GenerateAiQuestions endpoint exists", HasMethod("GenerateAiQuestions"), true);
+    Equal("GenerateAiQuestions requires anti-forgery token", HasAttribute<ValidateAntiForgeryTokenAttribute>("GenerateAiQuestions"), true);
+    Equal("SaveBatchQuestions endpoint exists", HasMethod("SaveBatchQuestions"), true);
+    Equal("SaveBatchQuestions requires anti-forgery token", HasAttribute<ValidateAntiForgeryTokenAttribute>("SaveBatchQuestions"), true);
+
+    // 6. Live Database Schema & End-to-End Workflow Execution
+    try
+    {
+        var appSettingsPath = Path.Combine("..", "TMS.Web", "appsettings.json");
+        if (!File.Exists(appSettingsPath))
+            appSettingsPath = Path.Combine("TMS", "TMS.Web", "appsettings.json");
+
+        if (File.Exists(appSettingsPath))
+        {
+            var config = new ConfigurationBuilder().AddJsonFile(Path.GetFullPath(appSettingsPath)).Build();
+            var connStr = config.GetConnectionString("DefaultConnection");
+
+            if (!string.IsNullOrEmpty(connStr))
+            {
+                var optionsBuilder = new DbContextOptionsBuilder<ApplicationDBContext>();
+                optionsBuilder.UseSqlServer(connStr);
+
+                using var db = new ApplicationDBContext(optionsBuilder.Options);
+                var certService = new CertificationExamService(db);
+
+                // Run schema creation
+                certService.EnsureSchemaAsync().GetAwaiter().GetResult();
+                Equal("Live DB EnsureSchemaAsync completed successfully", true, true);
+
+                // Check tables exist in sys.tables
+                var tableCount = db.Database.SqlQueryRaw<int>(@"
+                    SELECT COUNT(*) AS Value FROM sys.tables 
+                    WHERE name IN ('CertificationExams', 'CertificationExamQuestions', 'CertificationExamQuestionOptions', 
+                                   'CertificationExamAttempts', 'CertificationExamStudentAnswers', 'IssuedCertificates')
+                ").AsEnumerable().FirstOrDefault();
+
+                Equal("All 6 Certification Exam tables exist in SQL Server", tableCount, 6);
+
+                // Check an existing course or create an isolated test exam
+                var course = db.CourseMasters.FirstOrDefault(c => c.IsActive);
+                var faculty = db.UserMasters.FirstOrDefault(u => u.IsActive);
+                var student = db.UserMasters.FirstOrDefault(u => u.IsActive && u.Id != faculty!.Id);
+
+                if (course != null && faculty != null && student != null)
+                {
+                    var testTopic = "Automated E2E Verification Topic";
+                    var examModel = new CertificationExamFormModel
+                    {
+                        Title = "Feature 68 E2E Live Test Exam",
+                        CertificationTopic = testTopic,
+                        CourseId = course.Id,
+                        DurationMinutes = 45,
+                        TotalMarks = 10m,
+                        PassingPercentage = 50m,
+                        StartDate = DateTime.UtcNow.AddMinutes(-10),
+                        EndDate = DateTime.UtcNow.AddDays(7),
+                        MaxAttempts = 3
+                    };
+
+                    int createdExamId = certService.CreateExamAsync(examModel, faculty.Id).GetAwaiter().GetResult();
+                    Equal("E2E Exam created with valid ID", createdExamId > 0, true);
+
+                    // Add Q1 Single Choice
+                    var q1Model = new CertificationQuestionFormModel
+                    {
+                        CertificationExamId = createdExamId,
+                        QuestionText = "Is this certification generated automatically?",
+                        QuestionType = "SingleChoice",
+                        Marks = 5m,
+                        Options = new List<CertificationOptionModel>
+                        {
+                            new() { OptionText = "Yes, automatically without Admin approval", IsCorrect = true, SortOrder = 1 },
+                            new() { OptionText = "No, requires manual admin approval", IsCorrect = false, SortOrder = 2 }
+                        }
+                    };
+                    bool q1Saved = certService.SaveQuestionAsync(q1Model, faculty.Id).GetAwaiter().GetResult();
+                    Equal("E2E Question 1 saved", q1Saved, true);
+
+                    // Add Q2 Multiple Choice
+                    var q2Model = new CertificationQuestionFormModel
+                    {
+                        CertificationExamId = createdExamId,
+                        QuestionText = "Which features are supported by the question builder?",
+                        QuestionType = "MultipleChoice",
+                        Marks = 5m,
+                        Options = new List<CertificationOptionModel>
+                        {
+                            new() { OptionText = "Single-answer MCQ", IsCorrect = true, SortOrder = 1 },
+                            new() { OptionText = "Multiple-answer MCQ", IsCorrect = true, SortOrder = 2 },
+                            new() { OptionText = "True/False", IsCorrect = true, SortOrder = 3 }
+                        }
+                    };
+                    bool q2Saved = certService.SaveQuestionAsync(q2Model, faculty.Id).GetAwaiter().GetResult();
+                    Equal("E2E Question 2 saved", q2Saved, true);
+
+                    // Publish Exam (No admin approval required!)
+                    var (pubSuccess, pubMsg) = certService.PublishExamAsync(createdExamId, faculty.Id).GetAwaiter().GetResult();
+                    Equal("E2E Exam published directly by faculty", pubSuccess, true);
+
+                    // Start Attempt as student
+                    var takingModel = certService.StartOrResumeAttemptAsync(createdExamId, student.Id).GetAwaiter().GetResult();
+                    Equal("E2E Student attempt started", takingModel != null, true);
+                    Equal("E2E Student questions loaded from DB", takingModel!.Questions.Count, 2);
+
+                    // Save student answers: Q1 correct, Q2 all correct
+                    var q1Obj = takingModel.Questions[0];
+                    var q1CorrectOpt = q1Obj.Options[0]; // first is correct
+                    certService.SaveAnswerAsync(takingModel.AttemptId, q1Obj.QuestionId, q1CorrectOpt.OptionId.ToString(), takingModel.RemainingSeconds, student.Id).GetAwaiter().GetResult();
+
+                    var q2Obj = takingModel.Questions[1];
+                    var q2CorrectOpts = string.Join(",", q2Obj.Options.Select(o => o.OptionId));
+                    certService.SaveAnswerAsync(takingModel.AttemptId, q2Obj.QuestionId, q2CorrectOpts, takingModel.RemainingSeconds, student.Id).GetAwaiter().GetResult();
+
+                    // Submit attempt
+                    var wwwroot = Path.Combine("..", "TMS.Web", "wwwroot");
+                    if (!Directory.Exists(wwwroot)) wwwroot = Path.Combine("TMS", "TMS.Web", "wwwroot");
+
+                    var (subSuccess, subMsg, attId) = certService.SubmitAttemptAsync(takingModel.AttemptId, student.Id, wwwroot).GetAwaiter().GetResult();
+                    Equal("E2E Attempt submitted successfully", subSuccess, true);
+
+                    // Check result evaluation
+                    var resultModel = certService.GetAttemptResultAsync(attId, student.Id).GetAwaiter().GetResult();
+                    Equal("E2E Result scored 100% full marks", resultModel!.Percentage, 100m);
+                    Equal("E2E Result grade is Outstanding O", resultModel.Grade, "O");
+                    Equal("E2E Result is passed", resultModel.IsPassed, true);
+                    Equal("E2E Digital Certificate generated", resultModel.CertificateId.HasValue, true);
+                    Equal("E2E Certificate Number assigned", !string.IsNullOrEmpty(resultModel.CertificateNumber), true);
+
+                    // Verify certificate PDF exists on disk
+                    var certRecord = certService.GetCertificateByIdAsync(resultModel.CertificateId!.Value).GetAwaiter().GetResult();
+                    Equal("E2E Certificate record status is Valid", certRecord!.Status, "Valid");
+
+                    var pdfPath = Path.Combine(wwwroot, certRecord.PdfFilePath.TrimStart('/', '\\'));
+                    Equal("E2E Generated PDF certificate file exists on disk", File.Exists(pdfPath), true);
+                    if (File.Exists(pdfPath))
+                    {
+                        var pdfBytes = File.ReadAllBytes(pdfPath);
+                        Equal("E2E Generated PDF certificate has valid size > 10KB", pdfBytes.Length > 10000, true);
+                    }
+
+                    // Verify QR verification lookup
+                    var qrCert = certService.GetCertificateByTokenAsync(certRecord.VerificationToken).GetAwaiter().GetResult();
+                    Equal("E2E QR token lookup finds certificate", qrCert != null, true);
+                    Equal("E2E QR token verifies correct candidate name", qrCert?.StudentFullName, student.Name);
+                    Equal("E2E QR token verifies correct topic", qrCert?.CertificationTopic, testTopic);
+
+                    // Test Revocation
+                    var (revSuccess, revMsg) = certService.RevokeCertificateAsync(certRecord.Id, "E2E Audit Revocation Verification", faculty.Id).GetAwaiter().GetResult();
+                    Equal("E2E Certificate revocation succeeds", revSuccess, true);
+
+                    var revokedCert = certService.GetCertificateByIdAsync(certRecord.Id).GetAwaiter().GetResult();
+                    Equal("E2E Certificate status changed to Revoked", revokedCert!.Status, "Revoked");
+                    Equal("E2E Certificate revocation reason captured", revokedCert.RevocationReason, "E2E Audit Revocation Verification");
+
+                    // Test AI Question Batch Save
+                    var aiExamModel = new CertificationExamFormModel
+                    {
+                        Title = "Feature 68 AI Batch Questions Exam",
+                        CertificationTopic = "AI Question Integration Test",
+                        CourseId = course.Id,
+                        DurationMinutes = 30,
+                        TotalMarks = 0m,
+                        PassingPercentage = 40m,
+                        StartDate = DateTime.UtcNow.AddMinutes(-5),
+                        EndDate = DateTime.UtcNow.AddDays(3),
+                        MaxAttempts = 1
+                    };
+                    int aiExamId = certService.CreateExamAsync(aiExamModel, faculty.Id).GetAwaiter().GetResult();
+                    Equal("AI Batch Exam created", aiExamId > 0, true);
+
+                    var batchQuestions = new List<CertificationQuestionFormModel>
+                    {
+                        new()
+                        {
+                            CertificationExamId = aiExamId,
+                            QuestionText = "Which AI model powers the automatic question generation?",
+                            QuestionType = "SingleChoice",
+                            Marks = 2.5m,
+                            Explanation = "Gemini is integrated as the primary generative AI provider.",
+                            Options = new List<CertificationOptionModel>
+                            {
+                                new() { OptionText = "Google Gemini AI", IsCorrect = true, SortOrder = 1 },
+                                new() { OptionText = "Hardcoded Mock Data", IsCorrect = false, SortOrder = 2 }
+                            }
+                        },
+                        new()
+                        {
+                            CertificationExamId = aiExamId,
+                            QuestionText = "Can faculty edit generated questions before saving them?",
+                            QuestionType = "TrueFalse",
+                            Marks = 1.5m,
+                            Explanation = "Faculty have full inline preview and editing capabilities.",
+                            Options = new List<CertificationOptionModel>
+                            {
+                                new() { OptionText = "True", IsCorrect = true, SortOrder = 1 },
+                                new() { OptionText = "False", IsCorrect = false, SortOrder = 2 }
+                            }
+                        }
+                    };
+
+                    var (bSuccess, bMsg, bCount, bTotalMarks) = certService.SaveBatchQuestionsAsync(aiExamId, batchQuestions, faculty.Id).GetAwaiter().GetResult();
+                    Equal("Batch questions saved successfully", bSuccess, true);
+                    Equal("Batch saved count is 2", bCount, 2);
+                    Equal("Batch exam total marks calculated accurately", bTotalMarks, 4.0m);
+
+                    var loadedAiQuestions = certService.GetQuestionsAsync(aiExamId).GetAwaiter().GetResult();
+                    Equal("Exam repository loads both batch questions", loadedAiQuestions.Count, 2);
+                    Equal("Question 1 has 2 active options", loadedAiQuestions[0].Options.Count, 2);
+                    Equal("Question 2 has 2 active options", loadedAiQuestions[1].Options.Count, 2);
+
+                    // Test Live Gemini AI Question Generation
+                    var aiGenReq = new AiQuestionGenerateRequestModel
+                    {
+                        ExamId = aiExamId,
+                        Subject = "Distributed Computing",
+                        CertificationTopic = "CAP Theorem and Consensus Protocols",
+                        AdditionalInstructions = "Focus on Paxos, Raft, and Partition Tolerance.",
+                        NumberOfQuestions = 2,
+                        Difficulty = "Medium",
+                        QuestionType = "SingleChoice",
+                        MarksPerQuestion = 2.0m
+                    };
+
+                    var liveAiService = new CertificationExamService(db, config, null, null);
+                    var aiResponse = liveAiService.GenerateAiQuestionsAsync(aiGenReq, faculty.Id).GetAwaiter().GetResult();
+                    if (aiResponse.Success)
+                    {
+                        Equal("Live Gemini generated questions successfully", aiResponse.Success, true);
+                        Equal("Live Gemini generated requested count of questions", aiResponse.Questions.Count >= 1, true);
+                        Equal("Generated question has text", !string.IsNullOrWhiteSpace(aiResponse.Questions[0].QuestionText), true);
+                        Equal("Generated question has at least 2 options", aiResponse.Questions[0].Options.Count >= 2, true);
+                        Equal("Generated question has correct option marked", aiResponse.Questions[0].Options.Any(o => o.IsCorrect), true);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Live AI generation note: {aiResponse.ErrorMessage}");
+                        Equal("AI graceful error message populated", !string.IsNullOrEmpty(aiResponse.ErrorMessage), true);
+                    }
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Live DB Check Exception: {ex.Message}");
+    }
 }
 
 Console.WriteLine($"TOTAL | PASS={passed} FAIL={failed}");

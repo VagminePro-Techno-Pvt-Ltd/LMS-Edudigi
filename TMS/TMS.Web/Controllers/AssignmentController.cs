@@ -68,6 +68,32 @@ namespace TMS.Web.Controllers
             return RedirectToAction(nameof(StudentDashboard));
         }
 
+        [HttpGet]
+        public async Task<IActionResult> Details(int id)
+        {
+            var assignment = await _context.AssignmentMasters
+                .Include(a => a.Program)
+                .Include(a => a.Course)
+                .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted);
+
+            if (assignment == null)
+            {
+                return RedirectToAction(nameof(Index));
+            }
+
+            var role = (GetUserRole() ?? "").ToLower().Trim();
+            if (User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("super admin") || User.IsInRole("Exam Coordinator") || role.Contains("admin"))
+            {
+                return RedirectToAction(nameof(AdminDashboard));
+            }
+            if (User.IsInRole("Faculty") || role.Contains("faculty"))
+            {
+                return RedirectToAction(nameof(ViewSubmissions), new { assignmentId = id });
+            }
+
+            return Redirect($"/Assignment/StudentDashboard#assignment-{id}");
+        }
+
 
         // ═══════════════════════════════════════════════════
         //  FACULTY APIs & VIEWS

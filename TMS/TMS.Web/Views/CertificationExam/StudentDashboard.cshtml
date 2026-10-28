@@ -1,0 +1,224 @@
+@model List<TMS.ViewModels.Academics.StudentCertificationExamCardViewModel>
+@{
+    ViewData["Title"] = "Certification Examinations — Student Hub";
+}
+
+<style>
+    .assessment-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 24px;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 12px;
+        flex-wrap: wrap;
+    }
+    .assessment-tab-btn {
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        padding: 10px 22px;
+        border-radius: 30px;
+        font-weight: 700;
+        font-size: 14px;
+        color: #475569;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+    .assessment-tab-btn:hover {
+        background: #e2e8f0;
+        color: #1e293b;
+    }
+    .assessment-tab-btn.active {
+        background: #142a4c;
+        color: #ffffff;
+        border-color: #142a4c;
+        box-shadow: 0 4px 12px rgba(20, 42, 76, 0.25);
+    }
+    .pill-count {
+        background: rgba(255,255,255,0.25);
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+    }
+    .assessment-tab-btn:not(.active) .pill-count {
+        background: #e2e8f0;
+        color: #334155;
+    }
+    .cert-student-card {
+        background: #ffffff;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+    }
+    .cert-student-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
+    }
+</style>
+
+<div class="container-fluid py-3">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1" style="color:#142a4c;">
+                <span style="display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:12px; background:#eff6ff; color:#2563eb; margin-right:10px;">
+                    <i class="fa-solid fa-stamp"></i>
+                </span>
+                Assessments, Quizzes &amp; Certifications
+            </h2>
+            <p class="text-muted mb-0">Attempt scheduled examinations and earn digitally verifiable institutional certificates.</p>
+        </div>
+    </div>
+
+    <!-- Navigation Filter Tabs: Preserves all existing tabs + adds Certification Exams -->
+    <div class="assessment-tabs">
+        <a class="assessment-tab-btn" asp-controller="StudentExam" asp-action="Index">
+            <i class="fa-solid fa-layer-group"></i> All Assessments &amp; Quizzes
+        </a>
+        <a class="assessment-tab-btn" asp-controller="StudentExam" asp-action="Index">
+            <i class="fa-solid fa-file-signature"></i> Formal Exams
+        </a>
+        <a class="assessment-tab-btn" asp-controller="StudentExam" asp-action="Index">
+            <i class="fa-solid fa-clipboard-question"></i> Course Quizzes
+        </a>
+        <a class="assessment-tab-btn" asp-controller="InternalAssessment" asp-action="StudentDashboard">
+            <i class="fa-solid fa-list-check"></i> Internal Assessments
+        </a>
+        <a class="assessment-tab-btn active" asp-controller="CertificationExam" asp-action="StudentDashboard">
+            <i class="fa-solid fa-certificate" style="color: #f59e0b;"></i> Certification Exams
+            <span class="pill-count">@Model.Count</span>
+        </a>
+    </div>
+
+    <!-- Certification Exam Listing -->
+    <div class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="fw-bold mb-0 text-dark">Available Certification Examinations</h4>
+            <span class="badge bg-primary rounded-pill px-3 py-2">@Model.Count Available</span>
+        </div>
+
+        @if (!Model.Any())
+        {
+            <div class="text-center py-5 bg-white rounded-3 border" style="border-color:#e2e8f0 !important;">
+                <i class="fa-solid fa-clipboard-check text-muted" style="font-size:42px;"></i>
+                <h5 class="fw-bold text-dark mt-3">No Certification Exams Available</h5>
+                <p class="text-muted mb-0">There are currently no active certification examinations published for your enrolled courses.</p>
+            </div>
+        }
+        else
+        {
+            <div class="row g-4">
+                @foreach (var exam in Model)
+                {
+                    <div class="col-lg-6 col-xl-4">
+                        <div class="cert-student-card h-100">
+                            <!-- Top accent bar -->
+                            <div style="height:4px; background: @(exam.ExamStatus == "Active" ? "linear-gradient(90deg, #d97706, #2563eb)" : "#cbd5e1");"></div>
+
+                            <div class="p-4 d-flex flex-column justify-content-between flex-grow-1">
+                                <div>
+                                    <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                        <span class="badge bg-light text-primary border">@exam.CourseName</span>
+                                        @if (exam.ExamStatus == "Active")
+                                        {
+                                            <span class="badge bg-success-subtle text-success border"><i class="fa-solid fa-circle" style="font-size:6px;"></i> Active</span>
+                                        }
+                                        else if (exam.ExamStatus == "Upcoming")
+                                        {
+                                            <span class="badge bg-warning-subtle text-warning border"><i class="fa-solid fa-clock"></i> Upcoming</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-light text-muted border">Closed</span>
+                                        }
+                                    </div>
+
+                                    <h5 class="fw-bold text-dark mb-1">@exam.Title</h5>
+                                    <p class="text-muted small mb-2"><strong class="text-dark">Certification Topic:</strong> @exam.CertificationTopic</p>
+                                    @if (!string.IsNullOrWhiteSpace(exam.SubjectName))
+                                    {
+                                        <p class="text-muted small mb-2"><i class="fa-solid fa-book-open me-1"></i> Subject: @exam.SubjectName</p>
+                                    }
+
+                                    @if (!string.IsNullOrWhiteSpace(exam.Description))
+                                    {
+                                        <p class="text-secondary small mb-3" style="display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">
+                                            @exam.Description
+                                        </p>
+                                    }
+
+                                    <div class="d-flex flex-wrap gap-3 py-2 border-top border-bottom my-3 small text-muted">
+                                        <div><i class="fa-regular fa-clock text-primary me-1"></i> <strong>@exam.DurationMinutes min</strong></div>
+                                        <div><i class="fa-solid fa-list-ol text-info me-1"></i> <strong>@exam.TotalQuestions Qs</strong></div>
+                                        <div><i class="fa-solid fa-percent text-success me-1"></i> Pass: <strong>@exam.PassingPercentage%</strong></div>
+                                        <div><i class="fa-solid fa-rotate text-secondary me-1"></i> Attempts: <strong>@exam.AttemptsUsed / @exam.MaxAttempts</strong></div>
+                                    </div>
+
+                                    @if (exam.AttemptStatus == "Completed")
+                                    {
+                                        <div class="p-2 px-3 rounded bg-light border mb-3 d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <small class="text-muted d-block">Result &amp; Evaluation</small>
+                                                <span class="fw-bold @(exam.IsPassed == true ? "text-success" : "text-secondary")">
+                                                    Grade @exam.Grade (@exam.Percentage%)
+                                                </span>
+                                            </div>
+                                            <div>
+                                                @if (exam.IsPassed == true)
+                                                {
+                                                    <span class="badge bg-success"><i class="fa-solid fa-check"></i> Qualified</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">Completed</span>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="pt-2 d-flex flex-column gap-2">
+                                    @if (exam.CanAttempt)
+                                    {
+                                        <a asp-action="Attempt" asp-route-id="@exam.Id" class="btn btn-primary w-100 fw-bold">
+                                            <i class="fa-solid fa-play me-1"></i> @(exam.AttemptStatus == "In Progress" ? "Resume Exam" : "Start Certification Exam")
+                                        </a>
+                                    }
+                                    else if (exam.ExamStatus == "Upcoming")
+                                    {
+                                        <button class="btn btn-light border w-100 text-muted" disabled>
+                                            <i class="fa-regular fa-clock me-1"></i> Starts @exam.StartDate.ToString("dd MMM, hh:mm tt")
+                                        </button>
+                                    }
+
+                                    @if (exam.AttemptStatus == "Completed" && exam.AttemptId.HasValue)
+                                    {
+                                        <a asp-action="Result" asp-route-attemptId="@exam.AttemptId" class="btn btn-outline-secondary w-100">
+                                            <i class="fa-solid fa-square-poll-vertical me-1"></i> View Result Summary
+                                        </a>
+
+                                        @if (exam.CertificateId.HasValue)
+                                        {
+                                            <a asp-action="DownloadCertificate" asp-route-certificateId="@exam.CertificateId" class="btn btn-success w-100 fw-bold">
+                                                <i class="fa-solid fa-file-arrow-down me-1"></i> Download Certificate PDF
+                                            </a>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>

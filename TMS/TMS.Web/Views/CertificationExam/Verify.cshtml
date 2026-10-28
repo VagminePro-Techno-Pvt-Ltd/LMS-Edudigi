@@ -1,0 +1,150 @@
+@model TMS.ViewModels.Academics.PublicCertificateVerificationViewModel
+@{
+    ViewData["Title"] = "Digital Certificate Verification — EduDigiClass";
+    Layout = "_Layout";
+}
+
+<style>
+    .verify-box {
+        max-width: 680px;
+        margin: 40px auto;
+        background: #ffffff;
+        border-radius: 18px;
+        box-shadow: 0 10px 35px rgba(0,0,0,0.08);
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+    }
+    .verify-banner {
+        padding: 30px;
+        text-align: center;
+    }
+    .verify-banner.valid {
+        background: linear-gradient(135deg, #142a4c 0%, #1e3a8a 100%);
+        color: #ffffff;
+    }
+    .verify-banner.revoked {
+        background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
+        color: #ffffff;
+    }
+    .verify-seal {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: #ffffff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 36px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        margin-bottom: 16px;
+    }
+    .verify-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 14.5px;
+    }
+    .verify-row:last-child {
+        border-bottom: none;
+    }
+</style>
+
+<div class="container py-4">
+    <div class="verify-box">
+        @if (!Model.IsFound)
+        {
+            <div class="p-5 text-center">
+                <i class="fa-solid fa-triangle-exclamation text-danger mb-3" style="font-size:54px;"></i>
+                <h3 class="fw-bold text-dark">Certificate Not Found</h3>
+                <p class="text-muted">The verification token or certificate record could not be located in the EduDigiClass digital repository. Please ensure you scanned the correct official QR code.</p>
+                <a href="/" class="btn btn-outline-primary mt-2">Return to Home</a>
+            </div>
+        }
+        else if (Model.Status == "Revoked")
+        {
+            <div class="verify-banner revoked">
+                <div class="verify-seal">
+                    <i class="fa-solid fa-ban text-danger"></i>
+                </div>
+                <h3 class="fw-bold mb-1 text-white">Certificate Revoked</h3>
+                <p class="mb-0 text-white-50">This credential was officially invalidated by university administration.</p>
+            </div>
+            <div class="p-4 p-md-5">
+                <div class="alert alert-danger mb-4">
+                    <strong>Revocation Reason:</strong> @(Model.RevocationReason ?? "Administrative cancellation")
+                    @if (Model.RevokedOn.HasValue)
+                    {
+                        <div class="small mt-1">Revoked On: @Model.RevokedOn.Value.ToString("dd MMMM yyyy, hh:mm tt")</div>
+                    }
+                </div>
+
+                <div class="verify-row">
+                    <span class="text-muted">Certificate ID</span>
+                    <strong class="text-dark">@Model.CertificateNumber</strong>
+                </div>
+                <div class="verify-row">
+                    <span class="text-muted">Candidate Name</span>
+                    <strong class="text-dark">@Model.StudentFullName</strong>
+                </div>
+                <div class="verify-row">
+                    <span class="text-muted">Certification Topic</span>
+                    <strong class="text-dark">@Model.CertificationTopic</strong>
+                </div>
+                <div class="verify-row">
+                    <span class="text-muted">Status</span>
+                    <span class="badge bg-danger">Revoked / Inactive</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="verify-banner valid">
+                <div class="verify-seal">
+                    <i class="fa-solid fa-certificate" style="color: #d97706;"></i>
+                </div>
+                <h3 class="fw-bold mb-1 text-white">Authentic Digital Credential</h3>
+                <p class="mb-0" style="color: #93c5fd;">Verified Official Record &bull; EduDigiClass LMS</p>
+            </div>
+
+            <div class="p-4 p-md-5">
+                <div class="d-flex align-items-center gap-2 p-3 bg-success-subtle rounded-3 text-success border border-success-subtle mb-4">
+                    <i class="fa-solid fa-circle-check fs-4"></i>
+                    <div>
+                        <strong class="d-block">Cryptographically Verified</strong>
+                        <small>This certificate is genuine and registered on the university academic registry.</small>
+                    </div>
+                </div>
+
+                <div class="verify-row">
+                    <span class="text-muted">Certificate Number</span>
+                    <strong class="text-dark">@Model.CertificateNumber</strong>
+                </div>
+                <div class="verify-row">
+                    <span class="text-muted">Candidate Full Name</span>
+                    <strong class="text-dark">@Model.StudentFullName</strong>
+                </div>
+                <div class="verify-row">
+                    <span class="text-muted">Certification Subject / Topic</span>
+                    <strong class="text-dark">@Model.CertificationTopic</strong>
+                </div>
+                <div class="verify-row">
+                    <span class="text-muted">Official Grade Awarded</span>
+                    <span class="badge bg-primary fs-6 px-3">Grade @Model.FinalGrade</span>
+                </div>
+                <div class="verify-row">
+                    <span class="text-muted">Date of Issuance</span>
+                    <strong class="text-dark">@Model.IssueDate.ToString("dd MMMM yyyy")</strong>
+                </div>
+                <div class="verify-row">
+                    <span class="text-muted">Issuing Institution</span>
+                    <strong class="text-dark">@Model.InstitutionName</strong>
+                </div>
+                <div class="verify-row">
+                    <span class="text-muted">Verification Status</span>
+                    <span class="badge bg-success fs-6"><i class="fa-solid fa-check"></i> Valid &amp; Active</span>
+                </div>
+            </div>
+        }
+    </div>
+</div>

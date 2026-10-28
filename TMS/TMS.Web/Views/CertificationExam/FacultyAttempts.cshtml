@@ -1,0 +1,182 @@
+@model TMS.ViewModels.Academics.FacultyAttemptsViewModel
+@{
+    ViewData["Title"] = "Student Results & Certificates — Certification Exam";
+    var exam = Model.Exam;
+}
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <a asp-action="FacultyDashboard" class="btn btn-outline-secondary btn-sm">
+            <i class="fa-solid fa-arrow-left me-1"></i> Back to Certification Exams
+        </a>
+        <div class="d-flex gap-2">
+            <a asp-action="Questions" asp-route-id="@exam?.Id" class="btn btn-outline-primary btn-sm">
+                <i class="fa-solid fa-list-check me-1"></i> Manage Questions
+            </a>
+        </div>
+    </div>
+
+    <!-- Exam Header Banner -->
+    <div class="card shadow-sm border-0 mb-4" style="border-radius:12px; border:1px solid #e2e8f0 !important;">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                <div>
+                    <span class="badge bg-primary me-2">@(exam?.Course?.Name ?? "Course")</span>
+                    <span class="badge bg-secondary me-2">@(exam?.Subject?.Name ?? "General Subject")</span>
+                    <span class="badge @(exam?.Status == "Published" ? "bg-success" : "bg-warning text-dark")">@exam?.Status</span>
+                </div>
+                <div class="text-muted small">
+                    <i class="fa-regular fa-clock me-1"></i> Duration: @exam?.DurationMinutes min | Passing: @exam?.PassingPercentage%
+                </div>
+            </div>
+            <h3 class="fw-bold text-dark mb-1">@exam?.Title</h3>
+            <p class="text-muted mb-0 small"><strong class="text-dark">Certification Topic:</strong> @exam?.CertificationTopic</p>
+        </div>
+    </div>
+
+    <!-- Attempts Table -->
+    <div class="card shadow-sm border-0" style="border-radius:12px; border:1px solid #e2e8f0 !important;">
+        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-users text-primary me-2"></i> Student Attempts &amp; Digital Certificates</h5>
+            <span class="badge bg-light text-dark border">Total Attempts: @Model.Attempts.Count</span>
+        </div>
+        <div class="card-body p-0">
+            @if (!Model.Attempts.Any())
+            {
+                <div class="text-center py-5">
+                    <i class="fa-solid fa-user-clock text-muted" style="font-size:38px;"></i>
+                    <h5 class="fw-bold text-dark mt-3">No Student Attempts Yet</h5>
+                    <p class="text-muted small">Once enrolled students take this certification examination, their live attempts, scores, and automatically generated certificates will appear here.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Student</th>
+                                <th>Attempt</th>
+                                <th>Date &amp; Time</th>
+                                <th>Score / Total</th>
+                                <th>Percentage</th>
+                                <th>Grade</th>
+                                <th>Status</th>
+                                <th>Digital Certificate</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var att in Model.Attempts)
+                            {
+                                Model.CertificatesByAttemptId.TryGetValue(att.Id, out var cert);
+
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold text-dark">@(att.Student?.Name ?? "Student #" + att.StudentId)</div>
+                                        <small class="text-muted">ID: @att.StudentId</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border">#@att.AttemptNumber</span>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            @(att.SubmittedAt?.ToString("dd MMM yyyy, hh:mm tt") ?? att.StartedAt.ToString("dd MMM yyyy, hh:mm tt"))
+                                        </small>
+                                    </td>
+                                    <td>
+                                        @if (att.IsSubmitted)
+                                        {
+                                            <span class="fw-bold text-dark">@att.TotalScore</span> <span class="text-muted">/ @att.MaxScore</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning text-dark">In Progress</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (att.IsSubmitted)
+                                        {
+                                            <span class="fw-bold">@att.Percentage%</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">&ndash;</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (att.IsSubmitted)
+                                        {
+                                            <span class="badge @(att.IsPassed ? "bg-success" : "bg-secondary") fs-6 px-2">@att.Grade</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">&ndash;</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (!att.IsSubmitted)
+                                        {
+                                            <span class="badge bg-info-subtle text-info border">In Progress</span>
+                                        }
+                                        else if (att.IsPassed)
+                                        {
+                                            <span class="badge bg-success-subtle text-success border"><i class="fa-solid fa-check"></i> Qualified</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-light text-secondary border">Completed</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (cert != null)
+                                        {
+                                            @if (cert.GeneratedSuccessfully)
+                                            {
+                                                <div class="d-flex align-items-center gap-1">
+                                                    <i class="fa-solid fa-circle-check text-success"></i>
+                                                    <span class="fw-semibold small text-dark">@cert.CertificateNumber</span>
+                                                </div>
+                                                <small class="text-muted">Issued: @cert.IssueDate.ToString("dd MMM yyyy")</small>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-danger-subtle text-danger border"><i class="fa-solid fa-triangle-exclamation"></i> Generation Failed</span>
+                                            }
+                                        }
+                                        else if (att.IsSubmitted)
+                                        {
+                                            <span class="badge bg-warning-subtle text-warning border">Processing</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">Pending Submission</span>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        @if (cert != null && cert.GeneratedSuccessfully)
+                                        {
+                                            <a asp-action="DownloadCertificate" asp-route-certificateId="@cert.Id" class="btn btn-sm btn-outline-primary" title="Download Certificate PDF">
+                                                <i class="fa-solid fa-file-arrow-down me-1"></i> Download PDF
+                                            </a>
+                                        }
+                                        else if (cert != null && !cert.GeneratedSuccessfully)
+                                        {
+                                            <form asp-action="RetryCertificate" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="certificateId" value="@cert.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-warning" title="Retry Generation">
+                                                    <i class="fa-solid fa-rotate-right"></i> Retry
+                                                </button>
+                                            </form>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>

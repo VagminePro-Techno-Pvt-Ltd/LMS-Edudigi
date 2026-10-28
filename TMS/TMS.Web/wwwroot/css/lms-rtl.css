@@ -54,39 +54,41 @@ html[dir="rtl"] .course-code {
     padding: 6px 14px;
     height: 38px;
     border-radius: 10px;
-    background: #f0fdf4;
-    border: 1.5px solid #bbf7d0;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    font-size: 13px;
+    font-size: 13.5px;
     font-weight: 600;
-    color: #15803d;
+    color: #1e293b;
     user-select: none;
     outline: none;
 }
 
 .lms-lang-pill:hover,
 .lms-lang-pill:focus-visible {
-    background: #dcfce7;
-    border-color: #86efac;
+    background: #f8fafc;
+    border-color: #3b82f6;
+    color: #1d4ed8;
     transform: translateY(-1px);
-    box-shadow: 0 4px 14px rgba(22, 163, 74, 0.16);
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.12);
 }
 
 .lms-lang-pill .globe-icon {
     font-size: 15px;
-    color: #16a34a;
+    color: #3b82f6;
 }
 
 .lms-lang-pill .current-lang-text {
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.2px;
+    color: #1e293b;
 }
 
 .lms-lang-pill .chevron-icon {
     font-size: 10px;
-    color: #16a34a;
-    opacity: 0.7;
+    color: #64748b;
+    opacity: 0.8;
     transition: transform 0.2s ease;
 }
 
@@ -129,13 +131,20 @@ html[dir="rtl"] .lms-lang-switcher-wrap .lms-lang-menu {
     border-radius: 8px;
     border: none;
     background: transparent;
-    color: #334155;
+    color: #1e293b;
     font-size: 13.5px;
     font-weight: 600;
     cursor: pointer;
     transition: background 0.15s ease, color 0.15s ease;
     text-align: inherit;
     text-decoration: none;
+}
+
+.lms-lang-option,
+.lms-lang-option span,
+.lms-lang-option .lang-label-group,
+.lms-lang-option .lang-label-group span {
+    color: #1e293b;
 }
 
 .lms-lang-option:hover,
@@ -145,10 +154,20 @@ html[dir="rtl"] .lms-lang-switcher-wrap .lms-lang-menu {
     outline: none;
 }
 
+.lms-lang-option:hover span,
+.lms-lang-option:hover .lang-label-group span {
+    color: #2563eb;
+}
+
 .lms-lang-option.active {
-    background: #f0fdf4;
-    color: #15803d;
+    background: #eff6ff;
+    color: #1d4ed8;
     font-weight: 700;
+}
+
+.lms-lang-option.active span,
+.lms-lang-option.active .lang-label-group span {
+    color: #1d4ed8;
 }
 
 .lms-lang-option .lang-label-group {
@@ -159,7 +178,7 @@ html[dir="rtl"] .lms-lang-switcher-wrap .lms-lang-menu {
 
 .lms-lang-option .lms-lang-check {
     font-size: 12px;
-    color: #16a34a;
+    color: #2563eb;
 }
 
 /* ── RTL Topbar Layout ───────────────────────────────────────── */

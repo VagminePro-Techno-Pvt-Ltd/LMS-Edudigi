@@ -115,10 +115,18 @@ namespace TMS.Repository
         public DbSet<InteractivePPT> InteractivePPTs { get; set; }
         public DbSet<PPTSlideInteraction> PPTSlideInteractions { get; set; }
 
+        // ─── Feature 77: Student At-Risk Alerts & Moderation ───
+        public DbSet<CourseActivityDeadline> CourseActivityDeadlines { get; set; }
+        public DbSet<StudentRiskAlert> StudentRiskAlerts { get; set; }
+        public DbSet<ContentModerationFlag> ContentModerationFlags { get; set; }
 
-
-
-
+        // ─── Feature 68: Certification Exams & Automatic Digital Certificate Generation ───
+        public DbSet<CertificationExam> CertificationExams { get; set; }
+        public DbSet<CertificationExamQuestion> CertificationExamQuestions { get; set; }
+        public DbSet<CertificationExamQuestionOption> CertificationExamQuestionOptions { get; set; }
+        public DbSet<CertificationExamAttempt> CertificationExamAttempts { get; set; }
+        public DbSet<CertificationExamStudentAnswer> CertificationExamStudentAnswers { get; set; }
+        public DbSet<IssuedCertificate> IssuedCertificates { get; set; }
 
         #endregion
         #region Training schedule
@@ -396,6 +404,32 @@ namespace TMS.Repository
                 b.Property(c => c.NormalizedQuery).HasMaxLength(500);
                 b.Property(c => c.ModelName).HasMaxLength(50);
                 b.Property(c => c.Language).HasMaxLength(20);
+            });
+
+            // ─── Feature 77: Student At-Risk & Moderation ───
+            builder.Entity<CourseActivityDeadline>(entity =>
+            {
+                entity.HasIndex(x => new { x.CourseId, x.ActivityType, x.ActivityId }).IsUnique();
+                entity.HasIndex(x => x.CourseId);
+                entity.HasOne(x => x.Course).WithMany().HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.NoAction);
+            });
+
+            builder.Entity<StudentRiskAlert>(entity =>
+            {
+                entity.HasIndex(x => new { x.StudentId, x.IsResolved });
+                entity.HasIndex(x => new { x.CourseId, x.StudentId });
+                entity.HasOne(x => x.Student).WithMany().HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.Course).WithMany().HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.NoAction);
+            });
+
+            builder.Entity<ContentModerationFlag>(entity =>
+            {
+                entity.HasIndex(x => x.Status);
+                entity.HasIndex(x => x.AuthorUserId);
+                entity.HasOne(x => x.AuthorUser).WithMany().HasForeignKey(x => x.AuthorUserId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.ReviewedByUser).WithMany().HasForeignKey(x => x.ReviewedByUserId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.Program).WithMany().HasForeignKey(x => x.ProgramId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.Course).WithMany().HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.NoAction);
             });
 
             base.OnModelCreating(builder);

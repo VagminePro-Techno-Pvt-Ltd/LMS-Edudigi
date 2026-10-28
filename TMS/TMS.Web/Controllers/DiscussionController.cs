@@ -17,11 +17,16 @@ namespace TMS.Web.Controllers
     {
         private readonly IDiscussionManager _discussionManager;
         private readonly IWebHostEnvironment _webHostEnvironment;
+        private readonly TMS.Web.Services.IContentModerationService _moderationService;
 
-        public DiscussionController(IDiscussionManager discussionManager, IWebHostEnvironment webHostEnvironment)
+        public DiscussionController(
+            IDiscussionManager discussionManager,
+            IWebHostEnvironment webHostEnvironment,
+            TMS.Web.Services.IContentModerationService moderationService)
         {
             _discussionManager = discussionManager;
             _webHostEnvironment = webHostEnvironment;
+            _moderationService = moderationService;
         }
 
         [HttpGet]
@@ -70,12 +75,33 @@ namespace TMS.Web.Controllers
         {
             if (!string.IsNullOrWhiteSpace(thread.Title) && !string.IsNullOrWhiteSpace(CommentText) && (thread.ProgramId ?? 0) > 0)
             {
-                var threadId = await _discussionManager.CreateThreadAsync(thread, CommentText, GetUserId());
+                int userId = GetUserId();
+                var modCheck = _moderationService.CheckContent($"{thread.Title} {CommentText}");
+
+                var threadId = await _discussionManager.CreateThreadAsync(thread, CommentText, userId);
                 if (attachments != null && attachments.Any())
                 {
                     await HandleAttachments(attachments, threadId, null);
                 }
-                SetApplicationResult(true, "Discussion created successfully.");
+
+                if (modCheck.IsInappropriate)
+                {
+                    await _moderationService.CreateFlagAsync(
+                        "DiscussionThread",
+                        threadId,
+                        userId,
+                        User.Identity?.Name,
+                        thread.ProgramId,
+                        null,
+                        $"{thread.Title}\n{CommentText}",
+                        modCheck.DetectedKeywords);
+
+                    SetApplicationResult(true, "Discussion created. Notice: Your post was flagged for community standards review.");
+                }
+                else
+                {
+                    SetApplicationResult(true, "Discussion created successfully.");
+                }
             }
             else
             {
@@ -90,12 +116,33 @@ namespace TMS.Web.Controllers
         {
             if (!string.IsNullOrWhiteSpace(reply.CommentText) && reply.ThreadId > 0)
             {
-                var replyId = await _discussionManager.AddReplyAsync(reply, GetUserId());
+                int userId = GetUserId();
+                var modCheck = _moderationService.CheckContent(reply.CommentText);
+
+                var replyId = await _discussionManager.AddReplyAsync(reply, userId);
                 if (attachments != null && attachments.Any())
                 {
                     await HandleAttachments(attachments, null, replyId);
                 }
-                SetApplicationResult(true, "Reply posted successfully.");
+
+                if (modCheck.IsInappropriate)
+                {
+                    await _moderationService.CreateFlagAsync(
+                        "DiscussionReply",
+                        replyId,
+                        userId,
+                        User.Identity?.Name,
+                        null,
+                        null,
+                        reply.CommentText,
+                        modCheck.DetectedKeywords);
+
+                    SetApplicationResult(true, "Reply posted. Notice: Your reply was flagged for community standards review.");
+                }
+                else
+                {
+                    SetApplicationResult(true, "Reply posted successfully.");
+                }
             }
             else
             {

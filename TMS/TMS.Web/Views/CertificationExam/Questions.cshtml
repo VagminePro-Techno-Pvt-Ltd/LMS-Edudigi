@@ -1,0 +1,1170 @@
+@model List<TMS.Models.Academics.CertificationExamQuestion>
+@{
+    ViewData["Title"] = "Question Builder — Certification Exam";
+    var exam = ViewBag.Exam as TMS.Models.Academics.CertificationExam;
+    var totalMarks = Model?.Sum(q => q.Marks) ?? 0;
+}
+
+@Html.AntiForgeryToken()
+
+<style>
+    .qb-container {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .qb-header {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 20px 24px;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .qb-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 16px;
+        transition: all 0.2s ease;
+    }
+    .qb-card:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+    }
+    .option-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        margin-bottom: 6px;
+        background: #f8fafc;
+        border: 1px solid #edf2f7;
+    }
+    .option-row.correct {
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+        color: #166534;
+        font-weight: 600;
+    }
+    /* AI Tab Specific Styles */
+    .nav-tabs .nav-link {
+        font-weight: 600;
+        color: #64748b;
+        border: none;
+        border-bottom: 3px solid transparent;
+        padding: 10px 20px;
+        background: transparent;
+    }
+    .nav-tabs .nav-link:hover {
+        color: #3b82f6;
+        border-color: transparent;
+    }
+    .nav-tabs .nav-link.active {
+        color: #2563eb;
+        background: transparent;
+        border-color: #2563eb;
+    }
+    .ai-config-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+    .ai-review-card {
+        background: #ffffff;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 16px;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .ai-review-card.selected {
+        border-color: #3b82f6;
+        background: #fafcff;
+    }
+    .ai-review-card.unselected {
+        opacity: 0.65;
+        background: #f8fafc;
+        border-color: #e2e8f0;
+    }
+    .ai-opt-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: 6px;
+        margin-bottom: 6px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+    }
+    .ai-opt-row.is-correct {
+        background: #f0fdf4;
+        border-color: #86efac;
+    }
+</style>
+
+<div class="container-fluid py-3 qb-container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <a asp-action="FacultyDashboard" class="btn btn-outline-secondary btn-sm">
+            <i class="fa-solid fa-arrow-left me-1"></i> Back to Certification Exams
+        </a>
+        <div class="d-flex gap-2">
+            <a asp-action="Preview" asp-route-id="@exam?.Id" class="btn btn-outline-primary btn-sm">
+                <i class="fa-solid fa-eye me-1"></i> Preview Exam
+            </a>
+            @if (exam?.Status == "Draft")
+            {
+                <form asp-action="Publish" asp-route-id="@exam?.Id" method="post" class="d-inline" onsubmit="return confirm('Ready to publish this certification exam?');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-success btn-sm px-3">
+                        <i class="fa-solid fa-upload me-1"></i> Publish Exam
+                    </button>
+                </form>
+            }
+        </div>
+    </div>
+
+    <!-- Exam Meta Header -->
+    <div class="qb-header">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="badge bg-primary">@(exam?.Course?.Name ?? "Course")</span>
+                    <span class="badge @(exam?.Status == "Published" ? "bg-success" : "bg-warning text-dark")">@exam?.Status</span>
+                </div>
+                <h3 class="fw-bold mb-1 text-dark">@exam?.Title</h3>
+                <p class="text-muted mb-0 small"><strong class="text-dark">Certification Topic:</strong> @exam?.CertificationTopic</p>
+            </div>
+            <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+                <div class="d-flex justify-content-lg-end gap-3 text-start text-lg-end">
+                    <div>
+                        <small class="text-muted d-block">Questions</small>
+                        <span class="fs-4 fw-bold text-dark" id="headerQuestionCount">@Model?.Count</span>
+                    </div>
+                    <div>
+                        <small class="text-muted d-block">Total Marks</small>
+                        <span class="fs-4 fw-bold text-primary" id="headerTotalMarks">@totalMarks</span>
+                    </div>
+                    <div>
+                        <small class="text-muted d-block">Passing</small>
+                        <span class="fs-4 fw-bold text-success">@exam?.PassingPercentage%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Nav Tabs: Manual Questions vs AI Generate Questions -->
+    <ul class="nav nav-tabs mb-4" id="qbNavTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="manual-tab" onclick="switchTab('manual')" type="button" role="tab" aria-controls="manual-tab-pane" aria-selected="true">
+                <i class="fa-solid fa-list-check me-2"></i>Manual Questions (@Model?.Count)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="ai-tab" onclick="switchTab('ai')" type="button" role="tab" aria-controls="ai-tab-pane" aria-selected="false">
+                <i class="fa-solid fa-wand-magic-sparkles me-2 text-primary"></i>AI Generate Questions
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="qbTabContent">
+        <!-- ==================== TAB 1: MANUAL QUESTIONS ==================== -->
+        <div class="tab-pane active" id="manual-tab-pane" role="tabpanel" aria-labelledby="manual-tab" style="display: block;">
+            <!-- Question Builder Toolbar -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0 text-dark">Questions Repository (@Model?.Count)</h5>
+                @if (exam?.Status == "Draft")
+                {
+                    <button class="btn btn-primary" onclick="openAddQuestionModal()">
+                        <i class="fa-solid fa-plus me-1"></i> Add Question
+                    </button>
+                }
+            </div>
+
+            @if (Model == null || !Model.Any())
+            {
+                <div class="text-center py-5 bg-white rounded-3 border">
+                    <i class="fa-solid fa-clipboard-question text-muted" style="font-size:42px;"></i>
+                    <h5 class="fw-bold mt-3 text-dark">No Questions Added Yet</h5>
+                    <p class="text-muted">Start creating questions manually or switch to the <strong>AI Generate Questions</strong> tab to generate questions automatically.</p>
+                    @if (exam?.Status == "Draft")
+                    {
+                        <div class="d-flex justify-content-center gap-2">
+                            <button class="btn btn-primary" onclick="openAddQuestionModal()">
+                                <i class="fa-solid fa-plus me-1"></i> Add First Question
+                            </button>
+                            <button class="btn btn-outline-primary" type="button" onclick="switchTab('ai')">
+                                <i class="fa-solid fa-wand-magic-sparkles me-1"></i> Generate with AI
+                            </button>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                int qIdx = 1;
+                foreach (var q in Model)
+                {
+                    <div class="qb-card">
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-secondary">Q@(qIdx++)</span>
+                                <span class="badge bg-light text-dark border">
+                                    @(q.QuestionType switch
+                                    {
+                                        "SingleChoice" => "Single Choice MCQ",
+                                        "MultipleChoice" => "Multiple Choice MCQ",
+                                        "TrueFalse" => "True / False",
+                                        _ => q.QuestionType
+                                    })
+                                </span>
+                                <span class="badge bg-light text-primary border">@q.Marks Marks</span>
+                            </div>
+                            @if (exam?.Status == "Draft")
+                            {
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-outline-secondary" onclick='editQuestion(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
+                                        id = q.Id,
+                                        examId = q.CertificationExamId,
+                                        text = q.QuestionText,
+                                        type = q.QuestionType,
+                                        marks = q.Marks,
+                                        explanation = q.Explanation,
+                                        options = q.Options.Select(o => new { id = o.Id, text = o.OptionText, isCorrect = o.IsCorrect }).ToList()
+                                    })))'>
+                                        <i class="fa-solid fa-pen"></i> Edit
+                                    </button>
+                                    <form asp-action="DeleteQuestion" method="post" class="d-inline" onsubmit="return confirm('Delete this question?');">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@q.Id" />
+                                        <input type="hidden" name="examId" value="@exam?.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="fw-bold fs-6 text-dark mb-3">@q.QuestionText</div>
+
+                        <div class="mb-2">
+                            @foreach (var opt in q.Options.OrderBy(o => o.SortOrder))
+                            {
+                                <div class="option-row @(opt.IsCorrect ? "correct" : "")">
+                                    @if (q.QuestionType == "MultipleChoice")
+                                    {
+                                        <i class="fa-regular @(opt.IsCorrect ? "fa-square-check text-success" : "fa-square text-muted")"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="fa-regular @(opt.IsCorrect ? "fa-circle-check text-success" : "fa-circle text-muted")"></i>
+                                    }
+                                    <span>@opt.OptionText</span>
+                                    @if (opt.IsCorrect)
+                                    {
+                                        <span class="badge bg-success ms-auto"><i class="fa-solid fa-check"></i> Correct</span>
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(q.Explanation))
+                        {
+                            <div class="small text-muted mt-2 p-2 bg-light rounded border">
+                                <i class="fa-solid fa-lightbulb text-warning me-1"></i> <strong>Explanation:</strong> @q.Explanation
+                            </div>
+                        }
+                    </div>
+                }
+            }
+        </div>
+
+        <!-- ==================== TAB 2: AI GENERATE QUESTIONS ==================== -->
+        <div class="tab-pane" id="ai-tab-pane" role="tabpanel" aria-labelledby="ai-tab" style="display: none;">
+            @if (exam?.Status != "Draft")
+            {
+                <div class="alert alert-warning d-flex align-items-center" role="alert">
+                    <i class="fa-solid fa-triangle-exclamation me-2 fs-5"></i>
+                    <div>This exam is currently in <strong>@exam?.Status</strong> status. Questions can only be added or generated while the exam is in <strong>Draft</strong> status.</div>
+                </div>
+            }
+            else
+            {
+                <!-- Generation Parameters Form -->
+                <div class="ai-config-card mb-4">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <i class="fa-solid fa-wand-magic-sparkles text-primary fs-4"></i>
+                        <div>
+                            <h5 class="fw-bold mb-0 text-dark">AI Question Generator</h5>
+                            <small class="text-muted">Draft curriculum-aligned certification questions, review and edit before adding to exam repository.</small>
+                        </div>
+                    </div>
+
+                    <input type="hidden" id="aiExamId" value="@exam?.Id" />
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold text-dark">Subject</label>
+                            <input type="text" id="aiSubject" class="form-control" value="@(exam?.Subject?.Name ?? exam?.Course?.Name ?? "")" placeholder="Enter Subject Name" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold text-dark">Certification Topic <span class="text-danger">*</span></label>
+                            <input type="text" id="aiTopic" class="form-control" value="@exam?.CertificationTopic" placeholder="e.g. Advanced SQL Indexing & Optimization" />
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold text-dark">Number of Questions</label>
+                            <select id="aiCount" class="form-select">
+                                <option value="5" selected>5 Questions</option>
+                                <option value="10">10 Questions</option>
+                                <option value="20">20 Questions</option>
+                                <option value="30">30 Questions</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold text-dark">Difficulty</label>
+                            <select id="aiDifficulty" class="form-select">
+                                <option value="Mixed" selected>Mixed (Easy, Medium, Hard)</option>
+                                <option value="Easy">Easy</option>
+                                <option value="Medium">Medium</option>
+                                <option value="Hard">Hard</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold text-dark">Question Type</label>
+                            <select id="aiQuestionType" class="form-select">
+                                <option value="Mixed" selected>Mixed (Single, Multi, T/F)</option>
+                                <option value="SingleChoice">Single Choice MCQ</option>
+                                <option value="MultipleChoice">Multiple Choice MCQ</option>
+                                <option value="TrueFalse">True / False</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold text-dark">Marks per Question</label>
+                            <input type="number" step="0.5" id="aiMarks" class="form-control" value="1.0" min="0.5" max="50" />
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-semibold text-dark">Additional Instructions <span class="text-muted fw-normal">(Optional)</span></label>
+                            <textarea id="aiInstructions" class="form-control" rows="2" placeholder="e.g. Include real-world troubleshooting scenarios, avoid trivial syntax questions, emphasize query plan optimization..."></textarea>
+                        </div>
+
+                        <div class="col-12 d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+                            <span class="text-muted small">
+                                <i class="fa-solid fa-shield-halved text-success me-1"></i> Generate questions with explanations.
+                            </span>
+                            <button type="button" id="btnGenerateAi" class="btn btn-primary px-4 py-2" onclick="generateAiQuestions()">
+                                <i class="fa-solid fa-wand-magic-sparkles me-2"></i>Generate Questions
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loading State Display -->
+                <div id="aiLoadingContainer" class="text-center py-5 bg-white rounded-3 border mb-4 d-none">
+                    <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h5 class="fw-bold text-dark">Generating Questions...</h5>
+                    <p class="text-muted mb-0">Analyzing course topic, formulating rigorous questions, answer options and detailed explanations.</p>
+                </div>
+
+                <!-- Actionable Error Alert -->
+                <div id="aiErrorAlert" class="alert alert-danger d-none mb-4" role="alert">
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="fa-solid fa-circle-exclamation mt-1"></i>
+                        <div class="flex-grow-1" id="aiErrorMessage"></div>
+                        <button type="button" class="btn-close" onclick="document.getElementById('aiErrorAlert').classList.add('d-none')"></button>
+                    </div>
+                </div>
+
+                <!-- Review & Preview Panel (Hidden until questions generated) -->
+                <div id="aiReviewPanel" class="d-none">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 p-3 bg-white border rounded-3 gap-2">
+                        <div>
+                            <h5 class="fw-bold mb-0 text-dark">
+                                Review Generated Questions (<span id="aiReviewTotalCount">0</span>)
+                            </h5>
+                            <small class="text-muted">
+                                Selected: <strong class="text-primary" id="aiSelectedCount">0</strong> questions (<strong class="text-success" id="aiSelectedMarks">0</strong> total marks)
+                            </small>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleSelectAllAi(true)">
+                                <i class="fa-regular fa-square-check me-1"></i> Select All
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleSelectAllAi(false)">
+                                <i class="fa-regular fa-square me-1"></i> Deselect All
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="discardUnselectedAi()">
+                                <i class="fa-solid fa-trash-can me-1"></i> Discard Unselected
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="generateAiQuestions()">
+                                <i class="fa-solid fa-rotate-right me-1"></i> Regenerate
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Cards Container -->
+                    <div id="aiCardsContainer"></div>
+
+                    <!-- Bottom Floating Sticky Action Bar -->
+                    <div class="sticky-bottom p-3 bg-white border rounded-3 shadow-lg d-flex justify-content-between align-items-center mt-3 mb-4">
+                        <div>
+                            <span class="text-muted">Ready to add to exam repository:</span>
+                            <strong class="text-dark ms-1" id="aiStickySummary">0 questions selected</strong>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-secondary" onclick="resetAiReview()">
+                                Cancel
+                            </button>
+                            <button type="button" id="btnSaveBatchQuestions" class="btn btn-success px-4" onclick="saveSelectedAiQuestions()">
+                                <i class="fa-solid fa-check me-2"></i> Add Selected Questions to Exam
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Add / Edit Question (Manual) -->
+<div class="modal fade" id="questionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold" id="qmTitle">Add Question</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <input type="hidden" id="qmId" value="0" />
+                <input type="hidden" id="qmExamId" value="@exam?.Id" />
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold">Question Type</label>
+                        <select id="qmType" class="form-select" onchange="onQuestionTypeChange()">
+                            <option value="SingleChoice">Single-answer MCQ</option>
+                            <option value="MultipleChoice">Multiple-answer MCQ</option>
+                            <option value="TrueFalse">True / False</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Marks</label>
+                        <input type="number" step="0.5" id="qmMarks" class="form-control" value="1.0" min="0.25" max="100" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Question Text <span class="text-danger">*</span></label>
+                        <textarea id="qmText" class="form-control" rows="3" placeholder="Enter complete question statement..."></textarea>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label fw-semibold mb-0">Answer Options &amp; Correct Answer(s)</label>
+                    <button type="button" id="btnAddOption" class="btn btn-sm btn-outline-primary" onclick="addOptionRow()">
+                        <i class="fa-solid fa-plus me-1"></i> Add Option
+                    </button>
+                </div>
+
+                <div id="optionsContainer" class="mb-3">
+                    <!-- Dynamic option rows inserted here -->
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Explanation (Optional)</label>
+                    <textarea id="qmExplanation" class="form-control" rows="2" placeholder="Optional learning explanation shown during review..."></textarea>
+                </div>
+
+                <div id="qmAlert" class="alert alert-danger d-none" role="alert"></div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary px-4" onclick="saveQuestionAjax()">
+                    <i class="fa-solid fa-floppy-disk me-1"></i> Save Question
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    let qModal;
+    let generatedQuestionsData = [];
+
+    function switchTab(tabName) {
+        const manualTabBtn = document.getElementById('manual-tab');
+        const aiTabBtn = document.getElementById('ai-tab');
+        const manualPane = document.getElementById('manual-tab-pane');
+        const aiPane = document.getElementById('ai-tab-pane');
+
+        if (tabName === 'ai') {
+            if (manualTabBtn) {
+                manualTabBtn.classList.remove('active');
+                manualTabBtn.setAttribute('aria-selected', 'false');
+            }
+            if (aiTabBtn) {
+                aiTabBtn.classList.add('active');
+                aiTabBtn.setAttribute('aria-selected', 'true');
+            }
+            if (manualPane) {
+                manualPane.classList.remove('show', 'active');
+                manualPane.style.setProperty('display', 'none', 'important');
+            }
+            if (aiPane) {
+                aiPane.classList.add('show', 'active');
+                aiPane.style.setProperty('display', 'block', 'important');
+            }
+            try {
+                if (window.history && window.history.replaceState) {
+                    window.history.replaceState(null, null, '#ai');
+                }
+            } catch (e) {}
+        } else {
+            if (aiTabBtn) {
+                aiTabBtn.classList.remove('active');
+                aiTabBtn.setAttribute('aria-selected', 'false');
+            }
+            if (manualTabBtn) {
+                manualTabBtn.classList.add('active');
+                manualTabBtn.setAttribute('aria-selected', 'true');
+            }
+            if (aiPane) {
+                aiPane.classList.remove('show', 'active');
+                aiPane.style.setProperty('display', 'none', 'important');
+            }
+            if (manualPane) {
+                manualPane.classList.add('show', 'active');
+                manualPane.style.setProperty('display', 'block', 'important');
+            }
+            try {
+                if (window.history && window.history.replaceState) {
+                    window.history.replaceState(null, null, '#manual');
+                }
+            } catch (e) {}
+        }
+    }
+
+    function switchToAiTab() {
+        switchTab('ai');
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const modalEl = document.getElementById('questionModal');
+        if (modalEl && window.bootstrap && typeof bootstrap.Modal === 'function') {
+            qModal = new bootstrap.Modal(modalEl);
+        }
+
+        if (window.location.hash === '#ai' || window.location.hash === '#ai-tab') {
+            switchTab('ai');
+        } else {
+            switchTab('manual');
+        }
+    });
+
+    function showModalSafely() {
+        if (qModal && typeof qModal.show === 'function') {
+            qModal.show();
+        } else if (window.jQuery && typeof $('#questionModal').modal === 'function') {
+            $('#questionModal').modal('show');
+        } else {
+            const el = document.getElementById('questionModal');
+            if (el) {
+                el.classList.add('show');
+                el.style.display = 'block';
+                el.setAttribute('aria-modal', 'true');
+                el.removeAttribute('aria-hidden');
+            }
+        }
+    }
+
+    // ================= MANUAL QUESTION BUILDER =================
+    function openAddQuestionModal() {
+        document.getElementById('qmTitle').innerText = "Add New Question";
+        document.getElementById('qmId').value = "0";
+        document.getElementById('qmText').value = "";
+        document.getElementById('qmType').value = "SingleChoice";
+        document.getElementById('qmMarks').value = "1.0";
+        document.getElementById('qmExplanation').value = "";
+        document.getElementById('qmAlert').classList.add('d-none');
+        buildDefaultOptions("SingleChoice");
+        showModalSafely();
+    }
+
+    function editQuestion(q) {
+        document.getElementById('qmTitle').innerText = "Edit Question";
+        document.getElementById('qmId').value = q.id;
+        document.getElementById('qmText').value = q.text;
+        document.getElementById('qmType').value = q.type;
+        document.getElementById('qmMarks').value = q.marks;
+        document.getElementById('qmExplanation').value = q.explanation || "";
+        document.getElementById('qmAlert').classList.add('d-none');
+
+        const container = document.getElementById('optionsContainer');
+        container.innerHTML = "";
+        const isMulti = q.type === "MultipleChoice";
+
+        q.options.forEach((opt, idx) => {
+            const row = createOptionRowHtml(opt.text, opt.isCorrect, isMulti);
+            container.appendChild(row);
+        });
+
+        document.getElementById('btnAddOption').style.display = (q.type === "TrueFalse") ? "none" : "block";
+        showModalSafely();
+    }
+
+    function onQuestionTypeChange() {
+        const type = document.getElementById('qmType').value;
+        buildDefaultOptions(type);
+    }
+
+    function buildDefaultOptions(type) {
+        const container = document.getElementById('optionsContainer');
+        container.innerHTML = "";
+        const addBtn = document.getElementById('btnAddOption');
+
+        if (type === "TrueFalse") {
+            addBtn.style.display = "none";
+            container.appendChild(createOptionRowHtml("True", true, false, true));
+            container.appendChild(createOptionRowHtml("False", false, false, true));
+        } else {
+            addBtn.style.display = "block";
+            const isMulti = type === "MultipleChoice";
+            container.appendChild(createOptionRowHtml("Option A", true, isMulti));
+            container.appendChild(createOptionRowHtml("Option B", false, isMulti));
+            container.appendChild(createOptionRowHtml("Option C", false, isMulti));
+            container.appendChild(createOptionRowHtml("Option D", false, isMulti));
+        }
+    }
+
+    function createOptionRowHtml(text, isCorrect, isMulti, isFixed = false) {
+        const div = document.createElement('div');
+        div.className = "input-group mb-2 option-input-row";
+        const inputType = isMulti ? "checkbox" : "radio";
+
+        div.innerHTML = `
+            <div class="input-group-text bg-white">
+                <input class="form-check-input mt-0 opt-correct" type="${inputType}" name="correctOptRadio" ${isCorrect ? "checked" : ""} title="Mark as correct answer">
+            </div>
+            <input type="text" class="form-control opt-text" value="${text || ""}" placeholder="Enter answer choice text..." ${isFixed ? "readonly" : ""}>
+            ${!isFixed ? `<button class="btn btn-outline-danger" type="button" onclick="this.closest('.option-input-row').remove()"><i class="fa-solid fa-trash"></i></button>` : ""}
+        `;
+        return div;
+    }
+
+    function addOptionRow() {
+        const type = document.getElementById('qmType').value;
+        const container = document.getElementById('optionsContainer');
+        const isMulti = type === "MultipleChoice";
+        const row = createOptionRowHtml("", false, isMulti);
+        container.appendChild(row);
+    }
+
+    async function saveQuestionAjax() {
+        const id = parseInt(document.getElementById('qmId').value);
+        const examId = parseInt(document.getElementById('qmExamId').value);
+        const text = document.getElementById('qmText').value.trim();
+        const type = document.getElementById('qmType').value;
+        const marks = parseFloat(document.getElementById('qmMarks').value);
+        const explanation = document.getElementById('qmExplanation').value.trim();
+        const alertBox = document.getElementById('qmAlert');
+
+        if (!text) {
+            alertBox.innerText = "Please enter the question text.";
+            alertBox.classList.remove('d-none');
+            return;
+        }
+
+        const optionRows = document.querySelectorAll('#optionsContainer .option-input-row');
+        if (optionRows.length < 2) {
+            alertBox.innerText = "At least 2 options are required.";
+            alertBox.classList.remove('d-none');
+            return;
+        }
+
+        const options = [];
+        let hasCorrect = false;
+
+        optionRows.forEach((row, idx) => {
+            const optText = row.querySelector('.opt-text').value.trim();
+            const isCorr = row.querySelector('.opt-correct').checked;
+            if (isCorr) hasCorrect = true;
+            options.push({
+                optionText: optText,
+                isCorrect: isCorr,
+                sortOrder: idx + 1
+            });
+        });
+
+        if (!hasCorrect) {
+            alertBox.innerText = "Please select at least one correct answer.";
+            alertBox.classList.remove('d-none');
+            return;
+        }
+
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || "";
+
+        const payload = {
+            id: id,
+            certificationExamId: examId,
+            questionText: text,
+            questionType: type,
+            marks: marks,
+            explanation: explanation,
+            options: options
+        };
+
+        try {
+            const resp = await fetch('/CertificationExam/SaveQuestion', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const res = await resp.json();
+            if (res.success) {
+                window.location.reload();
+            } else {
+                alertBox.innerText = res.message || "Failed to save question.";
+                alertBox.classList.remove('d-none');
+            }
+        } catch (e) {
+            alertBox.innerText = "An error occurred while saving.";
+            alertBox.classList.remove('d-none');
+        }
+    }
+
+    // ================= AI QUESTION GENERATOR =================
+    async function generateAiQuestions() {
+        const examId = parseInt(document.getElementById('aiExamId')?.value || '0');
+        const subject = document.getElementById('aiSubject')?.value?.trim() || '';
+        const topic = document.getElementById('aiTopic')?.value?.trim() || '';
+        const count = parseInt(document.getElementById('aiCount')?.value || '5');
+        const difficulty = document.getElementById('aiDifficulty')?.value || 'Mixed';
+        const qType = document.getElementById('aiQuestionType')?.value || 'Mixed';
+        const marks = parseFloat(document.getElementById('aiMarks')?.value || '1.0') || 1.0;
+        const instructions = document.getElementById('aiInstructions')?.value?.trim() || '';
+
+        const errorAlert = document.getElementById('aiErrorAlert');
+        const errorMessage = document.getElementById('aiErrorMessage');
+        const loadingContainer = document.getElementById('aiLoadingContainer');
+        const reviewPanel = document.getElementById('aiReviewPanel');
+        const btnGenerate = document.getElementById('btnGenerateAi');
+
+        if (errorAlert) errorAlert.classList.add('d-none');
+
+        if (!topic) {
+            if (errorMessage) errorMessage.innerText = "Certification Topic is required for AI question generation.";
+            if (errorAlert) errorAlert.classList.remove('d-none');
+            const topicInput = document.getElementById('aiTopic');
+            if (topicInput) topicInput.focus();
+            return;
+        }
+
+        // Show Loading State
+        if (loadingContainer) loadingContainer.classList.remove('d-none');
+        if (reviewPanel) reviewPanel.classList.add('d-none');
+        if (btnGenerate) {
+            btnGenerate.disabled = true;
+            btnGenerate.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Generating Questions...';
+        }
+
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || "";
+
+        const payload = {
+            examId: examId,
+            subject: subject,
+            certificationTopic: topic,
+            additionalInstructions: instructions,
+            numberOfQuestions: count,
+            difficulty: difficulty,
+            questionType: qType,
+            marksPerQuestion: marks
+        };
+
+        try {
+            console.log("Generating AI questions for exam:", examId, payload);
+            const resp = await fetch('/CertificationExam/GenerateAiQuestions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const res = await resp.json();
+            console.log("AI Generation response:", res);
+
+            if (loadingContainer) loadingContainer.classList.add('d-none');
+            if (btnGenerate) {
+                btnGenerate.disabled = false;
+                btnGenerate.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles me-2"></i>Generate Questions';
+            }
+
+            if (!res.success) {
+                if (errorMessage) errorMessage.innerText = res.message || "Failed to generate questions. Please verify your settings and try again.";
+                if (errorAlert) errorAlert.classList.remove('d-none');
+                return;
+            }
+
+            if (!res.questions || res.questions.length === 0) {
+                if (errorMessage) errorMessage.innerText = "No questions were returned. Please try adjusting your topic or instructions.";
+                if (errorAlert) errorAlert.classList.remove('d-none');
+                return;
+            }
+
+            // Populate Questions Review
+            generatedQuestionsData = (res.questions || []).map((q, idx) => ({
+                tempId: q.tempId || q.TempId || ('temp_' + idx),
+                questionText: q.questionText || q.QuestionText || '',
+                questionType: q.questionType || q.QuestionType || 'SingleChoice',
+                difficulty: q.difficulty || q.Difficulty || 'Medium',
+                marks: (q.marks !== undefined ? q.marks : q.Marks) || marks,
+                explanation: q.explanation || q.Explanation || '',
+                options: (q.options || q.Options || []).map((o, oIdx) => ({
+                    optionText: o.optionText || o.OptionText || '',
+                    isCorrect: (o.isCorrect !== undefined ? o.isCorrect : o.IsCorrect) || false,
+                    sortOrder: o.sortOrder || o.SortOrder || (oIdx + 1)
+                })),
+                isSelected: true
+            }));
+
+            renderAiReviewCards();
+            if (reviewPanel) {
+                reviewPanel.classList.remove('d-none');
+                reviewPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+        } catch (err) {
+            console.error("AI Generation error:", err);
+            if (loadingContainer) loadingContainer.classList.add('d-none');
+            if (btnGenerate) {
+                btnGenerate.disabled = false;
+                btnGenerate.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles me-2"></i>Generate Questions';
+            }
+            if (errorMessage) errorMessage.innerText = "An unexpected error occurred while communicating with the AI service: " + (err.message || err);
+            if (errorAlert) errorAlert.classList.remove('d-none');
+        }
+    }
+
+    function renderAiReviewCards() {
+        const container = document.getElementById('aiCardsContainer');
+        container.innerHTML = "";
+
+        generatedQuestionsData.forEach((q, qIdx) => {
+            const card = document.createElement('div');
+            card.className = `ai-review-card ${q.isSelected ? 'selected' : 'unselected'}`;
+            card.id = `ai-card-${q.tempId}`;
+
+            const isMulti = q.questionType === "MultipleChoice";
+            const isTF = q.questionType === "TrueFalse";
+
+            // Options HTML
+            let optionsHtml = '';
+            q.options.forEach((opt, oIdx) => {
+                const optInputType = isMulti ? 'checkbox' : 'radio';
+                const inputName = `ai_opt_${q.tempId}`;
+                optionsHtml += `
+                    <div class="ai-opt-row ${opt.isCorrect ? 'is-correct' : ''}" id="ai-opt-row-${q.tempId}-${oIdx}">
+                        <input class="form-check-input mt-0" type="${optInputType}" name="${inputName}" 
+                               ${opt.isCorrect ? 'checked' : ''} 
+                               onchange="onAiOptionCorrectChange('${q.tempId}', ${oIdx}, this.checked)" title="Mark as correct">
+                        <input type="text" class="form-control form-control-sm border-0 bg-transparent" 
+                               value="${escapeHtml(opt.optionText)}" 
+                               ${isTF ? 'readonly' : ''}
+                               oninput="onAiOptionTextChange('${q.tempId}', ${oIdx}, this.value)" placeholder="Option text...">
+                        ${!isTF ? `
+                            <button type="button" class="btn btn-sm text-danger p-0 px-1" onclick="removeAiOption('${q.tempId}', ${oIdx})" title="Delete Option">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                `;
+            });
+
+            card.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" type="checkbox" id="ai-check-${q.tempId}" 
+                                   ${q.isSelected ? 'checked' : ''} 
+                                   onchange="toggleAiQuestionSelected('${q.tempId}', this.checked)">
+                            <label class="form-check-label fw-bold text-dark" for="ai-check-${q.tempId}">Q${qIdx + 1}</label>
+                        </div>
+                        <span class="badge bg-light text-dark border">
+                            ${q.questionType === 'SingleChoice' ? 'Single MCQ' : (q.questionType === 'MultipleChoice' ? 'Multi MCQ' : 'True / False')}
+                        </span>
+                        <span class="badge bg-light text-secondary border">${q.difficulty}</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-1">
+                            <label class="small text-muted mb-0">Marks:</label>
+                            <input type="number" step="0.5" class="form-control form-control-sm" style="width: 70px;" 
+                                   value="${q.marks}" min="0.25" max="50"
+                                   onchange="onAiMarksChange('${q.tempId}', this.value)">
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteAiQuestion('${q.tempId}')" title="Discard this question">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold text-muted mb-1">Question Statement</label>
+                    <textarea class="form-control" rows="2" 
+                              oninput="onAiQuestionTextChange('${q.tempId}', this.value)">${escapeHtml(q.QuestionText || q.questionText)}</textarea>
+                </div>
+
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label class="form-label small fw-semibold text-muted mb-0">Answer Options & Correct Answer(s)</label>
+                        ${!isTF ? `
+                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" onclick="addAiOption('${q.tempId}')">
+                                <i class="fa-solid fa-plus me-1"></i> Add Option
+                            </button>
+                        ` : ''}
+                    </div>
+                    <div id="ai-options-list-${q.tempId}">
+                        ${optionsHtml}
+                    </div>
+                </div>
+
+                <div>
+                    <label class="form-label small fw-semibold text-muted mb-1">Explanation</label>
+                    <input type="text" class="form-control form-control-sm" 
+                           value="${escapeHtml(q.explanation || '')}" 
+                           oninput="onAiExplanationChange('${q.tempId}', this.value)" 
+                           placeholder="Learning explanation clarifying correct answer...">
+                </div>
+            `;
+
+            container.appendChild(card);
+        });
+
+        updateAiSummary();
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function toggleAiQuestionSelected(tempId, isChecked) {
+        const q = generatedQuestionsData.find(item => item.tempId === tempId);
+        if (q) {
+            q.isSelected = isChecked;
+            const card = document.getElementById(`ai-card-${tempId}`);
+            if (card) {
+                card.className = `ai-review-card ${isChecked ? 'selected' : 'unselected'}`;
+            }
+            updateAiSummary();
+        }
+    }
+
+    function onAiQuestionTextChange(tempId, val) {
+        const q = generatedQuestionsData.find(item => item.tempId === tempId);
+        if (q) q.questionText = val;
+    }
+
+    function onAiMarksChange(tempId, val) {
+        const q = generatedQuestionsData.find(item => item.tempId === tempId);
+        if (q) {
+            q.marks = parseFloat(val) || 1.0;
+            updateAiSummary();
+        }
+    }
+
+    function onAiExplanationChange(tempId, val) {
+        const q = generatedQuestionsData.find(item => item.tempId === tempId);
+        if (q) q.explanation = val;
+    }
+
+    function onAiOptionTextChange(tempId, optIdx, val) {
+        const q = generatedQuestionsData.find(item => item.tempId === tempId);
+        if (q && q.options[optIdx]) {
+            q.options[optIdx].optionText = val;
+        }
+    }
+
+    function onAiOptionCorrectChange(tempId, optIdx, isChecked) {
+        const q = generatedQuestionsData.find(item => item.tempId === tempId);
+        if (!q) return;
+
+        if (q.questionType === "MultipleChoice") {
+            q.options[optIdx].isCorrect = isChecked;
+        } else {
+            // SingleChoice or TrueFalse: only one correct
+            q.options.forEach((opt, idx) => {
+                opt.isCorrect = (idx === optIdx);
+            });
+        }
+        renderAiReviewCards();
+    }
+
+    function addAiOption(tempId) {
+        const q = generatedQuestionsData.find(item => item.tempId === tempId);
+        if (q) {
+            q.options.push({
+                optionText: 'New Option',
+                isCorrect: false,
+                sortOrder: q.options.length + 1
+            });
+            renderAiReviewCards();
+        }
+    }
+
+    function removeAiOption(tempId, optIdx) {
+        const q = generatedQuestionsData.find(item => item.tempId === tempId);
+        if (q && q.options.length > 2) {
+            q.options.splice(optIdx, 1);
+            // Re-index sortOrder
+            q.options.forEach((o, i) => o.sortOrder = i + 1);
+            // Ensure at least one correct
+            if (!q.options.some(o => o.isCorrect) && q.options.length > 0) {
+                q.options[0].isCorrect = true;
+            }
+            renderAiReviewCards();
+        } else {
+            alert("A question must have at least 2 answer options.");
+        }
+    }
+
+    function deleteAiQuestion(tempId) {
+        generatedQuestionsData = generatedQuestionsData.filter(item => item.tempId !== tempId);
+        renderAiReviewCards();
+        if (generatedQuestionsData.length === 0) {
+            document.getElementById('aiReviewPanel').classList.add('d-none');
+        }
+    }
+
+    function toggleSelectAllAi(selectAll) {
+        generatedQuestionsData.forEach(q => q.isSelected = selectAll);
+        renderAiReviewCards();
+    }
+
+    function discardUnselectedAi() {
+        generatedQuestionsData = generatedQuestionsData.filter(q => q.isSelected);
+        renderAiReviewCards();
+        if (generatedQuestionsData.length === 0) {
+            document.getElementById('aiReviewPanel').classList.add('d-none');
+        }
+    }
+
+    function resetAiReview() {
+        if (confirm("Discard all generated questions?")) {
+            generatedQuestionsData = [];
+            document.getElementById('aiReviewPanel').classList.add('d-none');
+        }
+    }
+
+    function updateAiSummary() {
+        const total = generatedQuestionsData.length;
+        const selected = generatedQuestionsData.filter(q => q.isSelected);
+        const selCount = selected.length;
+        const selMarks = selected.reduce((sum, q) => sum + (parseFloat(q.marks) || 0), 0);
+
+        document.getElementById('aiReviewTotalCount').innerText = total;
+        document.getElementById('aiSelectedCount').innerText = selCount;
+        document.getElementById('aiSelectedMarks').innerText = selMarks.toFixed(1);
+        document.getElementById('aiStickySummary').innerText = `${selCount} of ${total} questions selected (${selMarks.toFixed(1)} marks)`;
+
+        const saveBtn = document.getElementById('btnSaveBatchQuestions');
+        if (saveBtn) {
+            saveBtn.disabled = (selCount === 0);
+            saveBtn.innerHTML = `<i class="fa-solid fa-check me-2"></i> Add Selected Questions to Exam (${selCount})`;
+        }
+    }
+
+    // ================= PERSIST SELECTED AI QUESTIONS =================
+    async function saveSelectedAiQuestions() {
+        const selected = generatedQuestionsData.filter(q => q.isSelected);
+        if (selected.length === 0) {
+            alert("Please select at least one question to save.");
+            return;
+        }
+
+        // Validate each question
+        for (let i = 0; i < selected.length; i++) {
+            const q = selected[i];
+            if (!q.questionText || !q.questionText.trim()) {
+                alert(`Question #${i + 1} has empty question text. Please provide question text.`);
+                return;
+            }
+            if (!q.options || q.options.length < 2) {
+                alert(`Question #${i + 1} must have at least 2 options.`);
+                return;
+            }
+            if (!q.options.some(o => o.isCorrect)) {
+                alert(`Question #${i + 1} does not have any correct answer marked.`);
+                return;
+            }
+        }
+
+        const examId = parseInt(document.getElementById('aiExamId').value);
+        const btnSave = document.getElementById('btnSaveBatchQuestions');
+        btnSave.disabled = true;
+        btnSave.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving to Exam...';
+
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || "";
+
+        const payload = {
+            examId: examId,
+            questions: selected.map(q => ({
+                certificationExamId: examId,
+                questionText: q.questionText.trim(),
+                questionType: q.questionType,
+                marks: parseFloat(q.marks) || 1.0,
+                explanation: (q.explanation || '').trim(),
+                options: q.options.map((opt, oIdx) => ({
+                    optionText: opt.optionText.trim(),
+                    isCorrect: !!opt.isCorrect,
+                    sortOrder: opt.sortOrder || (oIdx + 1)
+                }))
+            }))
+        };
+
+        try {
+            const resp = await fetch('/CertificationExam/SaveBatchQuestions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const res = await resp.json();
+            if (res.success) {
+                // Clear state and reload page to Questions Repository
+                alert(res.message || `Successfully added ${res.savedCount} questions to the exam!`);
+                window.location.href = `/CertificationExam/Questions/${examId}`;
+            } else {
+                btnSave.disabled = false;
+                btnSave.innerHTML = `<i class="fa-solid fa-check me-2"></i> Add Selected Questions to Exam (${selected.length})`;
+                alert("Failed to save questions: " + (res.message || "Unknown error"));
+            }
+        } catch (err) {
+            btnSave.disabled = false;
+            btnSave.innerHTML = `<i class="fa-solid fa-check me-2"></i> Add Selected Questions to Exam (${selected.length})`;
+            alert("An error occurred while saving questions: " + (err.message || err));
+        }
+    }
+</script>
+}
