@@ -2781,6 +2781,322 @@ var docProcessingService = new DocumentProcessingService();
     }
 }
 
+
+// =========================================================================================
+//  FEATURE: AUDIT TRAIL MANAGEMENT VERIFICATION SUITE
+// =========================================================================================
+Console.WriteLine("--- BEGINNING AUDIT TRAIL MANAGEMENT RUNTIME CHECKS ---");
+
+try
+{
+    var auditAppSettingsPath = Path.Combine("..", "TMS.Web", "appsettings.json");
+    if (!File.Exists(auditAppSettingsPath))
+        auditAppSettingsPath = Path.Combine("TMS", "TMS.Web", "appsettings.json");
+
+    var auditConfig = new ConfigurationBuilder().AddJsonFile(Path.GetFullPath(auditAppSettingsPath)).Build();
+    var auditConnStr = auditConfig.GetConnectionString("DefaultConnection");
+
+    if (!string.IsNullOrEmpty(auditConnStr))
+    {
+        var auditOptsBuilder = new DbContextOptionsBuilder<ApplicationDBContext>();
+        auditOptsBuilder.UseSqlServer(auditConnStr);
+
+        using var auditDb = new ApplicationDBContext(auditOptsBuilder.Options);
+        var auditMockHttp = new Microsoft.AspNetCore.Http.HttpContextAccessor();
+        var dummyAuditLogger = new DummyLogger<TMS.Web.Services.AuditLogService>();
+        var auditService = new TMS.Web.Services.AuditLogService(auditDb, auditMockHttp, dummyAuditLogger);
+
+        // 1. Schema & Table Creation
+        auditService.EnsureSchemaAsync().GetAwaiter().GetResult();
+        Equal("AuditLogs EnsureSchemaAsync executed successfully", true, true);
+
+        var auditTableCount = auditDb.Database.SqlQueryRaw<int>(@"
+            SELECT COUNT(*) AS Value FROM sys.tables WHERE name = 'AuditLogs'
+        ").AsEnumerable().FirstOrDefault();
+        Equal("AuditLogs table exists in SQL Server", auditTableCount, 1);
+
+        var auditIndexCount = auditDb.Database.SqlQueryRaw<int>(@"
+            SELECT COUNT(*) AS Value FROM sys.indexes 
+            WHERE object_id = OBJECT_ID('AuditLogs') 
+              AND name IN ('IX_AuditLogs_TimestampUtc', 'IX_AuditLogs_UserId', 'IX_AuditLogs_ModuleName', 'IX_AuditLogs_ActionType', 'IX_AuditLogs_Status')
+        ").AsEnumerable().FirstOrDefault();
+        Equal("All 5 AuditLogs nonclustered indexes exist in SQL Server", auditIndexCount, 5);
+
+        // 2. Sensitive Data Redaction
+        var testPassword = "MySecretSuperPassword@999";
+        var testToken = "JWT_eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
+        var sensitiveObj = new
+        {
+            Username = "security_audit_user",
+            Password = testPassword,
+            NewPassword = "AnotherSecretPassword!111",
+            Token = testToken,
+            ApiKey = "SECRET_API_KEY_999",
+            AllowedPublicField = "AuditValidInfo"
+        };
+
+        var correlationTestId = "CORR-" + Guid.NewGuid().ToString("N");
+        auditService.LogActionAsync(
+            actionType: "SECURITY_REDACTION_TEST",
+            moduleName: "Authentication",
+            entityType: "UserMaster",
+            entityId: "99999",
+            oldValues: null,
+            newValues: sensitiveObj,
+            changedFields: "Password, NewPassword, Token, ApiKey, AllowedPublicField",
+            status: "SUCCESS",
+            details: "Security credential sanitization check",
+            userId: 99999,
+            username: "redaction_test_user",
+            userRole: "Student",
+            ipAddress: "127.0.0.1",
+            correlationId: correlationTestId
+        ).GetAwaiter().GetResult();
+
+        var loggedRedaction = auditDb.AuditLogs.AsNoTracking().FirstOrDefault(x => x.CorrelationId == correlationTestId);
+        Equal("Redaction test audit log created", loggedRedaction != null, true);
+        Equal("Password not present in audit payload", loggedRedaction!.NewValuesJson!.Contains(testPassword), false);
+        Equal("NewPassword not present in audit payload", loggedRedaction.NewValuesJson.Contains("AnotherSecretPassword!111"), false);
+        Equal("Token not present in audit payload", loggedRedaction.NewValuesJson.Contains(testToken), false);
+        Equal("ApiKey not present in audit payload", loggedRedaction.NewValuesJson.Contains("SECRET_API_KEY_999"), false);
+        Equal("Allowed public field preserved in payload", loggedRedaction.NewValuesJson.Contains("AuditValidInfo"), true);
+
+        // 3. Authentication Events
+        var loginSuccessCorr = "AUTH-SUCCESS-" + Guid.NewGuid().ToString("N");
+        auditService.LogActionAsync(
+            actionType: "LOGIN_SUCCESS",
+            moduleName: "Authentication",
+            entityType: "UserMaster",
+            entityId: "101",
+            status: "SUCCESS",
+            details: "User test_admin@edudigi.com logged in successfully.",
+            userId: 101,
+            username: "test_admin@edudigi.com",
+            userRole: "Admin",
+            ipAddress: "192.168.1.50",
+            correlationId: loginSuccessCorr
+        ).GetAwaiter().GetResult();
+
+        var loginSuccessLog = auditDb.AuditLogs.AsNoTracking().FirstOrDefault(x => x.CorrelationId == loginSuccessCorr);
+        Equal("LOGIN_SUCCESS log recorded", loginSuccessLog != null, true);
+        Equal("LOGIN_SUCCESS action type matches", loginSuccessLog?.ActionType, "LOGIN_SUCCESS");
+        Equal("LOGIN_SUCCESS status is SUCCESS", loginSuccessLog?.Status, "SUCCESS");
+
+        var loginFailCorr = "AUTH-FAIL-" + Guid.NewGuid().ToString("N");
+        auditService.LogActionAsync(
+            actionType: "LOGIN_FAILURE",
+            moduleName: "Authentication",
+            entityType: "UserMaster",
+            entityId: null,
+            status: "FAILURE",
+            details: "Failed login attempt for email: intruder@edudigi.com. Invalid credentials.",
+            userId: null,
+            username: "intruder@edudigi.com",
+            userRole: "Anonymous",
+            ipAddress: "10.0.0.99",
+            correlationId: loginFailCorr
+        ).GetAwaiter().GetResult();
+
+        var loginFailLog = auditDb.AuditLogs.AsNoTracking().FirstOrDefault(x => x.CorrelationId == loginFailCorr);
+        Equal("LOGIN_FAILURE log recorded", loginFailLog != null, true);
+        Equal("LOGIN_FAILURE status is FAILURE", loginFailLog?.Status, "FAILURE");
+        Equal("LOGIN_FAILURE captures anonymous attempted user", loginFailLog?.Username, "intruder@edudigi.com");
+
+        var logoutCorr = "AUTH-LOGOUT-" + Guid.NewGuid().ToString("N");
+        auditService.LogActionAsync(
+            actionType: "LOGOUT",
+            moduleName: "Authentication",
+            entityType: "UserMaster",
+            entityId: "101",
+            status: "SUCCESS",
+            details: "User test_admin@edudigi.com logged out.",
+            userId: 101,
+            username: "test_admin@edudigi.com",
+            userRole: "Admin",
+            correlationId: logoutCorr
+        ).GetAwaiter().GetResult();
+        var logoutLog = auditDb.AuditLogs.AsNoTracking().FirstOrDefault(x => x.CorrelationId == logoutCorr);
+        Equal("LOGOUT log recorded", logoutLog != null, true);
+        Equal("LOGOUT action matches", logoutLog?.ActionType, "LOGOUT");
+
+        // 4. Before & After Values on CRUD Operations
+        var crudCorr = "CRUD-" + Guid.NewGuid().ToString("N");
+        var beforeMarks = new { Marks = 65.0, Grade = "B" };
+        var afterMarks = new { Marks = 85.0, Grade = "A" };
+        auditService.LogActionAsync(
+            actionType: "UPDATE_STUDENT_MARKS",
+            moduleName: "InternalAssessment",
+            entityType: "InternalAssessmentSubmission",
+            entityId: "555",
+            oldValues: beforeMarks,
+            newValues: afterMarks,
+            changedFields: "Marks, Grade",
+            status: "SUCCESS",
+            details: "Faculty updated marks from 65 to 85",
+            userId: 42,
+            username: "Faculty 01",
+            userRole: "Faculty",
+            correlationId: crudCorr
+        ).GetAwaiter().GetResult();
+
+        var marksLog = auditDb.AuditLogs.AsNoTracking().FirstOrDefault(x => x.CorrelationId == crudCorr);
+        Equal("UPDATE_STUDENT_MARKS log recorded", marksLog != null, true);
+        Equal("Old values captured in JSON", marksLog?.OldValuesJson?.Contains("65"), true);
+        Equal("New values captured in JSON", marksLog?.NewValuesJson?.Contains("85"), true);
+        Equal("Changed fields recorded", marksLog?.ChangedFieldsJson, "Marks, Grade");
+
+        // Verify GetLogByIdAsync field-by-field parsing
+        var detailModel = auditService.GetLogByIdAsync(marksLog!.Id).GetAwaiter().GetResult();
+        Equal("Detail model loaded for audit log", detailModel != null, true);
+        Equal("Detail model operation type is UPDATE", detailModel?.OperationType, "UPDATE");
+        Equal("Detail model has 2 field changes", detailModel?.FieldChanges.Count, 2);
+        var marksChange = detailModel?.FieldChanges.FirstOrDefault(f => f.FieldName.Equals("Marks", StringComparison.OrdinalIgnoreCase));
+        Equal("Marks field is marked as changed", marksChange?.IsChanged, true);
+        Equal("Marks OldValue is 65", marksChange?.OldValue, "65");
+        Equal("Marks NewValue is 85", marksChange?.NewValue, "85");
+
+        // 5. Query Filters, Search, and Pagination
+        var filter = new TMS.ViewModels.Audit.AuditLogFilterViewModel
+        {
+            ActionType = "UPDATE_STUDENT_MARKS",
+            PageNumber = 1,
+            PageSize = 10
+        };
+        var pagedResult = auditService.GetLogsAsync(filter).GetAwaiter().GetResult();
+        Equal("Audit search by ActionType returns results", pagedResult.TotalCount >= 1, true);
+        Equal("Audit search items contains UPDATE_STUDENT_MARKS", pagedResult.Items.Any(i => i.ActionType == "UPDATE_STUDENT_MARKS"), true);
+        Equal("Audit available roles list populated", pagedResult.AvailableRoles.Count > 0, true);
+        Equal("Audit available modules list populated", pagedResult.AvailableModules.Count > 0, true);
+
+        // Search Term Test
+        var searchFilter = new TMS.ViewModels.Audit.AuditLogFilterViewModel
+        {
+            SearchTerm = "Faculty updated marks",
+            PageNumber = 1,
+            PageSize = 10
+        };
+        var searchResult = auditService.GetLogsAsync(searchFilter).GetAwaiter().GetResult();
+        Equal("SearchTerm filter finds corresponding log entry", searchResult.Items.Any(i => i.Id == marksLog.Id), true);
+
+        // 6. CSV Export & Escaping Verification
+        var csvFilter = new TMS.ViewModels.Audit.AuditLogFilterViewModel
+        {
+            ActionType = "UPDATE_STUDENT_MARKS"
+        };
+        var csvBytes = auditService.ExportCsvAsync(csvFilter).GetAwaiter().GetResult();
+        Equal("CSV bytes generated", csvBytes != null && csvBytes.Length > 0, true);
+        var csvText = System.Text.Encoding.UTF8.GetString(csvBytes!);
+        Equal("CSV contains header row", csvText.Contains("Date & Time (UTC),Username,User Role,Module,Action Type"), true);
+        Equal("CSV contains UPDATE_STUDENT_MARKS", csvText.Contains("UPDATE_STUDENT_MARKS"), true);
+        Equal("CSV contains Faculty 01", csvText.Contains("Faculty 01"), true);
+
+        // Formula injection defense test
+        var injectionCorr = "INJ-" + Guid.NewGuid().ToString("N");
+        auditService.LogActionAsync(
+            actionType: "CSV_INJECTION_DEFENSE",
+            moduleName: "Security",
+            details: "=cmd|' /C calc'!A0",
+            correlationId: injectionCorr
+        ).GetAwaiter().GetResult();
+        var injCsvBytes = auditService.ExportCsvAsync(new TMS.ViewModels.Audit.AuditLogFilterViewModel { ActionType = "CSV_INJECTION_DEFENSE" }).GetAwaiter().GetResult();
+        var injCsvText = System.Text.Encoding.UTF8.GetString(injCsvBytes!);
+        Equal("CSV formula injection mitigated with single quote prefix", injCsvText.Contains("''=cmd") || injCsvText.Contains("'=cmd"), true);
+
+        // 7. Summary Counters Verification
+        var summary = auditService.GetSummaryAsync(new TMS.ViewModels.Audit.AuditLogFilterViewModel()).GetAwaiter().GetResult();
+        Equal("Summary TotalLogs > 0", summary.TotalLogs > 0, true);
+        Equal("Summary TodayActivities > 0", summary.TodayActivities > 0, true);
+        Equal("Summary FailedActions > 0", summary.FailedActions > 0, true);
+        Equal("Summary ActiveUsers > 0", summary.ActiveUsers > 0, true);
+
+        // 8. Controller Role-Based Authorization Tests
+        var auditController = new TMS.Web.Areas.Admin.Controllers.AuditLogsController(auditService);
+
+        // Test 8a: Student User -> ForbidResult
+        var studentClaims = new List<System.Security.Claims.Claim>
+        {
+            new("userId", "501"),
+            new("userName", "Test Student"),
+            new("role", "Student")
+        };
+        var studentPrincipal = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(studentClaims, "TestAuth"));
+        auditController.ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
+        {
+            HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext { User = studentPrincipal }
+        };
+
+        var studentIndexResult = auditController.Index(new TMS.ViewModels.Audit.AuditLogFilterViewModel()).GetAwaiter().GetResult();
+        Equal("Student role accessing Index is Forbidden (ForbidResult)", studentIndexResult is Microsoft.AspNetCore.Mvc.ForbidResult, true);
+
+        var studentDetailsResult = auditController.Details(marksLog.Id).GetAwaiter().GetResult();
+        Equal("Student role accessing Details is Forbidden (ForbidResult)", studentDetailsResult is Microsoft.AspNetCore.Mvc.ForbidResult, true);
+
+        var studentCsvResult = auditController.ExportCsv(new TMS.ViewModels.Audit.AuditLogFilterViewModel()).GetAwaiter().GetResult();
+        Equal("Student role accessing ExportCsv is Forbidden (ForbidResult)", studentCsvResult is Microsoft.AspNetCore.Mvc.ForbidResult, true);
+
+        // Test 8b: Faculty User -> ForbidResult
+        var facultyClaims = new List<System.Security.Claims.Claim>
+        {
+            new("userId", "201"),
+            new("userName", "Test Faculty"),
+            new("role", "Faculty")
+        };
+        var facultyPrincipal = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(facultyClaims, "TestAuth"));
+        auditController.ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
+        {
+            HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext { User = facultyPrincipal }
+        };
+
+        var facultyIndexResult = auditController.Index(new TMS.ViewModels.Audit.AuditLogFilterViewModel()).GetAwaiter().GetResult();
+        Equal("Faculty role accessing Index is Forbidden (ForbidResult)", facultyIndexResult is Microsoft.AspNetCore.Mvc.ForbidResult, true);
+
+        // Test 8c: Admin User -> Allowed (ViewResult, JsonResult, FileContentResult)
+        var adminClaims = new List<System.Security.Claims.Claim>
+        {
+            new("userId", "1"),
+            new("userName", "System Administrator"),
+            new("role", "Admin")
+        };
+        var adminPrincipal = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(adminClaims, "TestAuth", "user", "role"));
+        auditController.ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
+        {
+            HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext { User = adminPrincipal }
+        };
+
+        var adminIndexResult = auditController.Index(new TMS.ViewModels.Audit.AuditLogFilterViewModel()).GetAwaiter().GetResult();
+        Equal("Admin role accessing Index returns ViewResult", adminIndexResult is Microsoft.AspNetCore.Mvc.ViewResult, true);
+
+        var adminDetailsResult = auditController.Details(marksLog.Id).GetAwaiter().GetResult();
+        Equal("Admin role accessing Details returns JsonResult", adminDetailsResult is Microsoft.AspNetCore.Mvc.JsonResult, true);
+
+        var adminCsvResult = auditController.ExportCsv(new TMS.ViewModels.Audit.AuditLogFilterViewModel()).GetAwaiter().GetResult();
+        Equal("Admin role accessing ExportCsv returns FileContentResult", adminCsvResult is Microsoft.AspNetCore.Mvc.FileContentResult, true);
+
+        // 9. Sidebar Navigation Verification
+        var menuPartialPath = Path.Combine("..", "TMS.Web", "Views", "Shared", "_MenuPartial.cshtml");
+        if (!File.Exists(menuPartialPath))
+            menuPartialPath = Path.Combine("TMS", "TMS.Web", "Views", "Shared", "_MenuPartial.cshtml");
+        var menuPartialContent = File.ReadAllText(menuPartialPath);
+        Equal("Admin menu contains Audit Logs item", menuPartialContent.Contains("asp-controller=\"AuditLogs\""), true);
+        Equal("Admin menu uses Audit Logs action Index", menuPartialContent.Contains("asp-action=\"Index\""), true);
+        Equal("Admin menu has Audit Logs title", menuPartialContent.Contains("data-title=\"Audit Logs\""), true);
+
+        var studentMenuPath = Path.Combine("..", "TMS.Web", "Views", "Shared", "_StudentMenu.cshtml");
+        if (!File.Exists(studentMenuPath))
+            studentMenuPath = Path.Combine("TMS", "TMS.Web", "Views", "Shared", "_StudentMenu.cshtml");
+        var studentMenuContent = File.ReadAllText(studentMenuPath);
+        Equal("Student menu does NOT contain Audit Logs link", studentMenuContent.Contains("AuditLogs"), false);
+    }
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Audit Trail Runtime Check Exception: {ex.Message} -> {ex.StackTrace}");
+    failed++;
+}
+
+
+
+
 Console.WriteLine($"TOTAL | PASS={passed} FAIL={failed}");
 return failed == 0 ? 0 : 1;
 

@@ -89,6 +89,8 @@ builder.Services.AddScoped<TMS.Web.Services.IAutomatedResultService, TMS.Web.Ser
 builder.Services.AddScoped<TMS.Web.Services.IContentModerationService, TMS.Web.Services.ContentModerationService>();
 builder.Services.AddScoped<TMS.Web.Services.IStudentAtRiskService, TMS.Web.Services.StudentAtRiskService>();
 builder.Services.AddScoped<TMS.Web.Services.ICertificationExamService, TMS.Web.Services.CertificationExamService>();
+builder.Services.AddScoped<TMS.Common.IAuditUserProvider, TMS.Web.Services.HttpAuditUserProvider>();
+builder.Services.AddScoped<TMS.Web.Services.IAuditLogService, TMS.Web.Services.AuditLogService>();
 
 
 // Reverse-proxy / ngrok: honor X-Forwarded-Proto, X-Forwarded-Host so Request.Scheme and Request.Host
