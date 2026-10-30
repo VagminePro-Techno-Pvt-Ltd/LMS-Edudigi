@@ -1776,41 +1776,155 @@ END
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "Failed to generate certificate PDF for attempt {AttemptId}", attemptId);
+                _logger?.LogWarning(ex, "System.Drawing GDI+ pipeline unavailable. Falling back to native QuestPDF cross-platform rendering for attempt {AttemptId}", attemptId);
 
-                if (existingCert == null)
+                try
                 {
-                    existingCert = new IssuedCertificate
+                    // Generate QR code bytes via PngByteQRCode (100% managed C#, zero GDI+ dependency)
+                    string verificationUrl = $"https://edudigi.org/CertificationExam/Verify?token={verifyToken}";
+                    byte[]? qrBytes = null;
+                    try
                     {
-                        CertificateNumber = certNumber,
-                        VerificationToken = verifyToken,
-                        CertificationExamAttemptId = attemptId,
-                        StudentId = attempt.StudentId,
-                        CertificationExamId = attempt.CertificationExamId,
-                        StudentFullName = studentName,
-                        CertificationTopic = topic,
-                        FinalGrade = grade,
-                        IsPassed = isPassed,
-                        IssueDate = issueDate,
-                        PdfFilePath = relativePath,
-                        Status = "Valid",
-                        GeneratedSuccessfully = false,
-                        GenerationError = ex.Message,
-                        CreatedBy = attempt.StudentId,
-                        CreatedOn = DateTime.UtcNow,
-                        IsActive = true
-                    };
-                    _db.IssuedCertificates.Add(existingCert);
-                }
-                else
-                {
-                    existingCert.GeneratedSuccessfully = false;
-                    existingCert.GenerationError = ex.Message;
-                    existingCert.UpdatedOn = DateTime.UtcNow;
-                }
+                        using var qrGen = new QRCodeGenerator();
+                        var qrData = qrGen.CreateQrCode(verificationUrl, QRCodeGenerator.ECCLevel.Q);
+                        var pngQr = new PngByteQRCode(qrData);
+                        qrBytes = pngQr.GetGraphic(4);
+                    }
+                    catch
+                    {
+                        // QR generation non-fatal for fallback
+                    }
 
-                await _db.SaveChangesAsync(ct);
-                return existingCert;
+                    var fallbackDoc = Document.Create(container =>
+                    {
+                        container.Page(page =>
+                        {
+                            page.Size(PageSizes.A4.Landscape());
+                            page.Margin(28);
+                            page.PageColor(Colors.Grey.Lighten5);
+
+                            page.Content().Border(3).BorderColor(Colors.Blue.Darken3).Padding(24).Column(col =>
+                            {
+                                col.Item().AlignCenter().Text("EDUDIGICLASS UNIVERSITY")
+                                    .FontSize(24).Bold().FontColor(Colors.Blue.Darken4);
+                                col.Item().AlignCenter().Text("OFFICIAL CERTIFICATE OF COMPLETION")
+                                    .FontSize(14).LetterSpacing(0.08f).FontColor(Colors.Grey.Darken1);
+
+                                col.Item().PaddingTop(22).AlignCenter().Text("This is proudly presented to")
+                                    .FontSize(12).Italic().FontColor(Colors.Grey.Darken2);
+
+                                col.Item().PaddingTop(6).AlignCenter().Text(studentName)
+                                    .FontSize(28).Bold().FontColor(Colors.Grey.Darken4);
+
+                                col.Item().PaddingTop(12).AlignCenter().Text(
+                                    isPassed
+                                        ? $"for successfully completing the comprehensive examination in {topic} with Grade {grade}."
+                                        : $"for completing and participating in the certification examination in {topic}.")
+                                    .FontSize(13).FontColor(Colors.Grey.Darken3);
+
+                                col.Item().PaddingTop(30).Row(row =>
+                                {
+                                    row.RelativeItem().Column(c =>
+                                    {
+                                        c.Item().Text($"Certificate ID: {certNumber}").FontSize(10).FontColor(Colors.Grey.Darken2);
+                                        c.Item().Text($"Issue Date: {issueDate:dd MMMM yyyy}").FontSize(10).FontColor(Colors.Grey.Darken2);
+                                        c.Item().Text($"Authorized Authority: EduDigiClass University").FontSize(9).FontColor(Colors.Grey.Darken1);
+                                    });
+
+                                    if (qrBytes != null && qrBytes.Length > 0)
+                                    {
+                                        row.ConstantItem(80).Column(qc =>
+                                        {
+                                            qc.Item().Width(70).Height(70).Image(qrBytes).FitArea();
+                                            qc.Item().AlignCenter().Text("Scan to Verify").FontSize(7).FontColor(Colors.Grey.Darken2);
+                                        });
+                                    }
+
+                                    row.RelativeItem().AlignRight().Column(c =>
+                                    {
+                                        c.Item().Text("Authorized Signatory").FontSize(10).Bold().FontColor(Colors.Grey.Darken4);
+                                        c.Item().Text("EduDigiClass Academic Board").FontSize(9).FontColor(Colors.Grey.Darken1);
+                                    });
+                                });
+                            });
+                        });
+                    });
+
+                    byte[] fallbackPdfBytes = fallbackDoc.GeneratePdf();
+                    await File.WriteAllBytesAsync(pdfFilePath, fallbackPdfBytes, ct);
+
+                    if (existingCert == null)
+                    {
+                        existingCert = new IssuedCertificate
+                        {
+                            CertificateNumber = certNumber,
+                            VerificationToken = verifyToken,
+                            CertificationExamAttemptId = attemptId,
+                            StudentId = attempt.StudentId,
+                            CertificationExamId = attempt.CertificationExamId,
+                            StudentFullName = studentName,
+                            CertificationTopic = topic,
+                            FinalGrade = grade,
+                            IsPassed = isPassed,
+                            IssueDate = issueDate,
+                            PdfFilePath = relativePath,
+                            Status = "Valid",
+                            GeneratedSuccessfully = true,
+                            CreatedBy = attempt.StudentId,
+                            CreatedOn = DateTime.UtcNow,
+                            IsActive = true
+                        };
+                        _db.IssuedCertificates.Add(existingCert);
+                    }
+                    else
+                    {
+                        existingCert.PdfFilePath = relativePath;
+                        existingCert.GeneratedSuccessfully = true;
+                        existingCert.GenerationError = null;
+                        existingCert.UpdatedOn = DateTime.UtcNow;
+                    }
+
+                    await _db.SaveChangesAsync(ct);
+                    return existingCert;
+                }
+                catch (Exception fallbackEx)
+                {
+                    _logger?.LogError(fallbackEx, "Both GDI+ and QuestPDF fallback failed for attempt {AttemptId}", attemptId);
+
+                    if (existingCert == null)
+                    {
+                        existingCert = new IssuedCertificate
+                        {
+                            CertificateNumber = certNumber,
+                            VerificationToken = verifyToken,
+                            CertificationExamAttemptId = attemptId,
+                            StudentId = attempt.StudentId,
+                            CertificationExamId = attempt.CertificationExamId,
+                            StudentFullName = studentName,
+                            CertificationTopic = topic,
+                            FinalGrade = grade,
+                            IsPassed = isPassed,
+                            IssueDate = issueDate,
+                            PdfFilePath = relativePath,
+                            Status = "Valid",
+                            GeneratedSuccessfully = false,
+                            GenerationError = ex.Message,
+                            CreatedBy = attempt.StudentId,
+                            CreatedOn = DateTime.UtcNow,
+                            IsActive = true
+                        };
+                        _db.IssuedCertificates.Add(existingCert);
+                    }
+                    else
+                    {
+                        existingCert.GeneratedSuccessfully = false;
+                        existingCert.GenerationError = ex.Message;
+                        existingCert.UpdatedOn = DateTime.UtcNow;
+                    }
+
+                    await _db.SaveChangesAsync(ct);
+                    return existingCert;
+                }
             }
         }
 

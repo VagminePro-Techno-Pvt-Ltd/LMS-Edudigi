@@ -1,44 +1,56 @@
+@*
+    _MenuPartial.cshtml — Unified Faculty + Admin Sidebar
+    Clean, Modern Light-Bluish SaaS Palette with Complete Scrolling
+*@
 @using System.Security.Claims
 @{
-    var userRole = User?.Claims?.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value
-                   ?? User?.Claims?.FirstOrDefault(c => c.Type == "role")?.Value
-                   ?? "";
-
-    var userRoleLower = userRole.ToLowerInvariant();
-
+    string? currentRole = User?.Claims?.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value
+                       ?? User?.Claims?.FirstOrDefault(c => c.Type == "role")?.Value
+                       ?? "";
+    string userRoleLower = currentRole.ToLowerInvariant().Trim();
     bool isAdmin = userRoleLower.Contains("admin")
                    || userRoleLower.Contains("super")
-                   || userRoleLower.Contains("management");
+                   || userRoleLower.Contains("management")
+                   || userRoleLower.Contains("coordinator")
+                   || string.IsNullOrEmpty(userRoleLower);
 
     bool isFaculty = !isAdmin && (userRoleLower.Contains("faculty")
                                   || userRoleLower.Contains("teacher")
                                   || userRoleLower.Contains("instructor")
-                                  || userRoleLower.Contains("evaluator")
-                                  || userRoleLower.Contains("coordinator"));
-
-    bool isStudent = !isAdmin && !isFaculty && userRoleLower.Contains("student");
-
-    if (string.IsNullOrWhiteSpace(userRoleLower))
-    {
-        isAdmin = true;
-    }
+                                  || userRoleLower.Contains("evaluator"));
 }
 
-<!-- Enhanced Minimal Modern LMS Sidebar (Light Minimalist Theme) -->
-<div class="sidebar-container" id="lmsSidebar">
-    <nav class="sidebar-nav">
+<div class="enhanced-menu-container">
+    <nav class="enhanced-sidebar">
+        <ul>
 
-        <!-- ── Section: Quick Switch ── -->
-        <ul class="sidebar-menu">
-            <li>
-                <a asp-area="" asp-controller="Home" asp-action="Index" class="active-hub" data-title="Dashboard">
-                    <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#2563eb;"><i class="fa-solid fa-house"></i></span>
-                    <span>Dashboard</span>
+            <!-- ── Brand Block ── -->
+            <li class="main-title" style="display:flex; align-items:center; gap:12px; padding:16px 18px 14px 18px; border-bottom:1px solid #f1f5f9; margin-bottom:12px;">
+                <span class="brand-icon-wrap" style="width:40px; height:40px; border-radius:12px; background:linear-gradient(135deg, #2563eb, #1d4ed8); color:#ffffff; display:flex; align-items:center; justify-content:center; font-size:19px; box-shadow:0 4px 12px rgba(37,99,235,0.28); flex-shrink:0;">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </span>
+                <div style="display:flex; flex-direction:column; line-height:1.2;">
+                    <span style="font-size:18px; font-weight:800; color:#0f172a; letter-spacing:-0.4px; font-family:'Outfit', 'Jost', sans-serif;">
+                        Edudigi <span style="color:#2563eb; font-weight:700;">Class</span>
+                    </span>
+                    <span style="font-size:10px; font-weight:700; color:#94a3b8; letter-spacing:0.8px; text-transform:uppercase; margin-top:2px;">
+                        LMS Platform
+                    </span>
+                </div>
+            </li>
+
+            <!-- ── Dashboard (Light Blue Active Pill) ── -->
+            <li style="margin: 0 10px 14px 10px;">
+                <a asp-area="" asp-controller="Home" asp-action="Index" data-title="Dashboard" class="active" style="background:#eff6ff !important; border:1px solid #bfdbfe; border-radius:12px; padding:10px 16px; display:flex; align-items:center; gap:12px; text-decoration:none;">
+                    <span class="icon-badge" style="width:32px; height:32px; border-radius:8px; background:#dbeafe; color:#2563eb; display:flex; align-items:center; justify-content:center; font-size:15px;">
+                        <i class="fa-solid fa-house"></i>
+                    </span>
+                    <span style="font-weight:700; color:#1d4ed8; font-size:14px;">Dashboard</span>
                 </a>
             </li>
 
             @* ════════════════════════════════════════════════════════════════
-               ADMINISTRATOR / MANAGEMENT MENU
+               USER MANAGEMENT (Admin)
             ════════════════════════════════════════════════════════════════ *@
             @if (isAdmin)
             {
@@ -46,15 +58,15 @@
                     User Management
                 </li>
                 <li>
-                    <a asp-area="Admin" asp-controller="User" asp-action="Index" data-title="Users">
+                    <a asp-area="Admin" asp-controller="User" asp-action="Index" data-title="All Users">
                         <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#2563eb;"><i class="fa-solid fa-users"></i></span>
                         <span>All Users</span>
                     </a>
                 </li>
                 <li>
                     <a asp-area="Admin" asp-controller="User" asp-action="Index" asp-route-roleFilter="Faculty" data-title="Faculty">
-                        <span class="icon-badge" style="--ibg:#f5f3ff; --iclr:#7c3aed;"><i class="fa-solid fa-chalkboard-user"></i></span>
-                        <span>Faculty Members</span>
+                        <span class="icon-badge" style="--ibg:#ecfdf5; --iclr:#10b981;"><i class="fa-solid fa-person-chalkboard"></i></span>
+                        <span>Faculty</span>
                     </a>
                 </li>
                 <li>
@@ -76,9 +88,9 @@
                     </a>
                 </li>
                 <li>
-                    <a asp-area="Admin" asp-controller="AuditLogs" asp-action="Index" data-title="Audit Trail">
-                        <span class="icon-badge" style="--ibg:#f1f5f9; --iclr:#475569;"><i class="fa-solid fa-clock-rotate-left"></i></span>
-                        <span>Audit Trail</span>
+                    <a asp-area="Admin" asp-controller="AuditLogs" asp-action="Index" data-title="Audit Logs">
+                        <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#0284c7;"><i class="fa-solid fa-clock-rotate-left"></i></span>
+                        <span>Audit Logs</span>
                     </a>
                 </li>
 
@@ -145,6 +157,12 @@
                         <span>Quiz Assessments</span>
                     </a>
                 </li>
+                <li>
+                    <a asp-area="" asp-controller="StudentAtRisk" asp-action="AdminDashboard" data-title="At-Risk Alerts">
+                        <span class="icon-badge" style="--ibg:#fee2e2; --iclr:#dc2626;"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                        <span>Student At-Risk Alerts</span>
+                    </a>
+                </li>
 
                 <li class="menu-section-header" style="padding: 14px 18px 6px; font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: 0.8px; text-transform: uppercase;">
                     AI Proctoring &amp; Monitoring
@@ -159,12 +177,6 @@
                     <a asp-area="Admin" asp-controller="ProctoringExam" asp-action="Create" data-title="Create Proctored Exam">
                         <span class="icon-badge" style="--ibg:#eff6ff; --iclr:#2563eb;"><i class="fa-solid fa-file-circle-plus"></i></span>
                         <span>Create Proctored Exam</span>
-                    </a>
-                </li>
-                <li>
-                    <a asp-area="" asp-controller="StudentAtRisk" asp-action="AdminDashboard" data-title="At-Risk Alerts">
-                        <span class="icon-badge" style="--ibg:#fee2e2; --iclr:#dc2626;"><i class="fa-solid fa-triangle-exclamation"></i></span>
-                        <span>Student At-Risk Alerts</span>
                     </a>
                 </li>
 
@@ -273,6 +285,12 @@
                     <a asp-area="" asp-controller="InternalGradeCard" asp-action="Index" data-title="Internal Grade Cards">
                         <span class="icon-badge" style="--ibg:#ecfdf5; --iclr:#059669;"><i class="fa-solid fa-file-lines"></i></span>
                         <span>Internal Grade Cards</span>
+                    </a>
+                </li>
+                <li>
+                    <a asp-area="" asp-controller="CertificationExam" asp-action="FacultyDashboard" data-title="Digital Certificates">
+                        <span class="icon-badge" style="--ibg:#fef3c7; --iclr:#d97706;"><i class="fa-solid fa-stamp"></i></span>
+                        <span>Certification Exams</span>
                     </a>
                 </li>
                 <li>

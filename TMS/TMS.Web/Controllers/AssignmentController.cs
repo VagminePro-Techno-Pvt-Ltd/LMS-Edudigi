@@ -27,20 +27,20 @@ namespace TMS.Web.Controllers
     public class AssignmentController : BaseController
     {
         private readonly ApplicationDBContext _context;
+        private readonly IAiAssignmentService _aiAssignmentService;
+        private readonly ILogger<AssignmentController> _logger;
         private readonly IEmailOutboxService? _outboxService;
-        private readonly IAiAssignmentService? _aiAssignmentService;
-        private readonly ILogger<AssignmentController>? _logger;
 
         public AssignmentController(
             ApplicationDBContext context,
-            IEmailOutboxService? outboxService = null,
-            IAiAssignmentService? aiAssignmentService = null,
-            ILogger<AssignmentController>? logger = null)
+            IAiAssignmentService aiAssignmentService,
+            ILogger<AssignmentController> logger,
+            IEmailOutboxService? outboxService = null)
         {
             _context = context;
-            _outboxService = outboxService;
             _aiAssignmentService = aiAssignmentService;
             _logger = logger;
+            _outboxService = outboxService;
         }
 
         private static bool IsAllowedUpload(IFormFile file)

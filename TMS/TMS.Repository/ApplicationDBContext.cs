@@ -567,7 +567,7 @@ namespace TMS.Repository
                 if (proxyIdx > 0) entityType = entityType.Substring(0, proxyIdx);
 
                 // Exclude high-frequency background/cache/indexing entities
-                if (entityType is "DocumentChunk" or "DocumentIndexStatus" or "LearningAssistantAnswerCache" or "LearningAssistantQueryLog" or "LearningAssistantCitationLog")
+                if (entityType is "DocumentChunk" or "DocumentIndexStatus" or "LearningAssistantAnswerCache" or "LearningAssistantQueryLog" or "LearningAssistantCitationLog" or "ContentSyncOutboxJob" or "EmailOutboxJob" or "ContentSyncFileRecord" or "EmailDeliveryLog")
                     continue;
 
                 var auditEntry = new AuditEntry(entry)
