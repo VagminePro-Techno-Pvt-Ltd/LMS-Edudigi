@@ -64,14 +64,14 @@ namespace TMS.Web.Services.ContentSync
             }
 
             bool cfgChanged = false;
-            if (!config.GoogleDriveEnabled)
+            if (config.GoogleDriveEnabled)
             {
-                config.GoogleDriveEnabled = true;
+                config.GoogleDriveEnabled = false;
                 cfgChanged = true;
             }
-            if (string.IsNullOrWhiteSpace(config.GoogleDriveRootFolderId))
+            if (!config.LocalDriveEnabled)
             {
-                config.GoogleDriveRootFolderId = "1AzKnULTWKDYkOKdehUyp8OlWCg08bOPj";
+                config.LocalDriveEnabled = true;
                 cfgChanged = true;
             }
             if (cfgChanged)
