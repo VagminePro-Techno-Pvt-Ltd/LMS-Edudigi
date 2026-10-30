@@ -26,9 +26,22 @@ namespace TMS.Web.Areas.Admin.Controllers
         public override async Task<IActionResult> Item(SemesterMasterViewModel model)
         {
             var res = await base.Item(model);
-            if (model.Id > 0)
+
+            int targetId = model.Id;
+            if (targetId <= 0 && !string.IsNullOrWhiteSpace(model.Name))
             {
-                await _provisioner.EnqueueProvisioningAsync("Semester", model.Id, "CreateOrUpdate");
+                var created = (await _manager.GetAsync(null, x => x.Name == model.Name && x.IsActive))
+                    .OrderByDescending(x => x.Id)
+                    .FirstOrDefault();
+                if (created != null)
+                {
+                    targetId = created.Id;
+                }
+            }
+
+            if (targetId > 0)
+            {
+                await _provisioner.EnqueueProvisioningAsync("Semester", targetId, "CreateOrUpdate");
             }
             return res;
         }

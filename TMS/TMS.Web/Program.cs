@@ -279,7 +279,7 @@ if (DatabaseInitializationGuard.ShouldRun(builder.Configuration, builder.Environ
     }
 }
 
-// Ensure ContentSync database tables exist
+// Ensure ContentSync database tables exist and sync hierarchy
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetService<TMS.Repository.ApplicationDBContext>();
@@ -288,6 +288,23 @@ using (var scope = app.Services.CreateScope())
         var logger = scope.ServiceProvider.GetService<ILogger<TMS.Repository.ApplicationDBContext>>();
         await TMS.Repository.ContentSyncDatabaseMigrator.EnsureTablesCreatedAsync(dbContext, logger);
         await TMS.Repository.EmailDatabaseMigrator.EnsureTablesCreatedAsync(dbContext, logger);
+
+        var provisioner = scope.ServiceProvider.GetService<TMS.Web.Services.ContentSync.IContentFolderProvisioner>();
+        if (provisioner != null)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(1000);
+                    await provisioner.TriggerFullHierarchyRecheckAsync();
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogWarning(ex, "Background hierarchy recheck encountered error: {Message}", ex.Message);
+                }
+            });
+        }
     }
 }
 

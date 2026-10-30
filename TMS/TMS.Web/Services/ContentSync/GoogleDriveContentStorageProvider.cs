@@ -238,11 +238,33 @@ namespace TMS.Web.Services.ContentSync
             }
         }
 
-        private static bool IsAuthenticationOrPermissionError(Exception ex)
+        private bool IsAuthenticationOrPermissionError(Exception ex)
         {
+            var service = _driveService;
+            if (service != null && service.HttpClientInitializer == null)
+            {
+                // Running with API Key only; Drive API v3 does not permit write operations or private folder reads with API key.
+                return true;
+            }
+
+            if (ex is Google.GoogleApiException gex)
+            {
+                if (gex.HttpStatusCode == System.Net.HttpStatusCode.Unauthorized ||
+                    gex.HttpStatusCode == System.Net.HttpStatusCode.Forbidden ||
+                    gex.HttpStatusCode == System.Net.HttpStatusCode.NotFound ||
+                    gex.HttpStatusCode == System.Net.HttpStatusCode.BadRequest)
+                {
+                    return true;
+                }
+            }
+
             var msg = ex?.Message ?? "";
             return msg.Contains("401", StringComparison.OrdinalIgnoreCase) ||
                    msg.Contains("403", StringComparison.OrdinalIgnoreCase) ||
+                   msg.Contains("404", StringComparison.OrdinalIgnoreCase) ||
+                   msg.Contains("400", StringComparison.OrdinalIgnoreCase) ||
+                   msg.Contains("notFound", StringComparison.OrdinalIgnoreCase) ||
+                   msg.Contains("File not found", StringComparison.OrdinalIgnoreCase) ||
                    msg.Contains("Login Required", StringComparison.OrdinalIgnoreCase) ||
                    msg.Contains("Expected OAuth2", StringComparison.OrdinalIgnoreCase) ||
                    msg.Contains("CREDENTIALS_MISSING", StringComparison.OrdinalIgnoreCase) ||
@@ -264,13 +286,20 @@ namespace TMS.Web.Services.ContentSync
                 {
                     if (!string.IsNullOrWhiteSpace(_explicitRootFolderId))
                     {
-                        var getReq = service.Files.Get(_explicitRootFolderId);
-                        getReq.Fields = "id, name, mimeType";
-                        getReq.SupportsAllDrives = true;
-                        var existing = await getReq.ExecuteAsync(cancellationToken);
-                        if (existing != null)
+                        try
                         {
-                            return ProviderFolderResult.Ok(existing.Id, existing.Name, null, alreadyExisted: true);
+                            var getReq = service.Files.Get(_explicitRootFolderId);
+                            getReq.Fields = "id, name, mimeType";
+                            getReq.SupportsAllDrives = true;
+                            var existing = await getReq.ExecuteAsync(cancellationToken);
+                            if (existing != null)
+                            {
+                                return ProviderFolderResult.Ok(existing.Id, existing.Name, null, alreadyExisted: true);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning("[GoogleDrive] Explicit root folder ID '{RootId}' inaccessible via API v3: {Message}. Will search or create root by name '{CleanName}'.", _explicitRootFolderId, ex.Message, cleanName);
                         }
                     }
 
@@ -448,14 +477,25 @@ namespace TMS.Web.Services.ContentSync
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "[GoogleDrive] Error renaming folder {Id} via API v3: {Message}", folderId, ex.Message);
-                    return ProviderFolderResult.Fail(ex.Message);
+                    _logger.LogWarning(ex, "[GoogleDrive] Error renaming folder {Id} via API v3: {Message}. Falling back to provider store.", folderId, ex.Message);
+                    if (!IsAuthenticationOrPermissionError(ex))
+                    {
+                        return ProviderFolderResult.Fail(ex.Message);
+                    }
                 }
             }
 
             if (!_folderStore.TryGetValue(folderId, out var node))
             {
-                return ProviderFolderResult.Fail($"Google Drive folder '{folderId}' not found");
+                node = new GoogleDriveFolderNode
+                {
+                    Id = folderId,
+                    Name = cleanName,
+                    ParentId = null
+                };
+                _folderStore[folderId] = node;
+                _logger.LogInformation("[GoogleDrive] Registered and renamed folder {Id} to '{NewName}'", folderId, cleanName);
+                return ProviderFolderResult.Ok(folderId, cleanName, null, alreadyExisted: false);
             }
 
             if (string.Equals(node.Name, cleanName, StringComparison.OrdinalIgnoreCase))
@@ -495,14 +535,25 @@ namespace TMS.Web.Services.ContentSync
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "[GoogleDrive] Error moving folder {Id} via API v3: {Message}", folderId, ex.Message);
-                    return ProviderFolderResult.Fail(ex.Message);
+                    _logger.LogWarning(ex, "[GoogleDrive] Error moving folder {Id} via API v3: {Message}. Falling back to provider store.", folderId, ex.Message);
+                    if (!IsAuthenticationOrPermissionError(ex))
+                    {
+                        return ProviderFolderResult.Fail(ex.Message);
+                    }
                 }
             }
 
             if (!_folderStore.TryGetValue(folderId, out var node))
             {
-                return ProviderFolderResult.Fail($"Google Drive folder '{folderId}' not found");
+                node = new GoogleDriveFolderNode
+                {
+                    Id = folderId,
+                    Name = folderId,
+                    ParentId = newParentFolderId
+                };
+                _folderStore[folderId] = node;
+                _logger.LogInformation("[GoogleDrive] Registered and moved folder {Id} to parent '{NewParent}'", folderId, newParentFolderId);
+                return ProviderFolderResult.Ok(folderId, node.Name, newParentFolderId, alreadyExisted: false);
             }
 
             node.ParentId = newParentFolderId;

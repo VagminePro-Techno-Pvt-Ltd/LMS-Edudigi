@@ -49,9 +49,21 @@ namespace TMS.Web.Areas.Admin.Controllers
                 }
             }
 
-            if (model.Id > 0)
+            int targetId = model.Id;
+            if (targetId <= 0 && !string.IsNullOrWhiteSpace(model.Name))
             {
-                await _provisioner.EnqueueProvisioningAsync("Program", model.Id, "CreateOrUpdate");
+                var created = (await _manager.GetAsync(null, x => x.Name == model.Name && x.IsActive))
+                    .OrderByDescending(x => x.Id)
+                    .FirstOrDefault();
+                if (created != null)
+                {
+                    targetId = created.Id;
+                }
+            }
+
+            if (targetId > 0)
+            {
+                await _provisioner.EnqueueProvisioningAsync("Program", targetId, "CreateOrUpdate");
             }
 
             return res;

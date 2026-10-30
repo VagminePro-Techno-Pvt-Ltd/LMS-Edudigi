@@ -122,6 +122,10 @@ namespace TMS.Repository.Managers.Implementations.Masters
                     var result = await _repository.AddAsync(createModel);
                     if (!result)
                         return false;
+
+                    await _repository.SaveChangesAsync();
+                    model.Id = createModel.Id;
+                    return true;
                 }
                 else
                 {  //Edit mode
@@ -132,9 +136,10 @@ namespace TMS.Repository.Managers.Implementations.Masters
                     var editResult = await _repository.UpdateAsync(updatedModel);
                     if (!editResult)
                         return false;
+
+                    await _repository.SaveChangesAsync();
+                    return true;
                 }
-                await _repository.SaveChangesAsync();
-                return true;
             }
             catch (Exception ex)
             {
