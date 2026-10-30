@@ -1,0 +1,2815 @@
+@using TMS.ViewModels.Assessments
+@model ManageQuestionsViewModel
+
+@{
+    ViewData["Title"] = $"Question Builder - {Model.Exam.Title}";
+    var exam = Model.Exam;
+    var existingIds = Model.ExistingQuestions.Select(q => q.Id).ToHashSet();
+}
+
+<style>
+    :root {
+        --qb-primary: #2563eb;
+        --qb-primary-light: #eff6ff;
+        --qb-secondary: #475569;
+        --qb-success: #16a34a;
+        --qb-success-light: #f0fdf4;
+        --qb-warning: #d97706;
+        --qb-warning-light: #fffbeb;
+        --qb-danger: #dc2626;
+        --qb-danger-light: #fef2f2;
+        --qb-surface: #ffffff;
+        --qb-bg: #f8fafc;
+        --qb-border: #e2e8f0;
+        --qb-dark: #0f172a;
+    }
+
+    .qb-header-card {
+        background: #ffffff;
+        border: 1px solid var(--qb-border);
+        border-radius: 16px;
+        padding: 1.5rem 1.8rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    }
+
+    .qb-card {
+        background: #ffffff;
+        border: 1px solid var(--qb-border);
+        border-radius: 16px;
+        padding: 1.6rem 1.8rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    }
+
+    .qb-tabs {
+        display: flex;
+        gap: 8px;
+        border-bottom: 2px solid #f1f5f9;
+        padding-bottom: 0px;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+
+    .qb-tab-btn {
+        background: transparent;
+        border: none;
+        border-bottom: 3px solid transparent;
+        padding: 12px 18px;
+        font-size: 0.92rem;
+        font-weight: 600;
+        color: #64748b;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+        margin-bottom: -2px;
+        border-radius: 8px 8px 0 0;
+    }
+
+    .qb-tab-btn:hover {
+        color: var(--qb-primary);
+        background: rgba(37, 99, 235, 0.03);
+    }
+
+    .qb-tab-btn.active {
+        color: var(--qb-primary);
+        border-bottom-color: var(--qb-primary);
+        background: var(--qb-primary-light);
+    }
+
+    .qb-badge-count {
+        background: rgba(100, 116, 139, 0.15);
+        color: #475569;
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .qb-tab-btn.active .qb-badge-count {
+        background: var(--qb-primary);
+        color: #ffffff;
+    }
+
+    .qb-pill-badge {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .qb-pill-mcq { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .qb-pill-coding { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+    .qb-pill-numerical { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+    .qb-pill-subjective { background: #faf5ff; color: #7e22ce; border: 1px solid #e9d5ff; }
+
+    .qb-question-item {
+        background: #ffffff;
+        border: 1px solid var(--qb-border);
+        border-radius: 12px;
+        padding: 1.25rem 1.4rem;
+        margin-bottom: 1rem;
+        transition: all 0.2s;
+    }
+
+    .qb-question-item:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .qb-mcq-opt {
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        font-size: 0.88rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .qb-mcq-opt.correct {
+        background: #f0fdf4;
+        border-color: #86efac;
+        color: #166534;
+        font-weight: 600;
+    }
+
+    .qb-dropzone {
+        border: 2px dashed #94a3b8;
+        border-radius: 16px;
+        padding: 2.5rem 1.5rem;
+        text-align: center;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .qb-dropzone:hover, .qb-dropzone.dragover {
+        border-color: var(--qb-primary);
+        background: var(--qb-primary-light);
+    }
+
+    .qb-code-snippet {
+        font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
+        font-size: 0.85rem;
+        background: #0f172a;
+        color: #f8fafc;
+        border-radius: 8px;
+        padding: 12px 16px;
+        overflow-x: auto;
+    }
+
+    /* =========================================================================
+       AI PROCTORING QUESTION EDITOR (EXACT MIRROR)
+       ========================================================================= */
+    .aeq-header-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 20px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+
+    .aeq-header-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .aeq-title-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .aeq-page-title {
+        margin: 0;
+        font-size: 1.45rem;
+        font-weight: 800;
+        color: #0f172a;
+        letter-spacing: -0.02em;
+    }
+
+    .aeq-badge-mode {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 2px 8px;
+        border-radius: 6px;
+        background: #eff6ff;
+        color: #2563eb;
+        border: 1px solid #bfdbfe;
+    }
+
+    .aeq-header-meta {
+        margin: 0;
+        font-size: 0.85rem;
+        color: #64748b;
+    }
+
+    .aeq-exam-name {
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .aeq-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .aeq-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+        margin-bottom: 20px;
+    }
+
+    .aeq-card-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .aeq-card-title {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .aeq-card-subtitle {
+        margin: 3px 0 0;
+        font-size: 0.82rem;
+        color: #64748b;
+    }
+
+    /* 6-Type Grid */
+    .aeq-type-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+    }
+
+    @@media (max-width: 992px) {
+        .aeq-type-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .aeq-type-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .aeq-type-card {
+        border: 1.5px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 14px 16px;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        background: #f8fafc;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        user-select: none;
+    }
+
+    .aeq-type-card:hover {
+        border-color: #93c5fd;
+        background: #eff6ff;
+        transform: translateY(-1px);
+    }
+
+    .aeq-type-card.active {
+        border-color: #2563eb;
+        background: #eff6ff;
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+    }
+
+    .aeq-type-icon {
+        font-size: 1.4rem;
+        margin-bottom: 2px;
+    }
+
+    .aeq-type-label {
+        font-weight: 700;
+        font-size: 0.95rem;
+        color: #0f172a;
+    }
+
+    .aeq-type-card.active .aeq-type-label {
+        color: #1d4ed8;
+    }
+
+    .aeq-type-desc {
+        font-size: 0.78rem;
+        color: #64748b;
+        line-height: 1.35;
+    }
+
+    /* Fields */
+    .aeq-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .aeq-label-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .aeq-label {
+        font-size: 0.85rem;
+        font-weight: 650;
+        color: #1e293b;
+    }
+
+    .aeq-label .required {
+        color: #ef4444;
+        margin-left: 2px;
+    }
+
+    .aeq-optional-text {
+        font-size: 0.78rem;
+        color: #94a3b8;
+        font-weight: 400;
+    }
+
+    .aeq-textarea,
+    .aeq-input,
+    .aeq-select {
+        width: 100%;
+        box-sizing: border-box;
+        background: #ffffff;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 9px;
+        padding: 10px 14px;
+        font-size: 0.92rem;
+        color: #0f172a;
+        outline: none;
+        transition: all 0.15s ease;
+    }
+
+    .aeq-textarea:focus,
+    .aeq-input:focus,
+    .aeq-select:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    .aeq-input-code,
+    .aeq-textarea-code {
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    }
+
+    /* Image Attachment */
+    .aeq-image-strip {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .aeq-btn-attach-img {
+        align-self: flex-start;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #4338ca;
+        background: #eef2ff;
+        border: 1px solid #c7d2fe;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .aeq-btn-attach-img:hover {
+        background: #e0e7ff;
+        border-color: #a5b4fc;
+    }
+
+    .aeq-image-dropzone {
+        border: 2px dashed #93c5fd;
+        border-radius: 12px;
+        padding: 20px 16px;
+        background: #f0f7ff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        text-align: center;
+        gap: 6px;
+        transition: all 0.15s ease;
+    }
+
+    .aeq-image-dropzone:hover {
+        border-color: #3b82f6;
+        background: #e8f2ff;
+    }
+
+    .aeq-dropzone-icon {
+        font-size: 1.8rem;
+    }
+
+    .aeq-dropzone-text {
+        font-size: 0.88rem;
+        color: #334155;
+        font-weight: 500;
+    }
+
+    .aeq-dropzone-hint {
+        font-size: 0.75rem;
+        color: #64748b;
+    }
+
+    .aeq-image-preview-box {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 12px 16px;
+    }
+
+    .aeq-image-preview-thumb {
+        max-height: 120px;
+        max-width: 180px;
+        object-fit: contain;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+    }
+
+    .aeq-image-preview-info {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .aeq-btn-remove-img {
+        align-self: flex-start;
+        padding: 5px 10px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #dc2626;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .aeq-btn-remove-img:hover {
+        background: #fee2e2;
+        border-color: #fca5a5;
+    }
+
+    /* MCQ Options */
+    .aeq-mcq-options-container {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .aeq-mcq-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: #f8fafc;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        transition: all 0.15s ease;
+        cursor: pointer;
+    }
+
+    .aeq-mcq-row:hover {
+        border-color: #cbd5e1;
+        background: #f1f5f9;
+    }
+
+    .aeq-mcq-row.is-correct {
+        background: #f0fdf4;
+        border-color: #22c55e;
+        box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.15);
+    }
+
+    .aeq-mcq-badge {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 0.95rem;
+        background: #e2e8f0;
+        color: #475569;
+        flex-shrink: 0;
+        transition: all 0.15s ease;
+    }
+
+    .aeq-mcq-row.is-correct .aeq-mcq-badge {
+        background: #22c55e;
+        color: #ffffff;
+    }
+
+    .aeq-mcq-radio {
+        cursor: pointer;
+        accent-color: #22c55e;
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+    }
+
+    .aeq-mcq-input {
+        flex: 1;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 0.92rem;
+        color: #0f172a;
+        outline: none;
+        transition: border-color 0.15s;
+    }
+
+    .aeq-mcq-input:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+    }
+
+    .aeq-mcq-correct-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        background: #dcfce7;
+        color: #15803d;
+        border-radius: 20px;
+        flex-shrink: 0;
+    }
+
+    /* Coding Section */
+    .aeq-coding-container {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .aeq-code-textarea {
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+        font-size: 0.88rem;
+        background: #0f172a;
+        color: #f8fafc;
+        border-color: #334155;
+        border-radius: 10px;
+        padding: 12px 14px;
+        min-height: 120px;
+    }
+
+    .aeq-code-textarea:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+    }
+
+    /* Coding Test Cases */
+    .ctce-container {
+        margin-top: 0.5rem;
+        padding: 1.25rem;
+        background: #0f172a;
+        border: 1px solid #334155;
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        color: #f8fafc;
+    }
+
+    .ctce-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        padding-bottom: 0.75rem;
+    }
+
+    .ctce-title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .ctce-title {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: #f8fafc;
+    }
+
+    .ctce-count-pill {
+        background: rgba(99, 102, 241, 0.2);
+        color: #a5b4fc;
+        border: 1px solid rgba(99, 102, 241, 0.4);
+        padding: 0.2rem 0.6rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .ctce-hint-box {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        background: rgba(59, 130, 246, 0.12);
+        border: 1px solid rgba(59, 130, 246, 0.25);
+        padding: 0.65rem 0.85rem;
+        border-radius: 8px;
+        color: #93c5fd;
+        font-size: 0.82rem;
+        line-height: 1.4;
+    }
+
+    .ctce-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+    }
+
+    .ctce-card {
+        background: rgba(30, 41, 59, 0.75);
+        border-radius: 8px;
+        padding: 1rem;
+        border-left: 4px solid #64748b;
+        border-top: 1px solid rgba(148, 163, 184, 0.15);
+        border-right: 1px solid rgba(148, 163, 184, 0.15);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+        transition: all 0.15s ease;
+    }
+
+    .ctce-card.public-case {
+        border-left-color: #3b82f6;
+    }
+
+    .ctce-card.hidden-case {
+        border-left-color: #f59e0b;
+    }
+
+    .ctce-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+    }
+
+    .ctce-card-title {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+    }
+
+    .ctce-case-num {
+        font-weight: 700;
+        font-size: 0.9rem;
+        color: #f1f5f9;
+    }
+
+    .ctce-type-badge {
+        font-size: 0.7rem;
+        padding: 0.15rem 0.5rem;
+        border-radius: 4px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .badge-public {
+        background: rgba(59, 130, 246, 0.2);
+        color: #60a5fa;
+        border: 1px solid rgba(59, 130, 246, 0.4);
+    }
+
+    .badge-hidden {
+        background: rgba(245, 158, 11, 0.2);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+
+    .ctce-card-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .ctce-checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.8rem;
+        color: #cbd5e1;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .ctce-checkbox-label input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        accent-color: #3b82f6;
+    }
+
+    .ctce-btn-delete {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        font-size: 0.9rem;
+        opacity: 0.75;
+        transition: opacity 0.15s;
+    }
+
+    .ctce-btn-delete:hover {
+        opacity: 1;
+    }
+
+    .ctce-grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.85rem;
+    }
+
+    @@media (max-width: 640px) {
+        .ctce-grid-2 {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .ctce-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+    }
+
+    .ctce-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #cbd5e1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .ctce-sublabel {
+        font-size: 0.7rem;
+        font-weight: 400;
+        color: #94a3b8;
+    }
+
+    .ctce-req {
+        color: #f87171;
+        font-size: 0.7rem;
+    }
+
+    .ctce-textarea,
+    .ctce-input {
+        width: 100%;
+        box-sizing: border-box;
+        background: #0b1120;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        color: #f8fafc;
+        padding: 0.5rem 0.65rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        transition: border-color 0.15s;
+    }
+
+    .ctce-textarea:focus,
+    .ctce-input:focus {
+        outline: none;
+        border-color: #6366f1;
+    }
+
+    .ctce-mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    .ctce-footer {
+        display: flex;
+        justify-content: flex-start;
+    }
+
+    .ctce-btn-add {
+        background: rgba(99, 102, 241, 0.15);
+        color: #a5b4fc;
+        border: 1px dashed rgba(99, 102, 241, 0.4);
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+        width: 100%;
+        text-align: center;
+    }
+
+    .ctce-btn-add:hover {
+        background: rgba(99, 102, 241, 0.25);
+        color: #fff;
+        border-color: #6366f1;
+    }
+
+    /* Numerical & Equation Extras */
+    .aeq-grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    @@media (max-width: 640px) {
+        .aeq-grid-2 {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .aeq-dynamic-box {
+        background: #f8fafc;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 16px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        margin-top: 14px;
+    }
+
+    .aeq-checkbox-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+        font-weight: 650;
+        color: #1e293b;
+        cursor: pointer;
+    }
+
+    .aeq-checkbox-label input[type="checkbox"] {
+        width: 17px;
+        height: 17px;
+        accent-color: #2563eb;
+    }
+
+    /* Marks & Weightage */
+    .aeq-marks-row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .aeq-marks-input-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .aeq-marks-input {
+        width: 90px;
+        text-align: center;
+        font-size: 1.1rem;
+        font-weight: 700;
+        padding: 8px 10px;
+        background: #ffffff;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 8px;
+    }
+
+    .aeq-marks-pills {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .aeq-marks-pill-btn {
+        padding: 6px 12px;
+        font-size: 0.82rem;
+        font-weight: 650;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        color: #475569;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .aeq-marks-pill-btn:hover {
+        background: #f1f5f9;
+        border-color: #94a3b8;
+        color: #0f172a;
+    }
+
+    .aeq-marks-pill-btn.active {
+        background: #2563eb;
+        color: #ffffff;
+        border-color: #2563eb;
+    }
+
+    /* Sticky Action Bar */
+    .aeq-sticky-footer {
+        position: sticky;
+        bottom: 20px;
+        z-index: 100;
+        background: rgba(255, 255, 255, 0.96);
+        backdrop-filter: blur(8px);
+        border: 1.5px solid #cbd5e1;
+        border-radius: 14px;
+        padding: 14px 24px;
+        box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 24px;
+    }
+
+    .aeq-footer-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .aeq-footer-status {
+        font-size: 0.88rem;
+        color: #64748b;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .aeq-footer-status strong {
+        color: #0f172a;
+    }
+
+    .aeq-footer-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .aeq-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 9px 18px;
+        font-size: 0.9rem;
+        font-weight: 650;
+        border-radius: 9px;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        border: 1px solid transparent;
+        text-decoration: none;
+    }
+
+    .aeq-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .aeq-btn-cancel {
+        background: #ffffff;
+        color: #475569;
+        border-color: #cbd5e1;
+    }
+
+    .aeq-btn-cancel:hover:not(:disabled) {
+        background: #f1f5f9;
+        color: #0f172a;
+    }
+
+    .aeq-btn-secondary {
+        background: #f8fafc;
+        color: #2563eb;
+        border-color: #bfdbfe;
+    }
+
+    .aeq-btn-secondary:hover:not(:disabled) {
+        background: #eff6ff;
+        border-color: #93c5fd;
+    }
+
+    .aeq-btn-primary {
+        background: #2563eb;
+        color: #ffffff;
+        box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+    }
+
+    .aeq-btn-primary:hover:not(:disabled) {
+        background: #1d4ed8;
+        box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
+    }
+
+    .aeq-spinner {
+        width: 15px;
+        height: 15px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: #ffffff;
+        animation: aeq-spin 0.6s linear infinite;
+        display: inline-block;
+    }
+
+    @@keyframes aeq-spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+
+<div class="container-fluid px-0">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb py-2 px-3 bg-white rounded-3 shadow-sm border border-light">
+            <li class="breadcrumb-item"><a asp-area="Admin" asp-controller="Home" asp-action="Index" class="text-decoration-none">Dashboard</a></li>
+            <li class="breadcrumb-item">AI Proctoring</li>
+            <li class="breadcrumb-item"><a asp-area="Admin" asp-controller="ProctoringExam" asp-action="Index" class="text-decoration-none">All Exams</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Question Builder</li>
+        </ol>
+    </nav>
+
+    <!-- TempData Alerts -->
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show shadow-sm rounded-3 mb-4" role="alert">
+            <i class="fa fa-check-circle me-2 fs-5 align-middle"></i>
+            <span>@TempData["SuccessMessage"]</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm rounded-3 mb-4" role="alert">
+            <i class="fa fa-exclamation-triangle me-2 fs-5 align-middle"></i>
+            <span>@TempData["ErrorMessage"]</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <!-- Header Card -->
+    <div class="qb-header-card">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="badge bg-primary text-white px-2 py-1 fs-7">Exam GUID</span>
+                    <span class="text-muted font-monospace small">@exam.Id</span>
+                </div>
+                <h2 class="h3 fw-bold mb-1 text-dark">@exam.Title</h2>
+                <div class="d-flex flex-wrap align-items-center gap-3 text-secondary small">
+                    <span><i class="fa fa-clock me-1 text-primary"></i><strong>@exam.DurationMinutes</strong> Minutes</span>
+                    <span>•</span>
+                    <span><i class="fa fa-graduation-cap me-1 text-primary"></i>@(string.IsNullOrWhiteSpace(exam.TargetCourseName) ? "Global (All Courses)" : exam.TargetCourseName)</span>
+                    <span>•</span>
+                    <span>Passing: <strong>@exam.PassingPercentage%</strong></span>
+                </div>
+            </div>
+
+            <!-- Quick Action Badges & Publish Form -->
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <a asp-area="Admin" asp-controller="ProctoringExam" asp-action="Index" class="btn btn-outline-secondary btn-sm px-3 rounded-pill shadow-sm">
+                    <i class="fa fa-arrow-left me-1"></i> Back to All Exams
+                </a>
+                <a asp-area="Admin" asp-controller="ProctoringExam" asp-action="Create" class="btn btn-outline-primary btn-sm px-3 rounded-pill shadow-sm">
+                    <i class="fa fa-plus me-1"></i> New Exam
+                </a>
+
+                @if (exam.IsActive)
+                {
+                    <span class="badge bg-success text-white px-3 py-2 fs-6 rounded-pill d-inline-flex align-items-center gap-1 shadow-sm">
+                        <i class="fa fa-check-circle"></i> Published & Active
+                    </span>
+                    <form asp-area="Admin" asp-controller="ProctoringExam" asp-action="TogglePublish" method="post" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="examId" value="@exam.Id" />
+                        <button type="submit" class="btn btn-outline-warning btn-sm px-3 rounded-pill" onclick="return confirm('Unpublish this exam and revert to Draft? Students will not be able to take it.');">
+                            <i class="fa fa-pause-circle me-1"></i> Revert to Draft
+                        </button>
+                    </form>
+                }
+                else
+                {
+                    <span class="badge bg-warning text-dark px-3 py-2 fs-6 rounded-pill d-inline-flex align-items-center gap-1 shadow-sm">
+                        <i class="fa fa-file-pen"></i> Draft (Unpublished)
+                    </span>
+                    <form asp-area="Admin" asp-controller="ProctoringExam" asp-action="TogglePublish" method="post" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="examId" value="@exam.Id" />
+                        <button type="submit" class="btn btn-success btn-sm px-3 rounded-pill shadow-sm" @(Model.ExistingQuestions.Count == 0 ? "disabled title='Add questions first'" : "")>
+                            <i class="fa fa-paper-plane me-1"></i> Publish Exam Now
+                        </button>
+                    </form>
+                }
+            </div>
+        </div>
+
+        <!-- Metrics Strip -->
+        <div class="row g-3 mt-3 pt-3 border-top">
+            <div class="col-6 col-md-3">
+                <div class="p-2 rounded bg-light border text-center">
+                    <div class="text-muted small fw-bold text-uppercase">Total Questions</div>
+                    <div class="fs-4 fw-bold text-primary">@Model.ExistingQuestions.Count</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-2 rounded bg-light border text-center">
+                    <div class="text-muted small fw-bold text-uppercase">Total Marks</div>
+                    <div class="fs-4 fw-bold text-success">@Model.TotalCalculatedMarks</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-2 rounded bg-light border text-center">
+                    <div class="text-muted small fw-bold text-uppercase">Exam Target Marks</div>
+                    <div class="fs-4 fw-bold text-dark">@exam.TotalMarks</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-2 rounded bg-light border text-center">
+                    <div class="text-muted small fw-bold text-uppercase">Question Bank</div>
+                    <div class="fs-4 fw-bold text-info">@Model.QuestionBank.TotalCount+ <small class="fs-7 fw-normal text-muted">avail</small></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Navigation Tabs -->
+    <div class="qb-tabs">
+        <button class="qb-tab-btn @(Model.ActiveTab == "review" ? "active" : "")" onclick="switchTab('review')">
+            <i class="fa fa-list-check"></i>
+            <span>Review & Publish</span>
+            <span class="qb-badge-count">@Model.ExistingQuestions.Count</span>
+        </button>
+        <button class="qb-tab-btn @(Model.ActiveTab == "manual" ? "active" : "")" onclick="switchTab('manual')">
+            <i class="fa fa-plus-circle"></i>
+            <span>Create Manually</span>
+        </button>
+        <button class="qb-tab-btn @(Model.ActiveTab == "bank" ? "active" : "")" onclick="switchTab('bank')">
+            <i class="fa fa-book-bookmark"></i>
+            <span>Question Bank</span>
+            <span class="qb-badge-count">@Model.QuestionBank.TotalCount</span>
+        </button>
+        <button class="qb-tab-btn @(Model.ActiveTab == "pdf" ? "active" : "")" onclick="switchTab('pdf')">
+            <i class="fa fa-wand-magic-sparkles"></i>
+            <span>Upload PDF (AI)</span>
+        </button>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 1: REVIEW QUESTIONS & PUBLISH -->
+    <!-- ========================================================================= -->
+    <div id="tab-review" class="qb-tab-content" style="@(Model.ActiveTab == "review" ? "display:block;" : "display:none;")">
+        <div class="qb-card">
+            <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+                <div>
+                    <h4 class="fw-bold mb-1">Assigned Exam Questions</h4>
+                    <p class="text-muted small mb-0">These questions will be served in randomized or designated sequence to eligible students.</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="switchTab('manual')">
+                        <i class="fa fa-plus me-1"></i> Add Manual
+                    </button>
+                    <button class="btn btn-outline-success btn-sm rounded-pill px-3" onclick="switchTab('bank')">
+                        <i class="fa fa-book-bookmark me-1"></i> Import Bank
+                    </button>
+                    <button class="btn btn-outline-info btn-sm rounded-pill px-3" onclick="switchTab('pdf')">
+                        <i class="fa fa-file-pdf me-1"></i> Upload PDF
+                    </button>
+                </div>
+            </div>
+
+            @if (Model.ExistingQuestions.Count == 0)
+            {
+                <div class="text-center py-5 border border-dashed rounded-4 bg-light my-3">
+                    <div class="display-6 text-muted mb-3"><i class="fa fa-folder-open text-primary opacity-50"></i></div>
+                    <h5 class="fw-bold text-dark mb-2">No Questions Added to this Exam Yet</h5>
+                    <p class="text-muted small mb-4" style="max-width: 480px; margin: 0 auto;">
+                        Select an option below to populate your exam paper. You can add multiple choice questions, coding challenges, import from 700+ central questions, or extract directly from a PDF.
+                    </p>
+                    <div class="d-flex flex-wrap justify-content-center gap-3">
+                        <button class="btn btn-primary rounded-pill px-4 shadow-sm" onclick="switchTab('manual')">
+                            <i class="fa fa-plus-circle me-1"></i> Create Question Manually
+                        </button>
+                        <button class="btn btn-success rounded-pill px-4 shadow-sm" onclick="switchTab('bank')">
+                            <i class="fa fa-book-bookmark me-1"></i> Import from Question Bank
+                        </button>
+                        <button class="btn btn-info text-white rounded-pill px-4 shadow-sm" onclick="switchTab('pdf')">
+                            <i class="fa fa-wand-magic-sparkles me-1"></i> Extract Questions from PDF (AI)
+                        </button>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive mb-4">
+                    @{ int qIndex = 1; }
+                    @foreach (var q in Model.ExistingQuestions)
+                    {
+                        var qType = string.IsNullOrWhiteSpace(q.QuestionType) ? "MCQ" : q.QuestionType.ToUpperInvariant();
+                        <div class="qb-question-item">
+                            <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-dark text-white rounded-pill px-2 py-1">Q@(qIndex++)</span>
+                                    @if (qType.Contains("MCQ"))
+                                    {
+                                        <span class="qb-pill-badge qb-pill-mcq"><i class="fa fa-list-ul"></i> MCQ</span>
+                                    }
+                                    else if (qType == "CODING")
+                                    {
+                                        <span class="qb-pill-badge qb-pill-coding"><i class="fa fa-code"></i> Coding</span>
+                                    }
+                                    else if (qType == "NUMERICAL")
+                                    {
+                                        <span class="qb-pill-badge qb-pill-numerical"><i class="fa fa-calculator"></i> Numerical</span>
+                                    }
+                                    else if (qType == "EQUATION")
+                                    {
+                                        <span class="qb-pill-badge" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a;"><i class="fa fa-square-root-variable"></i> Equation</span>
+                                    }
+                                    else if (qType == "SHORT_ANSWER")
+                                    {
+                                        <span class="qb-pill-badge" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd;"><i class="fa fa-pen"></i> Short Answer</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="qb-pill-badge qb-pill-subjective"><i class="fa fa-paragraph"></i> Subjective</span>
+                                    }
+                                    <span class="badge bg-light text-secondary border">@q.Marks Marks</span>
+                                </div>
+                                <form asp-area="Admin" asp-controller="ProctoringExam" asp-action="DeleteQuestion" method="post" class="d-inline" onsubmit="return confirm('Remove question from exam?');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="examId" value="@exam.Id" />
+                                    <input type="hidden" name="questionId" value="@q.Id" />
+                                    <button type="submit" class="btn btn-outline-danger btn-sm rounded-circle p-1" style="width: 28px; height: 28px;" title="Remove Question">
+                                        <i class="fa fa-trash-alt small"></i>
+                                    </button>
+                                </form>
+                            </div>
+
+                            <p class="fw-semibold text-dark mb-2">@q.QuestionText</p>
+
+                            @if (!string.IsNullOrWhiteSpace(q.ImageUrl))
+                            {
+                                <div class="mb-3">
+                                    <img src="@(q.ImageUrl.StartsWith("http") ? q.ImageUrl : $"{ViewBag.FrontendBaseUrl ?? ""}{q.ImageUrl}")" alt="Question Diagram" class="img-fluid rounded border p-1" style="max-height: 180px; background:#fff;" />
+                                </div>
+                            }
+
+                            <!-- MCQ Options Display -->
+                            @if (qType.Contains("MCQ") && (!string.IsNullOrWhiteSpace(q.OptionA) || !string.IsNullOrWhiteSpace(q.OptionB)))
+                            {
+                                <div class="row g-2 mb-2">
+                                    @if (!string.IsNullOrWhiteSpace(q.OptionA))
+                                    {
+                                        <div class="col-md-6">
+                                            <div class="qb-mcq-opt @(string.Equals(q.CorrectOption, "A", StringComparison.OrdinalIgnoreCase) ? "correct" : "")">
+                                                <strong class="font-monospace">A)</strong> @q.OptionA
+                                                @if (string.Equals(q.CorrectOption, "A", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    <i class="fa fa-check-circle ms-auto text-success"></i>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(q.OptionB))
+                                    {
+                                        <div class="col-md-6">
+                                            <div class="qb-mcq-opt @(string.Equals(q.CorrectOption, "B", StringComparison.OrdinalIgnoreCase) ? "correct" : "")">
+                                                <strong class="font-monospace">B)</strong> @q.OptionB
+                                                @if (string.Equals(q.CorrectOption, "B", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    <i class="fa fa-check-circle ms-auto text-success"></i>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(q.OptionC))
+                                    {
+                                        <div class="col-md-6">
+                                            <div class="qb-mcq-opt @(string.Equals(q.CorrectOption, "C", StringComparison.OrdinalIgnoreCase) ? "correct" : "")">
+                                                <strong class="font-monospace">C)</strong> @q.OptionC
+                                                @if (string.Equals(q.CorrectOption, "C", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    <i class="fa fa-check-circle ms-auto text-success"></i>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(q.OptionD))
+                                    {
+                                        <div class="col-md-6">
+                                            <div class="qb-mcq-opt @(string.Equals(q.CorrectOption, "D", StringComparison.OrdinalIgnoreCase) ? "correct" : "")">
+                                                <strong class="font-monospace">D)</strong> @q.OptionD
+                                                @if (string.Equals(q.CorrectOption, "D", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    <i class="fa fa-check-circle ms-auto text-success"></i>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else if (qType == "CODING" && !string.IsNullOrWhiteSpace(q.CodeSnippet))
+                            {
+                                <div class="mb-2">
+                                    <div class="small text-muted mb-1"><i class="fa fa-code me-1"></i>Language: <strong>@(q.CodeLanguage ?? "python")</strong></div>
+                                    <pre class="qb-code-snippet mb-0"><code>@q.CodeSnippet</code></pre>
+                                </div>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(q.AnswerText))
+                            {
+                                <div class="small bg-light p-2 rounded border">
+                                    <span class="text-muted fw-bold">Answer / Model Solution:</span> @q.AnswerText
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <div class="p-3 bg-light rounded-3 d-flex flex-wrap align-items-center justify-content-between gap-3 border">
+                    <div>
+                        <span class="fw-bold text-dark">Total Marks:</span>
+                        <span class="fs-5 fw-bold text-success ms-2">@Model.TotalCalculatedMarks</span>
+                        <span class="text-muted small ms-2">across @Model.ExistingQuestions.Count question(s)</span>
+                    </div>
+                    @if (!exam.IsActive)
+                    {
+                        <form asp-area="Admin" asp-controller="ProctoringExam" asp-action="TogglePublish" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="examId" value="@exam.Id" />
+                            <button type="submit" class="btn btn-success px-4 rounded-pill shadow-sm">
+                                <i class="fa fa-paper-plane me-1"></i> Publish Exam Now
+                            </button>
+                        </form>
+                    }
+                    else
+                    {
+                        <span class="badge bg-success text-white px-3 py-2 rounded-pill"><i class="fa fa-check-circle me-1"></i>Ready & Published</span>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 2: CREATE MANUALLY (EXACT AI PROCTORING MIRROR) -->
+    <!-- ========================================================================= -->
+    <div id="tab-manual" class="qb-tab-content" style="@(Model.ActiveTab == "manual" ? "display:block;" : "display:none;")">
+
+        <!-- SUCCESS BANNER (Save & Add Another) -->
+        <div id="aeqSuccessBanner" style="display:none; background:#ecfdf5; border:1px solid #6ee7b7; border-radius:12px; padding:14px 18px; color:#065f46; font-weight:600; font-size:0.92rem; align-items:center; justify-content:space-between; margin-bottom:20px;">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fa fa-check-circle fs-5 text-success"></i>
+                <span id="aeqSuccessText">Question added successfully! You can add another question below.</span>
+            </div>
+            <button type="button" onclick="document.getElementById('aeqSuccessBanner').style.display='none';" style="background:transparent; border:none; color:#065f46; cursor:pointer; font-size:1.1rem; line-height:1;">✕</button>
+        </div>
+
+        <!-- HEADER CARD -->
+        <div class="aeq-header-card">
+            <div class="aeq-header-info">
+                <div class="aeq-title-row">
+                    <h1 class="aeq-page-title">Add New Question</h1>
+                    <span class="aeq-badge-mode">New Question</span>
+                </div>
+                <p class="aeq-header-meta">
+                    Configuring question for exam: <span class="aeq-exam-name">@exam.Title</span>
+                </p>
+            </div>
+
+            <div class="aeq-header-actions">
+                <button type="button" class="aeq-btn aeq-btn-cancel" onclick="switchTab('review')">
+                    Cancel
+                </button>
+                <button type="button" class="aeq-btn aeq-btn-secondary" onclick="handleSaveQuestion(true)" id="aeqHeaderBtnSaveAddAnother">
+                    Save & Add Another
+                </button>
+                <button type="button" class="aeq-btn aeq-btn-primary" onclick="handleSaveQuestion(false)" id="aeqHeaderBtnSaveQuestion">
+                    <span class="aeq-spinner me-1" style="display:none;" id="aeqHeaderSpinner"></span>
+                    Save Question
+                </button>
+            </div>
+        </div>
+
+        <!-- 1. QUESTION TYPE SELECTOR -->
+        <div class="aeq-card">
+            <div class="aeq-card-header">
+                <div>
+                    <h2 class="aeq-card-title">1. Select Question Type</h2>
+                    <p class="aeq-card-subtitle">Choose the response format for candidate evaluation</p>
+                </div>
+            </div>
+
+            <div class="aeq-type-grid">
+                <div class="aeq-type-card active" data-type="MCQ" onclick="selectQuestionType('MCQ')">
+                    <div class="aeq-type-icon">🔘</div>
+                    <div class="aeq-type-label">MCQ</div>
+                    <div class="aeq-type-desc">Multiple choice with single correct answer</div>
+                </div>
+
+                <div class="aeq-type-card" data-type="SUBJECTIVE" onclick="selectQuestionType('SUBJECTIVE')">
+                    <div class="aeq-type-icon">📝</div>
+                    <div class="aeq-type-label">Subjective</div>
+                    <div class="aeq-type-desc">Long-form descriptive answer</div>
+                </div>
+
+                <div class="aeq-type-card" data-type="SHORT_ANSWER" onclick="selectQuestionType('SHORT_ANSWER')">
+                    <div class="aeq-type-icon">✏️</div>
+                    <div class="aeq-type-label">Short Answer</div>
+                    <div class="aeq-type-desc">Concise string or keyword answer</div>
+                </div>
+
+                <div class="aeq-type-card" data-type="CODING" onclick="selectQuestionType('CODING')">
+                    <div class="aeq-type-icon">💻</div>
+                    <div class="aeq-type-label">Coding</div>
+                    <div class="aeq-type-desc">Automated test-case code execution</div>
+                </div>
+
+                <div class="aeq-type-card" data-type="NUMERICAL" onclick="selectQuestionType('NUMERICAL')">
+                    <div class="aeq-type-icon">🔢</div>
+                    <div class="aeq-type-label">Numerical</div>
+                    <div class="aeq-type-desc">Numeric value with tolerance</div>
+                </div>
+
+                <div class="aeq-type-card" data-type="EQUATION" onclick="selectQuestionType('EQUATION')">
+                    <div class="aeq-type-icon">∑</div>
+                    <div class="aeq-type-label">Equation</div>
+                    <div class="aeq-type-desc">LaTeX mathematical equation</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. QUESTION STATEMENT & ATTACHMENT -->
+        <div class="aeq-card">
+            <div class="aeq-card-header">
+                <div>
+                    <h2 class="aeq-card-title">2. Question Statement</h2>
+                    <p class="aeq-card-subtitle">Enter the question prompt and optional reference diagram/image</p>
+                </div>
+                <button type="button" class="aeq-btn-attach-img" id="aeqBtnShowAttach" onclick="showImageDropzone()">
+                    📷 Attach Image
+                </button>
+            </div>
+
+            <div class="aeq-field">
+                <div class="aeq-label-row">
+                    <label class="aeq-label" for="aeqQuestionText">
+                        Question Statement <span class="required">*</span>
+                    </label>
+                    <span class="aeq-optional-text"><span id="aeqCharCount">0</span> characters</span>
+                </div>
+                <textarea
+                    id="aeqQuestionText"
+                    class="aeq-textarea"
+                    placeholder="Type your question statement or problem description here..."
+                    rows="4"
+                    oninput="handleQuestionTextInput(this)"></textarea>
+            </div>
+
+            <!-- Image Dropzone & Preview -->
+            <div class="aeq-image-strip">
+                <div id="aeqImageDropzone" class="aeq-image-dropzone" style="display:none;" onclick="document.getElementById('aeqImageFileInput').click();">
+                    <input type="file" id="aeqImageFileInput" accept="image/*" style="display:none;" onchange="handleImageFileSelect(this.files)" />
+                    <div class="aeq-dropzone-icon">📷</div>
+                    <div class="aeq-dropzone-text">Click to upload or drag & drop reference diagram / question image</div>
+                    <div class="aeq-dropzone-hint">Supported formats: PNG, JPG, GIF, WebP, SVG (Max 5MB)</div>
+                </div>
+
+                <div id="aeqImagePreviewBox" class="aeq-image-preview-box" style="display:none;">
+                    <img id="aeqImageThumb" class="aeq-image-preview-thumb" src="" alt="Question Attachment" />
+                    <div class="aeq-image-preview-info">
+                        <span class="fw-semibold text-dark small" id="aeqImageFileName">image.png</span>
+                        <span class="text-muted small" id="aeqImageFileSize">Uploaded</span>
+                        <button type="button" class="aeq-btn-remove-img" onclick="removeQuestionImage()">
+                            Remove Image
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. QUESTION CONFIGURATION (TYPE SPECIFIC) -->
+        <div class="aeq-card">
+            <div class="aeq-card-header">
+                <div>
+                    <h2 class="aeq-card-title">3. Question Configuration</h2>
+                    <p class="aeq-card-subtitle" id="aeqConfigSubtitle">
+                        Provide the option choices and select the radio button for the correct answer
+                    </p>
+                </div>
+            </div>
+
+            <!-- MCQ PANEL -->
+            <div id="panel_MCQ" class="aeq-mcq-options-container">
+                <!-- Option A -->
+                <div class="aeq-mcq-row is-correct" id="aeqRowA" onclick="selectMcqCorrectOption('A')">
+                    <div class="aeq-mcq-badge">A</div>
+                    <input type="radio" class="aeq-mcq-radio" name="aeqCorrectRadio" value="A" checked onclick="event.stopPropagation(); selectMcqCorrectOption('A');" />
+                    <input type="text" class="aeq-mcq-input" id="aeqOptA" placeholder="Enter Option A statement *" onclick="event.stopPropagation();" />
+                    <span class="aeq-mcq-correct-tag" id="aeqTagA">
+                        <i class="fa fa-check me-1"></i> Correct Answer
+                    </span>
+                </div>
+
+                <!-- Option B -->
+                <div class="aeq-mcq-row" id="aeqRowB" onclick="selectMcqCorrectOption('B')">
+                    <div class="aeq-mcq-badge">B</div>
+                    <input type="radio" class="aeq-mcq-radio" name="aeqCorrectRadio" value="B" onclick="event.stopPropagation(); selectMcqCorrectOption('B');" />
+                    <input type="text" class="aeq-mcq-input" id="aeqOptB" placeholder="Enter Option B statement *" onclick="event.stopPropagation();" />
+                    <span class="aeq-mcq-correct-tag" id="aeqTagB" style="display:none;">
+                        <i class="fa fa-check me-1"></i> Correct Answer
+                    </span>
+                </div>
+
+                <!-- Option C -->
+                <div class="aeq-mcq-row" id="aeqRowC" onclick="selectMcqCorrectOption('C')">
+                    <div class="aeq-mcq-badge">C</div>
+                    <input type="radio" class="aeq-mcq-radio" name="aeqCorrectRadio" value="C" onclick="event.stopPropagation(); selectMcqCorrectOption('C');" />
+                    <input type="text" class="aeq-mcq-input" id="aeqOptC" placeholder="Enter Option C statement (optional)" onclick="event.stopPropagation();" />
+                    <span class="aeq-mcq-correct-tag" id="aeqTagC" style="display:none;">
+                        <i class="fa fa-check me-1"></i> Correct Answer
+                    </span>
+                </div>
+
+                <!-- Option D -->
+                <div class="aeq-mcq-row" id="aeqRowD" onclick="selectMcqCorrectOption('D')">
+                    <div class="aeq-mcq-badge">D</div>
+                    <input type="radio" class="aeq-mcq-radio" name="aeqCorrectRadio" value="D" onclick="event.stopPropagation(); selectMcqCorrectOption('D');" />
+                    <input type="text" class="aeq-mcq-input" id="aeqOptD" placeholder="Enter Option D statement (optional)" onclick="event.stopPropagation();" />
+                    <span class="aeq-mcq-correct-tag" id="aeqTagD" style="display:none;">
+                        <i class="fa fa-check me-1"></i> Correct Answer
+                    </span>
+                </div>
+            </div>
+
+            <!-- SUBJECTIVE PANEL -->
+            <div id="panel_SUBJECTIVE" style="display:none;">
+                <div class="aeq-field">
+                    <label class="aeq-label">
+                        Model / Reference Answer <span class="aeq-optional-text">(optional — used for evaluator guidance and AI evaluation)</span>
+                    </label>
+                    <textarea
+                        id="aeqSubjectiveAnswer"
+                        class="aeq-textarea"
+                        rows="5"
+                        placeholder="Provide model solution, key evaluation points, or marking rubrics..."></textarea>
+                </div>
+            </div>
+
+            <!-- SHORT ANSWER PANEL -->
+            <div id="panel_SHORT_ANSWER" style="display:none;">
+                <div class="aeq-field">
+                    <label class="aeq-label">
+                        Expected Short Answer <span class="required">*</span>
+                    </label>
+                    <input
+                        id="aeqShortAnswer"
+                        type="text"
+                        class="aeq-input"
+                        placeholder="Enter the expected answer string or keyword..." />
+                </div>
+            </div>
+
+            <!-- CODING PANEL -->
+            <div id="panel_CODING" class="aeq-coding-container" style="display:none;">
+                <div class="aeq-field">
+                    <label class="aeq-label">Programming Language</label>
+                    <select id="aeqCodeLanguage" class="aeq-select">
+                        <option value="python" selected>PYTHON</option>
+                        <option value="javascript">JAVASCRIPT</option>
+                        <option value="cpp">CPP</option>
+                        <option value="java">JAVA</option>
+                        <option value="c">C</option>
+                        <option value="csharp">CSHARP</option>
+                        <option value="typescript">TYPESCRIPT</option>
+                        <option value="go">GO</option>
+                        <option value="rust">RUST</option>
+                        <option value="sql">SQL</option>
+                    </select>
+                </div>
+
+                <div class="aeq-field">
+                    <label class="aeq-label">
+                        Starter Code / Boilerplate <span class="aeq-optional-text">(optional skeleton code provided to students)</span>
+                    </label>
+                    <textarea
+                        id="aeqCodeSnippet"
+                        class="aeq-code-textarea"
+                        rows="5"
+                        placeholder="# Starter boilerplate code for students...&#10;def solution():&#10;    pass"></textarea>
+                </div>
+
+                <!-- Coding Test Case Editor -->
+                <div class="ctce-container">
+                    <div class="ctce-header">
+                        <div class="ctce-title-wrap">
+                            <h4 class="ctce-title">🧪 Test Cases (Mandatory)</h4>
+                            <span class="ctce-count-pill" id="ctceCountPill">3 total (2 public sample, 1 hidden)</span>
+                        </div>
+                    </div>
+
+                    <div class="ctce-hint-box">
+                        <span class="fs-6">💡</span>
+                        <span>
+                            <strong>At least 1 test case is required</strong> to publish. For real coding exams, we recommend at least 2 public sample cases and 2 hidden evaluation cases.
+                        </span>
+                    </div>
+
+                    <div class="ctce-list" id="ctceList">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+
+                    <div class="ctce-footer">
+                        <button type="button" class="ctce-btn-add" onclick="addCodingTestCase()">
+                            + Add Another Test Case
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NUMERICAL PANEL -->
+            <div id="panel_NUMERICAL" style="display:none;" class="d-flex flex-column gap-3">
+                <div class="aeq-field">
+                    <label class="aeq-label">
+                        Correct Numerical Value <span class="required">*</span>
+                    </label>
+                    <input
+                        id="aeqNumericalValue"
+                        type="text"
+                        inputmode="decimal"
+                        class="aeq-input"
+                        placeholder="e.g. 42.5" />
+                </div>
+
+                <div class="aeq-grid-2">
+                    <div class="aeq-field">
+                        <label class="aeq-label">
+                            Tolerance Window (±) <span class="aeq-optional-text">(default: 0)</span>
+                        </label>
+                        <input
+                            id="aeqTolerance"
+                            type="text"
+                            inputmode="decimal"
+                            class="aeq-input"
+                            placeholder="e.g. 0.05"
+                            value="0" />
+                    </div>
+
+                    <div class="aeq-field">
+                        <label class="aeq-label">
+                            Unit <span class="aeq-optional-text">(optional, e.g. kg, m/s, °C)</span>
+                        </label>
+                        <input
+                            id="aeqUnit"
+                            type="text"
+                            class="aeq-input"
+                            placeholder="e.g. kg, m/s, %" />
+                    </div>
+                </div>
+
+                <!-- Dynamic Variables for Numerical -->
+                <div class="aeq-dynamic-box">
+                    <label class="aeq-checkbox-label">
+                        <input type="checkbox" id="aeqDynamicCheckNumerical" onchange="toggleDynamicFields('Numerical', this.checked)" />
+                        <span>Enable Dynamic Parameterized Variables (Formula-Based)</span>
+                    </label>
+
+                    <div id="aeqDynamicFieldsNumerical" style="display:none;" class="d-flex flex-column gap-3 mt-1">
+                        <div class="aeq-field">
+                            <label class="aeq-label">
+                                Formula Expression <span class="aeq-optional-text">(e.g. P * R * T / 100)</span>
+                            </label>
+                            <input
+                                id="aeqFormulaNumerical"
+                                type="text"
+                                class="aeq-input aeq-input-code"
+                                placeholder="P * R * T / 100" />
+                        </div>
+
+                        <div class="aeq-field">
+                            <label class="aeq-label">Variable Ranges (JSON format)</label>
+                            <textarea
+                                id="aeqVarRangesNumerical"
+                                class="aeq-textarea aeq-textarea-code"
+                                rows="2"
+                                placeholder='{"P":{"min":1000,"max":5000,"step":100}, "R":{"min":1,"max":10,"step":0.5}}'></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EQUATION PANEL -->
+            <div id="panel_EQUATION" style="display:none;" class="d-flex flex-column gap-3">
+                <div class="aeq-field">
+                    <label class="aeq-label">
+                        Correct Equation (LaTeX format) <span class="required">*</span>
+                    </label>
+                    <input
+                        id="aeqEquationValue"
+                        type="text"
+                        class="aeq-input aeq-input-code"
+                        placeholder="e.g. E = mc^2  or  \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}" />
+                </div>
+
+                <!-- Dynamic Variables for Equation -->
+                <div class="aeq-dynamic-box">
+                    <label class="aeq-checkbox-label">
+                        <input type="checkbox" id="aeqDynamicCheckEquation" onchange="toggleDynamicFields('Equation', this.checked)" />
+                        <span>Enable Dynamic Parameterized Variables (Formula-Based)</span>
+                    </label>
+
+                    <div id="aeqDynamicFieldsEquation" style="display:none;" class="d-flex flex-column gap-3 mt-1">
+                        <div class="aeq-field">
+                            <label class="aeq-label">
+                                Formula Expression <span class="aeq-optional-text">(e.g. P * R * T / 100)</span>
+                            </label>
+                            <input
+                                id="aeqFormulaEquation"
+                                type="text"
+                                class="aeq-input aeq-input-code"
+                                placeholder="P * R * T / 100" />
+                        </div>
+
+                        <div class="aeq-field">
+                            <label class="aeq-label">Variable Ranges (JSON format)</label>
+                            <textarea
+                                id="aeqVarRangesEquation"
+                                class="aeq-textarea aeq-textarea-code"
+                                rows="2"
+                                placeholder='{"P":{"min":1000,"max":5000,"step":100}, "R":{"min":1,"max":10,"step":0.5}}'></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. SCORING & MARKS -->
+        <div class="aeq-card">
+            <div class="aeq-card-header">
+                <div>
+                    <h2 class="aeq-card-title">4. Question Marks & Weightage</h2>
+                    <p class="aeq-card-subtitle">Set the point value awarded for correctly answering this question</p>
+                </div>
+            </div>
+
+            <div class="aeq-marks-row">
+                <div class="aeq-marks-input-group">
+                    <label class="aeq-label mb-0" for="aeqMarksInput">Marks:</label>
+                    <input
+                        id="aeqMarksInput"
+                        type="number"
+                        min="1"
+                        max="100"
+                        value="1"
+                        class="aeq-marks-input"
+                        onchange="handleMarksInputChange(this.value)" />
+                </div>
+
+                <div class="aeq-marks-pills">
+                    <button type="button" class="aeq-marks-pill-btn active" data-mark="1" onclick="setQuickMarks(1)">1 pt</button>
+                    <button type="button" class="aeq-marks-pill-btn" data-mark="2" onclick="setQuickMarks(2)">2 pts</button>
+                    <button type="button" class="aeq-marks-pill-btn" data-mark="5" onclick="setQuickMarks(5)">5 pts</button>
+                    <button type="button" class="aeq-marks-pill-btn" data-mark="10" onclick="setQuickMarks(10)">10 pts</button>
+                    <button type="button" class="aeq-marks-pill-btn" data-mark="20" onclick="setQuickMarks(20)">20 pts</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. STICKY ACTION FOOTER -->
+        <div class="aeq-sticky-footer">
+            <div class="aeq-footer-left">
+                <span class="aeq-footer-status">
+                    Question Type: <strong id="aeqStickyType">MCQ</strong> · <span id="aeqStickyMarks">1 Mark</span>
+                </span>
+            </div>
+
+            <div class="aeq-footer-right">
+                <button type="button" class="aeq-btn aeq-btn-cancel" onclick="switchTab('review')">
+                    Cancel
+                </button>
+
+                <button type="button" class="aeq-btn aeq-btn-secondary" onclick="handleSaveQuestion(true)" id="aeqFooterBtnSaveAddAnother">
+                    Save & Add Another
+                </button>
+
+                <button type="button" class="aeq-btn aeq-btn-primary" onclick="handleSaveQuestion(false)" id="aeqFooterBtnSaveQuestion">
+                    <span class="aeq-spinner me-1" style="display:none;" id="aeqFooterSpinner"></span>
+                    Save Question
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 3: IMPORT FROM QUESTION BANK -->
+    <!-- ========================================================================= -->
+    <div id="tab-bank" class="qb-tab-content" style="@(Model.ActiveTab == "bank" ? "display:block;" : "display:none;")">
+        <div class="qb-card">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+                <div>
+                    <h4 class="fw-bold mb-1">Central Question Bank</h4>
+                    <p class="text-muted small mb-0">Search and bulk-import curated questions directly into this exam without duplicating records.</p>
+                </div>
+                <div class="badge bg-primary text-white fs-6 px-3 py-2 rounded-pill">
+                    @Model.QuestionBank.TotalCount Questions Available
+                </div>
+            </div>
+
+            <!-- Filters Bar -->
+            <form method="get" asp-area="Admin" asp-controller="ProctoringExam" asp-action="ManageQuestions" class="row g-2 mb-4 bg-light p-3 rounded-3 border">
+                <input type="hidden" name="examId" value="@exam.Id" />
+                <input type="hidden" name="tab" value="bank" />
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="fa fa-search text-muted"></i></span>
+                        <input type="text" class="form-control" name="search" value="@Model.BankSearch" placeholder="Search questions by text or keyword..." />
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" name="type">
+                        <option value="">All Question Types</option>
+                        <option value="MCQ" selected="@(Model.BankTypeFilter == "MCQ")">MCQ</option>
+                        <option value="CODING" selected="@(Model.BankTypeFilter == "CODING")">Coding</option>
+                        <option value="NUMERICAL" selected="@(Model.BankTypeFilter == "NUMERICAL")">Numerical</option>
+                        <option value="SUBJECTIVE" selected="@(Model.BankTypeFilter == "SUBJECTIVE")">Subjective</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill">
+                        <i class="fa fa-filter me-1"></i> Filter
+                    </button>
+                    @if (!string.IsNullOrWhiteSpace(Model.BankSearch) || !string.IsNullOrWhiteSpace(Model.BankTypeFilter))
+                    {
+                        <a asp-area="Admin" asp-controller="ProctoringExam" asp-action="ManageQuestions" asp-route-examId="@exam.Id" asp-route-tab="bank" class="btn btn-outline-secondary rounded-pill">
+                            Reset
+                        </a>
+                    }
+                </div>
+            </form>
+
+            <!-- Bulk Import Form -->
+            <form asp-area="Admin" asp-controller="ProctoringExam" asp-action="ImportFromBank" method="post" id="bankImportForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="examId" value="@exam.Id" />
+
+                <!-- Selection Control Toolbar -->
+                <div class="d-flex flex-wrap align-items-center justify-content-between p-2 mb-3 bg-light rounded-3 border">
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="toggleSelectAllBank(true)">Select All</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="toggleSelectAllBank(false)">Deselect All</button>
+                        <span class="ms-2 small text-secondary">
+                            Selected: <strong id="selectedBankCount" class="text-primary">0</strong> question(s)
+                        </span>
+                    </div>
+                    <button type="submit" class="btn btn-success btn-sm rounded-pill px-4 shadow-sm" id="btnImportSelected" disabled>
+                        <i class="fa fa-file-import me-1"></i> Import Selected to Exam
+                    </button>
+                </div>
+
+                @if (Model.QuestionBank.Items.Count == 0)
+                {
+                    <div class="text-center py-4 text-muted">
+                        <i class="fa fa-search display-6 opacity-50 mb-2"></i>
+                        <p class="mb-0">No questions matched your search criteria.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="list-group mb-3">
+                        @foreach (var item in Model.QuestionBank.Items)
+                        {
+                            bool alreadyInExam = existingIds.Contains(item.Id);
+                            var qType = string.IsNullOrWhiteSpace(item.QuestionType) ? "MCQ" : item.QuestionType.ToUpperInvariant();
+
+                            <div class="list-group-item p-3 @(alreadyInExam ? "bg-light opacity-75" : "")">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="pt-1">
+                                        @if (alreadyInExam)
+                                        {
+                                            <input type="checkbox" class="form-check-input" disabled checked title="Already in this exam" />
+                                        }
+                                        else
+                                        {
+                                            <input type="checkbox" name="selectedQuestionIds" value="@item.Id" class="form-check-input bank-checkbox" onchange="updateBankSelectedCount()" />
+                                        }
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                                            @if (qType.Contains("MCQ"))
+                                            {
+                                                <span class="qb-pill-badge qb-pill-mcq">MCQ</span>
+                                            }
+                                            else if (qType == "CODING")
+                                            {
+                                                <span class="qb-pill-badge qb-pill-coding">Coding</span>
+                                            }
+                                            else if (qType == "NUMERICAL")
+                                            {
+                                                <span class="qb-pill-badge qb-pill-numerical">Numerical</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="qb-pill-badge qb-pill-subjective">Subjective</span>
+                                            }
+
+                                            <span class="badge bg-light text-dark border">@item.Marks Marks</span>
+                                            @if (!string.IsNullOrWhiteSpace(item.DifficultyLevel))
+                                            {
+                                                <span class="badge bg-light text-secondary border">@item.DifficultyLevel</span>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(item.CategoryName))
+                                            {
+                                                <span class="badge bg-info-subtle text-info-emphasis border">@item.CategoryName</span>
+                                            }
+
+                                            @if (alreadyInExam)
+                                            {
+                                                <span class="badge bg-success-subtle text-success-emphasis border ms-auto">
+                                                    <i class="fa fa-check-circle me-1"></i> Already in Exam
+                                                </span>
+                                            }
+                                        </div>
+                                        <p class="mb-0 text-dark fw-medium small">@item.QuestionText</p>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 4: UPLOAD PDF VIA AI -->
+    <!-- ========================================================================= -->
+    <div id="tab-pdf" class="qb-tab-content" style="@(Model.ActiveTab == "pdf" ? "display:block;" : "display:none;")">
+        <div class="qb-card">
+            <h4 class="fw-bold mb-1">AI-Powered Question Paper Extraction</h4>
+            <p class="text-muted small mb-4">Upload an existing Question Paper in PDF format. AI analyzes question structures, options, and solutions for your review before mapping.</p>
+
+            <!-- Upload Area -->
+            <div id="pdfUploadZone" class="qb-dropzone mb-4" onclick="document.getElementById('pdfFileInput').click();">
+                <input type="file" id="pdfFileInput" accept=".pdf" style="display:none;" onchange="handlePdfSelected(this)" />
+                <div class="display-6 text-primary mb-2"><i class="fa fa-cloud-arrow-up"></i></div>
+                <h5 class="fw-bold text-dark mb-1" id="pdfDropTitle">Click or drag & drop Question Paper PDF here</h5>
+                <p class="text-muted small mb-3">Supported file formats: Standard PDF documents up to 20MB</p>
+                <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-4">
+                    <i class="fa fa-file-pdf me-1"></i> Select PDF File
+                </button>
+            </div>
+
+            <!-- Extract Action Bar -->
+            <div id="pdfActionRow" style="display:none;" class="mb-4 p-3 bg-light rounded-3 border d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fa fa-file-pdf text-danger fs-4"></i>
+                    <div>
+                        <div class="fw-bold small" id="pdfSelectedName">selected_paper.pdf</div>
+                        <div class="text-muted small" id="pdfSelectedSize">0 KB</div>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm" id="btnExtractPdf" onclick="runPdfExtraction()">
+                    <i class="fa fa-wand-magic-sparkles me-1"></i> Extract Questions with AI
+                </button>
+            </div>
+
+            <!-- Loading Spinner -->
+            <div id="pdfLoading" style="display:none;" class="text-center py-5">
+                <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
+                <h6 class="fw-bold text-dark">AI Question Extractor is analyzing the document...</h6>
+                <p class="text-muted small">Parsing question stems, options, and marking schemes with Gemini AI.</p>
+            </div>
+
+            <!-- Review & Save Extracted Questions Area -->
+            <div id="pdfReviewSection" style="display:none;">
+                <div class="d-flex flex-wrap align-items-center justify-content-between p-3 bg-light rounded-3 border mb-3">
+                    <div>
+                        <h6 class="fw-bold text-dark mb-1">
+                            <i class="fa fa-clipboard-check text-success me-1"></i>
+                            Extracted Questions (<span id="extractedCount">0</span>)
+                        </h6>
+                        <span class="badge bg-info-subtle text-info-emphasis border small" id="extractionSourceBadge">Gemini AI</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" onclick="toggleSelectAllExtracted(true)">Select All</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" onclick="toggleSelectAllExtracted(false)">Deselect All</button>
+                        <button type="button" class="btn btn-success btn-sm rounded-pill px-4 shadow-sm" id="btnSaveExtracted" onclick="saveExtractedToExam()">
+                            <i class="fa fa-check me-1"></i> Save Selected to Exam
+                        </button>
+                    </div>
+                </div>
+
+                <div id="extractedListContainer" class="mb-4">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const EXAM_ID = '@exam.Id';
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.qb-tab-content').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.qb-tab-btn').forEach(btn => btn.classList.remove('active'));
+
+            const targetContent = document.getElementById('tab-' + tabName);
+            if (targetContent) targetContent.style.display = 'block';
+
+            // Find matching tab button
+            document.querySelectorAll('.qb-tab-btn').forEach(btn => {
+                if (btn.getAttribute('onclick')?.includes(tabName)) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Update URL query param without full reload
+            const url = new URL(window.location);
+            url.searchParams.set('tab', tabName);
+            window.history.replaceState({}, '', url);
+        }
+
+        // =========================================================================
+        // AI PROCTORING MANUAL QUESTION BUILDER LOGIC (EXACT MIRROR)
+        // =========================================================================
+        let currentQuestionType = 'MCQ';
+        let currentMarks = 1;
+        let currentCorrectOption = 'A';
+        let uploadedImageUrl = null;
+        let isSavingQuestion = false;
+
+        const QUESTION_TYPE_SUBTITLES = {
+            'MCQ': 'Provide the option choices and select the radio button for the correct answer',
+            'SUBJECTIVE': 'Provide a reference answer to guide manual or AI-assisted evaluation',
+            'SHORT_ANSWER': 'Specify the expected text string or keyword',
+            'CODING': 'Specify the language, starter code, and test cases for automated grading',
+            'NUMERICAL': 'Set the expected numeric value, tolerance window, and measurement unit',
+            'EQUATION': 'Provide the expected LaTeX mathematical formula'
+        };
+
+        let codingTestCases = [
+            { inputData: "2 3", expectedOutput: "5", isHidden: false, weightage: 1, orderIndex: 1, explanation: "Sample case 1" },
+            { inputData: "10 20", expectedOutput: "30", isHidden: false, weightage: 1, orderIndex: 2, explanation: "Sample case 2" },
+            { inputData: "-5 8", expectedOutput: "3", isHidden: true, weightage: 1, orderIndex: 3, explanation: "Hidden test case" }
+        ];
+
+        function selectQuestionType(type) {
+            currentQuestionType = type;
+
+            // Update 6-type cards
+            document.querySelectorAll('.aeq-type-card').forEach(card => {
+                if (card.getAttribute('data-type') === type) {
+                    card.classList.add('active');
+                } else {
+                    card.classList.remove('active');
+                }
+            });
+
+            // Toggle panels
+            const panels = ['MCQ', 'SUBJECTIVE', 'SHORT_ANSWER', 'CODING', 'NUMERICAL', 'EQUATION'];
+            panels.forEach(p => {
+                const el = document.getElementById('panel_' + p);
+                if (el) el.style.display = (p === type) ? (p === 'CODING' || p === 'MCQ' ? 'flex' : 'block') : 'none';
+            });
+
+            // Update subtitle
+            const sub = document.getElementById('aeqConfigSubtitle');
+            if (sub && QUESTION_TYPE_SUBTITLES[type]) {
+                sub.textContent = QUESTION_TYPE_SUBTITLES[type];
+            }
+
+            // Adjust default marks for Coding vs others
+            if (type === 'CODING' && currentMarks === 1) {
+                setQuickMarks(10);
+            } else if (type !== 'CODING' && currentMarks === 10) {
+                setQuickMarks(1);
+            }
+
+            updateFooterStatus();
+        }
+
+        function handleQuestionTextInput(textarea) {
+            const countEl = document.getElementById('aeqCharCount');
+            if (countEl) countEl.textContent = textarea.value.length;
+        }
+
+        // Image Attachment Handling
+        function showImageDropzone() {
+            const dropzone = document.getElementById('aeqImageDropzone');
+            const attachBtn = document.getElementById('aeqBtnShowAttach');
+            if (dropzone) dropzone.style.display = 'flex';
+            if (attachBtn) attachBtn.style.display = 'none';
+        }
+
+        async function handleImageFileSelect(files) {
+            if (!files || files.length === 0) return;
+            const file = files[0];
+
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Image size must be less than 5MB.');
+                return;
+            }
+
+            const allowed = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp'];
+            const ext = '.' + file.name.split('.').pop().toLowerCase();
+            if (!allowed.includes(ext)) {
+                alert('Only image files are allowed (' + allowed.join(', ') + ').');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch('@Url.Action("UploadQuestionImage", "ProctoringExam", new { area = "Admin" })', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success && data.imageUrl) {
+                    uploadedImageUrl = data.imageUrl;
+                    const previewBox = document.getElementById('aeqImagePreviewBox');
+                    const dropzone = document.getElementById('aeqImageDropzone');
+                    const thumb = document.getElementById('aeqImageThumb');
+                    const nameEl = document.getElementById('aeqImageFileName');
+                    const sizeEl = document.getElementById('aeqImageFileSize');
+
+                    if (thumb) thumb.src = data.fullUrl || data.imageUrl;
+                    if (nameEl) nameEl.textContent = file.name;
+                    if (sizeEl) sizeEl.textContent = (file.size / 1024).toFixed(1) + ' KB';
+
+                    if (previewBox) previewBox.style.display = 'flex';
+                    if (dropzone) dropzone.style.display = 'none';
+                } else {
+                    alert('Failed to upload image: ' + (data.message || 'Unknown error'));
+                }
+            } catch (err) {
+                alert('Error uploading image: ' + err.message);
+            }
+        }
+
+        function removeQuestionImage() {
+            uploadedImageUrl = null;
+            const fileInput = document.getElementById('aeqImageFileInput');
+            if (fileInput) fileInput.value = '';
+
+            const previewBox = document.getElementById('aeqImagePreviewBox');
+            const dropzone = document.getElementById('aeqImageDropzone');
+            const attachBtn = document.getElementById('aeqBtnShowAttach');
+
+            if (previewBox) previewBox.style.display = 'none';
+            if (dropzone) dropzone.style.display = 'none';
+            if (attachBtn) attachBtn.style.display = 'inline-flex';
+        }
+
+        // MCQ Selection Handling
+        function selectMcqCorrectOption(key) {
+            currentCorrectOption = key;
+            ['A', 'B', 'C', 'D'].forEach(k => {
+                const row = document.getElementById('aeqRow' + k);
+                const tag = document.getElementById('aeqTag' + k);
+                const radio = row ? row.querySelector('input[type="radio"]') : null;
+
+                if (k === key) {
+                    if (row) row.classList.add('is-correct');
+                    if (tag) tag.style.display = 'inline-flex';
+                    if (radio) radio.checked = true;
+                } else {
+                    if (row) row.classList.remove('is-correct');
+                    if (tag) tag.style.display = 'none';
+                    if (radio) radio.checked = false;
+                }
+            });
+        }
+
+        // Dynamic Variables Field Toggle
+        function toggleDynamicFields(type, checked) {
+            const container = document.getElementById('aeqDynamicFields' + type);
+            if (container) container.style.display = checked ? 'flex' : 'none';
+        }
+
+        // Marks & Scoring Handling
+        function setQuickMarks(val) {
+            currentMarks = Math.max(1, parseInt(val) || 1);
+            const input = document.getElementById('aeqMarksInput');
+            if (input) input.value = currentMarks;
+
+            document.querySelectorAll('.aeq-marks-pill-btn').forEach(btn => {
+                if (btn.getAttribute('data-mark') == currentMarks) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            updateFooterStatus();
+        }
+
+        function handleMarksInputChange(val) {
+            const parsed = Math.max(1, Math.min(100, parseInt(val) || 1));
+            setQuickMarks(parsed);
+        }
+
+        function updateFooterStatus() {
+            const typeLabel = currentQuestionType === 'SHORT_ANSWER' ? 'Short Answer' :
+                             currentQuestionType === 'CODING' ? 'Coding' :
+                             currentQuestionType === 'NUMERICAL' ? 'Numerical' :
+                             currentQuestionType === 'EQUATION' ? 'Equation' :
+                             currentQuestionType === 'SUBJECTIVE' ? 'Subjective' : 'MCQ';
+
+            const stickyType = document.getElementById('aeqStickyType');
+            const stickyMarks = document.getElementById('aeqStickyMarks');
+
+            if (stickyType) stickyType.textContent = typeLabel;
+            if (stickyMarks) stickyMarks.textContent = `${currentMarks} Mark${currentMarks !== 1 ? 's' : ''}`;
+        }
+
+        // Coding Test Cases Engine
+        function renderCodingTestCases() {
+            const list = document.getElementById('ctceList');
+            if (!list) return;
+
+            list.innerHTML = '';
+            const publicCount = codingTestCases.filter(c => !c.isHidden).length;
+            const hiddenCount = codingTestCases.filter(c => c.isHidden).length;
+
+            const pill = document.getElementById('ctceCountPill');
+            if (pill) {
+                pill.textContent = `${codingTestCases.length} total (${publicCount} public sample, ${hiddenCount} hidden)`;
+            }
+
+            codingTestCases.forEach((tc, idx) => {
+                const card = document.createElement('div');
+                card.className = `ctce-card ${tc.isHidden ? 'hidden-case' : 'public-case'}`;
+                card.innerHTML = `
+                    <div class="ctce-card-header">
+                        <div class="ctce-card-title">
+                            <span class="ctce-case-num">Case #${idx + 1}</span>
+                            <span class="ctce-type-badge ${tc.isHidden ? 'badge-hidden' : 'badge-public'}">
+                                ${tc.isHidden ? '🔒 Hidden (Server-side)' : '👁️ Public (Sample / Example)'}
+                            </span>
+                        </div>
+                        <div class="ctce-card-controls">
+                            <label class="ctce-checkbox-label">
+                                <input type="checkbox" ${tc.isHidden ? 'checked' : ''} onchange="updateTestCaseField(${idx}, 'isHidden', this.checked); renderCodingTestCases();" />
+                                Hidden from Student
+                            </label>
+                            ${codingTestCases.length > 1 ? `
+                                <button type="button" class="ctce-btn-delete" onclick="removeCodingTestCase(${idx})" title="Delete Test Case">
+                                    🗑️
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+
+                    <div class="ctce-grid-2">
+                        <div class="ctce-field">
+                            <label class="ctce-label">
+                                Input Data (stdin)
+                                <span class="ctce-sublabel">Input provided to student's program</span>
+                            </label>
+                            <textarea
+                                class="ctce-textarea ctce-mono"
+                                rows="3"
+                                placeholder="e.g. 2 3 or 5"
+                                oninput="updateTestCaseField(${idx}, 'inputData', this.value)">${tc.inputData || ''}</textarea>
+                        </div>
+
+                        <div class="ctce-field">
+                            <label class="ctce-label">
+                                Expected Output (stdout) <span class="ctce-req">* Required</span>
+                                <span class="ctce-sublabel">Exact expected stdout result</span>
+                            </label>
+                            <textarea
+                                class="ctce-textarea ctce-mono"
+                                rows="3"
+                                placeholder="e.g. 5"
+                                required
+                                oninput="updateTestCaseField(${idx}, 'expectedOutput', this.value)">${tc.expectedOutput || ''}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="ctce-grid-2" style="margin-top: 10px;">
+                        <div class="ctce-field">
+                            <label class="ctce-label">Weightage / Points</label>
+                            <input
+                                type="number"
+                                step="0.5"
+                                min="0.1"
+                                class="ctce-input"
+                                value="${tc.weightage || 1.0}"
+                                oninput="updateTestCaseField(${idx}, 'weightage', parseFloat(this.value) || 1.0)" />
+                        </div>
+
+                        <div class="ctce-field">
+                            <label class="ctce-label">Explanation / Notes (optional)</label>
+                            <input
+                                type="text"
+                                class="ctce-input"
+                                placeholder="e.g. 2 + 3 = 5"
+                                value="${tc.explanation || ''}"
+                                oninput="updateTestCaseField(${idx}, 'explanation', this.value)" />
+                        </div>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function addCodingTestCase() {
+            codingTestCases.push({
+                inputData: '',
+                expectedOutput: '',
+                isHidden: false,
+                weightage: 1.0,
+                orderIndex: codingTestCases.length + 1,
+                explanation: ''
+            });
+            renderCodingTestCases();
+        }
+
+        function removeCodingTestCase(idx) {
+            if (codingTestCases.length <= 1) return;
+            codingTestCases.splice(idx, 1);
+            renderCodingTestCases();
+        }
+
+        function updateTestCaseField(idx, field, value) {
+            if (codingTestCases[idx]) {
+                codingTestCases[idx][field] = value;
+            }
+        }
+
+        // SAVE QUESTION VIA AJAX
+        async function handleSaveQuestion(andAddAnother) {
+            if (isSavingQuestion) return;
+
+            const questionText = document.getElementById('aeqQuestionText')?.value || '';
+            if (!questionText.trim()) {
+                alert('Question statement is required.');
+                document.getElementById('aeqQuestionText')?.focus();
+                return;
+            }
+
+            const payload = {
+                examId: EXAM_ID,
+                questionType: currentQuestionType,
+                questionText: questionText.trim(),
+                marks: currentMarks,
+                negativeMarks: 0,
+                difficulty: 'Medium',
+                imageUrl: uploadedImageUrl
+            };
+
+            if (currentQuestionType === 'MCQ') {
+                const optA = document.getElementById('aeqOptA')?.value.trim() || '';
+                const optB = document.getElementById('aeqOptB')?.value.trim() || '';
+                const optC = document.getElementById('aeqOptC')?.value.trim() || '';
+                const optD = document.getElementById('aeqOptD')?.value.trim() || '';
+
+                if (!optA || !optB) {
+                    alert('At least Option A and Option B are required for MCQ.');
+                    if (!optA) document.getElementById('aeqOptA')?.focus();
+                    else document.getElementById('aeqOptB')?.focus();
+                    return;
+                }
+
+                payload.optionA = optA;
+                payload.optionB = optB;
+                payload.optionC = optC || null;
+                payload.optionD = optD || null;
+                payload.correctOption = currentCorrectOption;
+            } else if (currentQuestionType === 'SUBJECTIVE') {
+                payload.answerText = document.getElementById('aeqSubjectiveAnswer')?.value.trim() || null;
+            } else if (currentQuestionType === 'SHORT_ANSWER') {
+                const shortAns = document.getElementById('aeqShortAnswer')?.value.trim() || '';
+                if (!shortAns) {
+                    alert('Expected short answer string is required.');
+                    document.getElementById('aeqShortAnswer')?.focus();
+                    return;
+                }
+                payload.answerText = shortAns;
+            } else if (currentQuestionType === 'CODING') {
+                if (!codingTestCases || codingTestCases.length === 0) {
+                    alert('At least one test case is required for a coding challenge.');
+                    return;
+                }
+                const invalid = codingTestCases.some(tc => !tc.expectedOutput || !tc.expectedOutput.trim());
+                if (invalid) {
+                    alert('All test cases must specify non-empty expected output.');
+                    return;
+                }
+
+                payload.codeLanguage = document.getElementById('aeqCodeLanguage')?.value || 'python';
+                payload.codeSnippet = document.getElementById('aeqCodeSnippet')?.value.trim() || null;
+                payload.answerText = codingTestCases[0]?.expectedOutput || null;
+                payload.testCases = codingTestCases.map((tc, idx) => ({
+                    inputData: tc.inputData || '',
+                    expectedOutput: tc.expectedOutput.trim(),
+                    isHidden: Boolean(tc.isHidden),
+                    weightage: tc.weightage > 0 ? tc.weightage : 1.0,
+                    orderIndex: idx + 1,
+                    explanation: tc.explanation || ''
+                }));
+            } else if (currentQuestionType === 'NUMERICAL') {
+                const numVal = document.getElementById('aeqNumericalValue')?.value.trim() || '';
+                const isDynamic = document.getElementById('aeqDynamicCheckNumerical')?.checked;
+
+                if (!numVal && !isDynamic) {
+                    alert('Correct numerical value is required.');
+                    document.getElementById('aeqNumericalValue')?.focus();
+                    return;
+                }
+
+                payload.answerText = numVal;
+                payload.tolerance = document.getElementById('aeqTolerance')?.value.trim() || '0';
+                payload.unit = document.getElementById('aeqUnit')?.value.trim() || null;
+
+                if (isDynamic) {
+                    payload.formula = document.getElementById('aeqFormulaNumerical')?.value.trim() || null;
+                    payload.variableRanges = document.getElementById('aeqVarRangesNumerical')?.value.trim() || null;
+                }
+            } else if (currentQuestionType === 'EQUATION') {
+                const eqVal = document.getElementById('aeqEquationValue')?.value.trim() || '';
+                const isDynamic = document.getElementById('aeqDynamicCheckEquation')?.checked;
+
+                if (!eqVal && !isDynamic) {
+                    alert('Correct equation (LaTeX format) is required.');
+                    document.getElementById('aeqEquationValue')?.focus();
+                    return;
+                }
+
+                payload.answerText = eqVal;
+                if (isDynamic) {
+                    payload.formula = document.getElementById('aeqFormulaEquation')?.value.trim() || null;
+                    payload.variableRanges = document.getElementById('aeqVarRangesEquation')?.value.trim() || null;
+                }
+            }
+
+            // Set loading state
+            isSavingQuestion = true;
+            toggleSaveButtons(true);
+
+            try {
+                const res = await fetch('@Url.Action("SaveManualQuestionAjax", "ProctoringExam", new { area = "Admin" })', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    if (andAddAnother) {
+                        const banner = document.getElementById('aeqSuccessBanner');
+                        const bannerText = document.getElementById('aeqSuccessText');
+                        if (bannerText) bannerText.textContent = `✓ Question #${payload.questionType} added successfully! You can add another question below.`;
+                        if (banner) banner.style.display = 'flex';
+
+                        resetManualForm();
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    } else {
+                        window.location.href = '@Url.Action("ManageQuestions", "ProctoringExam", new { area = "Admin" })?examId=' + EXAM_ID + '&tab=review';
+                    }
+                } else {
+                    alert('❌ Failed to save question: ' + (data.message || 'Unknown error'));
+                }
+            } catch (err) {
+                alert('❌ Error saving question: ' + err.message);
+            } finally {
+                isSavingQuestion = false;
+                toggleSaveButtons(false);
+            }
+        }
+
+        function toggleSaveButtons(disabled) {
+            const btn1 = document.getElementById('aeqHeaderBtnSaveQuestion');
+            const btn2 = document.getElementById('aeqHeaderBtnSaveAddAnother');
+            const btn3 = document.getElementById('aeqFooterBtnSaveQuestion');
+            const btn4 = document.getElementById('aeqFooterBtnSaveAddAnother');
+
+            const spin1 = document.getElementById('aeqHeaderSpinner');
+            const spin2 = document.getElementById('aeqFooterSpinner');
+
+            [btn1, btn2, btn3, btn4].forEach(b => { if (b) b.disabled = disabled; });
+            if (spin1) spin1.style.display = disabled ? 'inline-block' : 'none';
+            if (spin2) spin2.style.display = disabled ? 'inline-block' : 'none';
+        }
+
+        function resetManualForm() {
+            const qText = document.getElementById('aeqQuestionText');
+            if (qText) {
+                qText.value = '';
+                handleQuestionTextInput(qText);
+            }
+
+            // Reset image
+            removeQuestionImage();
+
+            // Reset MCQ
+            ['A', 'B', 'C', 'D'].forEach(k => {
+                const inp = document.getElementById('aeqOpt' + k);
+                if (inp) inp.value = '';
+            });
+            selectMcqCorrectOption('A');
+
+            // Reset Subjective & Short Answer
+            const subj = document.getElementById('aeqSubjectiveAnswer');
+            if (subj) subj.value = '';
+            const shortAns = document.getElementById('aeqShortAnswer');
+            if (shortAns) shortAns.value = '';
+
+            // Reset Coding
+            const snippet = document.getElementById('aeqCodeSnippet');
+            if (snippet) snippet.value = '';
+            codingTestCases = [
+                { inputData: "2 3", expectedOutput: "5", isHidden: false, weightage: 1, orderIndex: 1, explanation: "Sample case 1" },
+                { inputData: "10 20", expectedOutput: "30", isHidden: false, weightage: 1, orderIndex: 2, explanation: "Sample case 2" },
+                { inputData: "-5 8", expectedOutput: "3", isHidden: true, weightage: 1, orderIndex: 3, explanation: "Hidden test case" }
+            ];
+            renderCodingTestCases();
+
+            // Reset Numerical
+            const num = document.getElementById('aeqNumericalValue');
+            if (num) num.value = '';
+            const tol = document.getElementById('aeqTolerance');
+            if (tol) tol.value = '0';
+            const unit = document.getElementById('aeqUnit');
+            if (unit) unit.value = '';
+
+            const dynNum = document.getElementById('aeqDynamicCheckNumerical');
+            if (dynNum) { dynNum.checked = false; toggleDynamicFields('Numerical', false); }
+            const fnNum = document.getElementById('aeqFormulaNumerical');
+            if (fnNum) fnNum.value = '';
+            const vrNum = document.getElementById('aeqVarRangesNumerical');
+            if (vrNum) vrNum.value = '';
+
+            // Reset Equation
+            const eq = document.getElementById('aeqEquationValue');
+            if (eq) eq.value = '';
+            const dynEq = document.getElementById('aeqDynamicCheckEquation');
+            if (dynEq) { dynEq.checked = false; toggleDynamicFields('Equation', false); }
+            const fnEq = document.getElementById('aeqFormulaEquation');
+            if (fnEq) fnEq.value = '';
+            const vrEq = document.getElementById('aeqVarRangesEquation');
+            if (vrEq) vrEq.value = '';
+        }
+
+        // Initialize Coding test cases on load
+        document.addEventListener('DOMContentLoaded', () => {
+            renderCodingTestCases();
+            updateFooterStatus();
+        });
+
+        // Bank Selection Logic
+        function updateBankSelectedCount() {
+            const checked = document.querySelectorAll('.bank-checkbox:checked');
+            const count = checked.length;
+            document.getElementById('selectedBankCount').textContent = count;
+            const btn = document.getElementById('btnImportSelected');
+            if (btn) btn.disabled = (count === 0);
+        }
+
+        function toggleSelectAllBank(select) {
+            document.querySelectorAll('.bank-checkbox').forEach(cb => cb.checked = select);
+            updateBankSelectedCount();
+        }
+
+        // PDF Drag and Drop Handling
+        let selectedPdfFile = null;
+
+        const dropzone = document.getElementById('pdfUploadZone');
+        if (dropzone) {
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    dropzone.classList.add('dragover');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    dropzone.classList.remove('dragover');
+                }, false);
+            });
+
+            dropzone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files && files.length > 0) {
+                    handleFileObject(files[0]);
+                }
+            });
+        }
+
+        function handlePdfSelected(input) {
+            if (input.files && input.files.length > 0) {
+                handleFileObject(input.files[0]);
+            }
+        }
+
+        function handleFileObject(file) {
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                alert('Please upload a valid .pdf file.');
+                return;
+            }
+            selectedPdfFile = file;
+            document.getElementById('pdfSelectedName').textContent = file.name;
+            document.getElementById('pdfSelectedSize').textContent = (file.size / 1024).toFixed(1) + ' KB';
+            document.getElementById('pdfActionRow').style.display = 'flex';
+        }
+
+        let currentExtractedQuestions = [];
+
+        async function runPdfExtraction() {
+            if (!selectedPdfFile) return;
+
+            const btn = document.getElementById('btnExtractPdf');
+            btn.disabled = true;
+            document.getElementById('pdfLoading').style.display = 'block';
+            document.getElementById('pdfReviewSection').style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('examId', EXAM_ID);
+            formData.append('pdfFile', selectedPdfFile);
+
+            // Fetch verification token
+            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+
+            try {
+                const response = await fetch('@Url.Action("UploadPdfExtract", "ProctoringExam", new { area = "Admin" })', {
+                    method: 'POST',
+                    headers: {
+                        'RequestVerificationToken': token
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+                document.getElementById('pdfLoading').style.display = 'none';
+                btn.disabled = false;
+
+                if (!data.success) {
+                    alert('Extraction error: ' + data.message);
+                    return;
+                }
+
+                currentExtractedQuestions = data.questions || [];
+                renderExtractedQuestions(data.source, currentExtractedQuestions);
+            } catch (err) {
+                document.getElementById('pdfLoading').style.display = 'none';
+                btn.disabled = false;
+                alert('Network or server error during PDF extraction: ' + err.message);
+            }
+        }
+
+        function renderExtractedQuestions(source, questions) {
+            const container = document.getElementById('extractedListContainer');
+            container.innerHTML = '';
+
+            document.getElementById('extractedCount').textContent = questions.length;
+            document.getElementById('extractionSourceBadge').textContent = source === 'gemini_ai' ? 'Gemini AI' : 'Pattern Matching';
+
+            if (questions.length === 0) {
+                container.innerHTML = '<div class="text-center py-4 text-muted">No questions could be extracted from this PDF.</div>';
+                document.getElementById('pdfReviewSection').style.display = 'block';
+                return;
+            }
+
+            questions.forEach((q, idx) => {
+                let optionsHtml = '';
+                if (q.questionData) {
+                    try {
+                        const parsed = typeof q.questionData === 'string' ? JSON.parse(q.questionData) : q.questionData;
+                        if (parsed && Array.isArray(parsed.options)) {
+                            optionsHtml = '<div class="row g-2 mt-2">';
+                            parsed.options.forEach(opt => {
+                                optionsHtml += `
+                                    <div class="col-md-6">
+                                        <div class="qb-mcq-opt ${opt.isCorrect ? 'correct' : ''}">
+                                            <strong class="font-monospace">${opt.id})</strong> ${opt.text || ''}
+                                            ${opt.isCorrect ? '<i class="fa fa-check-circle ms-auto text-success"></i>' : ''}
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                            optionsHtml += '</div>';
+                        }
+                    } catch (e) { }
+                }
+
+                const item = document.createElement('div');
+                item.className = 'qb-question-item mb-3';
+                item.innerHTML = `
+                    <div class="d-flex align-items-start gap-3">
+                        <input type="checkbox" class="form-check-input extracted-checkbox mt-1" data-index="${idx}" checked />
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <span class="badge bg-dark rounded-pill">#${idx + 1}</span>
+                                <span class="qb-pill-badge qb-pill-mcq">${q.questionType || 'MCQ'}</span>
+                                <span class="badge bg-light text-secondary border">
+                                    Marks: <input type="number" class="border-0 bg-transparent text-end fw-bold" style="width: 45px;" value="${q.marks || 1}" min="0.5" step="0.5" onchange="currentExtractedQuestions[${idx}].marks = parseFloat(this.value);" />
+                                </span>
+                            </div>
+                            <textarea class="form-control mb-2 fw-semibold" rows="2" onchange="currentExtractedQuestions[${idx}].questionText = this.value;">${q.questionText || ''}</textarea>
+                            ${optionsHtml}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+
+            document.getElementById('pdfReviewSection').style.display = 'block';
+        }
+
+        function toggleSelectAllExtracted(select) {
+            document.querySelectorAll('.extracted-checkbox').forEach(cb => cb.checked = select);
+        }
+
+        async function saveExtractedToExam() {
+            const selectedIndices = [];
+            document.querySelectorAll('.extracted-checkbox:checked').forEach(cb => {
+                selectedIndices.push(parseInt(cb.getAttribute('data-index')));
+            });
+
+            if (selectedIndices.length === 0) {
+                alert('Please select at least one question to save.');
+                return;
+            }
+
+            const questionsToSave = selectedIndices.map(i => currentExtractedQuestions[i]);
+            const btn = document.getElementById('btnSaveExtracted');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving to Exam...';
+
+            try {
+                const response = await fetch('@Url.Action("SaveExtractedQuestions", "ProctoringExam", new { area = "Admin" })', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        examId: EXAM_ID,
+                        questions: questionsToSave
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    alert(`Successfully mapped ${data.saved} question(s) to this exam!`);
+                    window.location.href = '@Url.Action("ManageQuestions", "ProctoringExam", new { area = "Admin" })?examId=' + EXAM_ID + '&tab=review';
+                } else {
+                    alert('Failed to save questions: ' + data.message);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa fa-check me-1"></i> Save Selected to Exam';
+                }
+            } catch (err) {
+                alert('Error saving questions: ' + err.message);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-check me-1"></i> Save Selected to Exam';
+            }
+        }
+    </script>
+}

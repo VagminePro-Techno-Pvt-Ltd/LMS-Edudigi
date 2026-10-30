@@ -19,10 +19,14 @@ namespace TMS.Web.Areas.Admin.Controllers
     public class BulkUserUploadController : BaseController
     {
         private readonly IBulkUserManager _bulkUserManager;
+        private readonly TMS.Web.Services.Email.IEmailOutboxService _outboxService;
 
-        public BulkUserUploadController(IBulkUserManager bulkUserManager)
+        public BulkUserUploadController(
+            IBulkUserManager bulkUserManager,
+            TMS.Web.Services.Email.IEmailOutboxService outboxService)
         {
             _bulkUserManager = bulkUserManager;
+            _outboxService = outboxService;
         }
 
         // =============================
@@ -108,6 +112,12 @@ namespace TMS.Web.Areas.Admin.Controllers
 
             var result = await _bulkUserManager.ProcessBulkUploadAsync(rows, GetUserId(), mode);
 
+            // Queue welcome emails for newly created users via transactional outbox
+            if (result.CreatedUsers != null && result.CreatedUsers.Count > 0)
+            {
+                await QueueWelcomeEmailsForCreatedUsersAsync(result.CreatedUsers);
+            }
+
             ViewBag.BulkResult = result;
 
             var statusMsg = result.FailedCount == 0
@@ -148,6 +158,13 @@ namespace TMS.Web.Areas.Admin.Controllers
             };
 
             var result = await _bulkUserManager.ProcessBulkUploadAsync(rows, GetUserId(), mode);
+
+            // Queue welcome emails for newly created users via transactional outbox
+            if (result.CreatedUsers != null && result.CreatedUsers.Count > 0)
+            {
+                await QueueWelcomeEmailsForCreatedUsersAsync(result.CreatedUsers);
+            }
+
             ViewBag.BulkResult = result;
 
             var statusMsg = result.FailedCount == 0
@@ -156,6 +173,38 @@ namespace TMS.Web.Areas.Admin.Controllers
 
             SetApplicationResult(result.FailedCount == 0, statusMsg);
             return View("Result");
+        }
+
+        private async Task QueueWelcomeEmailsForCreatedUsersAsync(List<BulkUserCreatedItem> createdUsers)
+        {
+            if (createdUsers == null || createdUsers.Count == 0) return;
+
+            try
+            {
+                var emailRequests = createdUsers
+                    .Where(u => !string.IsNullOrWhiteSpace(u.Email) && u.Email.Contains("@"))
+                    .Select(u => new TMS.ViewModels.Email.EmailEnqueueRequest
+                    {
+                        RecipientEmail = u.Email.Trim(),
+                        RecipientName = u.Name,
+                        Subject = "Welcome to EduDigiClass LMS — Account Activated",
+                        TemplateName = "AccountWelcome",
+                        TemplateData = new Dictionary<string, string>
+                        {
+                            ["RecipientName"] = u.Name ?? "User",
+                            ["Email"] = u.Email.Trim(),
+                            ["Role"] = u.Role ?? "Student"
+                        },
+                        EventType = "BulkUserWelcome",
+                        IdempotencyKey = $"welcome-user-{u.UserId}"
+                    });
+
+                await _outboxService.EnqueueBatchAsync(emailRequests);
+            }
+            catch
+            {
+                // Non-fatal for bulk controller response
+            }
         }
 
         // =============================

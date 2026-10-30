@@ -28,9 +28,29 @@ namespace TMS.Web.Services
             @"(^|\b)(enrolled\s+courses?|my\s+courses?|what\s+courses?|which\s+courses?|course\s+list|list\s+of\s+courses?|subjects?\s+enrolled|registered\s+courses?|courses?\s+(am\s+i\s+)?(taking|enrolled|registered)|my\s+subjects?)(\b|$)|(میرے\s*کورسز|کورسز|مضامین)",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        // Matches "assignment", "assignments", "asignment", "homework", "deadlines", "due dates", etc.
+        // Matches "assignment", "assignments", "asignment", "homework", etc.
         private static readonly Regex AssignmentsRegex = new(
-            @"(^|\b)(as+ig+n\w*|homework\w*|deadlines?|due\s+dates?|pending\s+assignments?|submit\s+assignment|assignment\s+status)(\b|$)|(اسائنمنٹ|ہوم\s*ورک)",
+            @"(^|\b)(as+ig+n\w*|homework\w*)(\b|$)|(اسائنمنٹ|ہوم\s*ورک)",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        // Matches general deadline queries: "deadline", "deadlines", "due dates", "when to submit", "last date", "kab submit", etc.
+        private static readonly Regex DeadlinesRegex = new(
+            @"(^|\b)(deadlines?|due\s+dates?|last\s+date\w*|when\s+to\s+submit|when\s+is\s+it\s+due|pending\s+submissions?|submit\s+by|overdue\w*|late\s+submission\w*|miss\w*\s+deadline\w*|submission\s+dates?|kab\s+submit|last\s+day\s+to\s+submit)(\b|$)|(آخری\s*تاریخ|ڈیڈ\s*لائن|جمع\s*کروانے\s*کی\s*تاریخ)",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        // Matches course syllabus, faculty instructor, credits, and structure
+        private static readonly Regex CourseDetailsRegex = new(
+            @"(^|\b)(course\s+details?|about\s+(this\s+|the\s+)?course|syllabus|who\s+is\s+(the\s+)?(faculty|teacher|professor|instructor)|faculty\s+(name|details?)|who\s+teaches|course\s+credits?|how\s+many\s+credits|course\s+duration|subjects?\s+in\s+this\s+course|units?\s+in\s+this\s+course|course\s+structure|course\s+overview|what\s+is\s+this\s+course\s+about)(\b|$)|(کورس\s*کی\s*تفصیلات|نصاب|استاد|کریڈٹس)",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        // Matches learning process, 4-quadrant pedagogy, submission steps, grading system, attendance criteria, and exam guidance
+        private static readonly Regex LearningProcessRegex = new(
+            @"(^|\b)(learning\s+process\w*|how\s+does\s+learning\s+work|how\s+to\s+study|learning\s+workflow|4\s*quadrants?|four\s+quadrants?|quadrant\s*(1|2|3|4|i|ii|iii|iv)|how\s+do\s+i\s+submit|how\s+to\s+submit|submission\s+(process|guide|steps?|guideline\w*)|how\s+to\s+upload|how\s+are\s+grades\s+calculated|grading\s+(system|scale|policy|rule)|ugc\s+(10\s*point|scale|grading|policy)?|passing\s+(criteria|marks\s+rule|percentage|rules?)|how\s+does\s+attendance\s+work|attendance\s+criteria|attendance\s+rule|75\s*%\s*attendance|how\s+to\s+take\s+(exam|quiz)|proctoring\s+exam|ai\s+proctoring|safe\s+exam\s+browser|seb\s+(browser|exam)|how\s+to\s+download\s+grade\s*card|download\s+marksheet|grace\s+marks\s+policy|compartmental\s+exam|re-?assessment\s+policy)(\b|$)|(سیکھنے\s*کا\s*طریقہ|تعلیمی\s*عمل|چار\s*کواڈرینٹ|اسائنمنٹ\s*جمع|گریڈنگ\s*کا\s*نظام)",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        // Matches support queries, FAQs, technical troubleshooting, and helpdesk self-service
+        private static readonly Regex SupportFaqRegex = new(
+            @"(^|\b)(support|helpdesk|faqs?|frequently\s+asked|(forgot|reset|change|update)\s+((my|the|account)\s+)?password|password\s*(reset|change|recovery|forgot)|(cannot|can('?t|not)|unable\s+to|fail\w*(\s+to)?|issue\s+with|problem\s+with|trouble\s+with|why\s+is(\s+my)?)\s+.*upload\w*|upload\w*\s+(fail\w*|error|issue|problem|stuck)|file\s+(upload\s+)?(fail\w*|too\s+large|error|not\s+supported|size\s+limit|corrupt\w*)|8\s*mb|zoom\s+(not\s+working|issue|error)|live\s+class\s+not\s+(opening|working)|video\s+not\s+playing|marks\s+pending|result\s+pending|pending\s+evaluation|raise\s+ticket|support\s+ticket|contact\s+mentor|contact\s+coordinator|bonafide(\s+certificate)?|transcript\s+request|technical\s+(issue|support|help)|customer\s+care)(\b|$)|(مدد|سپورٹ|پاس\s*ورڈ|مسئلہ|اپلوڈ)",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         // Matches "timetable", "schedule", "skedule", "calendar", "calender", "upcoming classes", "next class", etc.
@@ -63,17 +83,28 @@ namespace TMS.Web.Services
             bool isConceptual = ConceptualKeywordsRegex.IsMatch(text);
             bool isSelfReferential = SelfReferenceRegex.IsMatch(text);
 
-            // 1. Attendance Intent (matches "attendance", "attendace", "attendence", etc.)
+            // 1. Support FAQ & Helpdesk Self-Service (Password reset, file upload troubleshooting, pending marks, etc.)
+            if (SupportFaqRegex.IsMatch(text))
+            {
+                return CompanionIntent.SupportFaq;
+            }
+
+            // 2. Learning Process Intent (Explaining 4-quadrants, grading scale, submission steps, exam/SEB rules)
+            if (LearningProcessRegex.IsMatch(text))
+            {
+                return CompanionIntent.LearningProcess;
+            }
+
+            // 3. Attendance Intent
             if (AttendanceRegex.IsMatch(text))
             {
-                // If it's conceptual without personal reference (e.g. "Explain attendance theory in HR"), route to Tutoring
                 if (!isConceptual || isSelfReferential)
                 {
                     return CompanionIntent.Attendance;
                 }
             }
 
-            // 2. Grades & Results Intent
+            // 4. Grades & Results Intent
             if (GradesRegex.IsMatch(text))
             {
                 if (!isConceptual || isSelfReferential)
@@ -82,13 +113,19 @@ namespace TMS.Web.Services
                 }
             }
 
-            // 3. Enrolled Courses Intent
+            // 5. Course Details & Faculty (Syllabus, instructor, credits, duration)
+            if (CourseDetailsRegex.IsMatch(text))
+            {
+                return CompanionIntent.CourseDetails;
+            }
+
+            // 6. Enrolled Courses Intent
             if (CoursesRegex.IsMatch(text))
             {
                 return CompanionIntent.EnrolledCourses;
             }
 
-            // 4. Assignments & Deadlines Intent
+            // 7. Assignments Intent (Specifically preserves backwards compatibility when query references "assignment" or "homework")
             if (AssignmentsRegex.IsMatch(text))
             {
                 if (!isConceptual || isSelfReferential || text.Contains("due", StringComparison.OrdinalIgnoreCase) || text.Contains("pending", StringComparison.OrdinalIgnoreCase))
@@ -97,13 +134,19 @@ namespace TMS.Web.Services
                 }
             }
 
-            // 5. Schedule & Timetable Intent
+            // 8. General Academic Deadlines Intent (Deadlines, due dates, submission windows, overdue checks)
+            if (DeadlinesRegex.IsMatch(text))
+            {
+                return CompanionIntent.Deadlines;
+            }
+
+            // 9. Schedule & Timetable Intent
             if (ScheduleRegex.IsMatch(text))
             {
                 return CompanionIntent.Schedule;
             }
 
-            // 6. Profile & Progress Intent
+            // 10. Profile & Progress Intent
             if (ProfileRegex.IsMatch(text))
             {
                 return CompanionIntent.Profile;

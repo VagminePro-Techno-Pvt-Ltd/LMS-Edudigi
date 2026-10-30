@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using TMS.Common;
 using TMS.Models.Academics;
+using TMS.Models.Assessments;
+using TMS.Models.Masters;
 using TMS.Repository;
 using TMS.ViewModels.LearningAssistant;
 
@@ -501,6 +503,305 @@ namespace TMS.Web.Services
             }
 
             return summary;
+        }
+
+        public async Task<StudentDeadlinesSummaryDto> GetDeadlinesSummaryAsync(int studentId, int? courseId = null)
+        {
+            var summary = new StudentDeadlinesSummaryDto
+            {
+                StudentId = studentId
+            };
+
+            if (studentId <= 0)
+            {
+                summary.SummaryText = "Invalid student ID.";
+                return summary;
+            }
+
+            try
+            {
+                var enrolledCourseIds = await _learningService.GetEnrolledCourseIdsAsync(studentId);
+                if (courseId.HasValue && courseId.Value > 0 && enrolledCourseIds.Contains(courseId.Value))
+                {
+                    enrolledCourseIds = new List<int> { courseId.Value };
+                }
+
+                if (!enrolledCourseIds.Any())
+                {
+                    summary.SummaryText = "No active enrolled courses found to monitor deadlines.";
+                    return summary;
+                }
+
+                var courseLookup = await _db.CourseMasters
+                    .AsNoTracking()
+                    .Where(c => enrolledCourseIds.Contains(c.Id))
+                    .ToDictionaryAsync(c => c.Id);
+
+                var enrolledProgramIds = courseLookup.Values
+                    .Where(c => c.CourseCategoryId > 0)
+                    .Select(c => c.CourseCategoryId)
+                    .Distinct()
+                    .ToList();
+
+                // 1. Assignments
+                var assignments = await _db.AssignmentMasters
+                    .AsNoTracking()
+                    .Include(a => a.Course)
+                    .Where(a => !a.IsDeleted &&
+                               ((a.CourseId.HasValue && enrolledCourseIds.Contains(a.CourseId.Value)) ||
+                                enrolledProgramIds.Contains(a.ProgramId)))
+                    .OrderBy(a => a.DueDate)
+                    .ToListAsync();
+
+                var assignmentIds = assignments.Select(a => a.Id).ToList();
+                var assignmentSubmissions = await _db.AssignmentSubmissions
+                    .AsNoTracking()
+                    .Where(s => assignmentIds.Contains(s.AssignmentId) && s.StudentId == studentId && !s.IsDeleted)
+                    .ToListAsync();
+
+                foreach (var a in assignments)
+                {
+                    var sub = assignmentSubmissions.FirstOrDefault(s => s.AssignmentId == a.Id);
+                    var item = new StudentDeadlineItemDto
+                    {
+                        ItemType = "Assignment",
+                        ItemId = a.Id,
+                        Title = a.Title,
+                        CourseName = a.Course?.Name ?? "Course Assignment",
+                        CourseCode = a.Course?.CourseCode ?? "ASG",
+                        DueDate = a.DueDate,
+                        MaxMarks = a.MaxMarks,
+                        AllowLateSubmission = false,
+                        ActionUrl = "/Assignment/StudentDashboard"
+                    };
+
+                    if (sub != null)
+                    {
+                        item.Status = sub.Status ?? "Submitted";
+                        summary.CompletedDeadlines.Add(item);
+                    }
+                    else
+                    {
+                        item.Status = "Pending";
+                        summary.PendingDeadlines.Add(item);
+                    }
+                }
+
+                // 2. Internal Assessments
+                var internalAssessments = await _db.InternalAssessments
+                    .AsNoTracking()
+                    .Where(ia => !ia.IsDeleted && ia.IsPublished && enrolledCourseIds.Contains(ia.CourseId))
+                    .OrderBy(ia => ia.DueDate)
+                    .ToListAsync();
+
+                var iaIds = internalAssessments.Select(ia => ia.Id).ToList();
+                var iaSubmissions = await _db.InternalAssessmentSubmissions
+                    .AsNoTracking()
+                    .Where(s => iaIds.Contains(s.AssessmentId) && s.StudentId == studentId)
+                    .ToListAsync();
+
+                foreach (var ia in internalAssessments)
+                {
+                    courseLookup.TryGetValue(ia.CourseId, out var cObj);
+                    var sub = iaSubmissions.FirstOrDefault(s => s.AssessmentId == ia.Id);
+                    var item = new StudentDeadlineItemDto
+                    {
+                        ItemType = $"Internal Assessment ({ia.Type})",
+                        ItemId = ia.Id,
+                        Title = ia.Title,
+                        CourseName = cObj?.Name ?? "Course Assessment",
+                        CourseCode = cObj?.CourseCode ?? "IA",
+                        DueDate = ia.DueDate,
+                        MaxMarks = ia.MaxMarks,
+                        AllowLateSubmission = ia.AllowLateSubmission,
+                        ActionUrl = $"/InternalAssessment/Attempt?id={ia.Id}"
+                    };
+
+                    if (sub != null)
+                    {
+                        item.Status = sub.Marks.HasValue ? "Graded" : "Submitted";
+                        summary.CompletedDeadlines.Add(item);
+                    }
+                    else
+                    {
+                        item.Status = "Pending";
+                        summary.PendingDeadlines.Add(item);
+                    }
+                }
+
+                // 3. Exams
+                var exams = await _db.ExamMasters
+                    .AsNoTracking()
+                    .Include(e => e.Course)
+                    .Where(e => e.IsActive && e.Status == "Active" && enrolledCourseIds.Contains(e.CourseId) && e.EndDate >= DateTime.Today)
+                    .OrderBy(e => e.EndDate)
+                    .ToListAsync();
+
+                foreach (var ex in exams)
+                {
+                    summary.PendingDeadlines.Add(new StudentDeadlineItemDto
+                    {
+                        ItemType = "Formal Examination",
+                        ItemId = ex.Id,
+                        Title = ex.Title,
+                        CourseName = ex.Course?.Name ?? "Course Examination",
+                        CourseCode = ex.Course?.CourseCode ?? "EXAM",
+                        DueDate = ex.EndDate,
+                        MaxMarks = ex.TotalMarks,
+                        AllowLateSubmission = false,
+                        Status = "Scheduled",
+                        ActionUrl = "/StudentExam/Index"
+                    });
+                }
+
+                // Sort pending deadlines chronologically
+                summary.PendingDeadlines = summary.PendingDeadlines.OrderBy(d => d.DueDate).ToList();
+                summary.CompletedDeadlines = summary.CompletedDeadlines.OrderByDescending(d => d.DueDate).ToList();
+
+                if (summary.PendingDeadlines.Any())
+                {
+                    var overdueMsg = summary.OverdueCount > 0 ? $" ⚠️ **{summary.OverdueCount} overdue**" : "";
+                    summary.SummaryText = $"You have **{summary.PendingDeadlines.Count} pending academic deadline(s)**{overdueMsg} and **{summary.CompletedDeadlines.Count} completed**.";
+                }
+                else
+                {
+                    summary.SummaryText = "Great news! You have no pending deadlines right now. All assignments and assessments are up to date.";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error compiling academic deadlines for student {StudentId}", studentId);
+                summary.SummaryText = "An error occurred while retrieving academic deadlines from the LMS database.";
+            }
+
+            return summary;
+        }
+
+        public async Task<StudentCourseDetailSummaryDto?> GetCourseDetailsSummaryAsync(
+            int studentId,
+            int? courseId = null,
+            string? courseCodeOrTitle = null)
+        {
+            if (studentId <= 0) return null;
+
+            try
+            {
+                var enrolledCourseIds = await _learningService.GetEnrolledCourseIdsAsync(studentId);
+
+                CourseMaster? course = null;
+
+                // Priority 1: CourseId explicitly given
+                if (courseId.HasValue && courseId.Value > 0)
+                {
+                    course = await _db.CourseMasters
+                        .AsNoTracking()
+                        .Include(c => c.CourseCategory)
+                        .Include(c => c.Semester)
+                        .FirstOrDefaultAsync(c => c.Id == courseId.Value);
+                }
+
+                // Priority 2: Match by name or code
+                if (course == null && !string.IsNullOrWhiteSpace(courseCodeOrTitle))
+                {
+                    var cleanTerm = courseCodeOrTitle.Trim().ToLower();
+                    course = await _db.CourseMasters
+                        .AsNoTracking()
+                        .Include(c => c.CourseCategory)
+                        .Include(c => c.Semester)
+                        .FirstOrDefaultAsync(c =>
+                            (c.CourseCode != null && c.CourseCode.ToLower().Contains(cleanTerm)) ||
+                            (c.Name != null && c.Name.ToLower().Contains(cleanTerm)));
+                }
+
+                // Priority 3: First enrolled course
+                if (course == null && enrolledCourseIds.Any())
+                {
+                    var firstId = enrolledCourseIds.First();
+                    course = await _db.CourseMasters
+                        .AsNoTracking()
+                        .Include(c => c.CourseCategory)
+                        .Include(c => c.Semester)
+                        .FirstOrDefaultAsync(c => c.Id == firstId);
+                }
+
+                if (course == null) return null;
+
+                var detail = new StudentCourseDetailSummaryDto
+                {
+                    CourseId = course.Id,
+                    CourseCode = course.CourseCode ?? "N/A",
+                    CourseName = course.Name ?? "Untitled Course",
+                    CategoryName = course.CourseCategory?.Name,
+                    SemesterId = course.SemesterId,
+                    Credits = course.NoofCredit,
+                    DurationMonths = course.CourseDurationMonths,
+                    IsEnrolled = enrolledCourseIds.Contains(course.Id)
+                };
+
+                // Faculty Instructors
+                var facultyMaps = await _db.CourseFacultyMaps
+                    .AsNoTracking()
+                    .Include(m => m.Faculty)
+                    .Where(m => m.CourseId == course.Id && m.Faculty != null)
+                    .ToListAsync();
+
+                detail.FacultyNames = facultyMaps
+                    .Select(m => m.Faculty!.Name)
+                    .Where(n => !string.IsNullOrWhiteSpace(n))
+                    .Distinct()
+                    .ToList();
+
+                // Unit Titles from SubjectMaster & UnitMaster
+                if (course.SemesterId.HasValue)
+                {
+                    var subjects = await _db.SubjectMasters
+                        .AsNoTracking()
+                        .Where(s => s.SemesterId == course.SemesterId.Value)
+                        .Select(s => s.Id)
+                        .ToListAsync();
+
+                    var units = await _db.UnitMasters
+                        .AsNoTracking()
+                        .Where(u => subjects.Contains(u.SubjectId))
+                        .OrderBy(u => u.SortOrder)
+                        .Select(u => u.Name)
+                        .ToListAsync();
+
+                    detail.UnitTitles = units.Where(u => !string.IsNullOrWhiteSpace(u)).ToList();
+                }
+
+                // Material Counts
+                detail.VideoCount = await _db.LectureMaterials
+                    .AsNoTracking()
+                    .CountAsync(m => m.CourseId == course.Id && m.IsActive && (m.MaterialType == "Video" || m.MaterialType == "VideoURL"));
+
+                detail.DocumentCount = await _db.LectureMaterials
+                    .AsNoTracking()
+                    .CountAsync(m => m.CourseId == course.Id && m.IsActive && m.MaterialType == "Document");
+
+                detail.QuizCount = await _db.QuizMasters
+                    .AsNoTracking()
+                    .CountAsync(q => q.CourseId == course.Id && q.IsActive);
+
+                if (detail.IsEnrolled)
+                {
+                    try
+                    {
+                        detail.StudentProgressPercent = await _learningService.GetCourseProgressPercentAsync(studentId, course.Id);
+                    }
+                    catch
+                    {
+                        detail.StudentProgressPercent = null;
+                    }
+                }
+
+                return detail;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error retrieving course details for student {StudentId}", studentId);
+                return null;
+            }
         }
     }
 }

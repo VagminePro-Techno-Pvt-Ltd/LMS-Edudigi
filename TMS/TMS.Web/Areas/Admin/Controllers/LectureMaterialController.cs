@@ -30,11 +30,14 @@ namespace TMS.Web.Areas.Admin.Controllers
         private readonly IMasterBaseManager<CourseFacultyMapViewModel> _courseFacultyMapManager;
         private readonly IWebHostEnvironment _env;
         private readonly ZoomSettings _zoomSettings;
+        private readonly TMS.Utilities.IZoomService _zoomService;
         private readonly IMasterBaseManager<CourseMaterialMappingViewModel> _courseMaterialMappingManager;
         private readonly IMasterManager<SemesterMasterViewModel> _semesterManager;
         private readonly TMS.Repository.ApplicationDBContext _db;
         private readonly IDocumentIndexService? _documentIndexService;
         private readonly ILearningAssistantCacheService? _cacheService;
+        private readonly TMS.Web.Services.ContentSync.GoogleDriveContentStorageProvider? _googleDriveProvider;
+        private readonly ILogger<LectureMaterialController>? _logger;
 
         public LectureMaterialController(
             IMasterBaseManager<LectureMaterialViewModel> lectureMaterialManager,
@@ -48,7 +51,10 @@ namespace TMS.Web.Areas.Admin.Controllers
             IMasterManager<SemesterMasterViewModel> semesterManager,
             TMS.Repository.ApplicationDBContext db,
             IDocumentIndexService? documentIndexService = null,
-            ILearningAssistantCacheService? cacheService = null)
+            ILearningAssistantCacheService? cacheService = null,
+            TMS.Web.Services.ContentSync.GoogleDriveContentStorageProvider? googleDriveProvider = null,
+            ILogger<LectureMaterialController>? logger = null,
+            TMS.Utilities.IZoomService? zoomService = null)
         {
             _lectureMaterialManager = lectureMaterialManager;
             _courseManager = courseManager;
@@ -56,12 +62,15 @@ namespace TMS.Web.Areas.Admin.Controllers
             _courseFacultyMapManager = courseFacultyMapManager;
             _env = env;
             _zoomSettings = options.Value;
+            _zoomService = zoomService ?? new TMS.Utilities.ZoomService(options);
             _meetingManager = meetingManager;
             _courseMaterialMappingManager = mappingManager;
             _semesterManager = semesterManager;
             _db = db;
             _documentIndexService = documentIndexService;
             _cacheService = cacheService;
+            _googleDriveProvider = googleDriveProvider;
+            _logger = logger;
         }
 
 
@@ -788,10 +797,10 @@ namespace TMS.Web.Areas.Admin.Controllers
                     QuadrantId = q.Id,
                     QuadrantName = q.Name ?? $"Quadrant {q.QuadrantNumber}",
                     Materials = filteredMappings
-                        .Where(m => m.CourseQuadrantId == q.Id && m.LectureMaterial != null)
+                        .Where(m => (m.CourseQuadrantId == q.Id || (m.CourseQuadrantId == 0 && m.LectureMaterial?.CourseQuadrantId == q.Id)) && m.LectureMaterial != null)
                         .Select(m => {
                             var lm = m.LectureMaterial!;
-                            lm.CourseQuadrant = m.CourseQuadrant;
+                            lm.CourseQuadrant = m.CourseQuadrant ?? q;
                             lm.Course = m.Course;
                             return lm;
                         }).ToList()
@@ -810,9 +819,7 @@ namespace TMS.Web.Areas.Admin.Controllers
         [HttpPost]
         public async Task<IActionResult> ScheduleMeeting(int courseId, int quadrantId, DateTime startTime, string MeetingTitle, int duration)
         {
-            var zoomService = new TMS.Utilities.ZoomService(_zoomSettings);
-
-            var meetingUrl = await zoomService.CreateMeetingAsync(
+            var meetingUrl = await _zoomService.CreateMeetingAsync(
                 $"Course {MeetingTitle} - Virtual Session",
                 startTime,
                 duration
@@ -936,6 +943,150 @@ namespace TMS.Web.Areas.Admin.Controllers
             }
 
             return Json(new { hasMeeting = false });
+        }
+
+        // ═══════════════════════════════════════════════════
+        //           FILE STREAMING & DOWNLOAD ENDPOINTS
+        // ═══════════════════════════════════════════════════
+
+        private static string GetMimeType(string fileName)
+        {
+            var ext = Path.GetExtension(fileName).ToLowerInvariant();
+            return ext switch
+            {
+                ".pdf" => "application/pdf",
+                ".mp4" => "video/mp4",
+                ".webm" => "video/webm",
+                ".ogg" => "video/ogg",
+                ".mov" => "video/quicktime",
+                ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ".doc" => "application/msword",
+                ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                ".xls" => "application/vnd.ms-excel",
+                ".pptx" => "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                ".ppt" => "application/vnd.ms-powerpoint",
+                ".png" => "image/png",
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".gif" => "image/gif",
+                ".txt" => "text/plain",
+                _ => "application/octet-stream"
+            };
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> PreviewFile(int id)
+        {
+            var material = await _lectureMaterialManager.GetAsync(id);
+            if (material == null || !material.IsActive)
+                return NotFound("Material not found.");
+
+            // 1. Google Drive / Cloud external file
+            if (material.Source == "GoogleDrive" || (!string.IsNullOrEmpty(material.ExternalFileId) && material.ExternalFileId.StartsWith("1")))
+            {
+                var fileId = !string.IsNullOrEmpty(material.ExternalFileId) ? material.ExternalFileId : material.FilePath;
+                if (!string.IsNullOrEmpty(fileId) && _googleDriveProvider != null)
+                {
+                    try
+                    {
+                        var stream = await _googleDriveProvider.DownloadFileAsync(fileId);
+                        var fileName = !string.IsNullOrEmpty(material.OriginalFileName) ? material.OriginalFileName : $"{material.Title}.pdf";
+                        var mime = GetMimeType(fileName);
+                        var cd = new System.Net.Mime.ContentDisposition
+                        {
+                            FileName = fileName,
+                            Inline = true
+                        };
+                        Response.Headers.ContentDisposition = cd.ToString();
+                        return File(stream, mime, enableRangeProcessing: true);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogWarning(ex, "Failed to stream Google Drive file for material {Id}: {Message}", id, ex.Message);
+                        return Redirect($"https://drive.google.com/file/d/{fileId}/preview");
+                    }
+                }
+            }
+
+            // 2. Local uploads
+            if (!string.IsNullOrEmpty(material.FilePath))
+            {
+                if (material.FilePath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                    material.FilePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                {
+                    return Redirect(material.FilePath);
+                }
+
+                var rel = material.FilePath.TrimStart('~').TrimStart('/');
+                var full = Path.Combine(_env.WebRootPath, rel);
+                if (System.IO.File.Exists(full))
+                {
+                    var stream = new FileStream(full, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    var fileName = !string.IsNullOrEmpty(material.OriginalFileName) ? material.OriginalFileName : Path.GetFileName(full);
+                    var mime = GetMimeType(fileName);
+                    var cd = new System.Net.Mime.ContentDisposition
+                    {
+                        FileName = fileName,
+                        Inline = true
+                    };
+                    Response.Headers.ContentDisposition = cd.ToString();
+                    return File(stream, mime, enableRangeProcessing: true);
+                }
+            }
+
+            return NotFound("File not found on server.");
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> DownloadFile(int id)
+        {
+            var material = await _lectureMaterialManager.GetAsync(id);
+            if (material == null || !material.IsActive)
+                return NotFound("Material not found.");
+
+            var fileName = !string.IsNullOrEmpty(material.OriginalFileName)
+                ? material.OriginalFileName
+                : (!string.IsNullOrEmpty(material.FilePath) && Path.HasExtension(material.FilePath) ? Path.GetFileName(material.FilePath) : $"{material.Title}.pdf");
+
+            // 1. Google Drive / Cloud external file
+            if (material.Source == "GoogleDrive" || (!string.IsNullOrEmpty(material.ExternalFileId) && material.ExternalFileId.StartsWith("1")))
+            {
+                var fileId = !string.IsNullOrEmpty(material.ExternalFileId) ? material.ExternalFileId : material.FilePath;
+                if (!string.IsNullOrEmpty(fileId) && _googleDriveProvider != null)
+                {
+                    try
+                    {
+                        var stream = await _googleDriveProvider.DownloadFileAsync(fileId);
+                        var mime = GetMimeType(fileName);
+                        return File(stream, mime, fileName);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogWarning(ex, "Failed to download Google Drive file for material {Id}: {Message}", id, ex.Message);
+                        return Redirect($"https://drive.google.com/uc?export=download&id={fileId}");
+                    }
+                }
+            }
+
+            // 2. Local uploads
+            if (!string.IsNullOrEmpty(material.FilePath))
+            {
+                if (material.FilePath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                    material.FilePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                {
+                    return Redirect(material.FilePath);
+                }
+
+                var rel = material.FilePath.TrimStart('~').TrimStart('/');
+                var full = Path.Combine(_env.WebRootPath, rel);
+                if (System.IO.File.Exists(full))
+                {
+                    var stream = new FileStream(full, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    var mime = GetMimeType(fileName);
+                    return File(stream, mime, fileName);
+                }
+            }
+
+            return NotFound("File not found on server.");
         }
     }
 }

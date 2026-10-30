@@ -1,0 +1,421 @@
+@using TMS.ViewModels.Assessments
+@model ProctorExamDto
+
+@{
+    ViewData["Title"] = "Exam Created Successfully";
+    var frontendBaseUrl = (string?)ViewBag.FrontendBaseUrl ?? "http://localhost:5173";
+    var proctoringConsoleUrl = $"{frontendBaseUrl.TrimEnd('/')}/admin/exams";
+}
+
+<style>
+    :root {
+        --created-primary: #2563eb;
+        --created-success: #10b981;
+        --created-surface: #ffffff;
+        --created-border: #e2e8f0;
+        --created-dark: #0f172a;
+        --created-muted: #64748b;
+    }
+
+    .created-page-wrapper {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 1.5rem 1rem 3rem;
+    }
+
+    .created-hero-card {
+        background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 50%, #e0f2fe 100%);
+        border: 1px solid #bbf7d0;
+        border-radius: 20px;
+        padding: 2.2rem 2rem;
+        text-align: center;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 25px rgba(16, 185, 129, 0.08);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .created-icon-circle {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.2rem;
+        margin: 0 auto 1.25rem;
+        box-shadow: 0 8px 20px rgba(16, 185, 129, 0.35);
+        animation: scaleIn 0.4s ease-out;
+    }
+
+    @@keyframes scaleIn {
+        from { transform: scale(0.6); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+
+    .created-title {
+        font-size: 1.65rem;
+        font-weight: 800;
+        color: #065f46;
+        letter-spacing: -0.4px;
+        margin-bottom: 0.5rem;
+        font-family: 'Outfit', sans-serif;
+    }
+
+    .created-subtitle {
+        color: #047857;
+        font-size: 0.95rem;
+        max-width: 580px;
+        margin: 0 auto;
+        line-height: 1.5;
+    }
+
+    .created-details-card {
+        background: var(--created-surface);
+        border: 1px solid var(--created-border);
+        border-radius: 18px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+    }
+
+    .details-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #f1f5f9;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .details-card-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--created-dark);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0;
+        font-family: 'Outfit', sans-serif;
+    }
+
+    .details-grid {
+        display: grid;
+        grid-templateColumns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.25rem;
+    }
+
+    .detail-item {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1rem 1.2rem;
+    }
+
+    .detail-item-label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--created-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.35rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .detail-item-value {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--created-dark);
+    }
+
+    .id-pill-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.85rem;
+        color: #1d4ed8;
+        font-weight: 600;
+        width: fit-content;
+    }
+
+    .btn-copy-id {
+        border: none;
+        background: transparent;
+        color: #2563eb;
+        cursor: pointer;
+        padding: 2px 4px;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        transition: color 0.15s;
+    }
+    .btn-copy-id:hover {
+        color: #1e40af;
+    }
+
+    .badge-status {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+    }
+    .badge-status-live {
+        background: #dcfce7;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+    }
+    .badge-status-draft {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #cbd5e1;
+    }
+
+    .action-panel {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-create-another {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #ffffff;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 0.95rem;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+        transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .btn-create-another:hover {
+        color: #ffffff;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.35);
+    }
+
+    .btn-open-console {
+        background: #ffffff;
+        color: #334155;
+        border: 1px solid #cbd5e1;
+        padding: 12px 22px;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 0.95rem;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.15s;
+    }
+    .btn-open-console:hover {
+        background: #f8fafc;
+        border-color: #94a3b8;
+        color: #0f172a;
+    }
+</style>
+
+<div class="container-fluid py-3">
+    <div class="created-page-wrapper">
+
+        <!-- Breadcrumbs -->
+        <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb small">
+                <li class="breadcrumb-item"><a asp-area="" asp-controller="Home" asp-action="Index">Dashboard</a></li>
+                <li class="breadcrumb-item">AI Proctoring</li>
+                <li class="breadcrumb-item"><a asp-action="Create">Create Exam</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Confirmation</li>
+            </ol>
+        </nav>
+
+        <!-- Hero Success Card -->
+        <div class="created-hero-card">
+            <div class="created-icon-circle">
+                <i class="fa-solid fa-check"></i>
+            </div>
+            <h1 class="created-title">Exam Created Successfully</h1>
+            <p class="created-subtitle">
+                The exam has been validated, assigned a unique ID, and registered into the canonical <strong>Proctor_Exams</strong> database on the AI Proctoring Platform.
+            </p>
+        </div>
+
+        <!-- Exam Details Summary Card -->
+        <div class="created-details-card">
+            <div class="details-card-header">
+                <div>
+                    <h2 class="details-card-title">
+                        <i class="fa-solid fa-file-shield text-primary"></i>
+                        @Model.Title
+                    </h2>
+                    @if (!string.IsNullOrWhiteSpace(Model.Description))
+                    {
+                        <p class="small text-muted mb-0 mt-1">@Model.Description</p>
+                    }
+                </div>
+                <div>
+                    @if (Model.IsActive)
+                    {
+                        <span class="badge-status badge-status-live">
+                            <i class="fa-solid fa-circle"></i> Published &amp; Active
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="badge-status badge-status-draft">
+                            <i class="fa-solid fa-pencil"></i> Saved as Draft
+                        </span>
+                    }
+                </div>
+            </div>
+
+            <!-- Configuration Summary Grid -->
+            <div class="details-grid">
+                <div class="detail-item" style="grid-column: 1 / -1;">
+                    <div class="detail-item-label">
+                        <i class="fa-solid fa-fingerprint text-primary"></i> Exam Unique Identifier (GUID)
+                    </div>
+                    <div class="id-pill-wrap">
+                        <span id="examGuid">@Model.Id</span>
+                        <button type="button" class="btn-copy-id" onclick="copyExamId()" title="Copy ID to Clipboard">
+                            <i class="fa-regular fa-copy" id="copyIcon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-item-label">
+                        <i class="fa-regular fa-clock text-primary"></i> Duration
+                    </div>
+                    <div class="detail-item-value">
+                        @Model.DurationMinutes Minutes
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-item-label">
+                        <i class="fa-regular fa-calendar text-primary"></i> Start Schedule
+                    </div>
+                    <div class="detail-item-value">
+                        @(Model.StartTime.HasValue ? Model.StartTime.Value.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt") : "Immediately / Flexible")
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-item-label">
+                        <i class="fa-solid fa-bullseye text-primary"></i> Target Audience Scope
+                    </div>
+                    <div class="detail-item-value">
+                        @if (Model.IsGlobal)
+                        {
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                <i class="fa-solid fa-globe me-1"></i> Global (All Students)
+                            </span>
+                        }
+                        else
+                        {
+                            <span>@(Model.TargetCourseName ?? "Course Specified")</span>
+                            @if (!string.IsNullOrEmpty(Model.TargetBatch))
+                            {
+                                <small class="text-muted d-block">Batch: @Model.TargetBatch</small>
+                            }
+                            @if (!string.IsNullOrEmpty(Model.TargetSemester))
+                            {
+                                <small class="text-muted d-block">@Model.TargetSemester</small>
+                            }
+                        }
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-item-label">
+                        <i class="fa-solid fa-shield-halved text-primary"></i> Safe Exam Browser (SEB)
+                    </div>
+                    <div class="detail-item-value">
+                        @if (Model.RequiresSEB)
+                        {
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                <i class="fa-solid fa-lock me-1"></i> Enforced Lockdown
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Standard Browser</span>
+                        }
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-item-label">
+                        <i class="fa-solid fa-brain text-primary"></i> AI Automated Evaluation
+                    </div>
+                    <div class="detail-item-value">
+                        @if (Model.AiEvaluationEnabled)
+                        {
+                            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">
+                                <i class="fa-solid fa-check me-1"></i> Enabled (@Model.AiEvaluationDelay @Model.AiEvaluationDelayUnit delay)
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Manual Evaluation</span>
+                        }
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-item-label">
+                        <i class="fa-solid fa-award text-primary"></i> Scoring &amp; Passing
+                    </div>
+                    <div class="detail-item-value">
+                        @(Model.TotalMarks > 0 ? $"{Model.TotalMarks:N0} Marks" : "Standard") &bull;
+                        Pass: @Model.PassingPercentage%
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Next Step & Action Buttons -->
+        <div class="action-panel">
+            <a asp-action="Create" class="btn-create-another">
+                <i class="fa-solid fa-circle-plus"></i> Create Another Exam
+            </a>
+            <a href="@proctoringConsoleUrl" target="_blank" rel="noopener noreferrer" class="btn-open-console">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> Open AI Proctoring Admin Console
+            </a>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    function copyExamId() {
+        const idText = document.getElementById('examGuid').innerText.trim();
+        navigator.clipboard.writeText(idText).then(() => {
+            const icon = document.getElementById('copyIcon');
+            icon.className = 'fa-solid fa-check text-success';
+            setTimeout(() => {
+                icon.className = 'fa-regular fa-copy';
+            }, 2000);
+        });
+    }
+</script>

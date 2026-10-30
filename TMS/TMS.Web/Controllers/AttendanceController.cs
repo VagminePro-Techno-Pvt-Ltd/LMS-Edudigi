@@ -80,5 +80,33 @@ namespace TMS.Web.Controllers
             var result = await _attendanceManager.AddUpdateAsync(record, userId);
             return Json(new { success = result });
         }
+
+        /// <summary>
+        /// Admin manual dispatch for nightly absence notifications.
+        /// </summary>
+        [HttpPost]
+        [Authorize(Roles = "Admin,Super Admin,super admin")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DispatchNightlyAbsenceEmails(DateTime? date)
+        {
+            var targetDate = date ?? DateTime.Today;
+            using var scope = HttpContext.RequestServices.CreateScope();
+            int queued = await BackgroundServices.AttendanceBackgroundJob.DispatchNightlyAbsenceEmailsAsync(scope, targetDate);
+            return Json(new { success = true, queued, message = $"Queued {queued} absence email(s) for {targetDate:dd MMM yyyy}." });
+        }
+
+        /// <summary>
+        /// Admin manual dispatch for weekly attendance shortage warnings.
+        /// </summary>
+        [HttpPost]
+        [Authorize(Roles = "Admin,Super Admin,super admin")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DispatchAttendanceShortageAlerts()
+        {
+            using var scope = HttpContext.RequestServices.CreateScope();
+            int queued = await BackgroundServices.AttendanceBackgroundJob.DispatchWeeklyShortageAlertsAsync(scope, DateTime.Today);
+            return Json(new { success = true, queued, message = $"Queued {queued} attendance shortage warning(s)." });
+        }
     }
 }
+

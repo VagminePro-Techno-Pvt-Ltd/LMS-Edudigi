@@ -218,8 +218,8 @@
         addWelcomeMessage: function () {
             const isUrdu = document.documentElement.getAttribute('dir') === 'rtl';
             const welcomeText = isUrdu
-                ? 'السلام علیکم! میں آپ کا **ایڈو ڈیجی لرننگ ساتھی** (AI Companion) ہوں۔\n\nآپ مجھ سے اپنے تعلیمی ریکارڈ کے بارے میں پوچھ سکتے ہیں:\n- 📊 **حاضری** ("میری حاضری کتنی ہے؟")\n- 📝 **مارکس اور نتائج** ("Show my grades")\n- 📚 **کورسز** ("What are my enrolled courses?")\n- ⏰ **اسائنمنٹس** ("What assignments are due?")\n- 📅 **کلاس کا شیڈول** ("When is my next class?")\n\nاور کورس کے اہم تصورات و نوٹس سمجھنے کے لیے سوال کریں۔'
-                : 'Hello! I am your **EduDigi AI Learning Companion**.\n\nI can retrieve your official LMS records directly without requiring external AI keys:\n- 📊 **"What is my attendance?"** *(Classroom & daily sessions)*\n- 📝 **"Show my grades"** *(Internal assessments & exam results)*\n- 📚 **"What are my enrolled courses?"**\n- ⏰ **"What assignments are due?"**\n- 📅 **"What is my class schedule?"**\n\nYou can also ask me conceptual questions about your course materials and lecture notes!';
+                ? 'السلام علیکم! میں آپ کا **ایڈو ڈیجی لرننگ ساتھی** (AI Companion) ہوں۔\n\nآپ مجھ سے اپنے تعلیمی ریکارڈ اور کورسز کے بارے میں پوچھ سکتے ہیں:\n- ⏰ **ڈیڈ لائنز اور آخری تاریخ** ("میری ڈیڈ لائنز کیا ہیں؟")\n- 📚 **کورس کی تفصیلات اور استاد** ("اس کورس کا استاد کون ہے؟")\n- 🎓 **تعلیمی طریقہ کار** ("4 کواڈرینٹ لرننگ کیا ہے؟ / اسائنمنٹ کیسے جمع کریں؟")\n- 💡 **سپورٹ اور عمومی سوالات** ("پاس ورڈ کیسے ری سیٹ کریں؟ / فائل اپلوڈ کا مسئلہ")\n- 📊 **حاضری اور مارکس** ("Show my grades" / "حاضری")\n\nاور کورس کے اہم تصورات و نوٹس سمجھنے کے لیے بھی بلا جھجھک سوال کریں۔'
+                : 'Hello! I am your **EduDigi AI Learning Companion**.\n\nI can directly answer common questions about your courses, deadlines, learning processes, and self-service support FAQs:\n- ⏰ **Deadlines**: *"What are my upcoming deadlines?"* (Assignments, Internal Assessments & Exams)\n- 📚 **Course Details**: *"Who is the faculty for this course and how many credits?"*\n- 🎓 **Learning Process**: *"How does the 4-quadrant learning work?"* or *"How do I submit an assignment?"*\n- 💡 **Support & FAQs**: *"How to reset password?"* or *"Why is my file upload failing?"*\n- 📊 **Academic Records**: *"What is my attendance?"* & *"Show my grades"*\n\nYou can also ask me conceptual questions about your study materials and lecture notes!';
 
             this.messages = [{
                 role: 'assistant',
@@ -488,6 +488,7 @@
 
             // Fallback safe basic markdown parser
             let txt = this.escapeHtml(raw);
+            txt = txt.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-primary text-decoration-underline font-weight-bold" target="_blank" rel="noopener noreferrer">$1</a>');
             txt = txt.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             txt = txt.replace(/\*(.*?)\*/g, '<em>$1</em>');
             txt = txt.replace(/`([^`]+)`/g, '<code>$1</code>');

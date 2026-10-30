@@ -39,5 +39,15 @@ namespace TMS.Web.Services
         /// Retrieves student identity, enrolled program, and overall learning progression.
         /// </summary>
         Task<StudentProfileSummaryDto> GetProfileSummaryAsync(int studentId, int? courseId = null);
+
+        /// <summary>
+        /// Retrieves all pending and upcoming academic deadlines across assignments, internal assessments, quizzes, and exams.
+        /// </summary>
+        Task<StudentDeadlinesSummaryDto> GetDeadlinesSummaryAsync(int studentId, int? courseId = null);
+
+        /// <summary>
+        /// Retrieves comprehensive course details including syllabus units, assigned faculty instructors, credit weight, and learning materials.
+        /// </summary>
+        Task<StudentCourseDetailSummaryDto?> GetCourseDetailsSummaryAsync(int studentId, int? courseId = null, string? courseCodeOrTitle = null);
     }
 }

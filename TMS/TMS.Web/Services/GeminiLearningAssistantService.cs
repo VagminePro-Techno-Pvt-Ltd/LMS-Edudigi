@@ -172,6 +172,10 @@ namespace TMS.Web.Services
                     CompanionIntent.Assignments => await HandleAssignmentsIntentAsync(userId, role, request, resolvedContext),
                     CompanionIntent.Schedule => await HandleScheduleIntentAsync(userId, role, request, resolvedContext),
                     CompanionIntent.Profile => await HandleProfileIntentAsync(userId, role, request, resolvedContext),
+                    CompanionIntent.Deadlines => await HandleDeadlinesIntentAsync(userId, role, request, resolvedContext),
+                    CompanionIntent.CourseDetails => await HandleCourseDetailsIntentAsync(userId, role, request, resolvedContext),
+                    CompanionIntent.LearningProcess => await HandleLearningProcessIntentAsync(userId, role, request, resolvedContext),
+                    CompanionIntent.SupportFaq => await HandleSupportFaqIntentAsync(userId, role, request, resolvedContext),
                     _ => await HandleAttendanceIntentAsync(userId, role, request, resolvedContext)
                 };
             }
@@ -691,6 +695,468 @@ namespace TMS.Web.Services
                 },
                 Sources = sources
             };
+        }
+
+        private async Task<LearningAssistantResponse> HandleDeadlinesIntentAsync(
+            int userId,
+            string role,
+            LearningAssistantRequest request,
+            LearningAssistantContextDto context)
+        {
+            var deadlines = await _academicRecordsService.GetDeadlinesSummaryAsync(userId, request.CourseId);
+
+            var sb = new StringBuilder();
+            sb.AppendLine("### ⏰ Academic Deadlines & Submission Tracker");
+            sb.AppendLine();
+
+            if (deadlines.HasRecords)
+            {
+                if (deadlines.PendingDeadlines.Any())
+                {
+                    // Overdue warnings
+                    var overdueList = deadlines.PendingDeadlines.Where(d => d.IsOverdue).ToList();
+                    if (overdueList.Any())
+                    {
+                        sb.AppendLine($"#### ⚠️ Overdue Submissions ({overdueList.Count})");
+                        foreach (var d in overdueList)
+                        {
+                            var lateInfo = d.AllowLateSubmission ? " *(Late submission allowed)*" : " *(Submission locked unless extended)*";
+                            sb.AppendLine($"- **[{d.Title}]({d.ActionUrl})** ({d.CourseName}) — **{d.ItemType}**");
+                            sb.AppendLine($"  - **Was Due**: {d.DueDate:ddd, dd MMM yyyy, hh:mm tt}{lateInfo}");
+                            sb.AppendLine($"  - **Max Marks**: {d.MaxMarks:0.#}");
+                        }
+                        sb.AppendLine();
+                    }
+
+                    // Due this week (<= 7 days and not overdue)
+                    var dueSoonList = deadlines.PendingDeadlines.Where(d => !d.IsOverdue && d.DueDate <= DateTime.Now.AddDays(7)).ToList();
+                    if (dueSoonList.Any())
+                    {
+                        sb.AppendLine($"#### ⏳ Due This Week ({dueSoonList.Count})");
+                        foreach (var d in dueSoonList)
+                        {
+                            var daysLeft = Math.Ceiling((d.DueDate - DateTime.Now).TotalDays);
+                            var urgency = daysLeft <= 1 ? " 🔥 **DUE TODAY/TOMORROW**" : $" *({daysLeft} days remaining)*";
+                            sb.AppendLine($"- **[{d.Title}]({d.ActionUrl})** ({d.CourseName}) — **{d.ItemType}**{urgency}");
+                            sb.AppendLine($"  - **Deadline**: {d.DueDate:ddd, dd MMM yyyy, hh:mm tt}");
+                            sb.AppendLine($"  - **Max Marks**: {d.MaxMarks:0.#}");
+                        }
+                        sb.AppendLine();
+                    }
+
+                    // Upcoming later (> 7 days)
+                    var upcomingLater = deadlines.PendingDeadlines.Where(d => !d.IsOverdue && d.DueDate > DateTime.Now.AddDays(7)).ToList();
+                    if (upcomingLater.Any())
+                    {
+                        sb.AppendLine($"#### 📅 Upcoming Submissions ({upcomingLater.Count})");
+                        foreach (var d in upcomingLater)
+                        {
+                            sb.AppendLine($"- **[{d.Title}]({d.ActionUrl})** ({d.CourseName}) — **{d.ItemType}**");
+                            sb.AppendLine($"  - **Deadline**: {d.DueDate:ddd, dd MMM yyyy, hh:mm tt} | Max Marks: {d.MaxMarks:0.#}");
+                        }
+                        sb.AppendLine();
+                    }
+                }
+                else
+                {
+                    sb.AppendLine("✅ **All caught up!** You have no pending submissions across your enrolled courses.");
+                    sb.AppendLine();
+                }
+
+                if (deadlines.CompletedDeadlines.Any())
+                {
+                    sb.AppendLine($"#### ✅ Recently Completed ({deadlines.CompletedDeadlines.Count})");
+                    foreach (var c in deadlines.CompletedDeadlines.Take(4))
+                    {
+                        sb.AppendLine($"- **{c.Title}** ({c.CourseName}) — Status: **{c.Status}**");
+                    }
+                    sb.AppendLine();
+                }
+
+                sb.AppendLine("---");
+                sb.AppendLine("💡 **Submission & Deadline Policies**:");
+                sb.AppendLine("- **Late Submission**: Allowed only if configured on the assessment window. A late submission tag is recorded.");
+                sb.AppendLine("- **Compartmental Exams**: If an assessment deadline is missed, check with your instructor for the next compartmental re-assessment window.");
+                sb.AppendLine("- **File Upload Limits**: Maximum file size is strictly **8MB** (Accepted: PDF, DOCX, PPTX, JPG, PNG).");
+            }
+            else
+            {
+                sb.AppendLine("No deadlines or assessments are currently published for your enrolled courses.");
+                sb.AppendLine("Check back when faculty publish new coursework or test schedules.");
+            }
+
+            var sources = BuildSourcesList(context);
+            sources.Add("LMS AssignmentMasters");
+            sources.Add("LMS InternalAssessments");
+            sources.Add("LMS ExamMasters");
+
+            return new LearningAssistantResponse
+            {
+                Success = true,
+                Reply = sb.ToString(),
+                Intent = CompanionIntent.Deadlines,
+                IsDatabaseGrounded = true,
+                DetectedContext = context,
+                SuggestedActions = new List<LearningAssistantActionDto>
+                {
+                    new() { Label = "Assignments Dashboard", Prompt = "What assignments are due?", Icon = "bi-file-earmark-text" },
+                    new() { Label = "How to Submit", Prompt = "How do I submit an assignment?", Icon = "bi-file-arrow-up" },
+                    new() { Label = "Class Schedule", Prompt = "What is my class schedule?", Icon = "bi-clock" },
+                    new() { Label = "My Grades", Prompt = "Show my grades", Icon = "bi-award" }
+                },
+                Sources = sources
+            };
+        }
+
+        private async Task<LearningAssistantResponse> HandleCourseDetailsIntentAsync(
+            int userId,
+            string role,
+            LearningAssistantRequest request,
+            LearningAssistantContextDto context)
+        {
+            var detail = await _academicRecordsService.GetCourseDetailsSummaryAsync(userId, request.CourseId, request.Message);
+
+            var sb = new StringBuilder();
+
+            if (detail != null)
+            {
+                sb.AppendLine($"### 📖 Course Profile: {detail.CourseCode} — {detail.CourseName}");
+                sb.AppendLine();
+                sb.AppendLine($"- **Program**: {detail.CategoryName ?? "Academic Program"}");
+                if (detail.SemesterId.HasValue)
+                {
+                    sb.AppendLine($"- **Semester**: Semester {detail.SemesterId.Value}");
+                }
+                sb.AppendLine($"- **Academic Credits**: **{detail.Credits} Credits**");
+                if (detail.DurationMonths > 0)
+                {
+                    sb.AppendLine($"- **Duration**: {detail.DurationMonths} Months");
+                }
+
+                // Faculty Instructors
+                if (detail.FacultyNames.Any())
+                {
+                    sb.AppendLine($"- **Faculty Instructor(s)**: 👨‍🏫 **{string.Join(", ", detail.FacultyNames)}**");
+                }
+                else
+                {
+                    sb.AppendLine("- **Faculty Instructor**: Assigned Department Faculty");
+                }
+
+                // Student progress
+                if (detail.StudentProgressPercent.HasValue)
+                {
+                    sb.AppendLine($"- **Your Learning Progress**: **{detail.StudentProgressPercent.Value}%** completed");
+                }
+                sb.AppendLine();
+
+                // Syllabus Units
+                if (detail.UnitTitles.Any())
+                {
+                    sb.AppendLine($"#### 📑 Syllabus Units & Modules ({detail.UnitTitles.Count})");
+                    for (int i = 0; i < detail.UnitTitles.Count; i++)
+                    {
+                        sb.AppendLine($"{i + 1}. **{detail.UnitTitles[i]}**");
+                    }
+                    sb.AppendLine();
+                }
+
+                // Available Materials
+                sb.AppendLine("#### 📦 Learning Resources Available");
+                sb.AppendLine($"- 🎥 **{detail.VideoCount}** Video Lectures & e-Tutorials (Quadrant 1)");
+                sb.AppendLine($"- 📄 **{detail.DocumentCount}** Reading Materials & PPTs (Quadrant 2)");
+                sb.AppendLine($"- ❓ **{detail.QuizCount}** Quizzes & Self-Assessments (Quadrant 4)");
+                sb.AppendLine();
+                sb.AppendLine($"👉 Access full lectures and course materials in **[Subject Hub]({detail.HubUrl})**.");
+            }
+            else
+            {
+                var courses = await _academicRecordsService.GetEnrolledCoursesSummaryAsync(userId);
+                sb.AppendLine("### 📚 Your Academic Courses");
+                sb.AppendLine();
+                if (courses.Any())
+                {
+                    sb.AppendLine("Here are your actively enrolled courses. You can ask me about any course (e.g. *\"Who teaches MBA-101?\"* or *\"How many credits is Financial Accounting?\"*):");
+                    sb.AppendLine();
+                    foreach (var c in courses)
+                    {
+                        var sem = c.SemesterId.HasValue ? $"Sem {c.SemesterId.Value}" : (c.CategoryName ?? "General");
+                        sb.AppendLine($"- **[{c.CourseCode} — {c.CourseName}](/StudentCourseContent/CourseDetails?courseId={c.CourseId})** ({sem})");
+                    }
+                }
+                else
+                {
+                    sb.AppendLine("No active enrolled courses were found for your profile.");
+                    sb.AppendLine("Please contact your program coordinator or admissions office if your enrollment is pending.");
+                }
+            }
+
+            var sources = BuildSourcesList(context);
+            sources.Add("LMS CourseMasters");
+            sources.Add("LMS CourseFacultyMapMasters");
+            sources.Add("LMS UnitMasters");
+
+            return new LearningAssistantResponse
+            {
+                Success = true,
+                Reply = sb.ToString(),
+                Intent = CompanionIntent.CourseDetails,
+                IsDatabaseGrounded = true,
+                DetectedContext = context,
+                SuggestedActions = new List<LearningAssistantActionDto>
+                {
+                    new() { Label = "Upcoming Deadlines", Prompt = "What are my upcoming deadlines?", Icon = "bi-clock" },
+                    new() { Label = "How Learning Works", Prompt = "How does the learning process work?", Icon = "bi-shapes" },
+                    new() { Label = "My Attendance", Prompt = "What is my attendance?", Icon = "bi-calendar-check" },
+                    new() { Label = "View Grades", Prompt = "Show my grades", Icon = "bi-award" }
+                },
+                Sources = sources
+            };
+        }
+
+        private Task<LearningAssistantResponse> HandleLearningProcessIntentAsync(
+            int userId,
+            string role,
+            LearningAssistantRequest request,
+            LearningAssistantContextDto context)
+        {
+            var text = request.Message.ToLowerInvariant();
+            var sb = new StringBuilder();
+
+            if (text.Contains("submit") || text.Contains("upload") || text.Contains("asg") || text.Contains("how to submit"))
+            {
+                sb.AppendLine("### 📤 Step-by-Step Assignment & Assessment Submission Guide");
+                sb.AppendLine();
+                sb.AppendLine("Submitting coursework in EduDigi LMS is quick and verified with digital timestamps:");
+                sb.AppendLine();
+                sb.AppendLine("1. **Locate Your Task**:");
+                sb.AppendLine("   - Open **[Assignments](/Assignment/StudentDashboard)** for term homework.");
+                sb.AppendLine("   - Open **[Internal Assessments](/InternalAssessment/StudentDashboard)** for scheduled tests.");
+                sb.AppendLine("2. **Review Instructions & Rubric**:");
+                sb.AppendLine("   - Read the question brief, total marks, and deadline window carefully.");
+                sb.AppendLine("3. **Prepare Your Submission File**:");
+                sb.AppendLine("   - **Allowed formats**: `.pdf`, `.docx`, `.pptx`, `.jpg`, `.png`.");
+                sb.AppendLine("   - **Maximum file size**: Strictly **8 MB**.");
+                sb.AppendLine("   - *Security tip*: Never rename file extensions (e.g. renaming `.zip` to `.pdf`), as files are verified with binary signature checks.");
+                sb.AppendLine("4. **Upload & Confirm**:");
+                sb.AppendLine("   - Click *Browse/Upload*, select your file, type any optional notes, and click **Submit Answer**.");
+                sb.AppendLine("   - Once submitted, your submission timestamp is securely recorded, and the status changes to **Submitted** / **Awaiting Evaluation**.");
+                sb.AppendLine();
+                sb.AppendLine("*(Note: If the deadline has passed, late submissions are accepted only if your faculty enabled the Late Submission option).*");
+            }
+            else if (text.Contains("grade") || text.Contains("grading") || text.Contains("marks") || text.Contains("ugc") || text.Contains("passing") || text.Contains("cgpa"))
+            {
+                sb.AppendLine("### 🎯 UGC 10-Point Academic Grading System & Passing Rules");
+                sb.AppendLine();
+                sb.AppendLine("EduDigi LMS follows the official UGC (University Grants Commission) 10-point letter grading scale:");
+                sb.AppendLine();
+                sb.AppendLine("| Letter Grade | Performance Level | Marks Percentage | Grade Point |");
+                sb.AppendLine("| :--- | :--- | :--- | :--- |");
+                sb.AppendLine("| **O** | Outstanding | 90% – 100% | 10 |");
+                sb.AppendLine("| **A+** | Excellent | 80% – 89.9% | 9 |");
+                sb.AppendLine("| **A** | Very Good | 70% – 79.9% | 8 |");
+                sb.AppendLine("| **B+** | Good | 60% – 69.9% | 7 |");
+                sb.AppendLine("| **B** | Above Average | 55% – 59.9% | 6 |");
+                sb.AppendLine("| **C** | Average | 50% – 54.9% | 5 |");
+                sb.AppendLine("| **P** | Pass | 33% – 49.9% | 4 |");
+                sb.AppendLine("| **F** | Fail / Repeat | Below 33% | 0 |");
+                sb.AppendLine("| **AB** | Absent | Non-Submission | 0 |");
+                sb.AppendLine();
+                sb.AppendLine("📌 **Key Academic Regulations**:");
+                sb.AppendLine("- **Passing Threshold**: Minimum **33%** in each individual assessment/subject.");
+                sb.AppendLine("- **Grace Marks Engine**: Automatically evaluated for borderline candidates as per university policy.");
+                sb.AppendLine("- **Official Grade Card**: Live previews and printable A4 transcripts are accessible under **[My Grade Card](/InternalGradeCard/Index)**.");
+            }
+            else if (text.Contains("attendance") || text.Contains("75") || text.Contains("haazri") || text.Contains("absent"))
+            {
+                sb.AppendLine("### 📊 Attendance Tracking & Eligibility Criteria");
+                sb.AppendLine();
+                sb.AppendLine("Attendance in EduDigi LMS is tracked automatically across two learning channels:");
+                sb.AppendLine();
+                sb.AppendLine("1. **Daily Platform Attendance**: Automatically logged on your first active login each morning.");
+                sb.AppendLine("2. **Live Classroom Attendance**: Recorded automatically by Zoom webhooks and faculty during live lecture sessions.");
+                sb.AppendLine();
+                sb.AppendLine("⚠️ **Official Minimum Eligibility Requirement**:");
+                sb.AppendLine("- You must maintain at least **75% cumulative attendance** to remain eligible for end-term university examinations.");
+                sb.AppendLine("- Check your real-time attendance ledger anytime at **[My Attendance](/Attendance/MyAttendance)**.");
+            }
+            else if (text.Contains("exam") || text.Contains("proctoring") || text.Contains("seb") || text.Contains("safe exam"))
+            {
+                sb.AppendLine("### 🛡️ Online Examinations & AI Proctoring (Safe Exam Browser)");
+                sb.AppendLine();
+                sb.AppendLine("EduDigi LMS conducts secure online examinations with AI proctoring and Safe Exam Browser (SEB):");
+                sb.AppendLine();
+                sb.AppendLine("1. **System Requirements**: Google Chrome, MS Edge, or the official Safe Exam Browser client.");
+                sb.AppendLine("2. **Hardware Permissions**: Working webcam and microphone permissions are required for identity verification.");
+                sb.AppendLine("3. **Exam Integrity Guard**: Full-screen mode is enforced. Tab-switching, virtual machines, and screen recording apps are strictly blocked.");
+                sb.AppendLine("4. **Auto-Save & Network Recovery**: Your answers are saved automatically every few seconds. If your internet disconnects temporarily, your progress is recovered upon reconnecting.");
+                sb.AppendLine();
+                sb.AppendLine("👉 Open **[Examinations Portal](/StudentExam/Index)** to check upcoming test slots and download exam launch configurations.");
+            }
+            else
+            {
+                // Comprehensive 4-Quadrant Framework Overview
+                sb.AppendLine("### 🏛️ The EduDigi 4-Quadrant Learning Framework");
+                sb.AppendLine();
+                sb.AppendLine("Courses in EduDigi LMS are organized according to the national **UGC 4-Quadrant e-Learning Architecture** to provide a complete, interactive learning cycle:");
+                sb.AppendLine();
+                sb.AppendLine("#### 1️⃣ Quadrant I — e-Tutorial (Video & Audio Lectures)");
+                sb.AppendLine("- High-definition video lectures, animations, interactive PPT slides, and audio-visual demonstrations.");
+                sb.AppendLine("- Access via your **Subject Hub** by selecting any unit.");
+                sb.AppendLine();
+                sb.AppendLine("#### 2️⃣ Quadrant II — e-Content (Digital Reading & Documents)");
+                sb.AppendLine("- Comprehensive lecture notes, digital e-books, downloadable PDF summaries, and illustrative case studies.");
+                sb.AppendLine("- View directly in the integrated high-speed document viewer.");
+                sb.AppendLine();
+                sb.AppendLine("#### 3️⃣ Quadrant III — Discussion Forum (Collaborative Doubt Clearing)");
+                sb.AppendLine("- Ask questions directly to your course faculty and exchange ideas with fellow classmates.");
+                sb.AppendLine("- Accessible under every unit's *Discussion* tab.");
+                sb.AppendLine();
+                sb.AppendLine("#### 4️⃣ Quadrant IV — Assessment (Quizzes & Performance Evaluation)");
+                sb.AppendLine("- Self-assessment MCQs, practice quizzes, assignments, and official internal assessments.");
+                sb.AppendLine("- Instant automated scoring for MCQs and structured feedback from instructors for written work.");
+                sb.AppendLine();
+                sb.AppendLine("---");
+                sb.AppendLine("💡 *Pro-Tip: Completing video lectures (at least 80% duration) and reading documents automatically updates your course progress bar!*");
+            }
+
+            var sources = BuildSourcesList(context);
+            sources.Add("EduDigi UGC Pedagogical Guidelines");
+            sources.Add("LMS Learning Regulations");
+
+            return Task.FromResult(new LearningAssistantResponse
+            {
+                Success = true,
+                Reply = sb.ToString(),
+                Intent = CompanionIntent.LearningProcess,
+                IsDatabaseGrounded = true,
+                DetectedContext = context,
+                SuggestedActions = new List<LearningAssistantActionDto>
+                {
+                    new() { Label = "How to Submit Work", Prompt = "How do I submit an assignment?", Icon = "bi-file-arrow-up" },
+                    new() { Label = "UGC Grading System", Prompt = "What is the UGC 10 point grading scale?", Icon = "bi-award" },
+                    new() { Label = "Check Deadlines", Prompt = "What are my upcoming deadlines?", Icon = "bi-clock" },
+                    new() { Label = "Support & FAQs", Prompt = "What are common LMS support questions?", Icon = "bi-circle-question" }
+                },
+                Sources = sources
+            });
+        }
+
+        private Task<LearningAssistantResponse> HandleSupportFaqIntentAsync(
+            int userId,
+            string role,
+            LearningAssistantRequest request,
+            LearningAssistantContextDto context)
+        {
+            var text = request.Message.ToLowerInvariant();
+            var sb = new StringBuilder();
+
+            if (text.Contains("password") || text.Contains("reset") || text.Contains("forgot") || text.Contains("login"))
+            {
+                sb.AppendLine("### 🔑 Password Reset & Account Login Help");
+                sb.AppendLine();
+                sb.AppendLine("**If you are currently logged in:**");
+                sb.AppendLine("1. Click your student avatar on the top navigation bar.");
+                sb.AppendLine("2. Select **Change Password** or go to your account security settings.");
+                sb.AppendLine("3. Enter your current password and set a new secure password (minimum 8 characters).");
+                sb.AppendLine();
+                sb.AppendLine("**If you cannot log in or forgot your password:**");
+                sb.AppendLine("- Click **Forgot Password?** on the login page to receive a password reset link at your registered email.");
+                sb.AppendLine("- If your email is inaccessible, contact the campus IT Helpdesk with your student Roll Number.");
+            }
+            else if (text.Contains("upload") || text.Contains("file") || text.Contains("size") || text.Contains("error") || text.Contains("8mb") || text.Contains("format"))
+            {
+                sb.AppendLine("### 📁 File Upload Troubleshooting & Specifications");
+                sb.AppendLine();
+                sb.AppendLine("If your document upload fails, please check these 3 common causes:");
+                sb.AppendLine();
+                sb.AppendLine("1. **File Size Limit (Strictly 8 MB)**:");
+                sb.AppendLine("   - Ensure your document is under **8 Megabytes**. For large PDFs or PPTs, compress images or use an online PDF compressor before uploading.");
+                sb.AppendLine("2. **Supported Document Formats**:");
+                sb.AppendLine("   - Allowed extensions: `.pdf`, `.docx`, `.pptx`, `.jpg`, `.jpeg`, `.png`.");
+                sb.AppendLine("   - Formats like `.zip`, `.rar`, `.exe`, or `.pages` are **not permitted**.");
+                sb.AppendLine("3. **File Integrity & Binary Signature Check**:");
+                sb.AppendLine("   - The LMS validates binary file headers. Do not manually rename unsupported file extensions to `.pdf`. Make sure the file opens properly on your device.");
+            }
+            else if (text.Contains("zoom") || text.Contains("live") || text.Contains("class") || text.Contains("meeting") || text.Contains("video") || text.Contains("camera") || text.Contains("audio"))
+            {
+                sb.AppendLine("### 🎥 Live Classroom & Video Troubleshooting");
+                sb.AppendLine();
+                sb.AppendLine("If you are having trouble joining a live lecture or virtual meeting:");
+                sb.AppendLine();
+                sb.AppendLine("1. **Joining the Meeting**:");
+                sb.AppendLine("   - Open **[Class Calendar](/Calendar/Index)** and look for the session marked with **Live Now**.");
+                sb.AppendLine("   - Click the session card and select **Join Virtual Classroom**.");
+                sb.AppendLine("2. **Pop-up Blockers**:");
+                sb.AppendLine("   - Zoom meetings open in a new tab or window. Ensure pop-ups are allowed for this LMS site in your browser settings.");
+                sb.AppendLine("3. **Browser Permissions**:");
+                sb.AppendLine("   - Click the lock icon 🔒 next to the website address in Chrome/Edge and ensure **Camera** and **Microphone** permissions are set to **Allow**.");
+                sb.AppendLine("4. **Video Playback Quality**:");
+                sb.AppendLine("   - Clear your browser cache (`Ctrl + Shift + R` or `Cmd + Shift + R`) and check your internet speed.");
+            }
+            else if (text.Contains("pending") || text.Contains("result") || text.Contains("marks") || text.Contains("evaluation"))
+            {
+                sb.AppendLine("### ⏳ Why Are My Marks / Results Showing 'Pending'?");
+                sb.AppendLine();
+                sb.AppendLine("- After you submit an assignment or internal assessment, your submission enters the **Evaluation Queue** for your mapped course faculty.");
+                sb.AppendLine("- For written tests, projects, and presentations, faculty members grade individual answers and provide constructive feedback.");
+                sb.AppendLine("- Once the instructor finalizes the evaluation and publishes results, your scores and UGC letter grade immediately update in **[My Grade Card](/InternalGradeCard/Index)**.");
+                sb.AppendLine("- *(Note: Objective MCQ quizzes are scored automatically and reflect immediately).*");
+            }
+            else if (text.Contains("progress") || text.Contains("completion") || text.Contains("percent"))
+            {
+                sb.AppendLine("### 📈 How Course Progress Tracking Works");
+                sb.AppendLine();
+                sb.AppendLine("Your course progress percentage updates automatically based on your learning activity:");
+                sb.AppendLine();
+                sb.AppendLine("- **Videos (Quadrant 1)**: Must be watched for at least **80% of total duration** to be marked complete.");
+                sb.AppendLine("- **Reading Material (Quadrant 2)**: Marked viewed once opened and scrolled in the Document Viewer.");
+                sb.AppendLine("- **Quizzes & Tests (Quadrant 4)**: Completion is logged immediately upon test submission.");
+            }
+            else if (text.Contains("bonafide") || text.Contains("certificate") || text.Contains("transcript"))
+            {
+                sb.AppendLine("### 📜 Bonafide Certificates & Official Transcripts");
+                sb.AppendLine();
+                sb.AppendLine("- **Semester Grade Cards**: You can preview and print your official semester grade sheets anytime at **[My Grade Card](/InternalGradeCard/Index)**.");
+                sb.AppendLine("- **Bonafide / Degree Certificates**: Submit a formal request to the Registrar / Academic Coordinator office or email the student helpdesk with your student ID.");
+            }
+            else
+            {
+                // General FAQ & Support directory
+                sb.AppendLine("### ❓ EduDigi Student Support & Helpdesk Hub");
+                sb.AppendLine();
+                sb.AppendLine("Here are quick solutions for common questions and technical assistance:");
+                sb.AppendLine();
+                sb.AppendLine("- 🔑 **Password & Login**: Reset password via profile settings or use *Forgot Password* on the login screen.");
+                sb.AppendLine("- 📁 **File Upload Issues**: Max 8MB file size; supported formats: PDF, DOCX, PPTX, JPG, PNG.");
+                sb.AppendLine("- 🎥 **Live Classes**: Check [Class Calendar](/Calendar/Index) and ensure browser pop-ups are allowed.");
+                sb.AppendLine("- ⏳ **Pending Grades**: Marks reflect once faculty completes evaluation and publishes results.");
+                sb.AppendLine("- 📊 **Attendance Requirement**: Minimum 75% attendance across daily logins and live lectures.");
+                sb.AppendLine("- 📝 **Grade Cards**: Download official statements at [My Grade Card](/InternalGradeCard/Index).");
+                sb.AppendLine();
+                sb.AppendLine("Need one-on-one assistance? You can connect with faculty via **[Contact Mentor](/Support/ContactMentor)** or submit an issue via **[Raise Support Ticket](/Support/RaiseTicket)**.");
+            }
+
+            var sources = BuildSourcesList(context);
+            sources.Add("EduDigi Student Support Knowledge Base");
+            sources.Add("LMS Helpdesk Services");
+
+            return Task.FromResult(new LearningAssistantResponse
+            {
+                Success = true,
+                Reply = sb.ToString(),
+                Intent = CompanionIntent.SupportFaq,
+                IsDatabaseGrounded = true,
+                DetectedContext = context,
+                SuggestedActions = new List<LearningAssistantActionDto>
+                {
+                    new() { Label = "Password Help", Prompt = "How do I reset my password?", Icon = "bi-key" },
+                    new() { Label = "File Upload Help", Prompt = "Why is my file upload failing?", Icon = "bi-file-earmark-arrow-up" },
+                    new() { Label = "Upcoming Deadlines", Prompt = "What are my upcoming deadlines?", Icon = "bi-clock" },
+                    new() { Label = "4-Quadrant Learning", Prompt = "How does the learning process work?", Icon = "bi-shapes" }
+                },
+                Sources = sources
+            });
         }
 
         // ══════════════════════════════════════════════════════════════════════════
@@ -1238,12 +1704,16 @@ namespace TMS.Web.Services
                 sb.AppendLine("Interactive AI tutoring is temporarily unavailable because the AI provider credentials (`GEMINI_API_KEY`) are not configured or the service is offline.");
                 sb.AppendLine();
                 sb.AppendLine("**Your EduDigi Database Assistant is fully active! You can ask me:**");
+                sb.AppendLine("- ⏰ **'What are my upcoming deadlines?'** *(Assignments, internal assessments, and exams)*");
+                sb.AppendLine("- 📖 **'Tell me about my course'** *(Syllabus, faculty instructors, credits, and units)*");
+                sb.AppendLine("- 🏛️ **'How does the learning process work?'** *(4-Quadrant framework, grading scale, and attendance rules)*");
+                sb.AppendLine("- 📤 **'How do I submit assignments?'** *(Upload guidelines, file formats, and 8MB limit)*");
+                sb.AppendLine("- ❓ **'LMS support & FAQs'** *(Password reset, upload troubleshooting, pending results)*");
                 sb.AppendLine("- 📊 **'What is my attendance?'** *(Calculated from your official daily and classroom records)*");
                 sb.AppendLine("- 📝 **'Show my grades'** *(Internal assessment scores and exam results)*");
-                sb.AppendLine("- 📚 **'What are my enrolled courses?'***");
-                sb.AppendLine("- ⏰ **'What assignments are due?'***");
-                sb.AppendLine("- 📅 **'What is my class schedule / timetable?'***");
-                sb.AppendLine("- 👤 **'Show my profile and progress'***");
+                sb.AppendLine("- 📚 **'What are my enrolled courses?'**");
+                sb.AppendLine("- 📅 **'What is my class schedule / timetable?'**");
+                sb.AppendLine("- 👤 **'Show my profile and progress'**");
                 sb.AppendLine();
                 sb.AppendLine("To review your learning curriculum, explore your units and quadrants under **Subject Hub**.");
             }
@@ -1267,6 +1737,30 @@ namespace TMS.Web.Services
             // Always provide high-value academic database actions
             actions.Add(new LearningAssistantActionDto
             {
+                Label = "Upcoming Deadlines",
+                Prompt = "What are my upcoming deadlines?",
+                Icon = "fa-solid fa-clock"
+            });
+            actions.Add(new LearningAssistantActionDto
+            {
+                Label = "Course Details",
+                Prompt = "Tell me about my enrolled courses and faculty",
+                Icon = "fa-solid fa-book"
+            });
+            actions.Add(new LearningAssistantActionDto
+            {
+                Label = "How Learning Works",
+                Prompt = "How does the learning process work?",
+                Icon = "fa-solid fa-shapes"
+            });
+            actions.Add(new LearningAssistantActionDto
+            {
+                Label = "How to Submit",
+                Prompt = "How do I submit an assignment?",
+                Icon = "fa-solid fa-file-arrow-up"
+            });
+            actions.Add(new LearningAssistantActionDto
+            {
                 Label = "My Attendance",
                 Prompt = "What is my attendance?",
                 Icon = "fa-solid fa-calendar-check"
@@ -1279,9 +1773,9 @@ namespace TMS.Web.Services
             });
             actions.Add(new LearningAssistantActionDto
             {
-                Label = "Due Assignments",
-                Prompt = "What assignments are due?",
-                Icon = "fa-solid fa-file-earmark-text"
+                Label = "Support & FAQs",
+                Prompt = "What are common LMS support questions?",
+                Icon = "fa-solid fa-circle-question"
             });
 
             if (context.UnitId.HasValue && context.UnitId.Value > 0)

@@ -1,4 +1,3 @@
-using TMS.Web.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,6 +12,8 @@ using TMS.ViewModels;
 using TMS.ViewModels.Academics;
 using TMS.ViewModels.Masters;
 using TMS.Web.Models;
+using TMS.Web.Services;
+using TMS.Web.Services.Email;
 
 namespace TMS.Web.Controllers
 {
@@ -21,17 +22,20 @@ namespace TMS.Web.Controllers
         private readonly IAssessmentManager _assessmentManager;
         private readonly ApplicationDBContext _context;
         private readonly IMapper _mapper;
-        private readonly IAuditLogService _auditLogService;
+        private readonly IEmailOutboxService? _outboxService;
+        private readonly IAuditLogService? _auditLogService;
 
         public StudentExamController(
             IAssessmentManager assessmentManager,
             ApplicationDBContext context,
             IMapper mapper,
-            IAuditLogService auditLogService)
+            IEmailOutboxService? outboxService = null,
+            IAuditLogService? auditLogService = null)
         {
             _assessmentManager = assessmentManager;
             _context = context;
             _mapper = mapper;
+            _outboxService = outboxService;
             _auditLogService = auditLogService;
         }
 
@@ -112,17 +116,20 @@ namespace TMS.Web.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            await _auditLogService.LogActionAsync(
-                "START_EXAM",
-                "Examinations",
-                "ExamMaster",
-                examId.ToString(),
-                null,
-                new { AttemptId = attempt.Id, ExamId = examId },
-                null,
-                "SUCCESS",
-                $"Student started attempt #{attempt.Id} for exam #{examId}.",
-                studentId);
+            if (_auditLogService != null)
+            {
+                await _auditLogService.LogActionAsync(
+                    "START_EXAM",
+                    "Examinations",
+                    "ExamMaster",
+                    examId.ToString(),
+                    null,
+                    new { AttemptId = attempt.Id, ExamId = examId },
+                    null,
+                    "SUCCESS",
+                    $"Student started attempt #{attempt.Id} for exam #{examId}.",
+                    studentId);
+            }
 
             // Load attempt with full details (questions and options)
             var attemptDetails = await _assessmentManager.GetAttemptDetailsAsync(attempt.Id);
@@ -159,17 +166,58 @@ namespace TMS.Web.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            await _auditLogService.LogActionAsync(
-                "SUBMIT_EXAM",
-                "Examinations",
-                "ExamMaster",
-                attempt.ExamId.ToString(),
-                null,
-                new { AttemptId = attemptId, ExamId = attempt.ExamId },
-                null,
-                "SUCCESS",
-                $"Student submitted exam attempt #{attemptId}.",
-                GetUserId());
+            if (_auditLogService != null)
+            {
+                await _auditLogService.LogActionAsync(
+                    "SUBMIT_EXAM",
+                    "Examinations",
+                    "ExamMaster",
+                    attempt.ExamId.ToString(),
+                    null,
+                    new { AttemptId = attemptId, ExamId = attempt.ExamId },
+                    null,
+                    "SUCCESS",
+                    $"Student submitted exam attempt #{attemptId}.",
+                    GetUserId());
+            }
+
+            if (_outboxService != null)
+            {
+                try
+                {
+                    // Invalidate pending reminders for this student on this exam
+                    await _outboxService.CancelScheduledJobsAsync($"remind-exam-*-{attempt.ExamId}-{attempt.StudentId}");
+
+                    var student = await _context.UserMasters.FindAsync(attempt.StudentId);
+                    var exam = attempt.Exam ?? await _context.ExamMasters.Include(e => e.Course).FirstOrDefaultAsync(e => e.Id == attempt.ExamId);
+                    string courseName = exam?.Course?.Name ?? "Course";
+
+                    if (student != null && !string.IsNullOrWhiteSpace(student.Email))
+                    {
+                        await _outboxService.EnqueueAsync(new TMS.ViewModels.Email.EmailEnqueueRequest
+                        {
+                            RecipientEmail = student.Email.Trim(),
+                            RecipientName = student.Name,
+                            Subject = $"Exam Submission Receipt: {exam?.Title ?? "Examination"} ({courseName})",
+                            TemplateName = "ExamSubmissionReceipt",
+                            TemplateData = new Dictionary<string, string>
+                            {
+                                ["RecipientName"] = student.Name ?? "Student",
+                                ["ExamTitle"] = exam?.Title ?? "Examination",
+                                ["CourseName"] = courseName,
+                                ["SubmittedAt"] = DateTime.UtcNow.ToString("dd MMM yyyy, hh:mm tt") + " UTC",
+                                ["AttemptRef"] = $"EXAM-ATTEMPT-{attemptId}"
+                            },
+                            EventType = "ExamSubmissionReceipt",
+                            IdempotencyKey = $"exam-sub-receipt-{attemptId}"
+                        });
+                    }
+                }
+                catch
+                {
+                    // Non-fatal for submission response
+                }
+            }
 
             SetApplicationResult(true, "Exam submitted successfully.");
             return RedirectToAction(nameof(Result), new { attemptId });

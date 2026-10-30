@@ -1,0 +1,487 @@
+@using TMS.ViewModels.Assessments
+@model CreateProctorExamRequest
+
+@{
+    ViewData["Title"] = "Create AI Proctored Exam";
+    var courses = ViewBag.Courses as List<CourseItemDto> ?? new List<CourseItemDto>();
+    var departments = ViewBag.Departments as List<DepartmentItemDto> ?? new List<DepartmentItemDto>();
+    var semesters = ViewBag.Semesters as List<SemesterItemDto> ?? new List<SemesterItemDto>();
+    var batches = ViewBag.Batches as List<BatchItemDto> ?? new List<BatchItemDto>();
+}
+
+<style>
+    :root {
+        --create-primary: #2563eb;
+        --create-surface: #ffffff;
+        --create-border: #e2e8f0;
+        --create-muted: #64748b;
+        --create-dark: #0f172a;
+    }
+
+    .create-exam-header {
+        background: #ffffff;
+        border: 1px solid var(--create-border);
+        border-radius: 16px;
+        padding: 1.5rem 1.8rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+
+    .create-card {
+        background: #ffffff;
+        border: 1px solid var(--create-border);
+        border-radius: 16px;
+        padding: 1.6rem 1.8rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    }
+
+    .create-card-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--create-dark);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #f1f5f9;
+        font-family: 'Outfit', sans-serif;
+    }
+
+    .create-card-title i {
+        color: var(--create-primary);
+        font-size: 1.2rem;
+    }
+
+    .form-label {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: #334155;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        margin-bottom: 6px;
+    }
+
+    .form-control, .form-select {
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        padding: 9px 14px;
+        font-size: 0.9rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: var(--create-primary);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    .form-check-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 14px 16px;
+        background: #f8fafc;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .form-check-card:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+    .form-check-card input:checked ~ label {
+        color: var(--create-primary);
+    }
+
+    .form-help {
+        font-size: 0.78rem;
+        color: var(--create-muted);
+        margin-top: 4px;
+    }
+</style>
+
+<div class="container-fluid px-3 px-md-4 py-3">
+
+    <!-- Top Header -->
+    <div class="create-exam-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1" style="font-size: 0.8rem;">
+                    <li class="breadcrumb-item"><a asp-area="Admin" asp-controller="Home" asp-action="Index" class="text-decoration-none">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a asp-area="Admin" asp-controller="ProctoringExam" asp-action="Index" class="text-decoration-none">All Exams</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Create Exam</li>
+                </ol>
+            </nav>
+            <h2 class="fw-bold mb-0 text-dark" style="font-family: 'Outfit', sans-serif;">Create Proctored Exam</h2>
+            <p class="text-muted mb-0 small">Configure schedule, academic targeting, Safe Exam Browser safeguards, and AI evaluation.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <a asp-area="Admin" asp-controller="ProctoringExam" asp-action="Index" class="btn btn-outline-secondary px-3 rounded-pill">
+                <i class="fa-solid fa-arrow-left me-1"></i> Back to All Exams
+            </a>
+            <button type="submit" form="createExamForm" id="headerSubmitBtn" class="btn btn-primary px-4 fw-bold rounded-pill shadow-sm">
+                <i class="fa-solid fa-arrow-right me-1"></i> Create & Add Questions
+            </button>
+        </div>
+    </div>
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-danger rounded-3 shadow-sm border-0 mb-4">
+            <div class="fw-bold mb-1"><i class="fa-solid fa-triangle-exclamation me-1"></i> Please correct the following errors:</div>
+            <div asp-validation-summary="All" class="text-danger small mb-0"></div>
+        </div>
+    }
+
+    <form id="createExamForm" asp-action="Create" method="post">
+        @Html.AntiForgeryToken()
+
+        <div class="row g-4">
+            <!-- Left Column: Core Exam Configuration -->
+            <div class="col-lg-8">
+
+                <!-- 1. Basic Information -->
+                <div class="create-card">
+                    <div class="create-card-title">
+                        <i class="fa-solid fa-file-lines"></i>
+                        <span>1. Basic Exam Information</span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Title" class="form-label">Exam Title <span class="text-danger">*</span></label>
+                        <input asp-for="Title" class="form-control" placeholder="e.g. Midterm Examination: Data Structures &amp; Algorithms" required />
+                        <span asp-validation-for="Title" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label">Exam Description / Syllabus Overview</label>
+                        <textarea asp-for="Description" class="form-control" rows="2" placeholder="Brief outline of covered modules, units, or exam focus..."></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Instructions" class="form-label">Student Instructions &amp; Rules</label>
+                        <textarea asp-for="Instructions" class="form-control" rows="3" placeholder="e.g. Ensure you are in a quiet room. Keep your webcam centered. No calculators or second devices allowed..."></textarea>
+                        <div class="form-help">Displayed prominently to candidates before beginning the proctored assessment.</div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label asp-for="ExamType" class="form-label">Exam Type</label>
+                            <select asp-for="ExamType" class="form-select">
+                                <option value="Standard">Standard (MCQ / Objective)</option>
+                                <option value="Coding">Coding (Programming Sandbox)</option>
+                                <option value="Mixed">Mixed (Theory + Coding)</option>
+                                <option value="Practice">Practice Assessment</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="DurationMinutes" class="form-label">Duration (Minutes) <span class="text-danger">*</span></label>
+                            <input asp-for="DurationMinutes" type="number" class="form-control" min="5" max="600" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="MaxAttempts" class="form-label">Max Attempts Allowed</label>
+                            <input asp-for="MaxAttempts" type="number" class="form-control" min="1" max="10" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Academic Targeting & Eligibility Scope -->
+                <div class="create-card">
+                    <div class="create-card-title">
+                        <i class="fa-solid fa-users-viewfinder"></i>
+                        <span>2. Academic Targeting &amp; Student Eligibility</span>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Candidate Scope Model</label>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-check-card" onclick="document.getElementById('scopeSpecific').checked = true; toggleScopeFields(false);">
+                                    <input class="form-check-input mt-1" type="radio" name="scopeChoice" id="scopeSpecific" value="specific" checked />
+                                    <div>
+                                        <label class="fw-bold d-block text-dark mb-0" for="scopeSpecific">Specific Course / Cohort Target</label>
+                                        <small class="text-muted">Exam is targeted only to enrolled students in a selected course, batch, or semester.</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check-card" onclick="document.getElementById('scopeGlobal').checked = true; toggleScopeFields(true);">
+                                    <input class="form-check-input mt-1" type="radio" name="scopeChoice" id="scopeGlobal" value="global" />
+                                    <div>
+                                        <label class="fw-bold d-block text-dark mb-0" for="scopeGlobal">Global Examination</label>
+                                        <small class="text-muted">Available to all verified students across the institution regardless of batch.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <input type="hidden" asp-for="IsGlobal" id="isGlobalInput" value="false" />
+                    </div>
+
+                    <div id="scopeFieldsContainer">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label asp-for="TargetCourseId" class="form-label">Target Course <span class="text-danger">*</span></label>
+                                <select asp-for="TargetCourseId" class="form-select" id="courseSelect">
+                                    <option value="">-- Select Course --</option>
+                                    @foreach (var c in courses)
+                                    {
+                                        <option value="@c.Id" data-name="@c.Name">@c.Name @(!string.IsNullOrEmpty(c.CourseCode) ? $"({c.CourseCode})" : "")</option>
+                                    }
+                                </select>
+                                <input type="hidden" asp-for="TargetCourseName" id="targetCourseNameHidden" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="TargetBatch" class="form-label">Batch (Optional)</label>
+                                <input asp-for="TargetBatch" class="form-control" placeholder="e.g. 2024-2028 or Batch A" list="batchList" />
+                                <datalist id="batchList">
+                                    @foreach (var b in batches)
+                                    {
+                                        <option value="@b.Name" />
+                                    }
+                                </datalist>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label asp-for="TargetSemester" class="form-label">Semester (Optional)</label>
+                                <input asp-for="TargetSemester" class="form-control" placeholder="e.g. Semester 4" list="semList" />
+                                <datalist id="semList">
+                                    @foreach (var s in semesters)
+                                    {
+                                        <option value="@s.Name" />
+                                    }
+                                </datalist>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label asp-for="TargetSection" class="form-label">Section (Optional)</label>
+                                <input asp-for="TargetSection" class="form-control" placeholder="e.g. A, B or C" />
+                            </div>
+
+                            <div class="col-md-4">
+                                <label asp-for="TargetDepartment" class="form-label">Department (Optional)</label>
+                                <input asp-for="TargetDepartment" class="form-control" placeholder="e.g. Computer Engineering" list="deptList" />
+                                <datalist id="deptList">
+                                    @foreach (var d in departments)
+                                    {
+                                        <option value="@d.Name" />
+                                    }
+                                </datalist>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Safe Exam Browser & Anti-Cheat Safeguards -->
+                <div class="create-card">
+                    <div class="create-card-title">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <span>3. Safe Exam Browser (SEB) &amp; AI Anti-Cheat</span>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" asp-for="RequiresSEB" id="requiresSebCheck" checked />
+                        <label class="form-check-label fw-bold text-dark" for="requiresSebCheck">
+                            Enforce Safe Exam Browser (SEB) Lock-Down
+                        </label>
+                        <div class="form-help">
+                            Blocks screen capture, virtual machines, secondary monitors, unauthorized shortcuts, and application switching during the exam.
+                        </div>
+                    </div>
+
+                    <div class="mb-3" id="sebKeyContainer">
+                        <label asp-for="BrowserExamKey" class="form-label">Browser Exam Key (BEK / Config Key)</label>
+                        <input asp-for="BrowserExamKey" class="form-control font-monospace" placeholder="Optional: SHA-256 Browser Exam Key hash if using custom SEB preset..." />
+                    </div>
+
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" asp-for="AllowRevisit" id="allowRevisitCheck" checked />
+                                <label class="form-check-label fw-semibold" for="allowRevisitCheck">
+                                    Allow Question Revisit &amp; Answer Review
+                                </label>
+                                <div class="form-help">Allows free two-way navigation between questions rather than forced sequential mode.</div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" asp-for="ShuffleQuestions" id="shuffleCheck" />
+                                <label class="form-check-label fw-semibold" for="shuffleCheck">
+                                    Shuffle Questions for Every Candidate
+                                </label>
+                                <div class="form-help">Randomizes display order across candidate sessions to prevent adjacent peer copying.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Scoring, AI Evaluation & Publication -->
+            <div class="col-lg-4">
+
+                <!-- 4. Scoring & Marks Configuration -->
+                <div class="create-card">
+                    <div class="create-card-title">
+                        <i class="fa-solid fa-award"></i>
+                        <span>Scoring &amp; Passing</span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="TotalMarks" class="form-label">Base Maximum Marks</label>
+                        <input asp-for="TotalMarks" type="number" step="0.5" class="form-control" value="100" />
+                        <div class="form-help">Will automatically synchronize with mapped questions if questions are added later.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="PassingPercentage" class="form-label">Passing Benchmark (%)</label>
+                        <div class="input-group">
+                            <input asp-for="PassingPercentage" type="number" step="1" min="1" max="100" class="form-control" value="40" />
+                            <span class="input-group-text">%</span>
+                        </div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" asp-for="NegativeMarking" id="negativeMarkingCheck" />
+                        <label class="form-check-label fw-semibold" for="negativeMarkingCheck">
+                            Enable Negative Marking
+                        </label>
+                    </div>
+
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" asp-for="ShowResultInstantly" id="instantResultCheck" />
+                        <label class="form-check-label fw-semibold" for="instantResultCheck">
+                            Show Score Instantly on Submit
+                        </label>
+                        <div class="form-help">If disabled, results remain hidden until evaluated and published by administrators.</div>
+                    </div>
+                </div>
+
+                <!-- 5. AI Evaluation Engine -->
+                <div class="create-card">
+                    <div class="create-card-title">
+                        <i class="fa-solid fa-brain"></i>
+                        <span>AI Auto-Evaluation</span>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" asp-for="AiEvaluationEnabled" id="aiEvalCheck" checked />
+                        <label class="form-check-label fw-bold" for="aiEvalCheck">
+                            Automated AI Grading Engine
+                        </label>
+                        <div class="form-help">Automatically grades objective questions immediately and queues descriptive/coding solutions.</div>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-7">
+                            <label asp-for="AiEvaluationDelay" class="form-label">Evaluation Delay</label>
+                            <input asp-for="AiEvaluationDelay" type="number" min="0" class="form-control" value="0" />
+                        </div>
+                        <div class="col-5">
+                            <label asp-for="AiEvaluationDelayUnit" class="form-label">Unit</label>
+                            <select asp-for="AiEvaluationDelayUnit" class="form-select">
+                                <option value="Hours">Hours</option>
+                                <option value="Days">Days</option>
+                                <option value="Minutes">Minutes</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. Scheduling & Lifecycle -->
+                <div class="create-card">
+                    <div class="create-card-title">
+                        <i class="fa-solid fa-calendar-days"></i>
+                        <span>Schedule &amp; Lifecycle</span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="StartTime" class="form-label">Scheduled Start Time</label>
+                        <input asp-for="StartTime" type="datetime-local" class="form-control" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="EndTime" class="form-label">Scheduled End Time (Optional)</label>
+                        <input asp-for="EndTime" type="datetime-local" class="form-control" />
+                    </div>
+
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" asp-for="IsActive" id="activeStatusCheck" checked />
+                        <label class="form-check-label fw-bold text-success" for="activeStatusCheck">
+                            Publish Immediately (Active)
+                        </label>
+                        <div class="form-help">If unchecked, exam is saved as a Draft and hidden from student dashboards.</div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" id="bottomSubmitBtn" class="btn btn-primary w-100 py-3 fw-bold rounded-pill shadow-sm mb-2">
+                    <i class="fa-solid fa-arrow-right me-1"></i> Create Exam & Add Questions
+                </button>
+                <a asp-area="Admin" asp-controller="ProctoringExam" asp-action="Index" class="btn btn-outline-secondary w-100 py-2 rounded-pill mb-4 text-center">
+                    <i class="fa-solid fa-arrow-left me-1"></i> Cancel & Back to All Exams
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        function toggleScopeFields(isGlobal) {
+            const container = document.getElementById('scopeFieldsContainer');
+            const isGlobalInput = document.getElementById('isGlobalInput');
+            const courseSelect = document.getElementById('courseSelect');
+
+            if (isGlobal) {
+                container.style.display = 'none';
+                isGlobalInput.value = 'true';
+                courseSelect.removeAttribute('required');
+            } else {
+                container.style.display = 'block';
+                isGlobalInput.value = 'false';
+                courseSelect.setAttribute('required', 'required');
+            }
+        }
+
+        document.getElementById('courseSelect')?.addEventListener('change', function () {
+            const opt = this.options[this.selectedIndex];
+            const name = opt.getAttribute('data-name') || '';
+            document.getElementById('targetCourseNameHidden').value = name;
+        });
+
+        // Initialize datetime to 30 mins ahead
+        const now = new Date();
+        now.setMinutes(now.getMinutes() + 30);
+        const iso = now.toISOString().slice(0, 16);
+        const startInput = document.querySelector('input[name="StartTime"]');
+        if (startInput && !startInput.value) {
+            startInput.value = iso;
+        }
+
+        // Prevent accidental duplicate form submission
+        const form = document.getElementById('createExamForm');
+        form?.addEventListener('submit', function (e) {
+            if ($(this).valid()) {
+                const bottomBtn = document.getElementById('bottomSubmitBtn');
+                const headerBtn = document.getElementById('headerSubmitBtn');
+                if (bottomBtn) {
+                    bottomBtn.disabled = true;
+                    bottomBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating Exam in AI Proctoring Platform...';
+                }
+                if (headerBtn) {
+                    headerBtn.disabled = true;
+                    headerBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating...';
+                }
+            }
+        });
+    </script>
+}

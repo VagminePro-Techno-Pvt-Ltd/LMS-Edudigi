@@ -394,6 +394,15 @@ namespace TMS.Repository.Managers.Implementations.Masters
                         result.SuccessCount++;
                         if (enrollResult.WasReactivated)
                             result.ReactivatedCount++;
+
+                        result.EnrolledItems.Add(new BulkEnrollmentItem
+                        {
+                            CourseId = targetCourseId,
+                            StudentId = student.Id,
+                            Email = student.Email,
+                            Name = student.Name,
+                            WasReactivated = enrollResult.WasReactivated
+                        });
                     }
                     else
                     {

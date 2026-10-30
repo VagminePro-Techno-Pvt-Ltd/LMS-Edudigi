@@ -220,6 +220,13 @@ namespace TMS.Repository.Managers.Implementations
                     await _userRepository.AddAsync(newUser);
                     await _userRepository.SaveChangesAsync();
                     result.CreatedCount++;
+                    result.CreatedUsers.Add(new BulkUserCreatedItem
+                    {
+                        UserId = newUser.Id,
+                        Email = newUser.Email,
+                        Name = newUser.Name,
+                        Role = role.Name ?? "Student"
+                    });
                 }
                 catch (Exception ex)
                 {

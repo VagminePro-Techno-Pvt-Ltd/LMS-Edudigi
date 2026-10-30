@@ -1,0 +1,631 @@
+@model TMS.Web.Services.ContentSync.ProvisioningStatusSummary
+@{
+    ViewData["Title"] = "Auto Content Sync & Cloud Storage Hub";
+    var localTree = ViewBag.LocalTree as TMS.Web.Services.ContentSync.HierarchyNodeDto;
+    var gdriveTree = ViewBag.GDriveTree as TMS.Web.Services.ContentSync.HierarchyNodeDto;
+}
+
+<div class="container-fluid py-3" id="content-sync-hub">
+    <!-- Header with Breadcrumb and Actions -->
+    <div class="row align-items-center mb-4">
+        <div class="col-md-7">
+            <h2 class="h3 fw-bold text-dark mb-1">
+                <i class="fas fa-cloud-upload-alt text-primary me-2"></i>Auto Content Sync & Storage Provisioning
+            </h2>
+            <p class="text-muted small mb-0">
+                Two-way automated folder provisioning and file synchronization between LMS EduDigi and configured storage destinations (Local/UNC & Google Drive).
+            </p>
+        </div>
+        <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex gap-2 justify-content-md-end flex-wrap">
+            <form asp-action="RunSyncNow" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" id="btn-run-sync" class="btn btn-primary btn-sm shadow-sm">
+                    <i class="fas fa-sync-alt me-1"></i> Run Sync Now
+                </button>
+            </form>
+            <form asp-action="ScanDriveToLms" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" id="btn-scan-drive" class="btn btn-outline-info btn-sm shadow-sm">
+                    <i class="fas fa-search me-1"></i> Scan Drive &rarr; LMS
+                </button>
+            </form>
+            <form asp-action="RetryFailed" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" id="btn-retry-failed" class="btn btn-outline-warning btn-sm shadow-sm" @(Model.FailedJobsCount == 0 ? "disabled" : "")>
+                    <i class="fas fa-redo me-1"></i> Retry Failed (@Model.FailedJobsCount)
+                </button>
+            </form>
+            <form asp-action="RecheckHierarchy" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" id="btn-recheck-all" class="btn btn-outline-secondary btn-sm shadow-sm" onclick="return confirm('This will re-verify that all active Programs, Semesters, and Courses exist on all enabled destinations. Continue?');">
+                    <i class="fas fa-layer-group me-1"></i> Re-check All
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Alerts -->
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert" id="alert-success">
+            <i class="fas fa-check-circle me-2"></i>@TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert" id="alert-error">
+            <i class="fas fa-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <!-- Stat Cards Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-2">
+            <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-4 border-primary">
+                <div class="card-body p-3">
+                    <div class="text-muted small text-uppercase fw-bold">Programs Mapped</div>
+                    <div class="h3 fw-bold mb-0 text-primary" id="stat-programs">@Model.TotalProgramsMapped</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-2">
+            <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-4 border-info">
+                <div class="card-body p-3">
+                    <div class="text-muted small text-uppercase fw-bold">Semesters Mapped</div>
+                    <div class="h3 fw-bold mb-0 text-info" id="stat-semesters">@Model.TotalSemestersMapped</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-2">
+            <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-4 border-success">
+                <div class="card-body p-3">
+                    <div class="text-muted small text-uppercase fw-bold">Courses Mapped</div>
+                    <div class="h3 fw-bold mb-0 text-success" id="stat-courses">@Model.TotalCoursesMapped</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-2">
+            <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-4 border-secondary">
+                <div class="card-body p-3">
+                    <div class="text-muted small text-uppercase fw-bold">Subfolders Mapped</div>
+                    <div class="h3 fw-bold mb-0 text-secondary" id="stat-subfolders">@Model.TotalSubfoldersMapped</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-2">
+            <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-4 border-warning">
+                <div class="card-body p-3">
+                    <div class="text-muted small text-uppercase fw-bold">Pending Jobs</div>
+                    <div class="h3 fw-bold mb-0 text-warning" id="stat-pending">@Model.PendingJobsCount</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-2">
+            <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-4 @(Model.FailedJobsCount > 0 ? "border-danger" : "border-success")">
+                <div class="card-body p-3">
+                    <div class="text-muted small text-uppercase fw-bold">Failed / Retrying</div>
+                    <div class="h3 fw-bold mb-0 @(Model.FailedJobsCount > 0 ? "text-danger" : "text-muted")" id="stat-failed">@Model.FailedJobsCount</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Storage Destinations Status Cards -->
+    <div class="row g-3 mb-4">
+        <!-- Local / Network UNC Drive Card -->
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm rounded-3 h-100">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-server fa-lg text-primary me-2"></i>
+                        <div>
+                            <h6 class="fw-bold mb-0">Local Server / UNC Shared Drive</h6>
+                            <small class="text-muted">Direct high-speed filesystem storage</small>
+                        </div>
+                    </div>
+                    <div>
+                        @if (Model.LocalDriveEnabled)
+                        {
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" id="badge-local-status">
+                                <i class="fas fa-check-circle me-1"></i>@Model.LocalDriveStatus
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" id="badge-local-status">
+                                <i class="fas fa-ban me-1"></i>Disabled
+                            </span>
+                        }
+                    </div>
+                </div>
+                <div class="card-body p-3">
+                    <div class="mb-2">
+                        <span class="text-muted small">Storage Destination Path:</span>
+                        <code class="d-block p-2 bg-light rounded text-break mt-1 small" id="local-drive-path">@Model.LocalDriveRootPath</code>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+                        <span class="small text-muted">Hierarchical Structure: <code>EduDigiClass_LMS_Content/&lt;Program&gt;/&lt;Semester&gt;/&lt;Course&gt;/</code></span>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="btn-test-local" onclick="testConnection('LocalDrive')">
+                            <i class="fas fa-plug me-1"></i> Test Access
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Google Drive Card -->
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm rounded-3 h-100">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                    <div class="d-flex align-items-center">
+                        <i class="fab fa-google-drive fa-lg text-warning me-2"></i>
+                        <div>
+                            <h6 class="fw-bold mb-0">Google Drive & Shared Drives</h6>
+                            <small class="text-muted">Cloud academic folder hierarchy</small>
+                        </div>
+                    </div>
+                    <div>
+                        @if (Model.GoogleDriveEnabled)
+                        {
+                            if (Model.GoogleDriveNetworkDisabled)
+                            {
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1" id="badge-gdrive-status">
+                                    <i class="fas fa-wifi-slash me-1"></i>Simulated Offline
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" id="badge-gdrive-status">
+                                    <i class="fas fa-cloud me-1"></i>@Model.GoogleDriveStatus
+                                </span>
+                            }
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" id="badge-gdrive-status">
+                                <i class="fas fa-ban me-1"></i>Disabled
+                            </span>
+                        }
+                    </div>
+                </div>
+                <div class="card-body p-3">
+                    <div class="mb-2">
+                        <span class="text-muted small">Root Drive Folder:</span>
+                        <code class="d-block p-2 bg-light rounded text-break mt-1 small" id="gdrive-root-name">@Model.GoogleDriveRootName</code>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top flex-wrap gap-2">
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" role="switch" id="toggle-gdrive-network" @(!Model.GoogleDriveNetworkDisabled ? "checked" : "") onchange="toggleNetwork(this.checked)">
+                            <label class="form-check-label small" for="toggle-gdrive-network" id="lbl-network-status">
+                                Network: @(!Model.GoogleDriveNetworkDisabled ? "Online" : "Disconnected (Simulated)")
+                            </label>
+                        </div>
+                        <button type="button" class="btn btn-outline-warning btn-sm" id="btn-test-gdrive" onclick="testConnection('GoogleDrive')">
+                            <i class="fas fa-plug me-1"></i> Test Drive
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Tabs -->
+    <div class="card border-0 shadow-sm rounded-3">
+        <div class="card-header bg-white border-bottom p-0">
+            <ul class="nav nav-tabs card-header-tabs m-0 px-3 pt-2" id="syncTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active fw-semibold" id="tab-jobs-link" data-bs-toggle="tab" data-bs-target="#tab-jobs" type="button" role="tab">
+                        <i class="fas fa-list-check me-2"></i>Provisioning Outbox Queue (@Model.RecentJobs.Count)
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-semibold" id="tab-hierarchy-link" data-bs-toggle="tab" data-bs-target="#tab-hierarchy" type="button" role="tab">
+                        <i class="fas fa-sitemap me-2"></i>Folder Hierarchy Explorer
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-semibold" id="tab-files-link" data-bs-toggle="tab" data-bs-target="#tab-files" type="button" role="tab">
+                        <i class="fas fa-file-arrow-up me-2"></i>Drive &rarr; LMS Synced Content (@Model.RecentSyncedFiles.Count)
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-semibold" id="tab-settings-link" data-bs-toggle="tab" data-bs-target="#tab-settings" type="button" role="tab">
+                        <i class="fas fa-sliders-h me-2"></i>Storage Configuration
+                    </button>
+                </li>
+            </ul>
+        </div>
+
+        <div class="card-body p-3 p-md-4">
+            <div class="tab-content" id="syncTabsContent">
+                <!-- Tab 1: Outbox Queue -->
+                <div class="tab-pane fade show active" id="tab-jobs" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold mb-0">Recent Provisioning Operations & Status</h6>
+                        <small class="text-muted">Background worker processes pending jobs automatically every 5 seconds.</small>
+                    </div>
+                    @if (Model.RecentJobs == null || Model.RecentJobs.Count == 0)
+                    {
+                        <div class="text-center py-5 text-muted">
+                            <i class="fas fa-folder-open fa-3x mb-3 text-secondary opacity-50"></i>
+                            <p class="mb-0">No provisioning jobs recorded yet. When Programs, Semesters, or Courses are created, jobs appear here.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0" id="table-outbox-jobs">
+                                <thead class="table-light text-muted small text-uppercase">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Entity</th>
+                                        <th>Action</th>
+                                        <th>Provider</th>
+                                        <th>Status</th>
+                                        <th>Retries</th>
+                                        <th>Details / Error</th>
+                                        <th>Created</th>
+                                        <th>Processed</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var job in Model.RecentJobs)
+                                    {
+                                        <tr>
+                                            <td class="fw-semibold">#@job.Id</td>
+                                            <td>
+                                                <span class="badge bg-light text-dark border">
+                                                    @job.EntityType #@job.EntityId
+                                                </span>
+                                            </td>
+                                            <td><span class="badge bg-primary-subtle text-primary">@job.Action</span></td>
+                                            <td>
+                                                @if (job.StorageProvider == "GoogleDrive")
+                                                {
+                                                    <span class="text-warning"><i class="fab fa-google-drive me-1"></i>Google Drive</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-primary"><i class="fas fa-server me-1"></i>Local / UNC</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (job.Status == "Completed")
+                                                {
+                                                    <span class="badge bg-success"><i class="fas fa-check me-1"></i>Completed</span>
+                                                }
+                                                else if (job.Status == "Processing")
+                                                {
+                                                    <span class="badge bg-info text-dark"><i class="fas fa-spinner fa-spin me-1"></i>Processing</span>
+                                                }
+                                                else if (job.Status == "Pending")
+                                                {
+                                                    <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Pending</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-danger"><i class="fas fa-times me-1"></i>Failed</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <span class="small @(job.RetryCount > 0 ? "text-danger fw-bold" : "text-muted")">
+                                                    @job.RetryCount / @job.MaxRetries
+                                                </span>
+                                            </td>
+                                            <td class="small text-break" style="max-width: 250px;">
+                                                @if (!string.IsNullOrWhiteSpace(job.LastError))
+                                                {
+                                                    <span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>@job.LastError</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">Folder ensured</span>
+                                                }
+                                            </td>
+                                            <td class="small text-muted">@job.CreatedAt.ToLocalTime().ToString("g")</td>
+                                            <td class="small text-muted">@(job.ProcessedAt.HasValue ? job.ProcessedAt.Value.ToLocalTime().ToString("g") : "—")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+
+                <!-- Tab 2: Folder Hierarchy Tree -->
+                <div class="tab-pane fade" id="tab-hierarchy" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h6 class="fw-bold mb-0">Active Destination Folder Trees</h6>
+                            <small class="text-muted">Explore Program &rarr; Semester &rarr; Course &rarr; Standard Subfolders (Videos, PDFs, Assignments, Forum_Discussion).</small>
+                        </div>
+                        <ul class="nav nav-pills nav-pills-sm" id="pills-tree-tab" role="tablist">
+                            <li class="nav-item">
+                                <button class="nav-link active btn-sm" id="pills-local-tab" data-bs-toggle="pill" data-bs-target="#pills-local" type="button" role="tab">
+                                    <i class="fas fa-server me-1"></i>Local / UNC
+                                </button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link btn-sm" id="pills-gdrive-tab" data-bs-toggle="pill" data-bs-target="#pills-gdrive" type="button" role="tab">
+                                    <i class="fab fa-google-drive me-1"></i>Google Drive
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="tab-content border rounded p-3 bg-light" id="treeContent">
+                        <!-- Local Tree Pane -->
+                        <div class="tab-pane fade show active" id="pills-local" role="tabpanel">
+                            <div class="folder-tree">
+                                <div class="fw-bold text-primary mb-2">
+                                    <i class="fas fa-folder-open text-warning me-2"></i>EduDigiClass_LMS_Content/
+                                </div>
+                                @if (localTree != null && localTree.Children.Any())
+                                {
+                                    <ul class="list-unstyled ms-4">
+                                        @foreach (var prog in localTree.Children)
+                                        {
+                                            <li class="mb-2">
+                                                <span class="fw-semibold text-dark"><i class="fas fa-folder text-warning me-2"></i>@prog.Name/</span>
+                                                @if (prog.Children.Any())
+                                                {
+                                                    <ul class="list-unstyled ms-4 mt-1">
+                                                        @foreach (var sem in prog.Children)
+                                                        {
+                                                            <li class="mb-1">
+                                                                <span class="text-secondary"><i class="fas fa-folder text-warning me-2"></i>@sem.Name/</span>
+                                                                @if (sem.Children.Any())
+                                                                {
+                                                                    <ul class="list-unstyled ms-4 mt-1">
+                                                                        @foreach (var course in sem.Children)
+                                                                        {
+                                                                            <li class="mb-1">
+                                                                                <span class="fw-medium text-success"><i class="fas fa-graduation-cap me-2 text-info"></i>@course.Name/</span>
+                                                                                @if (course.Children.Any())
+                                                                                {
+                                                                                    <ul class="list-inline ms-4 mt-1 mb-2">
+                                                                                        @foreach (var sub in course.Children)
+                                                                                        {
+                                                                                            <li class="list-inline-item me-2">
+                                                                                                <span class="badge bg-white text-dark border shadow-xs py-1 px-2">
+                                                                                                    <i class="fas fa-folder-plus text-primary me-1"></i>@sub.Name/
+                                                                                                </span>
+                                                                                            </li>
+                                                                                        }
+                                                                                    </ul>
+                                                                                }
+                                                                            </li>
+                                                                        }
+                                                                    </ul>
+                                                                }
+                                                            </li>
+                                                        }
+                                                    </ul>
+                                                }
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                                else
+                                {
+                                    <div class="text-muted small ms-4">No folders created yet on Local Drive. Click "Run Sync Now" or create a Program/Course.</div>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Google Drive Tree Pane -->
+                        <div class="tab-pane fade" id="pills-gdrive" role="tabpanel">
+                            <div class="folder-tree">
+                                <div class="fw-bold text-primary mb-2">
+                                    <i class="fab fa-google-drive text-warning me-2"></i>EduDigiClass_LMS_Content/
+                                </div>
+                                @if (gdriveTree != null && gdriveTree.Children.Any())
+                                {
+                                    <ul class="list-unstyled ms-4">
+                                        @foreach (var prog in gdriveTree.Children)
+                                        {
+                                            <li class="mb-2">
+                                                <span class="fw-semibold text-dark"><i class="fas fa-folder text-warning me-2"></i>@prog.Name/</span>
+                                                <small class="text-muted font-monospace ms-2">[@prog.ProviderFolderId]</small>
+                                                @if (prog.Children.Any())
+                                                {
+                                                    <ul class="list-unstyled ms-4 mt-1">
+                                                        @foreach (var sem in prog.Children)
+                                                        {
+                                                            <li class="mb-1">
+                                                                <span class="text-secondary"><i class="fas fa-folder text-warning me-2"></i>@sem.Name/</span>
+                                                                <small class="text-muted font-monospace ms-2">[@sem.ProviderFolderId]</small>
+                                                                @if (sem.Children.Any())
+                                                                {
+                                                                    <ul class="list-unstyled ms-4 mt-1">
+                                                                        @foreach (var course in sem.Children)
+                                                                        {
+                                                                            <li class="mb-1">
+                                                                                <span class="fw-medium text-success"><i class="fas fa-graduation-cap me-2 text-info"></i>@course.Name/</span>
+                                                                                <small class="text-muted font-monospace ms-2">[@course.ProviderFolderId]</small>
+                                                                                @if (course.Children.Any())
+                                                                                {
+                                                                                    <ul class="list-inline ms-4 mt-1 mb-2">
+                                                                                        @foreach (var sub in course.Children)
+                                                                                        {
+                                                                                            <li class="list-inline-item me-2">
+                                                                                                <span class="badge bg-white text-dark border shadow-xs py-1 px-2">
+                                                                                                    <i class="fas fa-folder-plus text-primary me-1"></i>@sub.Name/
+                                                                                                </span>
+                                                                                            </li>
+                                                                                        }
+                                                                                    </ul>
+                                                                                }
+                                                                            </li>
+                                                                        }
+                                                                    </ul>
+                                                                }
+                                                            </li>
+                                                        }
+                                                    </ul>
+                                                }
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                                else
+                                {
+                                    <div class="text-muted small ms-4">No folders created yet on Google Drive. Enable Google Drive and run synchronization to provision folders.</div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Drive -> LMS Synced Files -->
+                <div class="tab-pane fade" id="tab-files" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold mb-0">Files Automatically Ingested from Drive into LMS</h6>
+                        <small class="text-muted">Last scanned: @(Model.LastDriveScanUtc.HasValue ? Model.LastDriveScanUtc.Value.ToLocalTime().ToString("g") : "Never")</small>
+                    </div>
+
+                    @if (Model.RecentSyncedFiles == null || Model.RecentSyncedFiles.Count == 0)
+                    {
+                        <div class="text-center py-5 text-muted">
+                            <i class="fas fa-file-import fa-3x mb-3 text-secondary opacity-50"></i>
+                            <p class="mb-0">No external files detected yet. Place files into provisioned Course subfolders (Videos/, PDFs/, Assignments/, Forum_Discussion/) and click "Scan Drive &rarr; LMS".</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0" id="table-synced-files">
+                                <thead class="table-light text-muted small text-uppercase">
+                                    <tr>
+                                        <th>File Name</th>
+                                        <th>Course ID</th>
+                                        <th>Subfolder Category</th>
+                                        <th>Ingested LMS Module</th>
+                                        <th>Size</th>
+                                        <th>Provider</th>
+                                        <th>Status</th>
+                                        <th>Synced At</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var file in Model.RecentSyncedFiles)
+                                    {
+                                        <tr>
+                                            <td class="fw-semibold text-primary">
+                                                <i class="fas fa-file me-2 text-secondary"></i>@file.FileName
+                                            </td>
+                                            <td>Course #@file.CourseId</td>
+                                            <td><span class="badge bg-light text-dark border">@file.SubfolderType</span></td>
+                                            <td><span class="badge bg-info-subtle text-info border">@file.LmsRecordType #@file.LmsRecordId</span></td>
+                                            <td class="small text-muted">@(file.FileSize / 1024) KB</td>
+                                            <td><span class="small text-muted">@file.StorageProvider</span></td>
+                                            <td><span class="badge bg-success"><i class="fas fa-check me-1"></i>@file.SyncStatus</span></td>
+                                            <td class="small text-muted">@file.SyncedAt.ToLocalTime().ToString("g")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+
+                <!-- Tab 4: Configuration Settings -->
+                <div class="tab-pane fade" id="tab-settings" role="tabpanel">
+                    <form asp-action="UpdateConfig" method="post" id="form-update-config">
+                        @Html.AntiForgeryToken()
+                        <div class="row g-4">
+                            <!-- Local Storage Config -->
+                            <div class="col-md-6 border-end">
+                                <h6 class="fw-bold mb-3 text-primary"><i class="fas fa-server me-2"></i>Local Server / UNC Shared Network Drive</h6>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="localDriveEnabled" name="localDriveEnabled" value="true" @(Model.LocalDriveEnabled ? "checked" : "")>
+                                    <label class="form-check-label fw-semibold" for="localDriveEnabled">Enable Local / UNC Network Drive Destination</label>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="localDriveRootPath" class="form-label small fw-bold">Root Folder Path or UNC Share</label>
+                                    <input type="text" class="form-control" id="localDriveRootPath" name="localDriveRootPath" value="@Model.LocalDriveRootPath" required>
+                                    <div class="form-text small">Supports relative directory names, absolute server paths, or network UNC paths (e.g., <code>\\server\share\EduDigiClass_LMS_Content</code>).</div>
+                                </div>
+                            </div>
+
+                            <!-- Google Drive Config -->
+                            <div class="col-md-6">
+                                <h6 class="fw-bold mb-3 text-warning"><i class="fab fa-google-drive me-2"></i>Google Drive & Shared Drives</h6>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="googleDriveEnabled" name="googleDriveEnabled" value="true" @(Model.GoogleDriveEnabled ? "checked" : "")>
+                                    <label class="form-check-label fw-semibold" for="googleDriveEnabled">Enable Google Drive Destination</label>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="googleDriveNetworkDisabled" name="googleDriveNetworkDisabled" value="true" @(Model.GoogleDriveNetworkDisabled ? "checked" : "")>
+                                    <label class="form-check-label text-danger small fw-semibold" for="googleDriveNetworkDisabled">Simulate Network Disconnection (for Testing)</label>
+                                    <div class="form-text small text-muted">When checked, requests to Google Drive simulate offline network failure to verify automatic retry.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pt-3 mt-4 border-top text-end">
+                            <button type="submit" id="btn-save-config" class="btn btn-primary px-4">
+                                <i class="fas fa-save me-1"></i> Save Configuration
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function testConnection(providerKey) {
+        const btn = document.getElementById(providerKey === 'LocalDrive' ? 'btn-test-local' : 'btn-test-gdrive');
+        const origText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Testing...';
+
+        fetch('/Admin/ContentSync/TestConnection?providerKey=' + encodeURIComponent(providerKey), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert((data.success ? 'SUCCESS: ' : 'NOTICE: ') + data.message);
+        })
+        .catch(err => {
+            alert('Error testing connection: ' + err);
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = origText;
+        });
+    }
+
+    function toggleNetwork(isOnline) {
+        fetch('/Admin/ContentSync/ToggleNetworkAccess?online=' + encodeURIComponent(isOnline), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const badge = document.getElementById('badge-gdrive-status');
+            const lbl = document.getElementById('lbl-network-status');
+            if (badge) {
+                if (data.online) {
+                    badge.className = 'badge bg-success-subtle text-success border border-success-subtle px-2 py-1';
+                    badge.innerHTML = '<i class="fas fa-cloud me-1"></i>Online';
+                } else {
+                    badge.className = 'badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1';
+                    badge.innerHTML = '<i class="fas fa-wifi-slash me-1"></i>Simulated Offline';
+                }
+            }
+            if (lbl) {
+                lbl.innerText = 'Network: ' + (data.online ? 'Online' : 'Disconnected (Simulated)');
+            }
+        });
+    }
+</script>

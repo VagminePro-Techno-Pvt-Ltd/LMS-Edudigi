@@ -1,4 +1,3 @@
-using TMS.Web.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
@@ -8,8 +7,11 @@ using System.Net.Mail;
 using System.Security.Claims;
 using TMS.Repository.Managers;
 using TMS.ViewModels;
+using TMS.ViewModels.Email;
 using TMS.ViewModels.Masters;
 using TMS.Web.Models;
+using TMS.Web.Services;
+using TMS.Web.Services.Email;
 
 namespace TMS.Web.Controllers
 {
@@ -20,25 +22,32 @@ namespace TMS.Web.Controllers
         private readonly IMasterBaseManager<ForgotPasswordViewModel> _forgotmanager;
         private readonly IDailyAttendanceManager _attendanceManager;
         private readonly StorageSettings _storageSettings;
-        private readonly IAuditLogService _auditLogService;
-        public AuthController(IAccountManager manager, IOptions<StorageSettings> options,
+        private readonly IEmailOutboxService? _outboxService;
+        private readonly IAuditLogService? _auditLogService;
+
+        public AuthController(
+            IAccountManager manager,
+            IOptions<StorageSettings> options,
             IMasterBaseManager<ForgotPasswordViewModel> forgotmanager,
             IMasterManager<UserViewModel> usermanager,
             IDailyAttendanceManager attendanceManager,
-            IAuditLogService auditLogService)
+            IEmailOutboxService? outboxService = null,
+            IAuditLogService? auditLogService = null)
         {
             _manager = manager;
             _storageSettings = options.Value;
             _forgotmanager = forgotmanager;
             _usermanager = usermanager;
             _attendanceManager = attendanceManager;
+            _outboxService = outboxService;
             _auditLogService = auditLogService;
         }
+
         public IActionResult LoginOptional()
         {
-            
             return View();
         }
+
         public IActionResult Login(string? ReturnUrl)
         {
             ViewBag.ReturnUrl = ReturnUrl;
@@ -57,42 +66,35 @@ namespace TMS.Web.Controllers
                 return View(model);
             }
 
-            var user = await _manager.Login(model!.Email!.Trim(), model.Password);
-            if (user == null || string.IsNullOrWhiteSpace(user.Email))
+            var user = await _manager.Login(model.Email, model.Password);
+            if (user == null || user.Id <= 0)
             {
-                await _auditLogService.LogActionAsync(
-                    "LOGIN_FAILURE",
-                    "Authentication",
-                    "UserMaster",
-                    null,
-                    null,
-                    null,
-                    null,
-                    "FAILURE",
-                    $"Failed login attempt for email: '{model?.Email?.Trim()}'. Invalid credentials.",
-                    null,
-                    model?.Email?.Trim() ?? "Unknown",
-                    "Anonymous");
+                ModelState.AddModelError("", "Invalid Email or Password");
+                return View(model);
+            }
 
-                ModelState.AddModelError(nameof(LoginViewModel.Password), "Invalid credentials");
+            if (!user.IsActive)
+            {
+                ModelState.AddModelError("", "Your account is disabled, please contact administrator.");
                 return View(model);
             }
 
             await IdentitySignin(user.Email, user.Id, user.Name!, model.RememberMe, user.Role?.Name);
 
-            await _auditLogService.LogActionAsync(
-                "LOGIN_SUCCESS",
-                "Authentication",
-                "UserMaster",
-                user.Id.ToString(),
-                null,
-                null,
-                null,
-                "SUCCESS",
-                $"User '{user.Email}' logged in successfully.",
-                user.Id,
-                user.Name ?? user.Email,
-                user.Role?.Name ?? "User");
+            if (_auditLogService != null)
+            {
+                await _auditLogService.LogActionAsync(
+                    "USER_LOGIN",
+                    "Authentication",
+                    "UserMaster",
+                    user.Id.ToString(),
+                    null,
+                    new { Email = user.Email, Role = user.Role?.Name },
+                    "Session",
+                    "SUCCESS",
+                    $"User '{user.Email}' logged in successfully.",
+                    user.Id);
+            }
 
             // ── Force Password Change Check ──
             if (user.ForcePasswordChange)
@@ -100,7 +102,7 @@ namespace TMS.Web.Controllers
                 return RedirectToAction("ChangePassword", new { forced = true });
             }
 
-            if(user.Role?.Name?.ToLower()=="student")
+            if (user.Role?.Name?.ToLower() == "student")
             {
                 await _attendanceManager.MarkLoginAttendance(user.Id);
                 return RedirectToAction("StudentDashboard", "Home", new { area = "" });
@@ -111,15 +113,14 @@ namespace TMS.Web.Controllers
             return RedirectToAction("Index", "Home", new { area = "" });
         }
 
-
         private async Task IdentitySignin(string userName, int userId, string name, bool isPersistent = false, string? Role = null)
         {
             var claims = new List<Claim>
-                {
-                    new Claim("user", userName),
-                    new Claim("userId", Convert.ToString( userId)),
-                     new Claim("userName", name)
-                };
+            {
+                new Claim("user", userName),
+                new Claim("userId", Convert.ToString(userId)),
+                new Claim("userName", name)
+            };
             if (!string.IsNullOrWhiteSpace(Role))
                 claims.Add(new("role", Role));
             else
@@ -131,24 +132,21 @@ namespace TMS.Web.Controllers
 
         public async Task<IActionResult> LogOff()
         {
-            var userIdVal = User?.Claims?.FirstOrDefault(c => c.Type == "userId")?.Value;
-            int? parsedUserId = int.TryParse(userIdVal, out var uid) ? uid : null;
-            var uname = User?.Claims?.FirstOrDefault(c => c.Type == "userName" || c.Type == "user")?.Value ?? "User";
-            var urole = User?.Claims?.FirstOrDefault(c => c.Type == "role")?.Value ?? "User";
-
-            await _auditLogService.LogActionAsync(
-                "LOGOUT",
-                "Authentication",
-                "UserMaster",
-                userIdVal,
-                null,
-                null,
-                null,
-                "SUCCESS",
-                $"User '{uname}' logged out.",
-                parsedUserId,
-                uname,
-                urole);
+            var userIdClaim = User?.Claims?.FirstOrDefault(c => c.Type == "userId")?.Value;
+            if (int.TryParse(userIdClaim, out int uid) && _auditLogService != null)
+            {
+                await _auditLogService.LogActionAsync(
+                    "USER_LOGOUT",
+                    "Authentication",
+                    "UserMaster",
+                    uid.ToString(),
+                    null,
+                    null,
+                    "Session",
+                    "SUCCESS",
+                    "User logged out.",
+                    uid);
+            }
 
             await HttpContext.SignOutAsync();
             HttpContext.Session.Clear();
@@ -161,7 +159,6 @@ namespace TMS.Web.Controllers
         [HttpGet]
         public IActionResult ChangePassword(bool forced = false)
         {
-            // Must be logged in
             var userIdClaim = User?.Claims?.FirstOrDefault(c => c.Type == "userId")?.Value;
             if (string.IsNullOrWhiteSpace(userIdClaim))
                 return RedirectToAction("Login");
@@ -207,20 +204,49 @@ namespace TMS.Web.Controllers
                 return View(model);
             }
 
-            await _auditLogService.LogActionAsync(
-                "PASSWORD_CHANGE",
-                "Authentication",
-                "UserMaster",
-                userId.ToString(),
-                null,
-                new { Password = "[REDACTED]" },
-                "Password",
-                "SUCCESS",
-                "User changed password successfully.",
-                userId);
+            if (_auditLogService != null)
+            {
+                await _auditLogService.LogActionAsync(
+                    "PASSWORD_CHANGE",
+                    "Authentication",
+                    "UserMaster",
+                    userId.ToString(),
+                    null,
+                    new { Password = "[REDACTED]" },
+                    "Password",
+                    "SUCCESS",
+                    "User changed password successfully.",
+                    userId);
+            }
 
             // User stays logged in — redirect to appropriate dashboard
             TempData["PasswordChanged"] = true;
+
+            try
+            {
+                var userObj = await _usermanager.GetAsync(userId);
+                if (userObj != null && !string.IsNullOrWhiteSpace(userObj.Email) && _outboxService != null)
+                {
+                    await _outboxService.EnqueueAsync(new EmailEnqueueRequest
+                    {
+                        RecipientEmail = userObj.Email.Trim(),
+                        RecipientName = userObj.Name,
+                        Subject = "Security Notice: Your EduDigiClass LMS Password Was Changed",
+                        TemplateName = "PasswordChangedAlert",
+                        TemplateData = new Dictionary<string, string>
+                        {
+                            ["RecipientName"] = userObj.Name ?? "User",
+                            ["TimestampUtc"] = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss") + " UTC"
+                        },
+                        EventType = "PasswordChanged",
+                        IdempotencyKey = $"pwd-change-{userId}-{DateTime.UtcNow.Ticks}"
+                    });
+                }
+            }
+            catch
+            {
+                // Non-fatal for password change response
+            }
 
             var role = User?.Claims?.FirstOrDefault(c => c.Type == "role")?.Value?.ToLower();
             if (role == "student")
@@ -229,137 +255,205 @@ namespace TMS.Web.Controllers
             return RedirectToAction("Index", "Home", new { area = "" });
         }
 
+        // =======================
+        // FORGOT PASSWORD FLOW
+        // =======================
         public IActionResult ForgotPassword()
         {
-            return View();
+            return RedirectToAction("ForgotPasswordFlow", new { step = 1 });
         }
 
-
-        // =======================
-        // VERIFY OTP
-        // =======================
         public IActionResult VerifyOtp()
         {
             ViewBag.Email = TempData["Email"];
             return View();
         }
 
-        
-
-        // =======================
-        // RESET PASSWORD
-        // =======================
         public IActionResult ResetPassword()
         {
             ViewBag.Email = TempData["Email"];
             return View();
         }
 
-       
-
-        // =======================
-        // SEND EMAIL HELPER
-        // =======================
-        private async Task SendOtpEmail(string toEmail, string otp)
+        public IActionResult ForgotPasswordFlow(int step = 1, string? email = null)
         {
-            var message = new MailMessage();
-            message.To.Add(toEmail);
-            message.Subject = "Your OTP Code";
-            message.Body = $"Your OTP is: <b>{otp}</b><br/>It is valid for 10 minutes.";
-            message.IsBodyHtml = true;
-
-            using var smtp = new SmtpClient("smtp.gmail.com", 587)
-            {
-                Credentials = new NetworkCredential("your-email@gmail.com", "your-app-password"),
-                EnableSsl = true
-            };
-
-            await smtp.SendMailAsync(message);
-        }
-
-        public IActionResult ForgotPasswordFlow(int step = 1, string email = null)
-        {
-            ViewBag.Step = step;          // 1 = enter email, 2 = otp, 3 = new pass
+            ViewBag.Step = step;
             ViewBag.Email = email;
             return View("ForgotPasswordUnified");
         }
+
         [HttpPost]
         public async Task<IActionResult> ForgotPassword(string email)
         {
-            var user = await _manager.GetUserByEmail(email);
-            if (user == null)
+            if (string.IsNullOrWhiteSpace(email))
             {
-                ViewBag.Error = "Email not registered.";
+                ViewBag.Error = "Please enter a valid email address.";
                 return View("ForgotPasswordUnified", new { step = 1 });
             }
 
-            var OTPS = await _forgotmanager.GetAsync(null, t => t.IsActive && t.Email == email);
-            var lastOtp = OTPS.OrderByDescending(t => t.CreatedOn).FirstOrDefault();
+            email = email.Trim();
+            var user = await _manager.GetUserByEmail(email);
 
-
-            int otp = new Random().Next(100000, 999999);
-
-            await _forgotmanager.AddUpdateAsync(new ForgotPasswordViewModel
+            if (user != null && user.IsActive)
             {
-                Email = email,
-                OTP = 212121,//otp,
-                CreatedOn = DateTime.Now,
-                IsActive = true
-            }, 1);
+                var activeOtps = await _forgotmanager.GetAsync(null, t => t.IsActive && t.Email == email);
+                var recentOtp = activeOtps
+                    .Where(t => (DateTime.UtcNow - t.CreatedOn).TotalMinutes < 1)
+                    .OrderByDescending(t => t.CreatedOn)
+                    .FirstOrDefault();
 
-            // await SendOtpEmail(email, otp);
+                if (recentOtp == null)
+                {
+                    foreach (var old in activeOtps)
+                    {
+                        old.IsActive = false;
+                        await _forgotmanager.AddUpdateAsync(old, 1);
+                    }
+
+                    int secureOtp = System.Security.Cryptography.RandomNumberGenerator.GetInt32(100000, 1000000);
+
+                    await _forgotmanager.AddUpdateAsync(new ForgotPasswordViewModel
+                    {
+                        Email = email,
+                        OTP = secureOtp,
+                        CreatedOn = DateTime.UtcNow,
+                        IsActive = true
+                    }, 1);
+
+                    if (_outboxService != null)
+                    {
+                        await _outboxService.EnqueueAsync(new EmailEnqueueRequest
+                        {
+                            RecipientEmail = user.Email,
+                            RecipientName = user.Name,
+                            Subject = "EduDigiClass LMS — Password Reset OTP Verification",
+                            TemplateName = "PasswordResetOtp",
+                            TemplateData = new Dictionary<string, string>
+                            {
+                                ["Otp"] = secureOtp.ToString(),
+                                ["RecipientName"] = user.Name ?? "Student / Faculty"
+                            },
+                            EventType = "PasswordResetOtp",
+                            IdempotencyKey = $"otp-reset-{user.Id}-{DateTime.UtcNow:yyyyMMddHHmmss}"
+                        });
+                    }
+                }
+            }
 
             return RedirectToAction("ForgotPasswordFlow", new { step = 2, email });
         }
+
         [HttpPost]
         public async Task<IActionResult> VerifyOtp(string email, string otp)
         {
-            var OTPS = await _forgotmanager.GetAsync(null, t => t.IsActive && t.Email == email);
-            var latestOtp = OTPS.OrderByDescending(t => t.CreatedOn).FirstOrDefault();
+            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(otp))
+            {
+                ViewBag.Error = "Please enter both your email address and the 6-digit OTP.";
+                return RedirectToAction("ForgotPasswordFlow", new { step = 2, email });
+            }
+
+            email = email.Trim();
+            otp = otp.Trim();
+
+            var otps = await _forgotmanager.GetAsync(null, t => t.IsActive && t.Email == email);
+            var latestOtp = otps.OrderByDescending(t => t.CreatedOn).FirstOrDefault();
 
             if (latestOtp == null)
             {
-                ViewBag.Error = "OTP not generated.";
+                ViewBag.Error = "No active OTP request found. Please request a new verification code.";
                 return RedirectToAction("ForgotPasswordFlow", new { step = 2, email });
             }
 
             if (latestOtp.OTP.ToString() != otp)
             {
-                ViewBag.Error = "Invalid OTP.";
+                ViewBag.Error = "Invalid verification code. Please check your email and try again.";
                 return RedirectToAction("ForgotPasswordFlow", new { step = 2, email });
             }
 
             if ((DateTime.UtcNow - latestOtp.CreatedOn).TotalMinutes > 10)
             {
-                ViewBag.Error = "OTP expired.";
+                ViewBag.Error = "Verification code has expired (10-minute validity limit). Please request a new OTP.";
                 return RedirectToAction("ForgotPasswordFlow", new { step = 2, email });
             }
 
             return RedirectToAction("ForgotPasswordFlow", new { step = 3, email });
         }
+
         [HttpPost]
         public async Task<IActionResult> ResetPassword(string email, string newPassword)
         {
+            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(newPassword))
+            {
+                ViewBag.Error = "Email and new password are required.";
+                return RedirectToAction("ForgotPasswordFlow", new { step = 3, email });
+            }
+
+            email = email.Trim();
             var user = await _manager.GetUserByEmail(email);
 
             if (user == null)
             {
-                ViewBag.Error = "User not found.";
+                ViewBag.Error = "Unable to process password reset request.";
                 return RedirectToAction("ForgotPasswordFlow", new { step = 3, email });
+            }
+
+            var activeOtps = await _forgotmanager.GetAsync(null, t => t.IsActive && t.Email == email);
+            var validOtp = activeOtps.OrderByDescending(t => t.CreatedOn).FirstOrDefault();
+            if (validOtp == null || (DateTime.UtcNow - validOtp.CreatedOn).TotalMinutes > 15)
+            {
+                ViewBag.Error = "Session expired or already used. Please request a new verification code.";
+                return RedirectToAction("ForgotPasswordFlow", new { step = 1 });
             }
 
             user.Password = newPassword;
             bool status = await _manager.UpdatePassword(user);
             if (!status)
             {
-                ViewBag.Error = "Something went wrong.";
+                ViewBag.Error = "Something went wrong while resetting password. Please try again.";
                 return RedirectToAction("ForgotPasswordFlow", new { step = 3, email });
             }
 
+            foreach (var ot in activeOtps)
+            {
+                ot.IsActive = false;
+                await _forgotmanager.AddUpdateAsync(ot, 1);
+            }
+
+            if (_auditLogService != null)
+            {
+                await _auditLogService.LogActionAsync(
+                    "PASSWORD_RESET",
+                    "Authentication",
+                    "UserMaster",
+                    user.Id.ToString(),
+                    null,
+                    new { Password = "[REDACTED]" },
+                    "Password",
+                    "SUCCESS",
+                    "User reset password via secure OTP.",
+                    user.Id);
+            }
+
+            if (_outboxService != null)
+            {
+                await _outboxService.EnqueueAsync(new EmailEnqueueRequest
+                {
+                    RecipientEmail = user.Email,
+                    RecipientName = user.Name,
+                    Subject = "Security Notice: Your EduDigiClass LMS Password Was Changed",
+                    TemplateName = "PasswordChangedAlert",
+                    TemplateData = new Dictionary<string, string>
+                    {
+                        ["RecipientName"] = user.Name ?? "User",
+                        ["TimestampUtc"] = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss") + " UTC"
+                    },
+                    EventType = "PasswordChanged",
+                    IdempotencyKey = $"pwd-reset-success-{user.Id}-{DateTime.UtcNow.Ticks}"
+                });
+            }
+
+            TempData["SuccessMessage"] = "Your password has been reset successfully! Please sign in with your new password.";
             return RedirectToAction("Login");
         }
-
-
-
     }
 }

@@ -23,6 +23,7 @@ namespace TMS.Web.Areas.Admin.Controllers
         private readonly IEnrollmentManager _enrollmentManager;
         private readonly IMasterManager<CourseCategoryMasterViewModel> _programManager;
         private readonly IMasterManager<CourseMasterViewModel> _courseManager;
+        private readonly TMS.Web.Services.Email.IEmailOutboxService _outboxService;
 
         private static readonly string[] AllowedUserRoles =
         {
@@ -41,7 +42,8 @@ namespace TMS.Web.Areas.Admin.Controllers
             IMasterManager<DesignationMasterViewModel> designationManager,
             IEnrollmentManager enrollmentManager,
             IMasterManager<CourseCategoryMasterViewModel> programManager,
-            IMasterManager<CourseMasterViewModel> courseManager)
+            IMasterManager<CourseMasterViewModel> courseManager,
+            TMS.Web.Services.Email.IEmailOutboxService outboxService)
             : base(manager, "User", "User", new[] { "Role" }, new[] { "UserRoles" })
         {
             _accountManager = accountManager;
@@ -53,6 +55,7 @@ namespace TMS.Web.Areas.Admin.Controllers
             _enrollmentManager = enrollmentManager;
             _programManager = programManager;
             _courseManager = courseManager;
+            _outboxService = outboxService;
         }
 
         public override async Task<IActionResult> Index()
@@ -362,6 +365,7 @@ namespace TMS.Web.Areas.Admin.Controllers
                 return Json(validationResult);
             }
 
+            bool isNew = (model.Id == 0);
             SetEditProperties(ref model);
 
             var result = await _manager.AddUpdateAsync(
@@ -396,6 +400,33 @@ namespace TMS.Web.Areas.Admin.Controllers
                         {
                             await _enrollmentManager.EnrollStudentAsync(cId, targetStudentId, this.GetUserId(), "Student Creation");
                         }
+                    }
+
+                    if (isNew && targetStudentId > 0 && !string.IsNullOrWhiteSpace(model.Email))
+                    {
+                        string roleName = "Student";
+                        if (model.RoleId.HasValue)
+                        {
+                            var roles = await _accountManager.GetRolesByCompanyId(0, 0);
+                            var roleObj = roles.FirstOrDefault(r => r.Id == model.RoleId.Value.ToString());
+                            if (roleObj != null) roleName = roleObj.Name ?? "Student";
+                        }
+
+                        await _outboxService.EnqueueAsync(new TMS.ViewModels.Email.EmailEnqueueRequest
+                        {
+                            RecipientEmail = model.Email.Trim(),
+                            RecipientName = model.Name,
+                            Subject = "Welcome to EduDigiClass LMS — Account Activated",
+                            TemplateName = "AccountWelcome",
+                            TemplateData = new Dictionary<string, string>
+                            {
+                                ["RecipientName"] = model.Name ?? "User",
+                                ["Email"] = model.Email.Trim(),
+                                ["Role"] = roleName
+                            },
+                            EventType = "UserWelcome",
+                            IdempotencyKey = $"welcome-user-{targetStudentId}"
+                        });
                     }
                 }
                 catch

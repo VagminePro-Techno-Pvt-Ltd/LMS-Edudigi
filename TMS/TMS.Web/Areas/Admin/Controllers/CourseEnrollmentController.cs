@@ -22,19 +22,22 @@ namespace TMS.Web.Areas.Admin.Controllers
         private readonly IMasterManager<UserViewModel> _userManager;
         private readonly IMasterManager<CourseCategoryMasterViewModel> _programManager;
         private readonly IAccountManager _accountManager;
+        private readonly TMS.Web.Services.Email.IEmailOutboxService _outboxService;
 
         public CourseEnrollmentController(
             IEnrollmentManager enrollmentManager,
             IMasterManager<CourseMasterViewModel> courseManager,
             IMasterManager<UserViewModel> userManager,
             IMasterManager<CourseCategoryMasterViewModel> programManager,
-            IAccountManager accountManager)
+            IAccountManager accountManager,
+            TMS.Web.Services.Email.IEmailOutboxService outboxService)
         {
             _enrollmentManager = enrollmentManager;
             _courseManager = courseManager;
             _userManager = userManager;
             _programManager = programManager;
             _accountManager = accountManager;
+            _outboxService = outboxService;
         }
 
         // =============================
@@ -292,7 +295,11 @@ namespace TMS.Web.Areas.Admin.Controllers
             foreach (var course in programCourses)
             {
                 var success = await _enrollmentManager.DropStudentAsync(course.Id, studentId, GetUserId());
-                if (success) dropped++;
+                if (success)
+                {
+                    dropped++;
+                    await QueueDropEmailAsync(course.Id, studentId);
+                }
             }
 
             return Json(new
@@ -311,6 +318,11 @@ namespace TMS.Web.Areas.Admin.Controllers
         public async Task<IActionResult> EnrollSingleStudent(int courseId, int studentId)
         {
             var result = await _enrollmentManager.EnrollStudentAsync(courseId, studentId, GetUserId(), "Admin");
+            if (result.Success)
+            {
+                await QueueEnrollmentEmailAsync(courseId, studentId, result.WasReactivated);
+            }
+
             return Json(new
             {
                 success = result.Success,
@@ -326,6 +338,11 @@ namespace TMS.Web.Areas.Admin.Controllers
         public async Task<IActionResult> DropSingleStudent(int courseId, int studentId)
         {
             var success = await _enrollmentManager.DropStudentAsync(courseId, studentId, GetUserId());
+            if (success)
+            {
+                await QueueDropEmailAsync(courseId, studentId);
+            }
+
             return Json(new
             {
                 success,
@@ -474,6 +491,7 @@ namespace TMS.Web.Areas.Admin.Controllers
 
             int enrolledCount = 0;
             int reactivatedCount = 0;
+            var enrolledPairs = new List<(int courseId, int studentId)>();
 
             foreach (var cid in targetCourseIds)
             {
@@ -482,10 +500,16 @@ namespace TMS.Web.Areas.Admin.Controllers
                     var res = await _enrollmentManager.EnrollStudentAsync(cid, sid, GetUserId(), "Studio");
                     if (res.Success)
                     {
+                        enrolledPairs.Add((cid, sid));
                         if (res.WasReactivated) reactivatedCount++;
                         else enrolledCount++;
                     }
                 }
+            }
+
+            if (enrolledPairs.Count > 0)
+            {
+                await QueueBulkEnrollmentEmailsAsync(enrolledPairs);
             }
 
             return Json(new
@@ -515,6 +539,7 @@ namespace TMS.Web.Areas.Admin.Controllers
 
             var existingUser = (await _userManager.GetAsync(null, u => u.Email == req.Email)).FirstOrDefault();
             int studentId;
+            bool isNewUser = false;
 
             if (existingUser != null)
             {
@@ -549,6 +574,24 @@ namespace TMS.Web.Areas.Admin.Controllers
                     return Json(new { success = false, message = "Could not retrieve created student record." });
                 }
                 studentId = createdUser.Id;
+                isNewUser = true;
+
+                // Send welcome email to new student
+                await _outboxService.EnqueueAsync(new TMS.ViewModels.Email.EmailEnqueueRequest
+                {
+                    RecipientEmail = req.Email.Trim(),
+                    RecipientName = req.Name,
+                    Subject = "Welcome to EduDigiClass LMS — Account Activated",
+                    TemplateName = "AccountWelcome",
+                    TemplateData = new Dictionary<string, string>
+                    {
+                        ["RecipientName"] = req.Name ?? "Student",
+                        ["Email"] = req.Email.Trim(),
+                        ["Role"] = "Student"
+                    },
+                    EventType = "UserWelcome",
+                    IdempotencyKey = $"welcome-user-{studentId}"
+                });
             }
 
             var targetCourseIds = new HashSet<int>();
@@ -563,10 +606,20 @@ namespace TMS.Web.Areas.Admin.Controllers
             }
 
             int enrolledCourses = 0;
+            var newlyEnrolledPairs = new List<(int, int)>();
             foreach (var cid in targetCourseIds)
             {
                 var enrollRes = await _enrollmentManager.EnrollStudentAsync(cid, studentId, GetUserId(), "Quick Add");
-                if (enrollRes.Success) enrolledCourses++;
+                if (enrollRes.Success)
+                {
+                    enrolledCourses++;
+                    newlyEnrolledPairs.Add((cid, studentId));
+                }
+            }
+
+            if (newlyEnrolledPairs.Count > 0)
+            {
+                await QueueBulkEnrollmentEmailsAsync(newlyEnrolledPairs);
             }
 
             return Json(new
@@ -591,10 +644,20 @@ namespace TMS.Web.Areas.Admin.Controllers
             }
 
             int reactivated = 0;
+            var reactivatedPairs = new List<(int, int)>();
             foreach (var cid in targetCourses)
             {
                 var res = await _enrollmentManager.EnrollStudentAsync(cid, studentId, GetUserId(), "Reactivation");
-                if (res.Success) reactivated++;
+                if (res.Success)
+                {
+                    reactivated++;
+                    reactivatedPairs.Add((cid, studentId));
+                }
+            }
+
+            if (reactivatedPairs.Count > 0)
+            {
+                await QueueBulkEnrollmentEmailsAsync(reactivatedPairs);
             }
 
             return Json(new { success = reactivated > 0, message = $"Student reactivated in {reactivated} course(s)." });
@@ -724,6 +787,11 @@ namespace TMS.Web.Areas.Admin.Controllers
                 // Process the rows (Create students + Enroll)
                 var result = await _enrollmentManager.BulkEnrollWithAutoCreateAsync(courseId, rows, GetUserId());
 
+                if (result.EnrolledItems != null && result.EnrolledItems.Any())
+                {
+                    await QueueBulkEnrollmentEmailsAsync(result.EnrolledItems.Select(x => (x.CourseId, x.StudentId)));
+                }
+
                 ViewBag.BulkResult = result;
                 var courses = await _courseManager.GetAsync(null, c => c.IsActive);
                 ViewBag.CourseList = new SelectList(courses, "Id", "Name", courseId);
@@ -738,6 +806,137 @@ namespace TMS.Web.Areas.Admin.Controllers
                 return RedirectToAction(nameof(BulkEnroll), new { courseId });
             }
         }
+
+        #region Private Email Queue Helpers
+
+        private async Task QueueEnrollmentEmailAsync(int courseId, int studentId, bool isReactivation = false)
+        {
+            try
+            {
+                var student = await _userManager.GetAsync(studentId);
+                if (student == null || string.IsNullOrWhiteSpace(student.Email)) return;
+
+                var course = await _courseManager.GetAsync(courseId);
+                string courseName = course?.Name ?? "Course";
+                string courseCode = course?.CourseCode ?? "";
+
+                await _outboxService.EnqueueAsync(new TMS.ViewModels.Email.EmailEnqueueRequest
+                {
+                    RecipientEmail = student.Email.Trim(),
+                    RecipientName = student.Name,
+                    Subject = isReactivation 
+                        ? $"Reactivation: Enrolled back in {courseCode} {courseName}"
+                        : $"Course Enrollment Confirmed: {courseCode} {courseName}",
+                    TemplateName = "CourseEnrollment",
+                    TemplateData = new Dictionary<string, string>
+                    {
+                        ["RecipientName"] = student.Name ?? "Student",
+                        ["CourseName"] = courseName,
+                        ["CourseCode"] = courseCode,
+                        ["EnrollmentDate"] = DateTime.UtcNow.ToString("dd MMM yyyy"),
+                        ["CourseUrl"] = $"/StudentCourse/Details/{courseId}"
+                    },
+                    EventType = isReactivation ? "CourseReactivation" : "CourseEnrollment",
+                    IdempotencyKey = isReactivation 
+                        ? $"reactivate-{courseId}-{studentId}-{DateTime.UtcNow:yyyyMMdd}"
+                        : $"enroll-{courseId}-{studentId}"
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[CourseEnrollmentController] Failed to queue enrollment email: {ex.Message}");
+            }
+        }
+
+        private async Task QueueDropEmailAsync(int courseId, int studentId)
+        {
+            try
+            {
+                var student = await _userManager.GetAsync(studentId);
+                if (student == null || string.IsNullOrWhiteSpace(student.Email)) return;
+
+                var course = await _courseManager.GetAsync(courseId);
+                string courseName = course?.Name ?? "Course";
+                string courseCode = course?.CourseCode ?? "";
+
+                await _outboxService.EnqueueAsync(new TMS.ViewModels.Email.EmailEnqueueRequest
+                {
+                    RecipientEmail = student.Email.Trim(),
+                    RecipientName = student.Name,
+                    Subject = $"Enrollment Update: {courseCode} {courseName}",
+                    TemplateName = "CourseDropOrRemoval",
+                    TemplateData = new Dictionary<string, string>
+                    {
+                        ["RecipientName"] = student.Name ?? "Student",
+                        ["CourseName"] = courseName,
+                        ["CourseCode"] = courseCode,
+                        ["Reason"] = "Administrative course mapping update"
+                    },
+                    EventType = "CourseDrop",
+                    IdempotencyKey = $"drop-{courseId}-{studentId}-{DateTime.UtcNow:yyyyMMdd}"
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[CourseEnrollmentController] Failed to queue drop email: {ex.Message}");
+            }
+        }
+
+        private async Task QueueBulkEnrollmentEmailsAsync(IEnumerable<(int courseId, int studentId)> enrollments)
+        {
+            try
+            {
+                var enrollmentList = enrollments.Distinct().ToList();
+                if (!enrollmentList.Any()) return;
+
+                var studentIds = enrollmentList.Select(e => e.studentId).Distinct().ToList();
+                var courseIds = enrollmentList.Select(e => e.courseId).Distinct().ToList();
+
+                var students = (await _userManager.GetAsync(null, u => studentIds.Contains(u.Id)))
+                    .ToDictionary(u => u.Id);
+                var courses = (await _courseManager.GetAsync(null, c => courseIds.Contains(c.Id)))
+                    .ToDictionary(c => c.Id);
+
+                var requests = new List<TMS.ViewModels.Email.EmailEnqueueRequest>();
+                foreach (var (cId, sId) in enrollmentList)
+                {
+                    if (!students.TryGetValue(sId, out var s) || string.IsNullOrWhiteSpace(s.Email)) continue;
+                    courses.TryGetValue(cId, out var c);
+
+                    string courseName = c?.Name ?? "Course";
+                    string courseCode = c?.CourseCode ?? "";
+
+                    requests.Add(new TMS.ViewModels.Email.EmailEnqueueRequest
+                    {
+                        RecipientEmail = s.Email.Trim(),
+                        RecipientName = s.Name,
+                        Subject = $"Course Enrollment Confirmed: {courseCode} {courseName}",
+                        TemplateName = "CourseEnrollment",
+                        TemplateData = new Dictionary<string, string>
+                        {
+                            ["RecipientName"] = s.Name ?? "Student",
+                            ["CourseName"] = courseName,
+                            ["CourseCode"] = courseCode,
+                            ["EnrollmentDate"] = DateTime.UtcNow.ToString("dd MMM yyyy"),
+                            ["CourseUrl"] = $"/StudentCourse/Details/{cId}"
+                        },
+                        EventType = "CourseEnrollment",
+                        IdempotencyKey = $"enroll-{cId}-{sId}"
+                    });
+                }
+
+                if (requests.Any())
+                {
+                    await _outboxService.EnqueueBatchAsync(requests);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[CourseEnrollmentController] Failed to queue bulk enrollment emails: {ex.Message}");
+            }
+        }
+
+        #endregion
     }
 
     // ─── View Models for Enrollment Studio ───

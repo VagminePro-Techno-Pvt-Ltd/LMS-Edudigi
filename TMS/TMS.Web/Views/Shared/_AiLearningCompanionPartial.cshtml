@@ -64,26 +64,32 @@
 
     <!-- Quick Action Pills -->
     <div class="ai-quick-actions" id="aiQuickActions">
+        <button type="button" class="ai-pill-btn" data-prompt="What are my upcoming deadlines?">
+            <i class="fa-solid fa-clock"></i> Upcoming Deadlines
+        </button>
+        <button type="button" class="ai-pill-btn" data-prompt="Tell me about my enrolled courses and faculty">
+            <i class="fa-solid fa-graduation-cap"></i> Courses & Faculty
+        </button>
+        <button type="button" class="ai-pill-btn" data-prompt="How does the learning process work in EduDigi LMS?">
+            <i class="fa-solid fa-shapes"></i> 4-Quadrant Learning
+        </button>
+        <button type="button" class="ai-pill-btn" data-prompt="How do I submit an assignment or internal assessment?">
+            <i class="fa-solid fa-file-arrow-up"></i> Submission Guide
+        </button>
         <button type="button" class="ai-pill-btn" data-prompt="What is my attendance?">
             <i class="fa-solid fa-calendar-check"></i> My Attendance
         </button>
         <button type="button" class="ai-pill-btn" data-prompt="Show my grades">
             <i class="fa-solid fa-award"></i> My Grades
         </button>
-        <button type="button" class="ai-pill-btn" data-prompt="What are my enrolled courses?">
-            <i class="fa-solid fa-book"></i> Enrolled Courses
-        </button>
-        <button type="button" class="ai-pill-btn" data-prompt="What assignments are due?">
-            <i class="fa-solid fa-file-earmark-text"></i> Assignments
-        </button>
-        <button type="button" class="ai-pill-btn" data-prompt="What is my class schedule?">
-            <i class="fa-solid fa-clock"></i> Timetable
+        <button type="button" class="ai-pill-btn" data-prompt="What are common LMS support questions and FAQs?">
+            <i class="fa-solid fa-circle-question"></i> Support & FAQs
         </button>
         <button type="button" class="ai-pill-btn" data-prompt="Can you explain the key concepts of this unit in simple terms?">
             <i class="fa-solid fa-lightbulb"></i> Key Concepts
         </button>
         <button type="button" class="ai-pill-btn" data-prompt="Generate a practice quiz question with an explanation for revision.">
-            <i class="fa-solid fa-circle-question"></i> Practice Quiz
+            <i class="fa-solid fa-pencil"></i> Practice Quiz
         </button>
     </div>
 
@@ -103,13 +109,13 @@
     <!-- Footer Input Bar -->
     <footer class="ai-drawer-footer">
         <div class="ai-input-wrap">
-            <textarea class="ai-input-textarea" id="aiInputTextarea" placeholder="Ask anything about this course or topic... (Enter to send)" rows="1"></textarea>
+            <textarea class="ai-input-textarea" id="aiInputTextarea" placeholder="Ask about courses, deadlines, learning processes, or support FAQs... (Enter to send)" rows="1"></textarea>
             <button type="button" class="ai-send-btn" id="aiBtnSend" title="Send Question" disabled>
                 <i class="fa-solid fa-paper-plane"></i>
             </button>
         </div>
         <p class="ai-footer-disclaimer">
-            <i class="fa-solid fa-shield-halved me-1"></i> Academic Socratic AI • Answers grounded in authorized course materials
+            <i class="fa-solid fa-shield-halved me-1"></i> EduDigi Academic AI • Course records, learning guidance & instant support
         </p>
     </footer>
 </aside>

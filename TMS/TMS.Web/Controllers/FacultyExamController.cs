@@ -19,17 +19,20 @@ namespace TMS.Web.Controllers
         private readonly ApplicationDBContext _context; // Direct DB query for lightweight lists
         private readonly IAiEvaluationService _aiService;
         private readonly IAutomatedResultService _resultService;
+        private readonly TMS.Web.Services.Email.IEmailOutboxService _outboxService;
 
         public FacultyExamController(
             IAssessmentManager assessmentManager, 
             ApplicationDBContext context,
             IAiEvaluationService aiService,
-            IAutomatedResultService resultService)
+            IAutomatedResultService resultService,
+            TMS.Web.Services.Email.IEmailOutboxService outboxService)
         {
             _assessmentManager = assessmentManager;
             _context = context;
             _aiService = aiService;
             _resultService = resultService;
+            _outboxService = outboxService;
         }
 
         // =========================================================================
@@ -61,6 +64,10 @@ namespace TMS.Web.Controllers
                 int examId = await _assessmentManager.CreateOrUpdateExamAsync(exam, GetUserId());
                 if (examId > 0)
                 {
+                    if (exam.Status == "Active")
+                    {
+                        await QueueExamPublicationAndRemindersAsync(examId);
+                    }
                     SetApplicationResult(true, "Exam created successfully. Now define sections and map questions.");
                     return RedirectToAction(nameof(Edit), new { id = examId });
                 }
@@ -93,6 +100,7 @@ namespace TMS.Web.Controllers
                 int examId = await _assessmentManager.CreateOrUpdateExamAsync(exam, GetUserId());
                 if (examId > 0)
                 {
+                    await HandleExamUpdateNotificationsAsync(exam);
                     SetApplicationResult(true, "Exam updated successfully.");
                     return RedirectToAction(nameof(Index));
                 }
@@ -273,6 +281,7 @@ namespace TMS.Web.Controllers
             var success = await _assessmentManager.AssignExamToStudentsAsync(examId, studentIds, GetUserId());
             if (success)
             {
+                await QueueAssignedExamPublicationAndRemindersAsync(examId, studentIds);
                 SetApplicationResult(true, "Exam assigned to selected students successfully.");
                 return RedirectToAction(nameof(Index));
             }
@@ -369,6 +378,8 @@ namespace TMS.Web.Controllers
                     {
                         // Preserve faculty evaluation if secondary institutional sync encounters policy warning
                     }
+
+                    await QueueExamResultPublishedAsync(attemptId, totalMarksAwarded);
                 }
                 SetApplicationResult(true, "Evaluation saved and results published successfully.");
                 return RedirectToAction(nameof(EvaluateList));
@@ -402,5 +413,204 @@ namespace TMS.Web.Controllers
             var analytics = await _assessmentManager.GetExamAnalyticsAsync(examId);
             return View(analytics);
         }
+
+        #region Private Email Queue Helpers
+
+        private static string FormatAcademicDate(DateTime utcDateTime)
+        {
+            try
+            {
+                var istZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Kolkata");
+                var istTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc), istZone);
+                return istTime.ToString("dd MMM yyyy, hh:mm tt") + " IST";
+            }
+            catch
+            {
+                return utcDateTime.ToString("dd MMM yyyy, hh:mm tt") + " UTC";
+            }
+        }
+
+        private async Task QueueExamPublicationAndRemindersAsync(int examId)
+        {
+            try
+            {
+                var exam = await _context.ExamMasters.Include(e => e.Course).FirstOrDefaultAsync(e => e.Id == examId);
+                if (exam == null || exam.Status != "Active") return;
+
+                var studentIds = await _context.CourseEnrollments
+                    .Where(e => e.CourseId == exam.CourseId && e.IsActive && (e.Status == 0 || e.Status == 1))
+                    .Select(e => e.StudentId)
+                    .Distinct()
+                    .ToListAsync();
+
+                await QueueAssignedExamPublicationAndRemindersAsync(examId, studentIds);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[FacultyExamController] Failed to queue exam publication: {ex.Message}");
+            }
+        }
+
+        private async Task QueueAssignedExamPublicationAndRemindersAsync(int examId, List<int> studentIds)
+        {
+            try
+            {
+                if (!studentIds.Any()) return;
+
+                var exam = await _context.ExamMasters.Include(e => e.Course).FirstOrDefaultAsync(e => e.Id == examId);
+                if (exam == null) return;
+
+                var students = await _context.UserMasters
+                    .Where(u => studentIds.Contains(u.Id) && u.IsActive && !string.IsNullOrEmpty(u.Email))
+                    .ToListAsync();
+
+                string courseName = exam.Course?.Name ?? "Course";
+                string scheduleDisplay = $"{FormatAcademicDate(exam.StartDate)} – {FormatAcademicDate(exam.EndDate)}";
+                var batch = new List<TMS.ViewModels.Email.EmailEnqueueRequest>();
+                var nowUtc = DateTime.UtcNow;
+
+                foreach (var student in students)
+                {
+                    // 1. Publication Notice
+                    batch.Add(new TMS.ViewModels.Email.EmailEnqueueRequest
+                    {
+                        RecipientEmail = student.Email.Trim(),
+                        RecipientName = student.Name,
+                        Subject = $"Examination Notice: {exam.Title} ({courseName})",
+                        TemplateName = "ExamPublication",
+                        TemplateData = new Dictionary<string, string>
+                        {
+                            ["RecipientName"] = student.Name ?? "Student",
+                            ["ExamTitle"] = exam.Title,
+                            ["CourseName"] = courseName,
+                            ["ExamDate"] = scheduleDisplay,
+                            ["DurationMinutes"] = exam.DurationMinutes.ToString(),
+                            ["RequiresSeb"] = "false"
+                        },
+                        EventType = "ExamPublication",
+                        IdempotencyKey = $"exam-pub-{exam.Id}-{student.Id}"
+                    });
+
+                    // 2. 24-Hour Reminder
+                    var remind24 = exam.StartDate.AddHours(-24);
+                    if (remind24 > nowUtc)
+                    {
+                        batch.Add(new TMS.ViewModels.Email.EmailEnqueueRequest
+                        {
+                            RecipientEmail = student.Email.Trim(),
+                            RecipientName = student.Name,
+                            Subject = $"Exam Reminder: {exam.Title} starts in 24 hours",
+                            TemplateName = "ExamReminder",
+                            TemplateData = new Dictionary<string, string>
+                            {
+                                ["RecipientName"] = student.Name ?? "Student",
+                                ["ExamTitle"] = exam.Title,
+                                ["CourseName"] = courseName,
+                                ["StartTime"] = FormatAcademicDate(exam.StartDate),
+                                ["HoursLeft"] = "24",
+                                ["RequiresSeb"] = "false"
+                            },
+                            ScheduledForUtc = remind24,
+                            EventType = "ExamReminder24h",
+                            IdempotencyKey = $"remind-exam-24h-{exam.Id}-{student.Id}"
+                        });
+                    }
+
+                    // 3. 2-Hour Reminder
+                    var remind2 = exam.StartDate.AddHours(-2);
+                    if (remind2 > nowUtc)
+                    {
+                        batch.Add(new TMS.ViewModels.Email.EmailEnqueueRequest
+                        {
+                            RecipientEmail = student.Email.Trim(),
+                            RecipientName = student.Name,
+                            Subject = $"Exam Reminder: {exam.Title} starts in 2 hours",
+                            TemplateName = "ExamReminder",
+                            TemplateData = new Dictionary<string, string>
+                            {
+                                ["RecipientName"] = student.Name ?? "Student",
+                                ["ExamTitle"] = exam.Title,
+                                ["CourseName"] = courseName,
+                                ["StartTime"] = FormatAcademicDate(exam.StartDate),
+                                ["HoursLeft"] = "2",
+                                ["RequiresSeb"] = "false"
+                            },
+                            ScheduledForUtc = remind2,
+                            EventType = "ExamReminder2h",
+                            IdempotencyKey = $"remind-exam-2h-{exam.Id}-{student.Id}"
+                        });
+                    }
+                }
+
+                if (batch.Any())
+                {
+                    await _outboxService.EnqueueBatchAsync(batch);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[FacultyExamController] Failed to queue assigned exam emails: {ex.Message}");
+            }
+        }
+
+        private async Task HandleExamUpdateNotificationsAsync(ExamMaster exam)
+        {
+            try
+            {
+                // Invalidate obsolete reminders
+                await _outboxService.CancelScheduledJobsAsync($"remind-exam-*-{exam.Id}-*");
+
+                if (exam.Status == "Active")
+                {
+                    await QueueExamPublicationAndRemindersAsync(exam.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[FacultyExamController] Failed to handle exam update notifications: {ex.Message}");
+            }
+        }
+
+        private async Task QueueExamResultPublishedAsync(int attemptId, decimal totalMarks)
+        {
+            try
+            {
+                var attempt = await _context.StudentExamAttempts
+                    .Include(a => a.Exam)
+                        .ThenInclude(e => e.Course)
+                    .Include(a => a.Student)
+                    .FirstOrDefaultAsync(a => a.Id == attemptId);
+
+                if (attempt?.Student == null || string.IsNullOrWhiteSpace(attempt.Student.Email) || attempt.Exam == null) return;
+
+                string courseName = attempt.Exam.Course?.Name ?? "Course";
+
+                await _outboxService.EnqueueAsync(new TMS.ViewModels.Email.EmailEnqueueRequest
+                {
+                    RecipientEmail = attempt.Student.Email.Trim(),
+                    RecipientName = attempt.Student.Name,
+                    Subject = $"Official Result Published: {attempt.Exam.Title} ({courseName})",
+                    TemplateName = "ResultsPublished",
+                    TemplateData = new Dictionary<string, string>
+                    {
+                        ["RecipientName"] = attempt.Student.Name ?? "Student",
+                        ["AssessmentTitle"] = attempt.Exam.Title,
+                        ["CourseName"] = courseName,
+                        ["MarksObtained"] = totalMarks.ToString("0.##"),
+                        ["MaxMarks"] = attempt.Exam.TotalMarks.ToString(),
+                        ["Grade"] = attempt.ResultStatus ?? "Pass"
+                    },
+                    EventType = "ResultsPublished",
+                    IdempotencyKey = $"result-exam-{attemptId}"
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[FacultyExamController] Failed to queue exam result email: {ex.Message}");
+            }
+        }
+
+        #endregion
     }
 }
+

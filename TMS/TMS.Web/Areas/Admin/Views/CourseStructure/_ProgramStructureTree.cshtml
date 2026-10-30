@@ -270,6 +270,17 @@ else
                                         @if (!isFaculty)
                                         {
                                             <button type="button"
+                                                    class="ps-action-btn cb-course-sync-drawer-btn"
+                                                    data-course-id="@course.CourseId"
+                                                    data-course-name="@course.CourseName"
+                                                    data-course-code="@course.CourseCode"
+                                                    title="Storage & Folder Sync Status (Videos, PDFs, Assignments, Forum)"
+                                                    aria-label="Storage and Sync Status for @course.CourseName">
+                                                <i class="fa-solid fa-folder-tree text-info"></i>
+                                                <span class="course-sync-dot course-sync-dot-@course.CourseId" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#94a3b8;margin-left:2px;" title="Checking sync status..."></span>
+                                            </button>
+
+                                            <button type="button"
                                                     class="ps-action-btn cb-assign-faculty-btn"
                                                     data-course-id="@course.CourseId"
                                                     data-course-name="@course.CourseName (@course.CourseCode)"

@@ -16,19 +16,25 @@ namespace TMS.Web.Controllers
         private readonly IMasterManager<RoleMasterViewModel> _roleManager;
         private readonly IMasterManager<DepartmentMasterViewModel> _departmentManager;
         private readonly IMasterBaseManager<CourseEnrollmentViewModel> _enrollmentManager;
+        private readonly TMS.Repository.ApplicationDBContext _db;
+        private readonly TMS.Web.Services.Email.IEmailOutboxService _outboxService;
 
         public AnnouncementController(
             IAnnouncementManager announcementManager,
             IMasterManager<CourseMasterViewModel> courseManager,
             IMasterManager<RoleMasterViewModel> roleManager,
             IMasterManager<DepartmentMasterViewModel> departmentManager,
-            IMasterBaseManager<CourseEnrollmentViewModel> enrollmentManager)
+            IMasterBaseManager<CourseEnrollmentViewModel> enrollmentManager,
+            TMS.Repository.ApplicationDBContext db,
+            TMS.Web.Services.Email.IEmailOutboxService outboxService)
         {
             _announcementManager = announcementManager;
             _courseManager = courseManager;
             _roleManager = roleManager;
             _departmentManager = departmentManager;
             _enrollmentManager = enrollmentManager;
+            _db = db;
+            _outboxService = outboxService;
         }
 
         /// <summary>
@@ -97,6 +103,7 @@ namespace TMS.Web.Controllers
 
             if (result)
             {
+                await QueueAnnouncementNotificationsAsync(model);
                 TempData["SuccessMessage"] = "Announcement published successfully!";
                 return RedirectToAction(nameof(Index));
             }
@@ -238,5 +245,92 @@ namespace TMS.Web.Controllers
             ViewBag.Courses = new SelectList(courses, "Id", "Name");
             ViewBag.Departments = new SelectList(depts, "Id", "Name");
         }
+
+        #region Private Email Queue Helpers
+
+        private async Task QueueAnnouncementNotificationsAsync(AnnouncementViewModel model)
+        {
+            try
+            {
+                string rawText = System.Text.RegularExpressions.Regex.Replace(model.Description ?? "", "<.*?>", string.Empty);
+                string preview = rawText.Length > 250 ? rawText.Substring(0, 247) + "..." : rawText;
+
+                string priority = model.AnnouncementType switch
+                {
+                    2 => "Urgent",
+                    1 => "Event",
+                    _ => "General"
+                };
+
+                List<TMS.Models.Account.UserMaster> recipients = new();
+
+                if (model.TargetType == 1 && model.TargetId.HasValue && model.TargetId.Value > 0)
+                {
+                    // Target specific role
+                    recipients = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(
+                        _db.UserMasters.Where(u => u.RoleId == model.TargetId.Value && u.IsActive && !string.IsNullOrEmpty(u.Email)));
+                }
+                else if (model.TargetType == 2 && model.TargetId.HasValue && model.TargetId.Value > 0)
+                {
+                    // Target specific course (students + assigned faculty)
+                    var studentIds = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(
+                        _db.CourseEnrollments
+                            .Where(e => e.CourseId == model.TargetId.Value && e.IsActive && (e.Status == 0 || e.Status == 1))
+                            .Select(e => e.StudentId)
+                            .Distinct());
+
+                    var facultyIds = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(
+                        _db.CourseFacultyMaps
+                            .Where(m => m.CourseId == model.TargetId.Value && m.IsActive)
+                            .Select(m => m.FacultyId)
+                            .Distinct());
+
+                    var targetUserIds = studentIds.Concat(facultyIds).Distinct().ToList();
+
+                    recipients = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(
+                        _db.UserMasters.Where(u => targetUserIds.Contains(u.Id) && u.IsActive && !string.IsNullOrEmpty(u.Email)));
+                }
+                else
+                {
+                    // All active users
+                    recipients = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(
+                        _db.UserMasters.Where(u => u.IsActive && !string.IsNullOrEmpty(u.Email)));
+                }
+
+                if (!recipients.Any()) return;
+
+                string hashTitle = (model.Title ?? "Announcement").Replace(" ", "_");
+                if (hashTitle.Length > 15) hashTitle = hashTitle.Substring(0, 15);
+
+                var batch = recipients.Select(u => new TMS.ViewModels.Email.EmailEnqueueRequest
+                {
+                    RecipientEmail = u.Email!.Trim(),
+                    RecipientName = u.Name,
+                    Subject = model.AnnouncementType == 2 
+                        ? $"[URGENT] Academic Announcement: {model.Title}" 
+                        : $"Academic Announcement: {model.Title}",
+                    TemplateName = "AcademicAnnouncement",
+                    TemplateData = new Dictionary<string, string>
+                    {
+                        ["RecipientName"] = u.Name ?? "Student / Faculty",
+                        ["AnnouncementTitle"] = model.Title,
+                        ["Priority"] = priority,
+                        ["BodyPreview"] = preview,
+                        ["AnnouncementId"] = model.Id.ToString()
+                    },
+                    EventType = "AcademicAnnouncement",
+                    IdempotencyKey = $"announce-{hashTitle}-{u.Id}-{DateTime.UtcNow:yyyyMMdd}"
+                }).ToList();
+
+                await _outboxService.EnqueueBatchAsync(batch);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AnnouncementController] Failed to queue announcement emails: {ex.Message}");
+            }
+        }
+
+        #endregion
     }
 }
+

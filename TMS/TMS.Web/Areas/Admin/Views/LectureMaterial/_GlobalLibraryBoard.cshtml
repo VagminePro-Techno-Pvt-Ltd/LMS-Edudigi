@@ -122,9 +122,21 @@ else
                     <div class="d-flex gap-1">
                         @if (!string.IsNullOrEmpty(item.FilePath))
                         {
+                            var isGoogleDrive = item.Source == "GoogleDrive";
+                            var previewUrl = isGoogleDrive ? $"/Admin/LectureMaterial/PreviewFile?id={item.Id}" : item.FilePath;
+                            var fileExt = !string.IsNullOrEmpty(item.OriginalFileName) && System.IO.Path.HasExtension(item.OriginalFileName)
+                                ? System.IO.Path.GetExtension(item.OriginalFileName).TrimStart('.').ToLowerInvariant()
+                                : (!string.IsNullOrEmpty(item.FilePath) && System.IO.Path.HasExtension(item.FilePath)
+                                    ? System.IO.Path.GetExtension(item.FilePath).TrimStart('.').ToLowerInvariant()
+                                    : "");
                             <a href="javascript:void(0);"
                                class="btn btn-sm btn-outline-secondary view-file-link"
-                               data-filepath="@item.FilePath"
+                               data-material-id="@item.Id"
+                               data-filepath="@previewUrl"
+                               data-raw-filepath="@item.FilePath"
+                               data-filename="@(item.OriginalFileName ?? item.Title)"
+                               data-extension="@fileExt"
+                               data-source="@item.Source"
                                data-material-type="@item.MaterialType"
                                data-title="@item.Title"
                                title="Preview file"

@@ -27,6 +27,7 @@ namespace TMS.Web.Controllers
         private readonly IStudentLearningService _learningService;
         private readonly ApplicationDBContext _db;
         private readonly IWebHostEnvironment _env;
+        private readonly TMS.Web.Services.ContentSync.GoogleDriveContentStorageProvider? _googleDriveProvider;
 
         public StudentCourseContentController(
             IMasterManager<CourseMasterViewModel> courseManager,
@@ -37,7 +38,8 @@ namespace TMS.Web.Controllers
             IMasterBaseManager<CourseMaterialMappingViewModel> materialMappingManager,
             IStudentLearningService learningService,
             ApplicationDBContext db,
-            IWebHostEnvironment env)
+            IWebHostEnvironment env,
+            TMS.Web.Services.ContentSync.GoogleDriveContentStorageProvider? googleDriveProvider = null)
         {
             _courseManager = courseManager;
             _enrollmentManager = enrollmentManager;
@@ -48,6 +50,7 @@ namespace TMS.Web.Controllers
             _learningService = learningService;
             _db = db;
             _env = env;
+            _googleDriveProvider = googleDriveProvider;
         }
 
         // =============================
@@ -488,7 +491,31 @@ namespace TMS.Web.Controllers
             }
 
             var filePath = material.FilePath;
-            if (material.Source == "GoogleDrive" || material.Source == "OneDrive")
+            if (material.Source == "GoogleDrive" || (!string.IsNullOrEmpty(material.ExternalFileId) && material.ExternalFileId.StartsWith("1")))
+            {
+                var fileId = !string.IsNullOrEmpty(material.ExternalFileId) ? material.ExternalFileId : filePath;
+                if (!string.IsNullOrEmpty(fileId) && _googleDriveProvider != null)
+                {
+                    try
+                    {
+                        var stream = await _googleDriveProvider.DownloadFileAsync(fileId);
+                        var fileName = !string.IsNullOrEmpty(material.OriginalFileName) ? material.OriginalFileName : $"{material.Title}.pdf";
+                        var mime = GetContentType(fileName);
+                        var cd = new System.Net.Mime.ContentDisposition
+                        {
+                            FileName = fileName,
+                            Inline = true
+                        };
+                        Response.Headers.ContentDisposition = cd.ToString();
+                        return File(stream, mime, enableRangeProcessing: true);
+                    }
+                    catch
+                    {
+                        return Redirect($"https://drive.google.com/file/d/{fileId}/preview");
+                    }
+                }
+            }
+            else if (material.Source == "OneDrive")
             {
                 return Redirect(filePath);
             }
@@ -505,12 +532,12 @@ namespace TMS.Web.Controllers
             var contentType = GetContentType(absolutePath);
             var fileBytes = await System.IO.File.ReadAllBytesAsync(absolutePath);
             
-            var cd = new System.Net.Mime.ContentDisposition
+            var cdLocal = new System.Net.Mime.ContentDisposition
             {
                 FileName = material.OriginalFileName ?? System.IO.Path.GetFileName(absolutePath),
                 Inline = true
             };
-            Response.Headers.ContentDisposition = cd.ToString();
+            Response.Headers.ContentDisposition = cdLocal.ToString();
 
             return File(fileBytes, contentType);
         }
@@ -540,7 +567,25 @@ namespace TMS.Web.Controllers
             }
 
             var filePath = material.FilePath;
-            if (material.Source == "GoogleDrive" || material.Source == "OneDrive")
+            if (material.Source == "GoogleDrive" || (!string.IsNullOrEmpty(material.ExternalFileId) && material.ExternalFileId.StartsWith("1")))
+            {
+                var fileId = !string.IsNullOrEmpty(material.ExternalFileId) ? material.ExternalFileId : filePath;
+                if (!string.IsNullOrEmpty(fileId) && _googleDriveProvider != null)
+                {
+                    try
+                    {
+                        var stream = await _googleDriveProvider.DownloadFileAsync(fileId);
+                        var fileName = !string.IsNullOrEmpty(material.OriginalFileName) ? material.OriginalFileName : $"{material.Title}.pdf";
+                        var mime = GetContentType(fileName);
+                        return File(stream, mime, fileName);
+                    }
+                    catch
+                    {
+                        return Redirect($"https://drive.google.com/uc?export=download&id={fileId}");
+                    }
+                }
+            }
+            else if (material.Source == "OneDrive")
             {
                 return Redirect(filePath);
             }
@@ -556,9 +601,9 @@ namespace TMS.Web.Controllers
 
             var contentType = GetContentType(absolutePath);
             var fileBytes = await System.IO.File.ReadAllBytesAsync(absolutePath);
-            var fileName = material.OriginalFileName ?? System.IO.Path.GetFileName(absolutePath);
+            var localFileName = material.OriginalFileName ?? System.IO.Path.GetFileName(absolutePath);
 
-            return File(fileBytes, contentType, fileName);
+            return File(fileBytes, contentType, localFileName);
         }
 
         private string GetContentType(string path)

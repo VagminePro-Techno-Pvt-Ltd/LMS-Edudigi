@@ -75,6 +75,16 @@ namespace TMS.Repository.Managers
         public int ReactivatedCount { get; set; }
         public int DroppedCount { get; set; }
         public List<string> Errors { get; set; } = new();
+        public List<BulkEnrollmentItem> EnrolledItems { get; set; } = new();
+    }
+
+    public class BulkEnrollmentItem
+    {
+        public int CourseId { get; set; }
+        public int StudentId { get; set; }
+        public string Email { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public bool WasReactivated { get; set; }
     }
 
     public class CsvEnrollmentRow

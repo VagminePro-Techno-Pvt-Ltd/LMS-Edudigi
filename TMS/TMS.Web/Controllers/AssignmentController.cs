@@ -17,21 +17,28 @@ using TMS.Repository;
 using TMS.ViewModels.Academics;
 using TMS.Web.Services;
 
+using TMS.ViewModels.Email;
+using TMS.Web.Services.Email;
+using Microsoft.Extensions.DependencyInjection;
+
 namespace TMS.Web.Controllers
 {
     [Authorize]
     public class AssignmentController : BaseController
     {
         private readonly ApplicationDBContext _context;
-        private readonly IAiAssignmentService _aiAssignmentService;
-        private readonly ILogger<AssignmentController> _logger;
+        private readonly IEmailOutboxService? _outboxService;
+        private readonly IAiAssignmentService? _aiAssignmentService;
+        private readonly ILogger<AssignmentController>? _logger;
 
         public AssignmentController(
             ApplicationDBContext context,
-            IAiAssignmentService aiAssignmentService,
-            ILogger<AssignmentController> logger)
+            IEmailOutboxService? outboxService = null,
+            IAiAssignmentService? aiAssignmentService = null,
+            ILogger<AssignmentController>? logger = null)
         {
             _context = context;
+            _outboxService = outboxService;
             _aiAssignmentService = aiAssignmentService;
             _logger = logger;
         }
@@ -854,6 +861,9 @@ namespace TMS.Web.Controllers
                 _context.AssignmentMasters.Add(model);
                 await _context.SaveChangesAsync();
 
+                // Phase 3: Automated Assignment Publication & Deadline Reminders
+                await QueueAssignmentPublicationAndRemindersAsync(model.Id);
+
                 SetApplicationResult(true, "Assignment created successfully!");
             }
             catch (Exception ex)
@@ -940,6 +950,9 @@ namespace TMS.Web.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+
+                // Phase 3: Automated Assignment Evaluation/Grade Notification
+                await QueueGradePublishedEmailAsync(grade.SubmissionId, grade.Marks, grade.Feedback);
 
                 return Json(new { success = true, message = "Submission graded successfully!" });
             }
@@ -1126,6 +1139,9 @@ namespace TMS.Web.Controllers
                 _context.AssignmentSubmissions.Add(submission);
                 await _context.SaveChangesAsync();
 
+                // Phase 3: Automated Assignment Submission Receipt & Faculty Notice + Invalidate pending student reminders
+                await QueueSubmissionNotificationsAsync(submission.Id, assignmentId, studentId, isLate);
+
                 SetApplicationResult(true, "Assignment submitted successfully!");
             }
             catch (Exception ex)
@@ -1207,5 +1223,272 @@ namespace TMS.Web.Controllers
 
             return View("AdminDashboard", assignments);
         }
+
+        #region Private Email Queue Helpers
+
+        private static string FormatAcademicDate(DateTime utcDateTime)
+        {
+            try
+            {
+                var istZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Kolkata");
+                var istTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc), istZone);
+                return istTime.ToString("dd MMM yyyy, hh:mm tt") + " IST";
+            }
+            catch
+            {
+                return utcDateTime.ToString("dd MMM yyyy, hh:mm tt") + " UTC";
+            }
+        }
+
+        private async Task QueueAssignmentPublicationAndRemindersAsync(int assignmentId)
+        {
+            try
+            {
+                var assignment = await _context.AssignmentMasters
+                    .Include(a => a.Course)
+                    .Include(a => a.Program)
+                    .FirstOrDefaultAsync(a => a.Id == assignmentId && !a.IsDeleted);
+
+                if (assignment == null) return;
+
+                string courseName = assignment.Course?.Name ?? assignment.Program?.Name ?? "Course";
+                string dueDateDisplay = FormatAcademicDate(assignment.DueDate);
+
+                List<int> studentIds = new();
+                if (assignment.CourseId.HasValue && assignment.CourseId.Value > 0)
+                {
+                    studentIds = await _context.CourseEnrollments
+                        .Where(e => e.CourseId == assignment.CourseId.Value && e.IsActive && (e.Status == 0 || e.Status == 1))
+                        .Select(e => e.StudentId)
+                        .Distinct()
+                        .ToListAsync();
+                }
+                else
+                {
+                    var progCourseIds = await _context.CourseMasters
+                        .Where(c => c.CourseCategoryId == assignment.ProgramId && c.IsActive)
+                        .Select(c => c.Id)
+                        .ToListAsync();
+
+                    studentIds = await _context.CourseEnrollments
+                        .Where(e => progCourseIds.Contains(e.CourseId) && e.IsActive && (e.Status == 0 || e.Status == 1))
+                        .Select(e => e.StudentId)
+                        .Distinct()
+                        .ToListAsync();
+                }
+
+                if (!studentIds.Any()) return;
+
+                var students = await _context.UserMasters
+                    .Where(u => studentIds.Contains(u.Id) && u.IsActive && !string.IsNullOrEmpty(u.Email))
+                    .ToListAsync();
+
+                var batch = new List<EmailEnqueueRequest>();
+                var nowUtc = DateTime.UtcNow;
+
+                foreach (var student in students)
+                {
+                    // 1. Publication Notice
+                    batch.Add(new EmailEnqueueRequest
+                    {
+                        RecipientEmail = student.Email.Trim(),
+                        RecipientName = student.Name,
+                        Subject = $"New Assignment Published: {assignment.Title} ({courseName})",
+                        TemplateName = "AssignmentPublication",
+                        TemplateData = new Dictionary<string, string>
+                        {
+                            ["RecipientName"] = student.Name ?? "Student",
+                            ["AssignmentTitle"] = assignment.Title,
+                            ["CourseName"] = courseName,
+                            ["DueDate"] = dueDateDisplay,
+                            ["MaxMarks"] = assignment.MaxMarks.ToString(),
+                            ["AssignmentId"] = assignment.Id.ToString()
+                        },
+                        EventType = "AssignmentPublication",
+                        IdempotencyKey = $"assign-pub-{assignment.Id}-{student.Id}"
+                    });
+
+                    // 2. 48-Hour Deadline Reminder
+                    var remind48Utc = assignment.DueDate.AddHours(-48);
+                    if (remind48Utc > nowUtc)
+                    {
+                        batch.Add(new EmailEnqueueRequest
+                        {
+                            RecipientEmail = student.Email.Trim(),
+                            RecipientName = student.Name,
+                            Subject = $"Reminder: 48 Hours Left for Assignment '{assignment.Title}' ({courseName})",
+                            TemplateName = "AssignmentDeadlineReminder",
+                            TemplateData = new Dictionary<string, string>
+                            {
+                                ["RecipientName"] = student.Name ?? "Student",
+                                ["AssignmentTitle"] = assignment.Title,
+                                ["CourseName"] = courseName,
+                                ["DueDate"] = dueDateDisplay,
+                                ["HoursLeft"] = "48",
+                                ["AssignmentId"] = assignment.Id.ToString()
+                            },
+                            ScheduledForUtc = remind48Utc,
+                            EventType = "AssignmentReminder48h",
+                            IdempotencyKey = $"remind-assign-48h-{assignment.Id}-{student.Id}"
+                        });
+                    }
+
+                    // 3. 24-Hour Deadline Reminder
+                    var remind24Utc = assignment.DueDate.AddHours(-24);
+                    if (remind24Utc > nowUtc)
+                    {
+                        batch.Add(new EmailEnqueueRequest
+                        {
+                            RecipientEmail = student.Email.Trim(),
+                            RecipientName = student.Name,
+                            Subject = $"Reminder: 24 Hours Left for Assignment '{assignment.Title}' ({courseName})",
+                            TemplateName = "AssignmentDeadlineReminder",
+                            TemplateData = new Dictionary<string, string>
+                            {
+                                ["RecipientName"] = student.Name ?? "Student",
+                                ["AssignmentTitle"] = assignment.Title,
+                                ["CourseName"] = courseName,
+                                ["DueDate"] = dueDateDisplay,
+                                ["HoursLeft"] = "24",
+                                ["AssignmentId"] = assignment.Id.ToString()
+                            },
+                            ScheduledForUtc = remind24Utc,
+                            EventType = "AssignmentReminder24h",
+                            IdempotencyKey = $"remind-assign-24h-{assignment.Id}-{student.Id}"
+                        });
+                    }
+                }
+
+                if (batch.Any())
+                {
+                    await _outboxService.EnqueueBatchAsync(batch);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AssignmentController] Error queueing publication emails: {ex.Message}");
+            }
+        }
+
+        private async Task QueueSubmissionNotificationsAsync(int submissionId, int assignmentId, int studentId, bool isLate)
+        {
+            try
+            {
+                // Invalidate/cancel scheduled reminders for this student
+                await _outboxService.CancelScheduledJobsAsync($"remind-assign-*-{assignmentId}-{studentId}");
+
+                var submission = await _context.AssignmentSubmissions
+                    .Include(s => s.Assignment)
+                        .ThenInclude(a => a.Course)
+                    .Include(s => s.Assignment)
+                        .ThenInclude(a => a.Program)
+                    .Include(s => s.Student)
+                    .FirstOrDefaultAsync(s => s.Id == submissionId);
+
+                if (submission?.Assignment == null || submission.Student == null) return;
+
+                string courseName = submission.Assignment.Course?.Name ?? submission.Assignment.Program?.Name ?? "Course";
+                string submittedTimeDisplay = FormatAcademicDate(submission.SubmittedOn);
+
+                // Student receipt
+                if (!string.IsNullOrWhiteSpace(submission.Student.Email))
+                {
+                    await _outboxService.EnqueueAsync(new EmailEnqueueRequest
+                    {
+                        RecipientEmail = submission.Student.Email.Trim(),
+                        RecipientName = submission.Student.Name,
+                        Subject = $"Submission Receipt: {submission.Assignment.Title} ({courseName})",
+                        TemplateName = "AssignmentSubmissionReceipt",
+                        TemplateData = new Dictionary<string, string>
+                        {
+                            ["RecipientName"] = submission.Student.Name ?? "Student",
+                            ["AssignmentTitle"] = submission.Assignment.Title,
+                            ["CourseName"] = courseName,
+                            ["SubmittedAt"] = submittedTimeDisplay,
+                            ["IsLate"] = isLate ? "true" : "false",
+                            ["AssignmentId"] = assignmentId.ToString()
+                        },
+                        EventType = "AssignmentSubmissionReceipt",
+                        IdempotencyKey = $"assign-sub-student-{submissionId}"
+                    });
+                }
+
+                // Faculty notification
+                if (submission.Assignment.CreatedBy > 0)
+                {
+                    var faculty = await _context.UserMasters.FindAsync(submission.Assignment.CreatedBy);
+                    if (faculty != null && !string.IsNullOrWhiteSpace(faculty.Email))
+                    {
+                        await _outboxService.EnqueueAsync(new EmailEnqueueRequest
+                        {
+                            RecipientEmail = faculty.Email.Trim(),
+                            RecipientName = faculty.Name,
+                            Subject = $"New Student Submission: {submission.Assignment.Title} by {submission.Student.Name}",
+                            TemplateName = "AssignmentFacultySubmissionNotice",
+                            TemplateData = new Dictionary<string, string>
+                            {
+                                ["RecipientName"] = faculty.Name ?? "Faculty",
+                                ["StudentName"] = submission.Student.Name ?? "Student",
+                                ["AssignmentTitle"] = submission.Assignment.Title,
+                                ["CourseName"] = courseName,
+                                ["SubmittedAt"] = submittedTimeDisplay,
+                                ["AssignmentId"] = assignmentId.ToString()
+                            },
+                            EventType = "AssignmentFacultySubmissionNotice",
+                            IdempotencyKey = $"assign-sub-faculty-{submissionId}"
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AssignmentController] Error queueing submission emails: {ex.Message}");
+            }
+        }
+
+        private async Task QueueGradePublishedEmailAsync(int submissionId, decimal marks, string? feedback)
+        {
+            try
+            {
+                var submission = await _context.AssignmentSubmissions
+                    .Include(s => s.Assignment)
+                        .ThenInclude(a => a.Course)
+                    .Include(s => s.Assignment)
+                        .ThenInclude(a => a.Program)
+                    .Include(s => s.Student)
+                    .FirstOrDefaultAsync(s => s.Id == submissionId);
+
+                if (submission?.Student == null || string.IsNullOrWhiteSpace(submission.Student.Email) || submission.Assignment == null) return;
+
+                string courseName = submission.Assignment.Course?.Name ?? submission.Assignment.Program?.Name ?? "Course";
+
+                await _outboxService.EnqueueAsync(new EmailEnqueueRequest
+                {
+                    RecipientEmail = submission.Student.Email.Trim(),
+                    RecipientName = submission.Student.Name,
+                    Subject = $"Grades Published: {submission.Assignment.Title} ({courseName})",
+                    TemplateName = "AssignmentGraded",
+                    TemplateData = new Dictionary<string, string>
+                    {
+                        ["RecipientName"] = submission.Student.Name ?? "Student",
+                        ["AssignmentTitle"] = submission.Assignment.Title,
+                        ["CourseName"] = courseName,
+                        ["MarksObtained"] = marks.ToString("0.##"),
+                        ["MaxMarks"] = submission.Assignment.MaxMarks.ToString(),
+                        ["Feedback"] = !string.IsNullOrWhiteSpace(feedback) ? feedback : "No remarks provided.",
+                        ["AssignmentId"] = submission.Assignment.Id.ToString()
+                    },
+                    EventType = "AssignmentGraded",
+                    IdempotencyKey = $"assign-grade-{submissionId}-{DateTime.UtcNow:yyyyMMdd}"
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AssignmentController] Error queueing grade email: {ex.Message}");
+            }
+        }
+
+        #endregion
     }
 }
+

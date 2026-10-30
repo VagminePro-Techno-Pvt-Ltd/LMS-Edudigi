@@ -28,6 +28,7 @@ namespace TMS.Web.Controllers
         private readonly IMasterManager<UserViewModel> _userManager;
         private readonly TMS.Repository.ApplicationDBContext _db;
         private readonly ZoomSettings _zoomSettings;
+        private readonly TMS.Utilities.IZoomService _zoomService;
 
         public CalendarController(
             IMasterBaseManager<ClassSeriesViewModel> seriesManager,
@@ -39,7 +40,8 @@ namespace TMS.Web.Controllers
             IMasterManager<SubjectMasterViewModel> subjectManager,
             IMasterManager<UserViewModel> userManager,
             TMS.Repository.ApplicationDBContext db,
-            IOptions<ZoomSettings> zoomSettings)
+            IOptions<ZoomSettings> zoomSettings,
+            TMS.Utilities.IZoomService? zoomService = null)
         {
             _seriesManager = seriesManager;
             _instanceManager = instanceManager;
@@ -51,6 +53,7 @@ namespace TMS.Web.Controllers
             _userManager = userManager;
             _db = db;
             _zoomSettings = zoomSettings.Value;
+            _zoomService = zoomService ?? new TMS.Utilities.ZoomService(zoomSettings);
         }
 
         // ═══════════════════════════════════════════════════
@@ -449,8 +452,7 @@ namespace TMS.Web.Controllers
                     {
                         try
                         {
-                            var zoomService = new ZoomService(_zoomSettings);
-                            var zoomResult = await zoomService.CreateZoomMeetingAsync(
+                            var zoomResult = await _zoomService.CreateZoomMeetingAsync(
                                 inst.Title,
                                 inst.ScheduledStart,
                                 inst.DurationMinutes
@@ -547,8 +549,7 @@ namespace TMS.Web.Controllers
             {
                 try
                 {
-                    var zoomService = new ZoomService(_zoomSettings);
-                    var joinUrl = await zoomService.CreateMeetingAsync(instance.Title, newStart, duration);
+                    var joinUrl = await _zoomService.CreateMeetingAsync(instance.Title, newStart, duration);
                     instance.JoinUrl = joinUrl;
                 }
                 catch { /* keep existing link */ }

@@ -18,11 +18,16 @@ namespace TMS.Web.Areas.Admin.Controllers
     {
         private readonly IAssessmentManager _assessmentManager;
         private readonly ApplicationDBContext _context;
+        private readonly TMS.Web.Services.Email.IEmailOutboxService _outboxService;
 
-        public AdminExamController(IAssessmentManager assessmentManager, ApplicationDBContext context)
+        public AdminExamController(
+            IAssessmentManager assessmentManager, 
+            ApplicationDBContext context,
+            TMS.Web.Services.Email.IEmailOutboxService outboxService)
         {
             _assessmentManager = assessmentManager;
             _context = context;
+            _outboxService = outboxService;
         }
 
         // =========================================================================
@@ -126,6 +131,91 @@ namespace TMS.Web.Areas.Admin.Controllers
         public async Task<IActionResult> ToggleStatus(int examId, string status)
         {
             var success = await _assessmentManager.UpdateExamStatusAsync(examId, status);
+            if (success)
+            {
+                try
+                {
+                    if (status.Equals("Active", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var exam = await _context.ExamMasters.Include(e => e.Course).FirstOrDefaultAsync(e => e.Id == examId);
+                        if (exam != null)
+                        {
+                            var studentIds = await _context.CourseEnrollments
+                                .Where(e => e.CourseId == exam.CourseId && e.IsActive && (e.Status == 0 || e.Status == 1))
+                                .Select(e => e.StudentId)
+                                .Distinct()
+                                .ToListAsync();
+
+                            var students = await _context.UserMasters
+                                .Where(u => studentIds.Contains(u.Id) && u.IsActive && !string.IsNullOrEmpty(u.Email))
+                                .ToListAsync();
+
+                            string courseName = exam.Course?.Name ?? "Course";
+                            var batch = new List<TMS.ViewModels.Email.EmailEnqueueRequest>();
+                            var nowUtc = DateTime.UtcNow;
+
+                            foreach (var s in students)
+                            {
+                                batch.Add(new TMS.ViewModels.Email.EmailEnqueueRequest
+                                {
+                                    RecipientEmail = s.Email.Trim(),
+                                    RecipientName = s.Name,
+                                    Subject = $"Examination Notice: {exam.Title} ({courseName})",
+                                    TemplateName = "ExamPublication",
+                                    TemplateData = new Dictionary<string, string>
+                                    {
+                                        ["RecipientName"] = s.Name ?? "Student",
+                                        ["ExamTitle"] = exam.Title,
+                                        ["CourseName"] = courseName,
+                                        ["ExamDate"] = $"{exam.StartDate:dd MMM yyyy, hh:mm tt} – {exam.EndDate:dd MMM yyyy, hh:mm tt}",
+                                        ["DurationMinutes"] = exam.DurationMinutes.ToString(),
+                                        ["RequiresSeb"] = "false"
+                                    },
+                                    EventType = "ExamPublication",
+                                    IdempotencyKey = $"exam-pub-{exam.Id}-{s.Id}"
+                                });
+
+                                var remind24 = exam.StartDate.AddHours(-24);
+                                if (remind24 > nowUtc)
+                                {
+                                    batch.Add(new TMS.ViewModels.Email.EmailEnqueueRequest
+                                    {
+                                        RecipientEmail = s.Email.Trim(),
+                                        RecipientName = s.Name,
+                                        Subject = $"Exam Reminder: {exam.Title} starts in 24 hours",
+                                        TemplateName = "ExamReminder",
+                                        TemplateData = new Dictionary<string, string>
+                                        {
+                                            ["RecipientName"] = s.Name ?? "Student",
+                                            ["ExamTitle"] = exam.Title,
+                                            ["CourseName"] = courseName,
+                                            ["StartTime"] = exam.StartDate.ToString("dd MMM yyyy, hh:mm tt"),
+                                            ["HoursLeft"] = "24",
+                                            ["RequiresSeb"] = "false"
+                                        },
+                                        ScheduledForUtc = remind24,
+                                        EventType = "ExamReminder24h",
+                                        IdempotencyKey = $"remind-exam-24h-{exam.Id}-{s.Id}"
+                                    });
+                                }
+                            }
+
+                            if (batch.Any())
+                            {
+                                await _outboxService.EnqueueBatchAsync(batch);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        await _outboxService.CancelScheduledJobsAsync($"remind-exam-*-{examId}-*");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AdminExamController] Outbox error in ToggleStatus: {ex.Message}");
+                }
+            }
             return Json(new { success });
         }
 

@@ -39,5 +39,14 @@ namespace TMS.ViewModels
         public int FailedCount { get; set; }
         public List<string> Errors { get; set; } = new();
         public List<string> Warnings { get; set; } = new();
+        public List<BulkUserCreatedItem> CreatedUsers { get; set; } = new();
+    }
+
+    public class BulkUserCreatedItem
+    {
+        public int UserId { get; set; }
+        public string Email { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
     }
 }

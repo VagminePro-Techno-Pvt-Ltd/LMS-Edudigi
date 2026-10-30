@@ -21,6 +21,8 @@ using TMS.Repository.SeedData;
 using TMS.ViewModels.Masters;
 using TMS.Models.Assessments;
 using TMS.Models.LearningAssistant;
+using TMS.Models.ContentSync;
+using TMS.Models.Email;
 
 namespace TMS.Repository
 {
@@ -118,6 +120,16 @@ namespace TMS.Repository
         // ─── Interactive PPT ───
         public DbSet<InteractivePPT> InteractivePPTs { get; set; }
         public DbSet<PPTSlideInteraction> PPTSlideInteractions { get; set; }
+
+        // ─── Two-Way Content Sync & Folder Provisioning ───
+        public DbSet<ContentSyncConfig> ContentSyncConfigs { get; set; }
+        public DbSet<ContentFolderMapping> ContentFolderMappings { get; set; }
+        public DbSet<ContentSyncOutboxJob> ContentSyncOutboxJobs { get; set; }
+        public DbSet<ContentSyncFileRecord> ContentSyncFileRecords { get; set; }
+
+        // ─── Automated Email Workflows & Outbox ───
+        public DbSet<EmailOutboxJob> EmailOutboxJobs { get; set; }
+        public DbSet<EmailDeliveryLog> EmailDeliveryLogs { get; set; }
 
         // ─── Feature 77: Student At-Risk Alerts & Moderation ───
         public DbSet<CourseActivityDeadline> CourseActivityDeadlines { get; set; }

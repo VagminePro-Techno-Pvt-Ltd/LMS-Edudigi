@@ -1,8 +1,13 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.HttpOverrides;
 using TMS.Repository;
+using TMS.Utilities;
 using TMS.ViewModels;
+using TMS.ViewModels.Email;
 using TMS.Web.Infrastructure;
+using TMS.Web.Infrastructure.Http;
+using TMS.Web.Services.Email;
+using TMS.Web.Services.Integration;
 using UoN.ExpressiveAnnotations.NetCore.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -52,6 +57,11 @@ builder.Services.AddAntiforgery(options =>
 builder.Services.AddRepositoryDependencies();
 builder.Services.AddHostedService<TMS.Web.BackgroundServices.AttendanceBackgroundJob>();
 
+// ─── Two-Way Content Sync & Drive Provisioning ───
+builder.Services.AddSingleton<TMS.Web.Services.ContentSync.LocalContentStorageProvider>();
+builder.Services.AddHttpClient<TMS.Web.Services.ContentSync.GoogleDriveContentStorageProvider>();
+builder.Services.AddSingleton<TMS.Web.Services.ContentSync.IContentFolderProvisioner, TMS.Web.Services.ContentSync.ContentFolderProvisioner>();
+builder.Services.AddHostedService<TMS.Web.BackgroundServices.ContentSyncBackgroundWorker>();
 
 builder.Services.Configure<TMS.ViewModels.StorageSettings>(builder.Configuration.GetSection("StorageSettings"));
 builder.Services.Configure<TMS.ViewModels.RateConfiguration>(builder.Configuration.GetSection("RateConfiguration"));
@@ -92,6 +102,32 @@ builder.Services.AddScoped<TMS.Web.Services.ICertificationExamService, TMS.Web.S
 builder.Services.AddScoped<TMS.Common.IAuditUserProvider, TMS.Web.Services.HttpAuditUserProvider>();
 builder.Services.AddScoped<TMS.Web.Services.IAuditLogService, TMS.Web.Services.AuditLogService>();
 
+// ─── AI Proctoring Platform API Integration ───
+builder.Services.Configure<TMS.Web.Services.Proctoring.ProctoringApiOptions>(
+    builder.Configuration.GetSection(TMS.Web.Services.Proctoring.ProctoringApiOptions.SectionName));
+builder.Services.AddHttpClient<TMS.Web.Services.Proctoring.IProctoringApiClient, TMS.Web.Services.Proctoring.ProctoringApiClient>((sp, client) =>
+{
+    var opts = builder.Configuration.GetSection(TMS.Web.Services.Proctoring.ProctoringApiOptions.SectionName)
+        .Get<TMS.Web.Services.Proctoring.ProctoringApiOptions>() ?? new TMS.Web.Services.Proctoring.ProctoringApiOptions();
+    client.BaseAddress = new Uri(opts.ApiBaseUrl.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(opts.TimeoutSeconds > 0 ? opts.TimeoutSeconds : 30);
+});
+
+// ─── Automated Email Workflows & Shared Infrastructure ───
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection(EmailSettings.SectionName));
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+builder.Services.AddScoped<IEmailOutboxService, EmailOutboxService>();
+builder.Services.AddHostedService<TMS.Web.BackgroundServices.EmailDispatchBackgroundWorker>();
+
+// ─── Reusable Integration Foundation & Outbound HTTP Resilience ───
+builder.Services.AddIntegrationHttpInfrastructure(builder.Configuration);
+builder.Services.AddScoped<IIntegrationHealthService, IntegrationHealthService>();
+builder.Services.AddHttpClient<IZoomService, ZoomService>(client =>
+{
+    client.BaseAddress = new Uri("https://api.zoom.us/v2/");
+    client.Timeout = TimeSpan.FromSeconds(30);
+}).AddIntegrationResilienceHandlers();
 
 // Reverse-proxy / ngrok: honor X-Forwarded-Proto, X-Forwarded-Host so Request.Scheme and Request.Host
 // match the public URL (required for Microsoft Office Online Viewer src= absolute URLs).
@@ -202,6 +238,11 @@ app.MapControllerRoute(
     defaults: new { controller = "StudentQuadrant", action = "Content" });
 
 app.MapControllerRoute(
+    name: "contentSyncRoot",
+    pattern: "ContentSync/{action=Index}/{id?}",
+    defaults: new { area = "Admin", controller = "ContentSync" });
+
+app.MapControllerRoute(
     name: "aiAssignment",
     pattern: "AiAssignment",
     defaults: new { controller = "Assignment", action = "AiGenerator" });
@@ -235,6 +276,18 @@ if (DatabaseInitializationGuard.ShouldRun(builder.Configuration, builder.Environ
         await TMS.Repository.DatabaseInitializer.EnsureTablesCreatedAsync(
             dbContext,
             disposableDatabaseConfirmed: true);
+    }
+}
+
+// Ensure ContentSync database tables exist
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetService<TMS.Repository.ApplicationDBContext>();
+    if (dbContext != null)
+    {
+        var logger = scope.ServiceProvider.GetService<ILogger<TMS.Repository.ApplicationDBContext>>();
+        await TMS.Repository.ContentSyncDatabaseMigrator.EnsureTablesCreatedAsync(dbContext, logger);
+        await TMS.Repository.EmailDatabaseMigrator.EnsureTablesCreatedAsync(dbContext, logger);
     }
 }
 

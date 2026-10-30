@@ -1,8 +1,11 @@
 @model TMS.ViewModels.Academics.CurriculumBuilderPageViewModel
 
 @{
-    ViewData["Title"] = "Curriculum Builder";
+    ViewData["Title"] = "Academic Hub - Curriculum & Content Sync";
     bool isFaculty = ViewBag.IsFaculty ?? false;
+    var syncSummary = ViewBag.ContentSyncSummary as TMS.Web.Services.ContentSync.ProvisioningStatusSummary;
+    var localTree = ViewBag.LocalTree as TMS.Web.Services.ContentSync.HierarchyNodeDto;
+    var gdriveTree = ViewBag.GDriveTree as TMS.Web.Services.ContentSync.HierarchyNodeDto;
 }
 
 <link rel="stylesheet" href="~/css/content-library.css" />
@@ -1867,6 +1870,13 @@
         @if (!isFaculty)
         {
             <div class="d-flex align-items-center gap-2 flex-wrap">
+                <button type="button" class="btn btn-outline-info fw-semibold px-3 py-2" id="btnHeaderContentSync" onclick="switchHubView('contentsync')" style="border-radius:10px;font-size:13px;">
+                    <i class="fa-solid fa-cloud-arrow-up me-1"></i> Auto Content Sync
+                    @if (syncSummary != null && syncSummary.FailedJobsCount > 0)
+                    {
+                        <span class="badge bg-danger ms-1">@syncSummary.FailedJobsCount</span>
+                    }
+                </button>
                 <button type="button" class="btn btn-outline-primary fw-semibold px-3 py-2" id="btnHeaderNewProgram" style="border-radius:10px;font-size:13px;">
                     <i class="fa-solid fa-plus me-1"></i> New Program
                 </button>
@@ -1894,6 +1904,13 @@
                 <i class="fa-solid fa-building-columns"></i>
                 <span>Programs Directory</span>
                 <span class="ah-nav-badge">@(Model.Programs?.Count ?? 0)</span>
+            </button>
+            <button type="button" class="ah-nav-tab @(Model.ActiveView == "contentsync" ? "active" : "")" data-view="contentsync" id="tabContentSync">
+                <i class="fa-solid fa-cloud-arrow-up text-info"></i>
+                <span>Auto Content Sync</span>
+                <span class="ah-nav-badge" style="background:#0284c7;color:#fff;">
+                    @(syncSummary?.LocalDriveEnabled == true ? "Local/UNC" : "")@(syncSummary?.GoogleDriveEnabled == true ? (syncSummary?.LocalDriveEnabled == true ? " + Drive" : "Drive") : "")
+                </span>
             </button>
         </div>
     </div>
@@ -2089,6 +2106,16 @@
                                 <i class="fa-solid fa-layer-group text-warning"></i>
                             </button>
 
+                            <button type="button" class="btn btn-light btn-sm fw-semibold text-info cb-course-sync-drawer-btn"
+                                    data-course-id="@course.Id"
+                                    data-course-name="@course.Name"
+                                    data-course-code="@course.CourseCode"
+                                    style="border-radius:8px;font-size:12px;"
+                                    title="Storage & Folder Sync Status (Videos, PDFs, Assignments, Forum)">
+                                <i class="fa-solid fa-folder-tree"></i>
+                                <span class="course-sync-dot course-sync-dot-@course.Id" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#94a3b8;margin-left:2px;" title="Sync status"></span>
+                            </button>
+
                             @if (!isFaculty)
                             {
                                 <button type="button" class="btn btn-light btn-sm fw-semibold text-success btn-catalog-assign-faculty"
@@ -2216,6 +2243,233 @@
                     <p class="text-muted small mb-0">Create another degree or diploma track</p>
                 </div>
             }
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- VIEW 4: AUTO CONTENT SYNC & CLOUD STORAGE INTEGRATED HUB  -->
+    <!-- ========================================================= -->
+    <div class="ah-view-container @(Model.ActiveView == "contentsync" ? "" : "d-none")" id="hubView_contentsync">
+        <!-- Top Control Bar -->
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4 p-3 bg-white rounded-3 shadow-sm border">
+            <div>
+                <h3 class="h5 fw-bold text-dark mb-1">
+                    <i class="fa-solid fa-cloud-arrow-up text-primary me-2"></i>Storage Provisioning &amp; Content Synchronization
+                </h3>
+                <p class="text-muted small mb-0">
+                    Automated two-way folder generation (Program &rarr; Semester &rarr; Course &rarr; Videos, PDFs, Assignments, Forum_Discussion) across Local Drive, UNC Shares, and Google Drive.
+                </p>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <form action="/Admin/ContentSync/RunSyncNow" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-primary btn-sm shadow-sm" id="btnHubRunSyncNow">
+                        <i class="fa-solid fa-rotate me-1"></i> Run Sync Now
+                    </button>
+                </form>
+                <form action="/Admin/ContentSync/ScanDriveToLms" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-info btn-sm shadow-sm" id="btnHubScanDrive">
+                        <i class="fa-solid fa-magnifying-glass me-1"></i> Scan Storage &rarr; LMS
+                    </button>
+                </form>
+                <form action="/Admin/ContentSync/RetryFailed" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-warning btn-sm shadow-sm" @(syncSummary?.FailedJobsCount == 0 ? "disabled" : "")>
+                        <i class="fa-solid fa-arrow-rotate-right me-1"></i> Retry Failed (@(syncSummary?.FailedJobsCount ?? 0))
+                    </button>
+                </form>
+                <form action="/Admin/ContentSync/RecheckHierarchy" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-secondary btn-sm shadow-sm" onclick="return confirm('Verify and provision any missing folders across all active Programs, Semesters, and Courses?');">
+                        <i class="fa-solid fa-layer-group me-1"></i> Re-check All
+                    </button>
+                </form>
+                <a href="/Admin/ContentSync" target="_blank" class="btn btn-outline-dark btn-sm shadow-sm" title="Open Dedicated Sync Management Page">
+                    <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Full View
+                </a>
+            </div>
+        </div>
+
+        <!-- Metrics Ribbons -->
+        <div class="row g-3 mb-4">
+            <div class="col-sm-6 col-xl-2">
+                <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-4 border-primary">
+                    <div class="card-body p-3">
+                        <div class="text-muted small text-uppercase fw-bold">Programs Mapped</div>
+                        <div class="h4 fw-bold mb-0 text-primary">@(syncSummary?.TotalProgramsMapped ?? 0)</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-xl-2">
+                <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-4 border-info">
+                    <div class="card-body p-3">
+                        <div class="text-muted small text-uppercase fw-bold">Semesters Mapped</div>
+                        <div class="h4 fw-bold mb-0 text-info">@(syncSummary?.TotalSemestersMapped ?? 0)</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-xl-2">
+                <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-4 border-success">
+                    <div class="card-body p-3">
+                        <div class="text-muted small text-uppercase fw-bold">Courses Mapped</div>
+                        <div class="h4 fw-bold mb-0 text-success">@(syncSummary?.TotalCoursesMapped ?? 0)</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-xl-2">
+                <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-4 border-secondary">
+                    <div class="card-body p-3">
+                        <div class="text-muted small text-uppercase fw-bold">Subfolders Mapped</div>
+                        <div class="h4 fw-bold mb-0 text-secondary">@(syncSummary?.TotalSubfoldersMapped ?? 0)</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-xl-2">
+                <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-4 border-warning">
+                    <div class="card-body p-3">
+                        <div class="text-muted small text-uppercase fw-bold">Pending Jobs</div>
+                        <div class="h4 fw-bold mb-0 text-warning">@(syncSummary?.PendingJobsCount ?? 0)</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-xl-2">
+                <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-4 border-danger">
+                    <div class="card-body p-3">
+                        <div class="text-muted small text-uppercase fw-bold">Failed Jobs</div>
+                        <div class="h4 fw-bold mb-0 text-danger">@(syncSummary?.FailedJobsCount ?? 0)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Storage Provider Cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm rounded-3 bg-white h-100">
+                    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                        <div class="fw-bold text-dark">
+                            <i class="fa-solid fa-server text-primary me-2"></i>Local Storage &amp; UNC Network Shares
+                        </div>
+                        <span class="badge @(syncSummary?.LocalDriveEnabled == true ? (syncSummary?.LocalDriveStatus == "Online" ? "bg-success" : "bg-danger") : "bg-secondary")">
+                            @(syncSummary?.LocalDriveEnabled == true ? syncSummary?.LocalDriveStatus : "Disabled")
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <small class="text-muted text-uppercase fw-bold">Active Root Path / Share:</small>
+                            <div class="font-monospace small bg-light p-2 rounded border mt-1 text-truncate" title="@(syncSummary?.LocalDriveRootPath)">
+                                @(string.IsNullOrWhiteSpace(syncSummary?.LocalDriveRootPath) ? "EduDigiClass_LMS_Content" : syncSummary?.LocalDriveRootPath)
+                            </div>
+                        </div>
+                        <p class="text-muted small mb-0">
+                            Supports local server drives and Windows SMB UNC shares (e.g., <code>\\server\share\LMS_Content</code>). Automatic permissions check and idempotency guards are active.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm rounded-3 bg-white h-100">
+                    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                        <div class="fw-bold text-dark">
+                            <i class="fa-brands fa-google-drive text-success me-2"></i>Google Drive (API v3 &amp; Shared Drives)
+                        </div>
+                        <span class="badge @(syncSummary?.GoogleDriveEnabled == true ? (syncSummary?.GoogleDriveStatus == "Online" ? "bg-success" : (syncSummary?.GoogleDriveNetworkDisabled == true ? "bg-warning text-dark" : "bg-danger")) : "bg-secondary")">
+                            @(syncSummary?.GoogleDriveEnabled == true ? syncSummary?.GoogleDriveStatus : "Disabled")
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <small class="text-muted text-uppercase fw-bold">Root Folder Name:</small>
+                            <div class="font-monospace small bg-light p-2 rounded border mt-1">
+                                @(string.IsNullOrWhiteSpace(syncSummary?.GoogleDriveRootName) ? "EduDigiClass_LMS_Content" : syncSummary?.GoogleDriveRootName)
+                            </div>
+                        </div>
+                        <p class="text-muted small mb-0">
+                            Official Google Drive API v3 client with support for service account keys, My Drive, and University Shared Drives. Built-in network disconnect resilience and retry backoff.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Outbox Jobs Queue -->
+        <div class="card border-0 shadow-sm rounded-3 bg-white mb-4">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <div class="fw-bold text-dark">
+                    <i class="fa-solid fa-list-check text-primary me-2"></i>Outbox Provisioning Queue &amp; Resilience Logs
+                </div>
+                <small class="text-muted">Polled automatically every 5 seconds by ContentSyncBackgroundWorker</small>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height: 380px;">
+                    <table class="table table-hover align-middle mb-0 text-nowrap">
+                        <thead class="table-light small text-uppercase">
+                            <tr>
+                                <th>#</th>
+                                <th>Entity</th>
+                                <th>Action</th>
+                                <th>Provider</th>
+                                <th>Status</th>
+                                <th>Retries</th>
+                                <th>Created</th>
+                                <th>Error / Details</th>
+                            </tr>
+                        </thead>
+                        <tbody class="small">
+                            @if (syncSummary?.RecentJobs != null && syncSummary.RecentJobs.Any())
+                            {
+                                @foreach (var job in syncSummary.RecentJobs)
+                                {
+                                    <tr>
+                                        <td>@job.Id</td>
+                                        <td>
+                                            <span class="badge bg-light text-dark border">@job.EntityType #@job.EntityId</span>
+                                        </td>
+                                        <td>@job.Action</td>
+                                        <td><code>@job.StorageProvider</code></td>
+                                        <td>
+                                            @if (job.Status == "Completed")
+                                            {
+                                                <span class="badge bg-success"><i class="fa-solid fa-check me-1"></i>Completed</span>
+                                            }
+                                            else if (job.Status == "Failed")
+                                            {
+                                                <span class="badge bg-danger"><i class="fa-solid fa-triangle-exclamation me-1"></i>Failed</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-warning text-dark"><i class="fa-solid fa-spinner fa-spin me-1"></i>@job.Status</span>
+                                            }
+                                        </td>
+                                        <td>@job.RetryCount / 5</td>
+                                        <td>@job.CreatedAt.ToString("MMM dd, HH:mm:ss")</td>
+                                        <td class="text-wrap" style="max-width: 320px;">
+                                            @if (!string.IsNullOrWhiteSpace(job.LastError))
+                                            {
+                                                <span class="text-danger small"><i class="fa-solid fa-circle-exclamation me-1"></i>@job.LastError</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted small">&mdash;</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="8" class="text-center py-4 text-muted">
+                                        <i class="fa-solid fa-check-double text-success fa-2x mb-2 d-block"></i>
+                                        All provisioning outbox jobs have completed successfully.
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -2656,6 +2910,88 @@
     </div>
 }
 
+<!-- OFFCANVAS DRAWER: REAL-TIME COURSE FOLDER SYNC -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="courseFolderSyncDrawer" aria-labelledby="courseFolderSyncDrawerLabel" style="width: 520px; z-index: 1065;">
+    <div class="offcanvas-header border-bottom py-3" style="background: linear-gradient(135deg, #0f172a, #1e293b); color: #fff;">
+        <div class="d-flex align-items-center gap-2">
+            <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; background: rgba(56, 189, 248, 0.2); color: #38bdf8;">
+                <i class="fa-solid fa-folder-tree"></i>
+            </div>
+            <div>
+                <h5 class="offcanvas-title fw-bold mb-0" id="drawerCourseTitle">Course Storage &amp; Sync</h5>
+                <small class="text-info font-monospace" id="drawerCourseCode"></small>
+            </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body p-4 bg-light">
+        <!-- Live Loading Spinner -->
+        <div id="drawerLoadingState" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="text-muted mt-2 small">Loading folder provisioning details...</p>
+        </div>
+
+        <!-- Details Container -->
+        <div id="drawerDetailsContent" class="d-none">
+            <!-- Overall Status Card -->
+            <div class="card border-0 shadow-sm rounded-3 bg-white mb-3 p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted small text-uppercase fw-bold">Provisioning Status</span>
+                    <span id="drawerStatusBadge" class="badge"></span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="text-muted small">Storage Destination:</span>
+                    <strong id="drawerStorageProvider" class="small"></strong>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="text-muted small">Last Synchronized:</span>
+                    <span id="drawerLastSyncTime" class="small text-muted"></span>
+                </div>
+            </div>
+
+            <!-- Path and Actions Card -->
+            <div class="card border-0 shadow-sm rounded-3 bg-white mb-3 p-3">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="text-muted small text-uppercase fw-bold">Course Root Folder</span>
+                    <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="btnCopyFolderPath">
+                        <i class="fa-regular fa-copy me-1"></i>Copy Path
+                    </button>
+                </div>
+                <div class="font-monospace small bg-light p-2 rounded border text-break mb-3" id="drawerFolderPath">
+                    (Not provisioned yet)
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="#" target="_blank" class="btn btn-outline-primary btn-sm flex-fill" id="btnOpenFolderLink">
+                        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i>Open Folder
+                    </a>
+                    <button type="button" class="btn btn-primary btn-sm flex-fill" id="btnDrawerSyncCourseNow">
+                        <i class="fa-solid fa-rotate me-1"></i>Provision / Sync Now
+                    </button>
+                </div>
+            </div>
+
+            <!-- Failure / Retry Alert (shown if failed or error) -->
+            <div class="alert alert-danger shadow-sm rounded-3 d-none mb-3" id="drawerErrorAlert">
+                <div class="fw-bold small mb-1"><i class="fa-solid fa-circle-exclamation me-1"></i>Provisioning Issue Detected</div>
+                <div class="small" id="drawerErrorMessage"></div>
+                <div class="mt-2 small text-muted">Retry attempts: <span id="drawerRetryCount"></span> / 5</div>
+            </div>
+
+            <!-- 4 Subfolders Card -->
+            <div class="card border-0 shadow-sm rounded-3 bg-white mb-3">
+                <div class="card-header bg-white border-bottom py-2 fw-bold small text-uppercase">
+                    <i class="fa-solid fa-folder-closed text-warning me-1"></i>Standard Course Subfolders
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush small" id="drawerSubfolderList">
+                        <!-- Populated dynamically via JS -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts
 {
     <script>
@@ -2679,7 +3015,10 @@
                 getCourseFullDetails: '@Url.Action("GetCourseFullDetails", "CourseStructure", new { area = "Admin" })',
                 saveCourseFullStructure: '@Url.Action("SaveCourseFullStructure", "CourseStructure", new { area = "Admin" })',
                 deleteCourse: '@Url.Action("DeleteCourse", "CourseStructure", new { area = "Admin" })',
-                deleteProgram: '@Url.Action("DeleteProgram", "CourseStructure", new { area = "Admin" })'
+                deleteProgram: '@Url.Action("DeleteProgram", "CourseStructure", new { area = "Admin" })',
+                getCourseFolderSyncDetails: '@Url.Action("GetCourseFolderSyncDetails", "CourseStructure", new { area = "Admin" })',
+                getProgramCoursesSyncStatus: '@Url.Action("GetProgramCoursesSyncStatus", "CourseStructure", new { area = "Admin" })',
+                provisionCourseNow: '@Url.Action("ProvisionCourseNow", "CourseStructure", new { area = "Admin" })'
             };
 
             function getAntiForgeryToken() {
@@ -3737,6 +4076,7 @@
                         history.replaceState(null, "", url.toString());
                     }
                 }
+                window.switchHubView = switchHubView;
 
                 $(document).on("click", ".ah-nav-tab", function () {
                     const view = $(this).data("view");
@@ -3746,9 +4086,220 @@
                 // Auto-detect initial view from URL
                 const urlParams = new URLSearchParams(window.location.search);
                 const initialView = urlParams.get("view") || window.location.hash.replace("#", "");
-                if (initialView && ["tree", "courses", "programs"].includes(initialView)) {
+                if (initialView && ["tree", "courses", "programs", "contentsync"].includes(initialView)) {
                     switchHubView(initialView);
                 }
+
+                // ========================================================
+                // COURSE FOLDER SYNC DRAWER & REAL-TIME STATUS
+                // ========================================================
+                let activeDrawerCourseId = 0;
+                let activeDrawerFolderUrl = "";
+                let activeDrawerFolderPath = "";
+
+                function updateCourseSyncDots(statuses) {
+                    if (!statuses) return;
+                    for (const [courseId, info] of Object.entries(statuses)) {
+                        const dot = $(`.course-sync-dot-${courseId}`);
+                        if (!dot.length) continue;
+
+                        let color = "#94a3b8"; // Gray: NotProvisioned
+                        let title = "Not provisioned";
+
+                        if (info.status === "Completed") {
+                            color = "#10b981"; // Green
+                            title = "Folder provisioned: " + (info.folderPath || "");
+                        } else if (info.status === "Pending") {
+                            color = "#f59e0b"; // Orange/Yellow
+                            title = "Provisioning in progress...";
+                        } else if (info.status === "Failed") {
+                            color = "#ef4444"; // Red
+                            title = "Provisioning failed: " + (info.errorMessage || "");
+                        }
+
+                        dot.css("background-color", color).attr("title", title);
+                    }
+                }
+
+                function loadProgramCoursesSyncStatus() {
+                    const selectedProgId = $("#currentProgramId").val() || $("button.cb-program-tab.active").data("program-id");
+                    if (!selectedProgId) return;
+
+                    $.ajax({
+                        url: urls.getProgramCoursesSyncStatus,
+                        type: "GET",
+                        data: { programId: selectedProgId }
+                    }).done(function (statuses) {
+                        updateCourseSyncDots(statuses);
+                    });
+                }
+
+                $(document).on("click", ".cb-course-sync-drawer-btn", function (e) {
+                    e.stopPropagation();
+                    const courseId = Number($(this).data("course-id"));
+                    const courseName = $(this).data("course-name") || "Course";
+                    const courseCode = $(this).data("course-code") || "";
+
+                    if (!courseId) return;
+                    activeDrawerCourseId = courseId;
+
+                    $("#drawerCourseTitle").text(courseName);
+                    $("#drawerCourseCode").text(courseCode ? `Code: ${courseCode}` : "");
+                    $("#drawerLoadingState").removeClass("d-none");
+                    $("#drawerDetailsContent").addClass("d-none");
+
+                    const drawerEl = document.getElementById("courseFolderSyncDrawer");
+                    if (window.bootstrap && window.bootstrap.Offcanvas) {
+                        let bsDrawer = bootstrap.Offcanvas.getInstance(drawerEl);
+                        if (!bsDrawer) bsDrawer = new bootstrap.Offcanvas(drawerEl);
+                        bsDrawer.show();
+                    } else {
+                        $("#courseFolderSyncDrawer").addClass("show").css("visibility", "visible");
+                    }
+
+                    fetchCourseFolderSyncDetails(courseId);
+                });
+
+                function fetchCourseFolderSyncDetails(courseId) {
+                    $.ajax({
+                        url: urls.getCourseFolderSyncDetails,
+                        type: "GET",
+                        data: { courseId: courseId }
+                    })
+                    .done(function (res) {
+                        if (!res || !res.success) {
+                            alert(res?.errorMessage || "Could not load folder sync details.");
+                            return;
+                        }
+                        renderCourseFolderDrawer(res);
+                    })
+                    .fail(function () {
+                        alert("Network error fetching folder sync details.");
+                    });
+                }
+
+                function renderCourseFolderDrawer(data) {
+                    $("#drawerLoadingState").addClass("d-none");
+                    $("#drawerDetailsContent").removeClass("d-none");
+
+                    activeDrawerFolderUrl = data.folderUrl || "";
+                    activeDrawerFolderPath = data.folderPath || "";
+
+                    // Badge
+                    const badge = $("#drawerStatusBadge");
+                    badge.removeClass("bg-success bg-warning bg-danger bg-secondary text-dark");
+                    if (data.status === "Completed") {
+                        badge.addClass("bg-success").html('<i class="fa-solid fa-check me-1"></i>Provisioned &amp; Synced');
+                    } else if (data.status === "Pending") {
+                        badge.addClass("bg-warning text-dark").html('<i class="fa-solid fa-spinner fa-spin me-1"></i>Queued for Provisioning');
+                    } else if (data.status === "Failed") {
+                        badge.addClass("bg-danger").html('<i class="fa-solid fa-triangle-exclamation me-1"></i>Failed');
+                    } else {
+                        badge.addClass("bg-secondary").html('Not Provisioned');
+                    }
+
+                    $("#drawerStorageProvider").text(data.storageProvider === "GoogleDrive" ? "Google Drive (Folders & Shared Drives)" : "Local Storage / UNC Shared Drive");
+                    $("#drawerLastSyncTime").text(data.lastSyncTime ? new Date(data.lastSyncTime).toLocaleString() : "Never");
+
+                    $("#drawerFolderPath").text(data.folderPath || "(Folder not created yet)");
+
+                    if (data.folderUrl) {
+                        $("#btnOpenFolderLink").attr("href", data.folderUrl).removeClass("disabled");
+                    } else {
+                        $("#btnOpenFolderLink").attr("href", "#").addClass("disabled");
+                    }
+
+                    // Error Alert
+                    if (data.status === "Failed" && data.errorMessage) {
+                        $("#drawerErrorMessage").text(data.errorMessage);
+                        $("#drawerRetryCount").text(data.retryCount);
+                        $("#drawerErrorAlert").removeClass("d-none");
+                    } else {
+                        $("#drawerErrorAlert").addClass("d-none");
+                    }
+
+                    // Subfolders List
+                    const list = $("#drawerSubfolderList");
+                    list.empty();
+
+                    if (data.subfolders && data.subfolders.length) {
+                        data.subfolders.forEach(function (sub) {
+                            let icon = "fa-folder";
+                            if (sub.subfolderType === "Videos") icon = "fa-video text-primary";
+                            else if (sub.subfolderType === "PDFs") icon = "fa-file-pdf text-danger";
+                            else if (sub.subfolderType === "Assignments") icon = "fa-file-lines text-warning";
+                            else if (sub.subfolderType === "Forum_Discussion") icon = "fa-comments text-success";
+
+                            const item = `
+                                <li class="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
+                                    <div>
+                                        <i class="fa-solid ${icon} me-2"></i>
+                                        <strong>${escapeHtml(sub.subfolderType)}/</strong>
+                                        <div class="text-muted" style="font-size:11px;">${escapeHtml(sub.label)}</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge ${sub.status === 'Ready' ? 'bg-success' : 'bg-secondary'} mb-1">${escapeHtml(sub.status)}</span>
+                                        <div class="text-muted" style="font-size:11px;">${sub.syncedFilesCount} file(s)</div>
+                                    </div>
+                                </li>
+                            `;
+                            list.append(item);
+                        });
+                    }
+
+                    // Update dot in background
+                    const dot = $(`.course-sync-dot-${data.courseId}`);
+                    if (dot.length) {
+                        const color = data.status === "Completed" ? "#10b981" : (data.status === "Pending" ? "#f59e0b" : (data.status === "Failed" ? "#ef4444" : "#94a3b8"));
+                        dot.css("background-color", color);
+                    }
+                }
+
+                $(document).on("click", "#btnCopyFolderPath", function () {
+                    if (!activeDrawerFolderPath) {
+                        alert("No folder path to copy.");
+                        return;
+                    }
+                    navigator.clipboard.writeText(activeDrawerFolderPath).then(function () {
+                        const btn = $("#btnCopyFolderPath");
+                        btn.html('<i class="fa-solid fa-check text-success me-1"></i>Copied!');
+                        setTimeout(() => btn.html('<i class="fa-regular fa-copy me-1"></i>Copy Path'), 2000);
+                    });
+                });
+
+                $(document).on("click", "#btnDrawerSyncCourseNow", function () {
+                    if (!activeDrawerCourseId) return;
+                    const btn = $(this);
+                    btn.prop("disabled", true).html('<i class="fa-solid fa-spinner fa-spin me-1"></i>Provisioning...');
+
+                    $.ajax({
+                        url: urls.provisionCourseNow,
+                        type: "POST",
+                        data: {
+                            __RequestVerificationToken: getAntiForgeryToken(),
+                            courseId: activeDrawerCourseId
+                        }
+                    })
+                    .done(function (res) {
+                        if (res && res.success) {
+                            renderCourseFolderDrawer(res);
+                        } else {
+                            alert(res?.errorMessage || "Provisioning request failed.");
+                        }
+                    })
+                    .fail(function () {
+                        alert("Error provisioning course folder.");
+                    })
+                    .always(function () {
+                        btn.prop("disabled", false).html('<i class="fa-solid fa-rotate me-1"></i>Provision / Sync Now');
+                    });
+                });
+
+                // Auto poll program course sync statuses on tab switch or tree render
+                setTimeout(loadProgramCoursesSyncStatus, 800);
+                $(document).on("click", ".cb-program-tab", function () {
+                    setTimeout(loadProgramCoursesSyncStatus, 600);
+                });
 
                 // ========================================================
                 // COURSE CATALOG: FILTERING & SEARCH

@@ -20,13 +20,16 @@ namespace TMS.Web.Controllers
     {
         private readonly ApplicationDBContext _db;
         private readonly ZoomSettings _zoomSettings;
+        private readonly TMS.Utilities.IZoomService _zoomService;
 
         public VirtualClassroomController(
             ApplicationDBContext db,
-            IOptions<ZoomSettings> zoomSettings)
+            IOptions<ZoomSettings> zoomSettings,
+            TMS.Utilities.IZoomService? zoomService = null)
         {
             _db = db;
             _zoomSettings = zoomSettings.Value;
+            _zoomService = zoomService ?? new TMS.Utilities.ZoomService(zoomSettings);
         }
 
         public async Task<IActionResult> Index()
@@ -174,8 +177,7 @@ namespace TMS.Web.Controllers
                     {
                         if (!string.IsNullOrWhiteSpace(_zoomSettings?.ClientId) && !string.IsNullOrWhiteSpace(_zoomSettings?.ClientSecret))
                         {
-                            var zoomService = new ZoomService(_zoomSettings);
-                            var zoomResult = await zoomService.CreateZoomMeetingAsync(
+                            var zoomResult = await _zoomService.CreateZoomMeetingAsync(
                                 model.MeetingTitle ?? "Virtual Class",
                                 model.ScheduledAt,
                                 model.Duration > 0 ? model.Duration : 60

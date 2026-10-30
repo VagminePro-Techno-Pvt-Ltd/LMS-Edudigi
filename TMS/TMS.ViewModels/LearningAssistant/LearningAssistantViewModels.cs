@@ -29,7 +29,11 @@ namespace TMS.ViewModels.LearningAssistant
         EnrolledCourses,
         Assignments,
         Schedule,
-        Profile
+        Profile,
+        Deadlines,
+        CourseDetails,
+        LearningProcess,
+        SupportFaq
     }
 
     public class LearningAssistantResponse
@@ -174,5 +178,60 @@ namespace TMS.ViewModels.LearningAssistant
         public string? ProgramName { get; set; }
         public int? OverallProgressPercent { get; set; }
         public string SummaryText { get; set; } = string.Empty;
+    }
+
+    public class StudentDeadlinesSummaryDto
+    {
+        public int StudentId { get; set; }
+        public List<StudentDeadlineItemDto> PendingDeadlines { get; set; } = new();
+        public List<StudentDeadlineItemDto> CompletedDeadlines { get; set; } = new();
+        public int OverdueCount => PendingDeadlines.FindAll(d => d.IsOverdue).Count;
+        public int DueSoonCount => PendingDeadlines.FindAll(d => !d.IsOverdue && d.DueDate <= DateTime.Now.AddDays(7)).Count;
+        public bool HasRecords => PendingDeadlines.Count > 0 || CompletedDeadlines.Count > 0;
+        public string SummaryText { get; set; } = string.Empty;
+    }
+
+    public class StudentDeadlineItemDto
+    {
+        public string ItemType { get; set; } = "Assignment"; // Assignment, Internal Assessment, Quiz, Examination
+        public int ItemId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string CourseName { get; set; } = string.Empty;
+        public string CourseCode { get; set; } = string.Empty;
+        public DateTime DueDate { get; set; }
+        public decimal MaxMarks { get; set; }
+        public bool AllowLateSubmission { get; set; }
+        public string Status { get; set; } = "Pending"; // Pending, Submitted, Graded
+        public bool IsOverdue => DueDate < DateTime.Now && Status == "Pending";
+        public string ActionUrl { get; set; } = string.Empty;
+    }
+
+    public class StudentCourseDetailSummaryDto
+    {
+        public int CourseId { get; set; }
+        public string CourseCode { get; set; } = string.Empty;
+        public string CourseName { get; set; } = string.Empty;
+        public string? CategoryName { get; set; }
+        public int? SemesterId { get; set; }
+        public int Credits { get; set; }
+        public int DurationMonths { get; set; }
+        public List<string> FacultyNames { get; set; } = new();
+        public List<string> UnitTitles { get; set; } = new();
+        public int VideoCount { get; set; }
+        public int DocumentCount { get; set; }
+        public int QuizCount { get; set; }
+        public int? StudentProgressPercent { get; set; }
+        public bool IsEnrolled { get; set; }
+        public string HubUrl => $"/StudentCourseContent/CourseDetails?courseId={CourseId}";
+    }
+
+    public class SupportFaqItemDto
+    {
+        public string Topic { get; set; } = string.Empty;
+        public string Question { get; set; } = string.Empty;
+        public string AnswerMarkdown { get; set; } = string.Empty;
+        public string? ActionUrl { get; set; }
+        public string? ActionLabel { get; set; }
+        public string? Icon { get; set; }
     }
 }

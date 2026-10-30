@@ -23,13 +23,20 @@ public class InternalAssessmentController : BaseController
     private readonly IWebHostEnvironment environment;
     private readonly IAiEvaluationService aiService;
     private readonly IAutomatedResultService _resultService;
+    private readonly TMS.Web.Services.Email.IEmailOutboxService _outboxService;
     private static readonly string[] Types = { "Assignment", "Written", "Practical", "Project", "Presentation", "Viva", "MCQ" };
-    public InternalAssessmentController(ApplicationDBContext db, IWebHostEnvironment environment, IAiEvaluationService aiService, IAutomatedResultService resultService)
+    public InternalAssessmentController(
+        ApplicationDBContext db, 
+        IWebHostEnvironment environment, 
+        IAiEvaluationService aiService, 
+        IAutomatedResultService resultService,
+        TMS.Web.Services.Email.IEmailOutboxService outboxService)
     { 
         this.db = db; 
         this.environment = environment; 
         this.aiService = aiService; 
         this._resultService = resultService;
+        this._outboxService = outboxService;
     }
 
     private IActionResult IaNotice(string action, string message, string kind = "warning", object? route = null)
@@ -226,6 +233,16 @@ public class InternalAssessmentController : BaseController
             a.ResultApprovedOn = null;
         }
         await db.SaveChangesAsync();
+
+        if (publish)
+        {
+            await QueueIaPublicationAndRemindersAsync(a);
+        }
+        else
+        {
+            await _outboxService.CancelScheduledJobsAsync($"remind-ia-*-{id}-*");
+        }
+
         TempData["IA_ModalMessage"] = publish ? "Assessment published successfully." : "Assessment unpublished; results are hidden.";
         TempData["IA_ModalKind"] = "success";
         return RedirectToAction(nameof(FacultyDashboard));
@@ -248,7 +265,6 @@ public class InternalAssessmentController : BaseController
         a.ResultApprovalRequested = false;
         a.ResultApproved = false;
         a.ResultApprovedBy = publish ? GetUserId() : null;
-        a.ResultApprovedOn = publish ? DateTime.UtcNow : null;
         await db.SaveChangesAsync();
 
         // Sync with ProcessedAssessmentResults table
@@ -257,6 +273,11 @@ public class InternalAssessmentController : BaseController
             await _resultService.PublishAssessmentResultsAsync(id, GetUserId(), publish);
         }
         catch { /* Processed results may not have been calculated yet; preserve standard flow */ }
+
+        if (publish)
+        {
+            await QueueIaResultsPublishedAsync(a);
+        }
 
         return IaNotice(nameof(Submissions), publish ? "Results published. Students can now view their marks." : "Results hidden from students.", "success", new { id });
     }
@@ -596,9 +617,10 @@ public class InternalAssessmentController : BaseController
 
             db.InternalAssessmentSubmissions.Add(new InternalAssessmentSubmission { AssessmentId=id, StudentId=GetUserId(), AnswerText=answerText, FilePath=fileName, SubmittedOn=DateTime.UtcNow, IsLate=DateTime.Now>a.DueDate });
             await db.SaveChangesAsync();
-            if (temporaryPath != null && finalPath != null)
-                System.IO.File.Move(temporaryPath, finalPath);
             await transaction.CommitAsync();
+
+            await QueueIaSubmissionReceiptAsync(a, GetUserId());
+
             TempData["IA_Message"]="Assessment submitted successfully.";
             return RedirectToAction(nameof(StudentDashboard));
         }
@@ -985,6 +1007,9 @@ public class InternalAssessmentController : BaseController
             }
 
             await transaction.CommitAsync();
+
+            await QueueIaSubmissionReceiptAsync(a, GetUserId());
+
             TempData["IA_Message"] = "Assessment submitted successfully.";
             return RedirectToAction(nameof(StudentDashboard));
         }
@@ -1348,4 +1373,221 @@ public class InternalAssessmentController : BaseController
         });
     }
 
+    #region Private Email Queue Helpers
+
+    private static string FormatIaAcademicDate(DateTime utcDateTime)
+    {
+        try
+        {
+            var istZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Kolkata");
+            var istTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc), istZone);
+            return istTime.ToString("dd MMM yyyy, hh:mm tt") + " IST";
+        }
+        catch
+        {
+            return utcDateTime.ToString("dd MMM yyyy, hh:mm tt") + " UTC";
+        }
+    }
+
+    private async Task QueueIaPublicationAndRemindersAsync(InternalAssessment a)
+    {
+        try
+        {
+            var course = await db.CourseMasters.FindAsync(a.CourseId);
+            string courseName = course?.Name ?? "Course";
+
+            var enrollments = await db.CourseEnrollments
+                .Where(e => e.CourseId == a.CourseId && e.IsActive && (e.Status == 0 || e.Status == 1))
+                .Select(e => e.StudentId)
+                .Distinct()
+                .ToListAsync();
+
+            if (!enrollments.Any()) return;
+
+            var students = await db.UserMasters
+                .Where(u => enrollments.Contains(u.Id) && u.IsActive && !string.IsNullOrEmpty(u.Email))
+                .ToListAsync();
+
+            var batch = new List<TMS.ViewModels.Email.EmailEnqueueRequest>();
+            var nowUtc = DateTime.UtcNow;
+            string scheduleDisplay = FormatIaAcademicDate(a.DueDate);
+
+            foreach (var s in students)
+            {
+                // Publication Notice
+                batch.Add(new TMS.ViewModels.Email.EmailEnqueueRequest
+                {
+                    RecipientEmail = s.Email.Trim(),
+                    RecipientName = s.Name,
+                    Subject = $"Assessment Notice: {a.Title} ({courseName})",
+                    TemplateName = "ExamPublication",
+                    TemplateData = new Dictionary<string, string>
+                    {
+                        ["RecipientName"] = s.Name ?? "Student",
+                        ["ExamTitle"] = a.Title,
+                        ["CourseName"] = courseName,
+                        ["ExamDate"] = scheduleDisplay,
+                        ["DurationMinutes"] = "Take-home / Term Deadline",
+                        ["RequiresSeb"] = "false"
+                    },
+                    EventType = "AssessmentPublication",
+                    IdempotencyKey = $"ia-pub-{a.Id}-{s.Id}"
+                });
+
+                // 24h Reminder
+                var remind24 = a.DueDate.AddHours(-24);
+                if (remind24 > nowUtc)
+                {
+                    batch.Add(new TMS.ViewModels.Email.EmailEnqueueRequest
+                    {
+                        RecipientEmail = s.Email.Trim(),
+                        RecipientName = s.Name,
+                        Subject = $"Assessment Reminder: {a.Title} deadline in 24 hours",
+                        TemplateName = "ExamReminder",
+                        TemplateData = new Dictionary<string, string>
+                        {
+                            ["RecipientName"] = s.Name ?? "Student",
+                            ["ExamTitle"] = a.Title,
+                            ["CourseName"] = courseName,
+                            ["StartTime"] = scheduleDisplay,
+                            ["HoursLeft"] = "24",
+                            ["RequiresSeb"] = "false"
+                        },
+                        ScheduledForUtc = remind24,
+                        EventType = "AssessmentReminder24h",
+                        IdempotencyKey = $"remind-ia-24h-{a.Id}-{s.Id}"
+                    });
+                }
+
+                // 2h Reminder
+                var remind2 = a.DueDate.AddHours(-2);
+                if (remind2 > nowUtc)
+                {
+                    batch.Add(new TMS.ViewModels.Email.EmailEnqueueRequest
+                    {
+                        RecipientEmail = s.Email.Trim(),
+                        RecipientName = s.Name,
+                        Subject = $"Assessment Reminder: {a.Title} deadline in 2 hours",
+                        TemplateName = "ExamReminder",
+                        TemplateData = new Dictionary<string, string>
+                        {
+                            ["RecipientName"] = s.Name ?? "Student",
+                            ["ExamTitle"] = a.Title,
+                            ["CourseName"] = courseName,
+                            ["StartTime"] = scheduleDisplay,
+                            ["HoursLeft"] = "2",
+                            ["RequiresSeb"] = "false"
+                        },
+                        ScheduledForUtc = remind2,
+                        EventType = "AssessmentReminder2h",
+                        IdempotencyKey = $"remind-ia-2h-{a.Id}-{s.Id}"
+                    });
+                }
+            }
+
+            if (batch.Any())
+            {
+                await _outboxService.EnqueueBatchAsync(batch);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[InternalAssessmentController] Failed to queue publication emails: {ex.Message}");
+        }
+    }
+
+    private async Task QueueIaSubmissionReceiptAsync(InternalAssessment a, int studentId)
+    {
+        try
+        {
+            await _outboxService.CancelScheduledJobsAsync($"remind-ia-*-{a.Id}-{studentId}");
+
+            var student = await db.UserMasters.FindAsync(studentId);
+            if (student == null || string.IsNullOrWhiteSpace(student.Email)) return;
+
+            var course = await db.CourseMasters.FindAsync(a.CourseId);
+            string courseName = course?.Name ?? "Course";
+
+            await _outboxService.EnqueueAsync(new TMS.ViewModels.Email.EmailEnqueueRequest
+            {
+                RecipientEmail = student.Email.Trim(),
+                RecipientName = student.Name,
+                Subject = $"Assessment Submission Receipt: {a.Title} ({courseName})",
+                TemplateName = "ExamSubmissionReceipt",
+                TemplateData = new Dictionary<string, string>
+                {
+                    ["RecipientName"] = student.Name ?? "Student",
+                    ["ExamTitle"] = a.Title,
+                    ["CourseName"] = courseName,
+                    ["SubmittedAt"] = DateTime.UtcNow.ToString("dd MMM yyyy, hh:mm tt") + " UTC",
+                    ["AttemptRef"] = $"IA-SUB-{a.Id}-{studentId}"
+                },
+                EventType = "AssessmentSubmissionReceipt",
+                IdempotencyKey = $"ia-sub-{a.Id}-{studentId}"
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[InternalAssessmentController] Failed to queue submission receipt: {ex.Message}");
+        }
+    }
+
+    private async Task QueueIaResultsPublishedAsync(InternalAssessment a)
+    {
+        try
+        {
+            var course = await db.CourseMasters.FindAsync(a.CourseId);
+            string courseName = course?.Name ?? "Course";
+
+            var submissions = await db.InternalAssessmentSubmissions
+                .Where(s => s.AssessmentId == a.Id)
+                .ToListAsync();
+
+            if (!submissions.Any()) return;
+
+            var studentIds = submissions.Select(s => s.StudentId).Distinct().ToList();
+            var studentsMap = await db.UserMasters
+                .Where(u => studentIds.Contains(u.Id) && u.IsActive && !string.IsNullOrEmpty(u.Email))
+                .ToDictionaryAsync(u => u.Id);
+
+            decimal passingMarks = a.MaxMarks * 0.40m; // 40% standard passing cutoff
+
+            var batch = new List<TMS.ViewModels.Email.EmailEnqueueRequest>();
+            foreach (var sub in submissions)
+            {
+                if (!studentsMap.TryGetValue(sub.StudentId, out var student)) continue;
+
+                batch.Add(new TMS.ViewModels.Email.EmailEnqueueRequest
+                {
+                    RecipientEmail = student.Email.Trim(),
+                    RecipientName = student.Name,
+                    Subject = $"Official Result Published: {a.Title} ({courseName})",
+                    TemplateName = "ResultsPublished",
+                    TemplateData = new Dictionary<string, string>
+                    {
+                        ["RecipientName"] = student.Name ?? "Student",
+                        ["AssessmentTitle"] = a.Title,
+                        ["CourseName"] = courseName,
+                        ["MarksObtained"] = sub.Marks?.ToString("0.##") ?? "Evaluated",
+                        ["MaxMarks"] = a.MaxMarks.ToString(),
+                        ["Grade"] = (sub.Marks ?? 0) >= passingMarks ? "Pass" : "Needs Improvement"
+                    },
+                    EventType = "ResultsPublished",
+                    IdempotencyKey = $"result-ia-{a.Id}-{sub.StudentId}"
+                });
+            }
+
+            if (batch.Any())
+            {
+                await _outboxService.EnqueueBatchAsync(batch);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[InternalAssessmentController] Failed to queue IA results emails: {ex.Message}");
+        }
+    }
+
+    #endregion
 }
+

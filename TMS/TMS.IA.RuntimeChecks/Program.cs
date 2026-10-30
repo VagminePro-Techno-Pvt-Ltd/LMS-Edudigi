@@ -16,9 +16,689 @@ using TMS.ViewModels.Academics;
 using TMS.ViewModels.LearningAssistant;
 using TMS.Models.LearningAssistant;
 using Microsoft.EntityFrameworkCore;
+using TMS.IA.RuntimeChecks;
 using TMS.Web.Controllers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+
+if (args.Length > 0 && (args[0] == "integration-tests" || args[0] == "foundation-tests"))
+{
+    var failCount = await IntegrationFoundationTests.RunAllTestsAsync();
+    Environment.Exit(failCount > 0 ? 1 : 0);
+}
+
+if (args.Length > 0 && args[0] == "email-tests")
+{
+    var failCount = await EmailWorkflowAutomatedTests.RunAllTestsAsync();
+    Environment.Exit(failCount > 0 ? 1 : 0);
+}
+
+if (args.Length > 0 && args[0] == "test-live-email")
+{
+    var webDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../TMS.Web"));
+    if (!Directory.Exists(webDir))
+    {
+        webDir = Path.GetFullPath("TMS/TMS.Web");
+    }
+    var config = new ConfigurationBuilder()
+        .SetBasePath(webDir)
+        .AddJsonFile("appsettings.json", optional: false)
+        .Build();
+
+    var settings = config.GetSection("EmailSettings").Get<TMS.ViewModels.Email.EmailSettings>() ?? new();
+    Console.WriteLine($"Connecting to {settings.Host}:{settings.Port} with {settings.UserName}...");
+
+    using var client = new MailKit.Net.Smtp.SmtpClient();
+    client.CheckCertificateRevocation = false;
+    try
+    {
+        await client.ConnectAsync(settings.Host, settings.Port, MailKit.Security.SecureSocketOptions.StartTls);
+        Console.WriteLine("Connected to SMTP server successfully.");
+        await client.AuthenticateAsync(settings.UserName, settings.Password);
+        Console.WriteLine("Authentication successful!");
+
+        var targetEmail = args.Length > 1 && !string.IsNullOrWhiteSpace(args[1]) ? args[1].Trim() : settings.UserName ?? "sandeepshivharedata@gmail.com";
+        var recipientName = args.Length > 2 && !string.IsNullOrWhiteSpace(args[2]) ? args[2].Trim() : (targetEmail.Contains("@") ? targetEmail.Split('@')[0] : "Mudit");
+
+        var templateService = new TMS.Web.Services.Email.EmailTemplateService(Microsoft.Extensions.Options.Options.Create(settings));
+        var rendered = templateService.Render("AccountWelcome", new Dictionary<string, string>
+        {
+            { "RecipientName", recipientName },
+            { "Role", "Platform Member" },
+            { "Email", targetEmail }
+        });
+
+        var msg = new MimeKit.MimeMessage();
+        msg.From.Add(new MimeKit.MailboxAddress(settings.SenderDisplayName, settings.SenderEmail));
+        msg.To.Add(new MimeKit.MailboxAddress(recipientName, targetEmail));
+        msg.Subject = rendered.Subject;
+        msg.Body = new MimeKit.TextPart("html")
+        {
+            Text = rendered.HtmlBody
+        };
+
+        Console.WriteLine($"Sending email to {recipientName} <{targetEmail}>...");
+        var response = await client.SendAsync(msg);
+        Console.WriteLine($"Email sent successfully to {targetEmail}! SMTP Response: {response}");
+        await client.DisconnectAsync(true);
+        Environment.Exit(0);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"FAILED to send live test email: {ex.Message}");
+        if (ex.InnerException != null)
+        {
+            Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
+        }
+        Environment.Exit(1);
+    }
+}
+
+if (args.Length > 0 && args[0] == "auth-google")
+{
+    Console.WriteLine("==========================================================");
+    Console.WriteLine("🔑 GOOGLE DRIVE OAUTH2 AUTHORIZATION FOR EDUDIGICLASS LMS");
+    Console.WriteLine("==========================================================");
+
+    var secrets = new Google.Apis.Auth.OAuth2.ClientSecrets
+    {
+        ClientId = Environment.GetEnvironmentVariable("GOOGLE_DRIVE_CLIENT_ID") ?? "303594262228-ftpl7ru5p5m45r8st0v4ohpngkjola89.apps.googleusercontent.com",
+        ClientSecret = Environment.GetEnvironmentVariable("GOOGLE_DRIVE_CLIENT_SECRET") ?? "placeholder-secret"
+    };
+
+    var webTokenFolder = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../TMS.Web/google_oauth_tokens"));
+    Directory.CreateDirectory(webTokenFolder);
+    var dataStore = new Google.Apis.Util.Store.FileDataStore(webTokenFolder, true);
+
+    Console.WriteLine("Opening browser for Google Account login & authorization...");
+    var credential = await Google.Apis.Auth.OAuth2.GoogleWebAuthorizationBroker.AuthorizeAsync(
+        secrets,
+        new[] { Google.Apis.Drive.v3.DriveService.Scope.Drive, Google.Apis.Drive.v3.DriveService.Scope.DriveFile },
+        "user",
+        CancellationToken.None,
+        dataStore
+    );
+
+    Console.WriteLine($"✅ Authorized successfully! Tokens saved to: {webTokenFolder}");
+
+    var service = new Google.Apis.Drive.v3.DriveService(new Google.Apis.Services.BaseClientService.Initializer
+    {
+        HttpClientInitializer = credential,
+        ApplicationName = "EduDigiClass LMS"
+    });
+
+    var aboutReq = service.About.Get();
+    aboutReq.Fields = "user";
+    var about = await aboutReq.ExecuteAsync();
+    Console.WriteLine($"✅ Connected to Google Drive of: {about.User?.DisplayName} ({about.User?.EmailAddress})");
+
+    var listReq = service.Files.List();
+    listReq.Q = "mimeType = 'application/vnd.google-apps.folder' and name = 'EduDigiClass_LMS_Content' and trashed = false";
+    listReq.Fields = "files(id, name)";
+    var listRes = await listReq.ExecuteAsync();
+
+    string rootId;
+    if (listRes.Files != null && listRes.Files.Count > 0)
+    {
+        rootId = listRes.Files[0].Id;
+        Console.WriteLine($"📁 Root folder 'EduDigiClass_LMS_Content' already exists on your Google Drive (Folder ID: {rootId})");
+    }
+    else
+    {
+        var newFile = new Google.Apis.Drive.v3.Data.File
+        {
+            Name = "EduDigiClass_LMS_Content",
+            MimeType = "application/vnd.google-apps.folder"
+        };
+        var createReq = service.Files.Create(newFile);
+        createReq.Fields = "id, name";
+        var created = await createReq.ExecuteAsync();
+        rootId = created.Id;
+        Console.WriteLine($"🎉 Successfully created root folder 'EduDigiClass_LMS_Content' on your Google Drive! (Folder ID: {rootId})");
+    }
+
+    Console.WriteLine("==========================================================");
+    Console.WriteLine("🚀 GOOGLE DRIVE IS NOW FULLY CONNECTED TO LMS!");
+    Console.WriteLine("==========================================================");
+    return 0;
+}
+
+if (args.Length > 0 && args[0] == "test-live-sync")
+{
+    Console.WriteLine("==========================================================");
+    Console.WriteLine("🚀 TESTING LIVE GOOGLE DRIVE PROVISIONING ON USER DRIVE");
+    Console.WriteLine("==========================================================");
+
+    var secrets = new Google.Apis.Auth.OAuth2.ClientSecrets
+    {
+        ClientId = Environment.GetEnvironmentVariable("GOOGLE_DRIVE_CLIENT_ID") ?? "303594262228-ftpl7ru5p5m45r8st0v4ohpngkjola89.apps.googleusercontent.com",
+        ClientSecret = Environment.GetEnvironmentVariable("GOOGLE_DRIVE_CLIENT_SECRET") ?? "placeholder-secret"
+    };
+
+    var webTokenFolder = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../TMS.Web/google_oauth_tokens"));
+    var dataStore = new Google.Apis.Util.Store.FileDataStore(webTokenFolder, true);
+
+    var credential = await Google.Apis.Auth.OAuth2.GoogleWebAuthorizationBroker.AuthorizeAsync(
+        secrets,
+        new[] { Google.Apis.Drive.v3.DriveService.Scope.Drive, Google.Apis.Drive.v3.DriveService.Scope.DriveFile },
+        "user",
+        CancellationToken.None,
+        dataStore
+    );
+
+    var service = new Google.Apis.Drive.v3.DriveService(new Google.Apis.Services.BaseClientService.Initializer
+    {
+        HttpClientInitializer = credential,
+        ApplicationName = "EduDigiClass LMS"
+    });
+
+    var rootFolderId = "1AzKnULTWKDYkOKdehUyp8OlWCg08bOPj";
+
+    // 1. Create Program Folder "BBA" under root
+    var progFolder = new Google.Apis.Drive.v3.Data.File
+    {
+        Name = "BBA",
+        MimeType = "application/vnd.google-apps.folder",
+        Parents = new List<string> { rootFolderId }
+    };
+    var progReq = service.Files.Create(progFolder);
+    progReq.Fields = "id, name, webViewLink";
+    var prog = await progReq.ExecuteAsync();
+    Console.WriteLine($"✅ Created Program: BBA (ID: {prog.Id})");
+
+    // 2. Create Semester Folder "Semester_1" under BBA
+    var semFolder = new Google.Apis.Drive.v3.Data.File
+    {
+        Name = "Semester_1",
+        MimeType = "application/vnd.google-apps.folder",
+        Parents = new List<string> { prog.Id }
+    };
+    var semReq = service.Files.Create(semFolder);
+    semReq.Fields = "id, name, webViewLink";
+    var sem = await semReq.ExecuteAsync();
+    Console.WriteLine($"✅ Created Semester: Semester_1 (ID: {sem.Id})");
+
+    // 3. Create Course Folder "BBA101_Management_Principles" under Semester_1
+    var courseFolder = new Google.Apis.Drive.v3.Data.File
+    {
+        Name = "BBA101_Management_Principles",
+        MimeType = "application/vnd.google-apps.folder",
+        Parents = new List<string> { sem.Id }
+    };
+    var courseReq = service.Files.Create(courseFolder);
+    courseReq.Fields = "id, name, webViewLink";
+    var course = await courseReq.ExecuteAsync();
+    Console.WriteLine($"✅ Created Course: BBA101_Management_Principles (ID: {course.Id})");
+
+    // 4. Create standard 4 subfolders
+    var subfolders = new[] { "Videos", "PDFs", "Assignments", "Forum_Discussion" };
+    foreach (var sub in subfolders)
+    {
+        var sf = new Google.Apis.Drive.v3.Data.File
+        {
+            Name = sub,
+            MimeType = "application/vnd.google-apps.folder",
+            Parents = new List<string> { course.Id }
+        };
+        var sfReq = service.Files.Create(sf);
+        sfReq.Fields = "id, name";
+        var res = await sfReq.ExecuteAsync();
+        Console.WriteLine($"   📁 Created Subfolder: {sub} (ID: {res.Id})");
+    }
+
+    Console.WriteLine("==========================================================");
+    Console.WriteLine($"🎉 LIVE PROVISIONING VERIFIED! Check your Google Drive:");
+    Console.WriteLine($"👉 https://drive.google.com/drive/folders/{rootFolderId}");
+    Console.WriteLine("==========================================================");
+    return 0;
+}
+
+if (args.Length > 0 && args[0] == "sync-all-to-drive")
+{
+    Console.WriteLine("==========================================================");
+    Console.WriteLine("🚀 SYNCING ALL LMS PROGRAMS, SEMESTERS & COURSES TO GOOGLE DRIVE");
+    Console.WriteLine("==========================================================");
+
+    var appSettingsPath = "/Users/sandeepkumar/Desktop/LMS/TMS/TMS.Web/appsettings.json";
+    if (!File.Exists(appSettingsPath))
+    {
+        appSettingsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../TMS.Web/appsettings.json"));
+    }
+    var configRoot = new ConfigurationBuilder().AddJsonFile(appSettingsPath).Build();
+    var connStr = configRoot.GetConnectionString("DefaultConnection");
+
+    var options = new DbContextOptionsBuilder<ApplicationDBContext>()
+        .UseSqlServer(connStr)
+        .Options;
+
+    using var db = new ApplicationDBContext(options);
+
+    var programs = await db.CourseCategoryMasters.Where(p => p.IsActive).ToListAsync();
+    var courses = await db.CourseMasters.Include(c => c.CourseCategory).Include(c => c.Semester).Where(c => c.IsActive).ToListAsync();
+    var semesters = await db.SemesterMasters.Where(s => s.IsActive).ToListAsync();
+
+    Console.WriteLine($"Found {programs.Count} active Programs, {semesters.Count} Semesters, {courses.Count} Courses in LMS Database.");
+
+    var secrets = new Google.Apis.Auth.OAuth2.ClientSecrets
+    {
+        ClientId = Environment.GetEnvironmentVariable("GOOGLE_DRIVE_CLIENT_ID") ?? "303594262228-ftpl7ru5p5m45r8st0v4ohpngkjola89.apps.googleusercontent.com",
+        ClientSecret = Environment.GetEnvironmentVariable("GOOGLE_DRIVE_CLIENT_SECRET") ?? "placeholder-secret"
+    };
+
+    var webTokenFolder = "/Users/sandeepkumar/Desktop/LMS/TMS/TMS.Web/google_oauth_tokens";
+    if (!Directory.Exists(webTokenFolder))
+    {
+        webTokenFolder = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../TMS.Web/google_oauth_tokens"));
+    }
+    var dataStore = new Google.Apis.Util.Store.FileDataStore(webTokenFolder, true);
+    var credential = await Google.Apis.Auth.OAuth2.GoogleWebAuthorizationBroker.AuthorizeAsync(
+        secrets,
+        new[] { Google.Apis.Drive.v3.DriveService.Scope.Drive, Google.Apis.Drive.v3.DriveService.Scope.DriveFile },
+        "user",
+        CancellationToken.None,
+        dataStore
+    );
+
+    var service = new Google.Apis.Drive.v3.DriveService(new Google.Apis.Services.BaseClientService.Initializer
+    {
+        HttpClientInitializer = credential,
+        ApplicationName = "EduDigiClass LMS"
+    });
+
+    var rootFolderId = "1AzKnULTWKDYkOKdehUyp8OlWCg08bOPj";
+
+    async Task<string> FindOrCreateFolder(string name, string parentId)
+    {
+        var clean = TMS.Web.Services.ContentSync.LocalContentStorageProvider.SanitizeFolderName(name);
+        var listReq = service.Files.List();
+        listReq.Q = $"mimeType = 'application/vnd.google-apps.folder' and name = '{clean.Replace("'", "\\'")}' and '{parentId}' in parents and trashed = false";
+        listReq.Fields = "files(id, name)";
+        var listRes = await listReq.ExecuteAsync();
+        if (listRes.Files != null && listRes.Files.Count > 0)
+        {
+            return listRes.Files[0].Id;
+        }
+
+        var newF = new Google.Apis.Drive.v3.Data.File
+        {
+            Name = clean,
+            MimeType = "application/vnd.google-apps.folder",
+            Parents = new List<string> { parentId }
+        };
+        var createReq = service.Files.Create(newF);
+        createReq.Fields = "id, name";
+        var res = await createReq.ExecuteAsync();
+        return res.Id;
+    }
+
+    var progFolders = new Dictionary<int, string>();
+    var semFolders = new Dictionary<string, string>();
+
+    // 1. Provision all Programs
+    foreach (var prog in programs)
+    {
+        var pFolderId = await FindOrCreateFolder(prog.Name ?? $"Program_{prog.Id}", rootFolderId);
+        progFolders[prog.Id] = pFolderId;
+        Console.WriteLine($"🎓 [Program] {prog.Name} -> {pFolderId}");
+
+        var existingMap = await db.ContentFolderMappings.FirstOrDefaultAsync(m => m.EntityType == "Program" && m.EntityId == prog.Id && m.StorageProvider == "GoogleDrive");
+        if (existingMap == null)
+        {
+            db.ContentFolderMappings.Add(new TMS.Models.ContentSync.ContentFolderMapping
+            {
+                EntityType = "Program",
+                EntityId = prog.Id,
+                StorageProvider = "GoogleDrive",
+                ProviderFolderId = pFolderId,
+                ProviderParentFolderId = rootFolderId,
+                FolderName = prog.Name ?? $"Program_{prog.Id}",
+                Status = "Active",
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+        else
+        {
+            existingMap.ProviderFolderId = pFolderId;
+            existingMap.Status = "Active";
+            existingMap.UpdatedAt = DateTime.UtcNow;
+        }
+    }
+
+    await db.SaveChangesAsync();
+
+    // 2. Provision Semesters for each Program
+    foreach (var prog in programs)
+    {
+        var pFolderId = progFolders[prog.Id];
+        int semCount = prog.NoOfSemester ?? 6;
+        for (int i = 1; i <= semCount; i++)
+        {
+            string semName = $"Semester_{i}";
+            var semObj = semesters.FirstOrDefault(s => s.Name != null && (s.Name.Trim().Equals($"Semester {i}", StringComparison.OrdinalIgnoreCase) || s.Name.Trim().Equals(semName, StringComparison.OrdinalIgnoreCase)));
+            int semId = semObj?.Id ?? i;
+
+            var sFolderId = await FindOrCreateFolder(semName, pFolderId);
+            semFolders[$"{prog.Id}_{semId}"] = sFolderId;
+            Console.WriteLine($"   📅 [Semester] {prog.Name} / {semName} -> {sFolderId}");
+
+            var existingMap = await db.ContentFolderMappings.FirstOrDefaultAsync(m => m.EntityType == "Semester" && m.EntityId == semId && m.ParentEntityId == prog.Id && m.StorageProvider == "GoogleDrive");
+            if (existingMap == null)
+            {
+                db.ContentFolderMappings.Add(new TMS.Models.ContentSync.ContentFolderMapping
+                {
+                    EntityType = "Semester",
+                    EntityId = semId,
+                    ParentEntityId = prog.Id,
+                    StorageProvider = "GoogleDrive",
+                    ProviderFolderId = sFolderId,
+                    ProviderParentFolderId = pFolderId,
+                    FolderName = semName,
+                    Status = "Active",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+            else
+            {
+                existingMap.ProviderFolderId = sFolderId;
+                existingMap.Status = "Active";
+                existingMap.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+    }
+
+    await db.SaveChangesAsync();
+
+    // 3. Provision Courses and their 4 subfolders
+    var subfolderNames = new[] { "Videos", "PDFs", "Assignments", "Forum_Discussion" };
+    int courseCount = 0;
+
+    foreach (var c in courses)
+    {
+        if (c.CourseCategoryId <= 0) continue;
+        if (!progFolders.TryGetValue(c.CourseCategoryId, out var pFolderId))
+        {
+            pFolderId = await FindOrCreateFolder(c.CourseCategory?.Name ?? $"Program_{c.CourseCategoryId}", rootFolderId);
+            progFolders[c.CourseCategoryId] = pFolderId;
+        }
+
+        int semId = c.SemesterId ?? 1;
+        var semKey = $"{c.CourseCategoryId}_{semId}";
+        if (!semFolders.TryGetValue(semKey, out var sFolderId))
+        {
+            var semName = c.Semester?.Name ?? $"Semester_{semId}";
+            sFolderId = await FindOrCreateFolder(semName, pFolderId);
+            semFolders[semKey] = sFolderId;
+        }
+
+        var courseCode = !string.IsNullOrWhiteSpace(c.CourseCode) ? c.CourseCode.Trim() : $"COURSE{c.Id}";
+        var courseTitle = !string.IsNullOrWhiteSpace(c.Name) ? c.Name.Trim() : "Untitled";
+        var rawFolderName = $"{courseCode}_{courseTitle}";
+        var cleanFolderName = TMS.Web.Services.ContentSync.LocalContentStorageProvider.SanitizeFolderName(rawFolderName);
+
+        var cFolderId = await FindOrCreateFolder(cleanFolderName, sFolderId);
+        Console.WriteLine($"   📖 [Course] {cleanFolderName} -> {cFolderId}");
+
+        var courseMap = await db.ContentFolderMappings.FirstOrDefaultAsync(m => m.EntityType == "Course" && m.EntityId == c.Id && m.StorageProvider == "GoogleDrive");
+        if (courseMap == null)
+        {
+            db.ContentFolderMappings.Add(new TMS.Models.ContentSync.ContentFolderMapping
+            {
+                EntityType = "Course",
+                EntityId = c.Id,
+                ParentEntityId = semId,
+                StorageProvider = "GoogleDrive",
+                ProviderFolderId = cFolderId,
+                ProviderParentFolderId = sFolderId,
+                FolderName = cleanFolderName,
+                Status = "Active",
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+        else
+        {
+            courseMap.ProviderFolderId = cFolderId;
+            courseMap.ProviderParentFolderId = sFolderId;
+            courseMap.Status = "Active";
+            courseMap.UpdatedAt = DateTime.UtcNow;
+        }
+
+        foreach (var sub in subfolderNames)
+        {
+            var subId = await FindOrCreateFolder(sub, cFolderId);
+            var subMap = await db.ContentFolderMappings.FirstOrDefaultAsync(m => m.EntityType == "CourseSubfolder" && m.EntityId == c.Id && m.SubfolderType == sub && m.StorageProvider == "GoogleDrive");
+            if (subMap == null)
+            {
+                db.ContentFolderMappings.Add(new TMS.Models.ContentSync.ContentFolderMapping
+                {
+                    EntityType = "CourseSubfolder",
+                    EntityId = c.Id,
+                    ParentEntityId = c.Id,
+                    SubfolderType = sub,
+                    StorageProvider = "GoogleDrive",
+                    ProviderFolderId = subId,
+                    ProviderParentFolderId = cFolderId,
+                    FolderName = sub,
+                    Status = "Active",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+            else
+            {
+                subMap.ProviderFolderId = subId;
+                subMap.Status = "Active";
+                subMap.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
+        courseCount++;
+    }
+
+    var cfg = await db.ContentSyncConfigs.FirstOrDefaultAsync();
+    if (cfg != null)
+    {
+        cfg.GoogleDriveEnabled = true;
+        cfg.GoogleDriveRootFolderId = rootFolderId;
+        cfg.UpdatedAt = DateTime.UtcNow;
+    }
+
+    await db.SaveChangesAsync();
+
+    Console.WriteLine("==========================================================");
+    Console.WriteLine($"🎉 ALL {programs.Count} PROGRAMS & {courseCount} COURSES SUCCESSFULLY PROVISIONED ON GOOGLE DRIVE!");
+    Console.WriteLine($"👉 Check your Drive: https://drive.google.com/drive/folders/{rootFolderId}");
+    Console.WriteLine("==========================================================");
+    return 0;
+}
+
+if (args.Length > 0 && args[0] == "inspect-folder")
+{
+    var folderId = args.Length > 1 ? args[1] : "1sttJoSpWojRxX_IQdFIjnVtqmMzl2xCm";
+    Console.WriteLine("==========================================================");
+    Console.WriteLine($"🔍 INSPECTING GOOGLE DRIVE FOLDER: {folderId}");
+    Console.WriteLine("==========================================================");
+
+    var secrets = new Google.Apis.Auth.OAuth2.ClientSecrets
+    {
+        ClientId = Environment.GetEnvironmentVariable("GOOGLE_DRIVE_CLIENT_ID") ?? "303594262228-ftpl7ru5p5m45r8st0v4ohpngkjola89.apps.googleusercontent.com",
+        ClientSecret = Environment.GetEnvironmentVariable("GOOGLE_DRIVE_CLIENT_SECRET") ?? "placeholder-secret"
+    };
+
+    var webTokenFolder = "/Users/sandeepkumar/Desktop/LMS/TMS/TMS.Web/google_oauth_tokens";
+    var dataStore = new Google.Apis.Util.Store.FileDataStore(webTokenFolder, true);
+    var credential = await Google.Apis.Auth.OAuth2.GoogleWebAuthorizationBroker.AuthorizeAsync(
+        secrets,
+        new[] { Google.Apis.Drive.v3.DriveService.Scope.Drive, Google.Apis.Drive.v3.DriveService.Scope.DriveFile },
+        "user",
+        CancellationToken.None,
+        dataStore
+    );
+
+    var service = new Google.Apis.Drive.v3.DriveService(new Google.Apis.Services.BaseClientService.Initializer
+    {
+        HttpClientInitializer = credential,
+        ApplicationName = "EduDigiClass LMS"
+    });
+
+    try
+    {
+        var folderReq = service.Files.Get(folderId);
+        folderReq.Fields = "id, name, mimeType, parents, owners, webViewLink";
+        var folder = await folderReq.ExecuteAsync();
+        Console.WriteLine($"Folder Name: {folder.Name}");
+        Console.WriteLine($"Folder ID: {folder.Id}");
+        Console.WriteLine($"MimeType: {folder.MimeType}");
+        Console.WriteLine($"Parent IDs: {string.Join(", ", folder.Parents ?? new List<string>())}");
+        Console.WriteLine($"Web View Link: {folder.WebViewLink}");
+
+        if (folder.Parents != null && folder.Parents.Count > 0)
+        {
+            var parentId = folder.Parents[0];
+            try
+            {
+                var pReq = service.Files.Get(parentId);
+                pReq.Fields = "id, name, webViewLink, parents";
+                var parent = await pReq.ExecuteAsync();
+                Console.WriteLine($"Parent Folder Name: {parent.Name} ({parent.Id})");
+                if (parent.Parents != null && parent.Parents.Count > 0)
+                {
+                    try
+                    {
+                        var gpReq = service.Files.Get(parent.Parents[0]);
+                        gpReq.Fields = "id, name";
+                        var gp = await gpReq.ExecuteAsync();
+                        Console.WriteLine($"GrandParent Folder Name: {gp.Name} ({gp.Id})");
+                    }
+                    catch {}
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Could not get parent details: {ex.Message}");
+            }
+        }
+
+        var listReq = service.Files.List();
+        listReq.Q = $"'{folderId}' in parents and trashed = false";
+        listReq.Fields = "files(id, name, mimeType, size, modifiedTime, webViewLink, md5Checksum)";
+        var res = await listReq.ExecuteAsync();
+
+        Console.WriteLine($"\n--- Files Inside This Folder ({res.Files?.Count ?? 0} found) ---");
+        if (res.Files != null && res.Files.Count > 0)
+        {
+            foreach (var f in res.Files)
+            {
+                Console.WriteLine($"📄 Name: {f.Name}");
+                Console.WriteLine($"   ID: {f.Id}");
+                Console.WriteLine($"   MimeType: {f.MimeType}");
+                Console.WriteLine($"   Size: {f.Size} bytes");
+                Console.WriteLine($"   Modified: {f.ModifiedTimeRaw}");
+                Console.WriteLine($"   Link: {f.WebViewLink}");
+            }
+        }
+        else
+        {
+            Console.WriteLine("⚠️ No files found inside this folder on Google Drive.");
+        }
+
+        var appSettingsPath = "/Users/sandeepkumar/Desktop/LMS/TMS/TMS.Web/appsettings.json";
+        var configRoot = new ConfigurationBuilder().AddJsonFile(appSettingsPath).Build();
+        var connStr = configRoot.GetConnectionString("DefaultConnection");
+        var options = new DbContextOptionsBuilder<ApplicationDBContext>().UseSqlServer(connStr).Options;
+        using var db = new ApplicationDBContext(options);
+
+        var mapping = await db.ContentFolderMappings.FirstOrDefaultAsync(m => m.ProviderFolderId == folderId);
+        if (mapping != null)
+        {
+            Console.WriteLine($"\n--- LMS DB Mapping ---");
+            Console.WriteLine($"EntityType: {mapping.EntityType}");
+            Console.WriteLine($"EntityId: {mapping.EntityId}");
+            Console.WriteLine($"SubfolderType: {mapping.SubfolderType}");
+            Console.WriteLine($"FolderName: {mapping.FolderName}");
+            Console.WriteLine($"Status: {mapping.Status}");
+        }
+        else
+        {
+            Console.WriteLine($"\n⚠️ This folder ID ({folderId}) is NOT currently in LMS ContentFolderMappings.");
+        }
+
+        if (res.Files != null)
+        {
+            foreach (var f in res.Files)
+            {
+                var syncRec = await db.ContentSyncFileRecords.FirstOrDefaultAsync(r => r.ProviderFileId == f.Id);
+                if (syncRec != null)
+                {
+                    Console.WriteLine($"SyncRecord: File '{f.Name}' synced as {syncRec.LmsRecordType} #{syncRec.LmsRecordId} at {syncRec.SyncedAt}");
+                }
+                else
+                {
+                    Console.WriteLine($"SyncRecord: File '{f.Name}' has NOT yet been ingested into LMS DB.");
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error inspecting folder: {ex.Message}");
+    }
+
+    return 0;
+}
+
+if (args.Length > 0 && args[0] == "inspect-material")
+{
+    var appSettingsPath = "/Users/sandeepkumar/Desktop/LMS/TMS/TMS.Web/appsettings.json";
+    var configRoot = new ConfigurationBuilder().AddJsonFile(appSettingsPath).Build();
+    var connStr = configRoot.GetConnectionString("DefaultConnection");
+    var options = new DbContextOptionsBuilder<ApplicationDBContext>().UseSqlServer(connStr).Options;
+    using var db = new ApplicationDBContext(options);
+
+    var mat = await db.LectureMaterials.Include(m => m.CourseQuadrant).FirstOrDefaultAsync(m => m.Id == 1648);
+    if (mat != null)
+    {
+        Console.WriteLine($"Material 1648 found:");
+        Console.WriteLine($"Title: {mat.Title}");
+        Console.WriteLine($"CourseId: {mat.CourseId}");
+        Console.WriteLine($"CourseQuadrantId: {mat.CourseQuadrantId}");
+        Console.WriteLine($"QuadrantNumber: {mat.CourseQuadrant?.QuadrantNumber}, Name: {mat.CourseQuadrant?.Name}");
+        Console.WriteLine($"MaterialType: {mat.MaterialType}");
+        Console.WriteLine($"FilePath: {mat.FilePath}");
+        Console.WriteLine($"Source: {mat.Source}");
+        Console.WriteLine($"IsActive: {mat.IsActive}");
+    }
+    else
+    {
+        Console.WriteLine("Material 1648 NOT found!");
+    }
+
+    var mappings = await db.CourseMaterialMappings.Where(m => m.LectureMaterialId == 1648).ToListAsync();
+    Console.WriteLine($"CourseMaterialMappings count: {mappings.Count}");
+    foreach (var map in mappings)
+    {
+        Console.WriteLine($"CourseId: {map.CourseId}, Active: {map.IsActive}");
+    }
+
+    var courses = await db.CourseMasters.Where(c => c.Name.Contains("Business") || c.Name.Contains("Bussiness")).ToListAsync();
+    Console.WriteLine($"Courses with 'Business':");
+    foreach (var c in courses)
+    {
+        Console.WriteLine($"Id: {c.Id}, Code: {c.CourseCode}, Name: {c.Name}, CategoryId: {c.CourseCategoryId}");
+    }
+
+    if (mat != null)
+    {
+        mat.CourseQuadrantId = 1;
+        Console.WriteLine($"Updated Material 1648 CourseQuadrantId to 1 (Q1 - PDF / Notes)");
+    }
+    foreach (var map in mappings)
+    {
+        map.CourseQuadrantId = 1;
+        Console.WriteLine($"Updated CourseMaterialMapping {map.Id} CourseQuadrantId to 1");
+    }
+    await db.SaveChangesAsync();
+    return 0;
+}
+
 
 var passed = 0;
 var failed = 0;
@@ -1568,6 +2248,142 @@ var docProcessingService = new DocumentProcessingService();
     Equal("Metrics tracked 1 Gemini API call", metrics.GeminiApiCalls, 1);
 }
 
+// 58. General Deadlines Query: Classifies to Deadlines, returns comprehensive assignments + IA, 0 LLM calls
+{
+    var mockHandler = new MockHttpMessageHandler(_ => new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+    {
+        Content = new StringContent("{\"candidates\":[]}", Encoding.UTF8, "application/json")
+    });
+    var service = new GeminiLearningAssistantService(new HttpClient(mockHandler), Config(("Gemini:ApiKey", "test-key")), fakeLearningSvc, dummyDbContext, new DummyLogger<GeminiLearningAssistantService>(), fakeAcademicSvc);
+    var res = await service.AskAssistantAsync(42, "Student", new TMS.ViewModels.LearningAssistant.LearningAssistantRequest
+    {
+        Message = "What are my upcoming deadlines?",
+        CourseId = 101
+    });
+
+    Equal("Deadlines query succeeds", res.Success, true);
+    Equal("Deadlines query classifies to Deadlines intent", res.Intent, TMS.ViewModels.LearningAssistant.CompanionIntent.Deadlines);
+    Equal("Deadlines query makes ZERO LLM calls", mockHandler.RequestCount, 0);
+    Equal("Deadlines lists pending assignment", res.Reply.Contains("Financial Statement Analysis"), true);
+    Equal("Deadlines lists internal assessment", res.Reply.Contains("Midterm Written Assessment"), true);
+    Equal("Deadlines contains late submission policy", res.Reply.Contains("Late Submission"), true);
+    Equal("Deadlines contains 8MB limit note", res.Reply.Contains("8MB"), true);
+}
+
+// 59. Course Details & Faculty Query: Classifies to CourseDetails, lists faculty, credits, units, 0 LLM calls
+{
+    var mockHandler = new MockHttpMessageHandler(_ => new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+    {
+        Content = new StringContent("{\"candidates\":[]}", Encoding.UTF8, "application/json")
+    });
+    var service = new GeminiLearningAssistantService(new HttpClient(mockHandler), Config(("Gemini:ApiKey", "test-key")), fakeLearningSvc, dummyDbContext, new DummyLogger<GeminiLearningAssistantService>(), fakeAcademicSvc);
+    var res = await service.AskAssistantAsync(42, "Student", new TMS.ViewModels.LearningAssistant.LearningAssistantRequest
+    {
+        Message = "Who is the faculty for this course and how many credits?",
+        CourseId = 101
+    });
+
+    Equal("Course details query succeeds", res.Success, true);
+    Equal("Course details classifies to CourseDetails intent", res.Intent, TMS.ViewModels.LearningAssistant.CompanionIntent.CourseDetails);
+    Equal("Course details query makes ZERO LLM calls", mockHandler.RequestCount, 0);
+    Equal("Course details lists faculty instructor", res.Reply.Contains("Dr. Rajesh Sharma"), true);
+    Equal("Course details lists credits", res.Reply.Contains("4 Credits"), true);
+    Equal("Course details lists syllabus units", res.Reply.Contains("Introduction to Financial Accounting"), true);
+    Equal("Course details lists student progress", res.Reply.Contains("65%"), true);
+}
+
+// 60. Learning Process: 4-Quadrant Framework Query
+{
+    var service = new GeminiLearningAssistantService(new HttpClient(), Config(), fakeLearningSvc, dummyDbContext, new DummyLogger<GeminiLearningAssistantService>(), fakeAcademicSvc);
+    var res = await service.AskAssistantAsync(42, "Student", new TMS.ViewModels.LearningAssistant.LearningAssistantRequest
+    {
+        Message = "How does the learning process work in EduDigi LMS?",
+        CourseId = 101
+    });
+
+    Equal("Learning process query succeeds", res.Success, true);
+    Equal("Learning process classifies to LearningProcess intent", res.Intent, TMS.ViewModels.LearningAssistant.CompanionIntent.LearningProcess);
+    Equal("Explains Quadrant 1 e-Tutorial", res.Reply.Contains("Quadrant I"), true);
+    Equal("Explains Quadrant 2 e-Content", res.Reply.Contains("Quadrant II"), true);
+    Equal("Explains Quadrant 3 Discussion Forum", res.Reply.Contains("Quadrant III"), true);
+    Equal("Explains Quadrant 4 Assessment", res.Reply.Contains("Quadrant IV"), true);
+}
+
+// 61. Learning Process: Submission Process & Guidelines
+{
+    var service = new GeminiLearningAssistantService(new HttpClient(), Config(), fakeLearningSvc, dummyDbContext, new DummyLogger<GeminiLearningAssistantService>(), fakeAcademicSvc);
+    var res = await service.AskAssistantAsync(42, "Student", new TMS.ViewModels.LearningAssistant.LearningAssistantRequest
+    {
+        Message = "How do I submit an assignment or internal assessment?",
+        CourseId = 101
+    });
+
+    Equal("Submission guide query succeeds", res.Success, true);
+    Equal("Submission guide classifies to LearningProcess intent", res.Intent, TMS.ViewModels.LearningAssistant.CompanionIntent.LearningProcess);
+    Equal("Mentions 8 MB max file size", res.Reply.Contains("8 MB"), true);
+    Equal("Mentions allowed formats (PDF, DOCX, PPTX)", res.Reply.Contains(".pdf"), true);
+    Equal("Mentions binary signature checks", res.Reply.Contains("binary signature"), true);
+}
+
+// 62. Learning Process: UGC 10-Point Scale & Passing Rules
+{
+    var service = new GeminiLearningAssistantService(new HttpClient(), Config(), fakeLearningSvc, dummyDbContext, new DummyLogger<GeminiLearningAssistantService>(), fakeAcademicSvc);
+    var res = await service.AskAssistantAsync(42, "Student", new TMS.ViewModels.LearningAssistant.LearningAssistantRequest
+    {
+        Message = "What is the UGC 10 point grading scale and passing criteria?",
+        CourseId = 101
+    });
+
+    Equal("Grading scale query succeeds", res.Success, true);
+    Equal("Grading scale classifies to LearningProcess intent", res.Intent, TMS.ViewModels.LearningAssistant.CompanionIntent.LearningProcess);
+    Equal("Mentions 33% passing threshold", res.Reply.Contains("33%"), true);
+    Equal("Mentions Outstanding grade O", res.Reply.Contains("Outstanding"), true);
+    Equal("Mentions My Grade Card link", res.Reply.Contains("/InternalGradeCard/Index"), true);
+}
+
+// 63. Support FAQ: Password Reset
+{
+    var service = new GeminiLearningAssistantService(new HttpClient(), Config(), fakeLearningSvc, dummyDbContext, new DummyLogger<GeminiLearningAssistantService>(), fakeAcademicSvc);
+    var res = await service.AskAssistantAsync(42, "Student", new TMS.ViewModels.LearningAssistant.LearningAssistantRequest
+    {
+        Message = "How do I reset my password?",
+        CourseId = 101
+    });
+
+    Equal("Password FAQ succeeds", res.Success, true);
+    Equal("Password FAQ classifies to SupportFaq intent", res.Intent, TMS.ViewModels.LearningAssistant.CompanionIntent.SupportFaq);
+    Equal("Contains Change Password instruction", res.Reply.Contains("Change Password"), true);
+    Equal("Contains Forgot Password instruction", res.Reply.Contains("Forgot Password"), true);
+}
+
+// 64. Support FAQ: File Upload Troubleshooting (Reduces repetitive support tickets)
+{
+    var service = new GeminiLearningAssistantService(new HttpClient(), Config(), fakeLearningSvc, dummyDbContext, new DummyLogger<GeminiLearningAssistantService>(), fakeAcademicSvc);
+    var res = await service.AskAssistantAsync(42, "Student", new TMS.ViewModels.LearningAssistant.LearningAssistantRequest
+    {
+        Message = "Why is my file upload failing?",
+        CourseId = 101
+    });
+
+    Equal("Upload troubleshooting succeeds", res.Success, true);
+    Equal("Upload troubleshooting classifies to SupportFaq intent", res.Intent, TMS.ViewModels.LearningAssistant.CompanionIntent.SupportFaq);
+    Equal("Troubleshooting explains 8 MB limit", res.Reply.Contains("8 Megabytes"), true);
+    Equal("Troubleshooting lists allowed extensions", res.Reply.Contains(".docx"), true);
+    Equal("Troubleshooting mentions binary file headers", res.Reply.Contains("binary file headers"), true);
+}
+
+// 65. Multilingual Urdu Deadlines Support
+{
+    var service = new GeminiLearningAssistantService(new HttpClient(), Config(), fakeLearningSvc, dummyDbContext, new DummyLogger<GeminiLearningAssistantService>(), fakeAcademicSvc);
+    var res = await service.AskAssistantAsync(42, "Student", new TMS.ViewModels.LearningAssistant.LearningAssistantRequest
+    {
+        Message = "میری ڈیڈ لائنز کیا ہیں؟",
+        CourseId = 101
+    });
+
+    Equal("Urdu deadlines classifies to Deadlines intent", res.Intent, TMS.ViewModels.LearningAssistant.CompanionIntent.Deadlines);
+}
+
 // =========================================================================
 // FEATURE 25: AI QUESTION PAPER GENERATOR TESTS
 // =========================================================================
@@ -1713,6 +2529,10 @@ var docProcessingService = new DocumentProcessingService();
     Equal("Student with 29 marks eligible for compartmental re-assessment", compEligible, true);
 }
 
+// ------------------------------------------------------------------------------------------------
+// TWO-WAY LMS-TO-DRIVE CONTENT SYNC ACCEPTANCE TESTS (1 to 10)
+// ------------------------------------------------------------------------------------------------
+await TMS.IA.RuntimeChecks.ContentSyncAcceptanceTests.RunAllAcceptanceTestsAsync();
 // =========================================================================
 // FEATURE 53: AI ASSIGNMENT GENERATOR TESTS
 // =========================================================================
@@ -3094,9 +3914,6 @@ catch (Exception ex)
     failed++;
 }
 
-
-
-
 Console.WriteLine($"TOTAL | PASS={passed} FAIL={failed}");
 return failed == 0 ? 0 : 1;
 
@@ -3330,6 +4147,89 @@ sealed class FakeAcademicRecordsService : IAcademicRecordsService
             RollNumber = $"220164013{studentId:D4}",
             ProgramName = "Master of Business Administration",
             OverallProgressPercent = 45
+        });
+    }
+
+    public Task<StudentDeadlinesSummaryDto> GetDeadlinesSummaryAsync(int studentId, int? courseId = null)
+    {
+        var dto = new StudentDeadlinesSummaryDto
+        {
+            StudentId = studentId
+        };
+
+        if (studentId == 42)
+        {
+            dto.PendingDeadlines = new List<StudentDeadlineItemDto>
+            {
+                new()
+                {
+                    ItemType = "Assignment",
+                    ItemId = 1,
+                    Title = "Financial Statement Analysis",
+                    CourseName = "Financial Accounting",
+                    CourseCode = "MBA-101",
+                    DueDate = DateTime.Today.AddDays(3),
+                    MaxMarks = 20,
+                    Status = "Pending",
+                    ActionUrl = "/Assignment/StudentDashboard"
+                },
+                new()
+                {
+                    ItemType = "Internal Assessment (Written)",
+                    ItemId = 10,
+                    Title = "Midterm Written Assessment",
+                    CourseName = "Financial Accounting",
+                    CourseCode = "MBA-101",
+                    DueDate = DateTime.Today.AddDays(5),
+                    MaxMarks = 25,
+                    AllowLateSubmission = true,
+                    Status = "Pending",
+                    ActionUrl = "/InternalAssessment/Attempt?id=10"
+                }
+            };
+            dto.CompletedDeadlines = new List<StudentDeadlineItemDto>
+            {
+                new()
+                {
+                    ItemType = "Assignment",
+                    ItemId = 2,
+                    Title = "Ledger Posting Practice",
+                    CourseName = "Financial Accounting",
+                    CourseCode = "MBA-101",
+                    DueDate = DateTime.Today.AddDays(-10),
+                    MaxMarks = 10,
+                    Status = "Graded",
+                    ActionUrl = "/Assignment/StudentDashboard"
+                }
+            };
+            dto.SummaryText = "You have 2 pending academic deadline(s) and 1 completed.";
+        }
+        else
+        {
+            dto.SummaryText = "Great news! You have no pending deadlines right now.";
+        }
+
+        return Task.FromResult(dto);
+    }
+
+    public Task<StudentCourseDetailSummaryDto?> GetCourseDetailsSummaryAsync(int studentId, int? courseId = null, string? courseCodeOrTitle = null)
+    {
+        return Task.FromResult<StudentCourseDetailSummaryDto?>(new StudentCourseDetailSummaryDto
+        {
+            CourseId = 101,
+            CourseCode = "MBA-101",
+            CourseName = "Financial Accounting",
+            CategoryName = "Management",
+            SemesterId = 1,
+            Credits = 4,
+            DurationMonths = 6,
+            FacultyNames = new List<string> { "Dr. Rajesh Sharma" },
+            UnitTitles = new List<string> { "Introduction to Financial Accounting", "Accounting Mechanics & Ledgers", "Trial Balance & Financial Statements" },
+            VideoCount = 12,
+            DocumentCount = 8,
+            QuizCount = 4,
+            StudentProgressPercent = 65,
+            IsEnrolled = true
         });
     }
 }
