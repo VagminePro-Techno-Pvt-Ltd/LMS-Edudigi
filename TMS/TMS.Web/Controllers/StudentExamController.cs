@@ -1,3 +1,4 @@
+using TMS.Web.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,15 +21,18 @@ namespace TMS.Web.Controllers
         private readonly IAssessmentManager _assessmentManager;
         private readonly ApplicationDBContext _context;
         private readonly IMapper _mapper;
+        private readonly IAuditLogService _auditLogService;
 
         public StudentExamController(
             IAssessmentManager assessmentManager,
             ApplicationDBContext context,
-            IMapper mapper)
+            IMapper mapper,
+            IAuditLogService auditLogService)
         {
             _assessmentManager = assessmentManager;
             _context = context;
             _mapper = mapper;
+            _auditLogService = auditLogService;
         }
 
         [HttpGet]
@@ -108,6 +112,18 @@ namespace TMS.Web.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            await _auditLogService.LogActionAsync(
+                "START_EXAM",
+                "Examinations",
+                "ExamMaster",
+                examId.ToString(),
+                null,
+                new { AttemptId = attempt.Id, ExamId = examId },
+                null,
+                "SUCCESS",
+                $"Student started attempt #{attempt.Id} for exam #{examId}.",
+                studentId);
+
             // Load attempt with full details (questions and options)
             var attemptDetails = await _assessmentManager.GetAttemptDetailsAsync(attempt.Id);
             return View(attemptDetails);
@@ -142,6 +158,18 @@ namespace TMS.Web.Controllers
                 SetApplicationResult(false, "Failed to submit exam attempt.");
                 return RedirectToAction(nameof(Index));
             }
+
+            await _auditLogService.LogActionAsync(
+                "SUBMIT_EXAM",
+                "Examinations",
+                "ExamMaster",
+                attempt.ExamId.ToString(),
+                null,
+                new { AttemptId = attemptId, ExamId = attempt.ExamId },
+                null,
+                "SUCCESS",
+                $"Student submitted exam attempt #{attemptId}.",
+                GetUserId());
 
             SetApplicationResult(true, "Exam submitted successfully.");
             return RedirectToAction(nameof(Result), new { attemptId });

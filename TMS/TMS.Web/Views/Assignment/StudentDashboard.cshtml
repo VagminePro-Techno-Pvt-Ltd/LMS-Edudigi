@@ -204,7 +204,7 @@
                 var submission = submissions.Where(s => s.AssignmentId == item.Id).OrderByDescending(s => s.AttemptNumber).FirstOrDefault();
                 var grade = submission != null ? grades.FirstOrDefault(g => g.SubmissionId == submission.Id) : null;
 
-                <div class="col-xl-4 col-md-6 mb-4">
+                <div class="col-xl-4 col-md-6 mb-4" id="assignment-@item.Id">
                     <div class="card h-100 premium-card">
                         <div class="card-body p-4 d-flex flex-column">
                             <div class="d-flex justify-content-between align-items-center">
@@ -236,8 +236,13 @@
                                 }
                             </div>
 
+                            @{
+                                var overview = TMS.ViewModels.Academics.AiAssignmentMetadata.ExtractOverview(item.Description);
+                                var displayDesc = !string.IsNullOrWhiteSpace(overview) ? overview : item.Title;
+                                var truncated = displayDesc != null && displayDesc.Length > 160 ? displayDesc.Substring(0, 157) + "..." : displayDesc;
+                            }
                             <h5 class="assignment-title">@item.Title</h5>
-                            <p class="assignment-desc flex-grow-1">@item.Description</p>
+                            <p class="assignment-desc flex-grow-1" style="white-space: pre-line;">@truncated</p>
 
                             <div class="info-strip">
                                 <div class="info-item">
@@ -275,6 +280,10 @@
                                 {
                                     <button class="btn btn-secondary w-100 py-3" style="border-radius: 12px; font-weight: 700;" disabled>Submission Closed</button>
                                 }
+
+                                <a href="@Url.Action("PrintAssignment", new { id = item.Id })" target="_blank" class="btn btn-outline-custom mt-2" style="color: #2563eb; border-color: #bfdbfe; background: #eff6ff;">
+                                    <i class="fa-solid fa-file-lines me-1"></i> View Assignment Sheet
+                                </a>
 
                                 @if (submission != null)
                                 {

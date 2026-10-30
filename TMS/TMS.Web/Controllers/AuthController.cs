@@ -1,3 +1,4 @@
+using TMS.Web.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
@@ -19,16 +20,19 @@ namespace TMS.Web.Controllers
         private readonly IMasterBaseManager<ForgotPasswordViewModel> _forgotmanager;
         private readonly IDailyAttendanceManager _attendanceManager;
         private readonly StorageSettings _storageSettings;
+        private readonly IAuditLogService _auditLogService;
         public AuthController(IAccountManager manager, IOptions<StorageSettings> options,
             IMasterBaseManager<ForgotPasswordViewModel> forgotmanager,
             IMasterManager<UserViewModel> usermanager,
-            IDailyAttendanceManager attendanceManager)
+            IDailyAttendanceManager attendanceManager,
+            IAuditLogService auditLogService)
         {
             _manager = manager;
             _storageSettings = options.Value;
             _forgotmanager = forgotmanager;
             _usermanager = usermanager;
             _attendanceManager = attendanceManager;
+            _auditLogService = auditLogService;
         }
         public IActionResult LoginOptional()
         {
@@ -56,11 +60,39 @@ namespace TMS.Web.Controllers
             var user = await _manager.Login(model!.Email!.Trim(), model.Password);
             if (user == null || string.IsNullOrWhiteSpace(user.Email))
             {
+                await _auditLogService.LogActionAsync(
+                    "LOGIN_FAILURE",
+                    "Authentication",
+                    "UserMaster",
+                    null,
+                    null,
+                    null,
+                    null,
+                    "FAILURE",
+                    $"Failed login attempt for email: '{model?.Email?.Trim()}'. Invalid credentials.",
+                    null,
+                    model?.Email?.Trim() ?? "Unknown",
+                    "Anonymous");
+
                 ModelState.AddModelError(nameof(LoginViewModel.Password), "Invalid credentials");
                 return View(model);
             }
 
             await IdentitySignin(user.Email, user.Id, user.Name!, model.RememberMe, user.Role?.Name);
+
+            await _auditLogService.LogActionAsync(
+                "LOGIN_SUCCESS",
+                "Authentication",
+                "UserMaster",
+                user.Id.ToString(),
+                null,
+                null,
+                null,
+                "SUCCESS",
+                $"User '{user.Email}' logged in successfully.",
+                user.Id,
+                user.Name ?? user.Email,
+                user.Role?.Name ?? "User");
 
             // ── Force Password Change Check ──
             if (user.ForcePasswordChange)
@@ -99,6 +131,25 @@ namespace TMS.Web.Controllers
 
         public async Task<IActionResult> LogOff()
         {
+            var userIdVal = User?.Claims?.FirstOrDefault(c => c.Type == "userId")?.Value;
+            int? parsedUserId = int.TryParse(userIdVal, out var uid) ? uid : null;
+            var uname = User?.Claims?.FirstOrDefault(c => c.Type == "userName" || c.Type == "user")?.Value ?? "User";
+            var urole = User?.Claims?.FirstOrDefault(c => c.Type == "role")?.Value ?? "User";
+
+            await _auditLogService.LogActionAsync(
+                "LOGOUT",
+                "Authentication",
+                "UserMaster",
+                userIdVal,
+                null,
+                null,
+                null,
+                "SUCCESS",
+                $"User '{uname}' logged out.",
+                parsedUserId,
+                uname,
+                urole);
+
             await HttpContext.SignOutAsync();
             HttpContext.Session.Clear();
             return RedirectToAction("LoginOptional");
@@ -155,6 +206,18 @@ namespace TMS.Web.Controllers
                 ModelState.AddModelError("", "Failed to change password. Please try again.");
                 return View(model);
             }
+
+            await _auditLogService.LogActionAsync(
+                "PASSWORD_CHANGE",
+                "Authentication",
+                "UserMaster",
+                userId.ToString(),
+                null,
+                new { Password = "[REDACTED]" },
+                "Password",
+                "SUCCESS",
+                "User changed password successfully.",
+                userId);
 
             // User stays logged in — redirect to appropriate dashboard
             TempData["PasswordChanged"] = true;

@@ -36,6 +36,34 @@ namespace TMS.Repository
             try
             {
                 string sql = @"
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'AuditLogs')
+BEGIN
+    CREATE TABLE [dbo].[AuditLogs](
+        [Id] [int] IDENTITY(1,1) NOT NULL,
+        [UserId] [int] NULL,
+        [Username] [nvarchar](150) NULL,
+        [UserRole] [nvarchar](50) NULL,
+        [ActionType] [nvarchar](100) NOT NULL,
+        [ModuleName] [nvarchar](100) NOT NULL,
+        [EntityType] [nvarchar](100) NULL,
+        [EntityId] [nvarchar](100) NULL,
+        [OldValuesJson] [nvarchar](max) NULL,
+        [NewValuesJson] [nvarchar](max) NULL,
+        [ChangedFieldsJson] [nvarchar](max) NULL,
+        [TimestampUtc] [datetime2](7) NOT NULL DEFAULT GETUTCDATE(),
+        [IpAddress] [nvarchar](50) NULL,
+        [Status] [nvarchar](50) NOT NULL DEFAULT 'SUCCESS',
+        [CorrelationId] [nvarchar](100) NULL,
+        [Details] [nvarchar](max) NULL,
+        CONSTRAINT [PK_AuditLogs] PRIMARY KEY CLUSTERED ([Id] ASC)
+    );
+    CREATE NONCLUSTERED INDEX [IX_AuditLogs_TimestampUtc] ON [dbo].[AuditLogs]([TimestampUtc] DESC);
+    CREATE NONCLUSTERED INDEX [IX_AuditLogs_UserId] ON [dbo].[AuditLogs]([UserId]);
+    CREATE NONCLUSTERED INDEX [IX_AuditLogs_ModuleName] ON [dbo].[AuditLogs]([ModuleName]);
+    CREATE NONCLUSTERED INDEX [IX_AuditLogs_ActionType] ON [dbo].[AuditLogs]([ActionType]);
+    CREATE NONCLUSTERED INDEX [IX_AuditLogs_Status] ON [dbo].[AuditLogs]([Status]);
+END
+
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'LectureVideoProgress')
 BEGIN
     CREATE TABLE [dbo].[LectureVideoProgress](

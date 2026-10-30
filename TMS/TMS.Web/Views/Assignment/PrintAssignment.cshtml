@@ -1,0 +1,426 @@
+@model TMS.ViewModels.Academics.PrintAssignmentViewModel
+@{
+    ViewData["Title"] = Model.Title + " - Printable Assignment Sheet";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@Model.Title - EduDigi LMS</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Cinzel:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --accent: #3b82f6;
+            --text-dark: #0f172a;
+            --text-muted: #475569;
+            --border-color: #cbd5e1;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            color: var(--text-dark);
+            background-color: #f1f5f9;
+            margin: 0;
+            padding: 20px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .no-print-toolbar {
+            max-width: 900px;
+            margin: 0 auto 20px auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn-print {
+            background: linear-gradient(135deg, #1e3a8a, #2563eb);
+            color: white;
+            border: none;
+            padding: 10px 22px;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+            transition: all 0.2s;
+        }
+
+        .btn-print:hover {
+            opacity: 0.92;
+            transform: translateY(-1px);
+        }
+
+        .btn-back {
+            background: white;
+            color: #334155;
+            border: 1px solid var(--border-color);
+            padding: 9px 18px;
+            border-radius: 10px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .assignment-sheet {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        }
+
+        .institution-header {
+            text-align: center;
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 20px;
+            margin-bottom: 25px;
+        }
+
+        .institution-name {
+            font-family: 'Cinzel', serif;
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 0 0 4px 0;
+            letter-spacing: 1px;
+        }
+
+        .institution-sub {
+            font-size: 13px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: 600;
+            margin: 0 0 12px 0;
+        }
+
+        .doc-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--text-dark);
+            margin: 0 0 6px 0;
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px 24px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 25px;
+        }
+
+        .meta-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13.5px;
+            border-bottom: 1px dashed #e2e8f0;
+            padding-bottom: 4px;
+        }
+
+        .meta-label {
+            font-weight: 700;
+            color: #475569;
+        }
+
+        .meta-value {
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .roll-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1.5px dashed #94a3b8;
+            padding: 8px 14px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            background: #fdfdfd;
+        }
+
+        .section-header {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--primary);
+            border-bottom: 1.5px solid #e2e8f0;
+            padding-bottom: 6px;
+            margin-top: 25px;
+            margin-bottom: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .question-block {
+            margin-bottom: 20px;
+            page-break-inside: avoid;
+        }
+
+        .q-header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 700;
+            font-size: 14.5px;
+            color: #1e293b;
+            margin-bottom: 6px;
+        }
+
+        .q-text {
+            color: #334155;
+            font-size: 14px;
+            margin-bottom: 6px;
+            text-align: justify;
+        }
+
+        .q-guidelines {
+            font-size: 12.5px;
+            color: #64748b;
+            font-style: italic;
+            background: #f8fafc;
+            padding: 6px 12px;
+            border-left: 3px solid #cbd5e1;
+            border-radius: 0 6px 6px 0;
+        }
+
+        .rubric-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            page-break-inside: avoid;
+        }
+
+        .rubric-table th, .rubric-table td {
+            border: 1px solid #cbd5e1;
+            padding: 8px 10px;
+            vertical-align: top;
+            text-align: left;
+        }
+
+        .rubric-table th {
+            background-color: #f1f5f9;
+            color: #1e293b;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+
+        .criteria-list {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .criteria-list li {
+            margin-bottom: 6px;
+            color: #334155;
+        }
+
+        @@media print {
+            body {
+                background: white;
+                padding: 0;
+                margin: 0;
+                font-size: 12pt;
+            }
+
+            .no-print-toolbar {
+                display: none !important;
+            }
+
+            .assignment-sheet {
+                border: none;
+                box-shadow: none;
+                padding: 0;
+                max-width: 100%;
+            }
+
+            @@page {
+                size: A4 portrait;
+                margin: 15mm;
+            }
+
+            .question-block, .rubric-table {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print-toolbar">
+        <a href="javascript:history.back()" class="btn-back">
+            <i class="fa-solid fa-arrow-left"></i> Back
+        </a>
+        <button type="button" class="btn-print" onclick="window.print()">
+            <i class="fa-solid fa-print"></i> Print / Save as PDF
+        </button>
+    </div>
+
+    <div class="assignment-sheet">
+        <!-- Institution Header -->
+        <header class="institution-header">
+            <h1 class="institution-name">EduDigi Classes LMS</h1>
+            <p class="institution-sub">Faculty & Academic Automation • Department Assessment</p>
+            <h2 class="doc-title">@Model.Title</h2>
+            <div style="font-size: 13px; color: #64748b; font-weight: 600;">
+                @(Model.IsFacultyView ? "Official Course Assignment Sheet & Evaluation Rubrics" : "Official Course Assignment Sheet")
+            </div>
+        </header>
+
+        <!-- Academic Metadata -->
+        <section class="meta-grid">
+            <div class="meta-item">
+                <span class="meta-label">Program:</span>
+                <span class="meta-value">@Model.ProgramName</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Course:</span>
+                <span class="meta-value">@Model.CourseName @(string.IsNullOrEmpty(Model.CourseCode) ? "" : $"({Model.CourseCode})")</span>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(Model.SemesterName))
+            {
+                <div class="meta-item">
+                    <span class="meta-label">Semester:</span>
+                    <span class="meta-value">@Model.SemesterName</span>
+                </div>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.SubjectName))
+            {
+                <div class="meta-item">
+                    <span class="meta-label">Subject / Module:</span>
+                    <span class="meta-value">@Model.SubjectName</span>
+                </div>
+            }
+            <div class="meta-item">
+                <span class="meta-label">Submission Deadline:</span>
+                <span class="meta-value">@Model.DueDate.ToString("dd MMM yyyy, hh:mm tt")</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Total / Pass Marks:</span>
+                <span class="meta-value">@Model.TotalMarks / @Model.PassMarks Marks</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Difficulty & Type:</span>
+                <span class="meta-value">@Model.Difficulty • @Model.AssignmentType</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Status:</span>
+                <span class="meta-value">@(Model.IsPublished ? "Published" : "Draft / Academic Review")</span>
+            </div>
+        </section>
+
+        <!-- Student Identification Blank -->
+        <div class="roll-box">
+            <span style="font-weight: 700; color: #475569;">STUDENT NAME:</span>
+            <span style="flex-grow: 1; border-bottom: 1px dotted #94a3b8; height: 18px;"></span>
+            <span style="font-weight: 700; color: #475569; margin-left: 20px;">ROLL / ENROLLMENT NO:</span>
+            <span style="width: 180px; border-bottom: 1px dotted #94a3b8; height: 18px;"></span>
+        </div>
+
+        <!-- Overview & Scope -->
+        @if (!string.IsNullOrWhiteSpace(Model.Description))
+        {
+            <section>
+                <div class="section-header">1. Overview & Learning Objectives</div>
+                <p style="text-align: justify; color: #334155; margin-bottom: 15px;">@Model.Description</p>
+            </section>
+        }
+
+        <!-- Student Instructions -->
+        @if (!string.IsNullOrWhiteSpace(Model.Instructions))
+        {
+            <section>
+                <div class="section-header">2. Student Instructions & Submission Guidelines</div>
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; color: #334155; white-space: pre-line;">@Model.Instructions</div>
+            </section>
+        }
+
+        <!-- Topic-based Questions -->
+        @if (Model.Questions != null && Model.Questions.Any())
+        {
+            <section>
+                <div class="section-header">3. Assignment Questions (@Model.TotalMarks Marks Total)</div>
+                @foreach (var q in Model.Questions.OrderBy(x => x.QuestionNumber))
+                {
+                    <div class="question-block">
+                        <div class="q-header">
+                            <span>Question @q.QuestionNumber</span>
+                            <span>[@q.Marks Marks]</span>
+                        </div>
+                        <div class="q-text">@q.QuestionText</div>
+                        @if (Model.IsFacultyView && !string.IsNullOrWhiteSpace(q.ExpectedAnswerGuidelines))
+                        {
+                            <div class="q-guidelines">Key Concepts: @q.ExpectedAnswerGuidelines</div>
+                        }
+                    </div>
+                }
+            </section>
+        }
+
+        <!-- Marking Criteria Breakdown (Faculty/Admin only) -->
+        @if (Model.IsFacultyView && Model.MarkingCriteria != null && Model.MarkingCriteria.Any())
+        {
+            <section>
+                <div class="section-header">4. Marking Criteria Breakdown</div>
+                <ul class="criteria-list">
+                    @foreach (var c in Model.MarkingCriteria)
+                    {
+                        <li><strong>@c.Criterion (@c.Weightage%):</strong> @c.Description</li>
+                    }
+                </ul>
+            </section>
+        }
+
+        <!-- Detailed 4-Level Evaluation Rubrics Matrix (Faculty/Admin only) -->
+        @if (Model.IsFacultyView && Model.Rubrics != null && Model.Rubrics.Any())
+        {
+            <section>
+                <div class="section-header">5. Evaluation Rubrics</div>
+                <table class="rubric-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 22%;">Dimension (Max Marks)</th>
+                            <th style="width: 20%;">Excellent (80-100%)</th>
+                            <th style="width: 20%;">Good (65-79%)</th>
+                            <th style="width: 20%;">Fair (50-64%)</th>
+                            <th style="width: 18%;">Poor (0-49%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in Model.Rubrics)
+                        {
+                            <tr>
+                                <td><strong>@r.Criterion</strong><br /><small class="text-muted">Max: @r.MaxMarks Marks</small></td>
+                                <td>@r.Excellent</td>
+                                <td>@r.Good</td>
+                                <td>@r.Fair</td>
+                                <td>@r.Poor</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </section>
+        }
+
+        <!-- Footer Sign-off -->
+        <footer style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 12px; color: #64748b;">
+            <div>EduDigi Classes LMS • Faculty Academic Automation</div>
+            <div>Generated On: @DateTime.UtcNow.ToString("dd MMM yyyy, hh:mm UTC")</div>
+        </footer>
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,1354 @@
+@model TMS.ViewModels.Academics.SaveAiAssignmentRequest
+@{
+    ViewData["Title"] = "AI Assignment Generator";
+    var programs = ViewBag.Programs as IEnumerable<TMS.Models.Masters.CourseCategoryMaster> ?? Enumerable.Empty<TMS.Models.Masters.CourseCategoryMaster>();
+    var courses = ViewBag.Courses as IEnumerable<TMS.Models.Masters.CourseMaster> ?? Enumerable.Empty<TMS.Models.Masters.CourseMaster>();
+    var semesters = ViewBag.Semesters as IEnumerable<TMS.Models.Academics.SemesterMaster> ?? Enumerable.Empty<TMS.Models.Academics.SemesterMaster>();
+    var editAssignment = ViewBag.EditAssignment as TMS.Models.Academics.AssignmentMaster;
+    bool isEditing = Model != null && Model.AssignmentId.HasValue && Model.AssignmentId.Value > 0;
+}
+
+<style>
+    :root {
+        --ai-gradient: linear-gradient(135deg, #4f46e5, #7c3aed);
+        --ai-gradient-hover: linear-gradient(135deg, #4338ca, #6d28d9);
+        --card-radius: 18px;
+    }
+
+    .ai-wrapper {
+        padding: 28px;
+        background-color: #f8fafc;
+        min-height: calc(100vh - 110px);
+        font-family: 'Outfit', sans-serif;
+    }
+
+    .generator-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: var(--card-radius);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+
+    .section-title {
+        font-size: 19px;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .section-subtitle {
+        font-size: 13.5px;
+        color: #64748b;
+        margin-bottom: 20px;
+    }
+
+    .form-label-custom {
+        font-weight: 700;
+        color: #1e293b;
+        font-size: 13.5px;
+        margin-bottom: 6px;
+    }
+
+    .form-control-custom, .select-custom {
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-size: 14.5px;
+        font-weight: 500;
+        color: #1e293b;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-control-custom:focus, .select-custom:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    }
+
+    .btn-ai-generate {
+        background: var(--ai-gradient);
+        color: white;
+        border: none;
+        font-weight: 700;
+        border-radius: 12px;
+        padding: 13px 20px;
+        font-size: 15px;
+        transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .btn-ai-generate:hover {
+        background: var(--ai-gradient-hover);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35);
+    }
+
+    .question-card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 18px;
+        margin-bottom: 16px;
+        position: relative;
+        transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .question-card:hover {
+        border-color: #cbd5e1;
+    }
+
+    .q-badge {
+        background: #e0e7ff;
+        color: #4338ca;
+        font-weight: 800;
+        font-size: 13px;
+        padding: 4px 10px;
+        border-radius: 8px;
+    }
+
+    .marks-badge {
+        background: #ecfdf5;
+        color: #047857;
+        font-weight: 700;
+        font-size: 13px;
+        padding: 4px 10px;
+        border-radius: 8px;
+    }
+
+    .rubric-table th {
+        background: #f1f5f9;
+        color: #334155;
+        font-size: 12.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 700;
+    }
+
+    .rubric-table td {
+        font-size: 13.5px;
+        vertical-align: top;
+    }
+
+    .pill-badge {
+        font-size: 12px;
+        font-weight: 700;
+        padding: 6px 12px;
+        border-radius: 20px;
+    }
+
+    .pill-draft { background: rgba(245, 158, 11, 0.15); color: #b45309; }
+    .pill-published { background: rgba(16, 185, 129, 0.15); color: #047857; }
+
+    .ai-spinner {
+        display: none;
+        text-align: center;
+        padding: 40px 20px;
+    }
+
+    .ai-placeholder-sticky {
+        position: sticky;
+        top: 24px;
+    }
+
+    .step-badge {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #e0e7ff;
+        color: #4338ca;
+        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        flex-shrink: 0;
+    }
+
+    .form-select.is-invalid, .form-control.is-invalid {
+        border-color: #ef4444 !important;
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
+    }
+</style>
+
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+
+<div class="ai-wrapper">
+    <!-- Header Navigation Bar -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <a href="@Url.Action("FacultyDashboard")" class="btn btn-sm btn-light border px-2 py-1 text-muted" title="Return to Dashboard">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </a>
+                <h1 class="h3 font-weight-bold mb-0 text-dark" style="font-weight: 800;">
+                    <i class="fa-solid fa-wand-magic-sparkles text-primary me-2"></i>AI Assignment Generator
+                </h1>
+                @if (isEditing)
+                {
+                    <span class="pill-badge @(Model!.Publish ? "pill-published" : "pill-draft") ms-2">
+                        <i class="fa-solid @(Model.Publish ? "fa-circle-check" : "fa-file-pen") me-1"></i>
+                        @(Model.Publish ? "Published" : "Draft")
+                    </span>
+                }
+            </div>
+            <p class="text-muted small mb-0">Generate curriculum-grounded questions, student instructions, marking criteria, and rubrics.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="@Url.Action("FacultyDashboard")" class="btn btn-light border px-3 font-weight-bold" style="border-radius: 12px;">
+                <i class="fa-solid fa-list-check me-1"></i> All Assignments
+            </a>
+            @if (isEditing)
+            {
+                <a href="@Url.Action("PrintAssignment", new { id = Model!.AssignmentId })" target="_blank" class="btn btn-outline-secondary px-3 font-weight-bold" style="border-radius: 12px;">
+                    <i class="fa-solid fa-print me-1"></i> Print / PDF
+                </a>
+            }
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- LEFT: Generation Parameters Card -->
+        <div class="col-xl-4 col-lg-5">
+            <div class="generator-card">
+                <div class="section-title">
+                    <i class="fa-solid fa-sliders text-indigo" style="color: #6366f1;"></i> Curriculum Parameters
+                </div>
+                <div class="section-subtitle">Select syllabus constraints to contextualize generation.</div>
+
+                <div id="aiGenForm">
+                    <div class="row g-3">
+                        <!-- Program -->
+                        <div class="col-12">
+                            <label class="form-label-custom">Target Program <span class="text-danger">*</span></label>
+                            <select id="genProgramId" class="form-select select-custom">
+                                <option value="">-- Select Program --</option>
+                                @foreach (var p in programs)
+                                {
+                                    if (Model?.ProgramId == p.Id)
+                                    {
+                                        <option value="@p.Id" selected>@p.Name</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@p.Id">@p.Name</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+
+                        <!-- Course -->
+                        <div class="col-12">
+                            <label class="form-label-custom">Course / Subject <span class="text-danger">*</span></label>
+                            <select id="genCourseId" class="form-select select-custom">
+                                <option value="">-- Select Course --</option>
+                                @foreach (var c in courses)
+                                {
+                                    if (Model?.CourseId == c.Id)
+                                    {
+                                        <option value="@c.Id" data-prog="@c.CourseCategoryId" data-sem="@c.SemesterId" selected>@c.Name (@c.CourseCode)</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@c.Id" data-prog="@c.CourseCategoryId" data-sem="@c.SemesterId">@c.Name (@c.CourseCode)</option>
+                                    }
+                                }
+                            </select>
+                            <small class="text-muted" style="font-size: 11.5px;">Only courses assigned to you are displayed.</small>
+                        </div>
+
+                        <!-- Semester -->
+                        <div class="col-12">
+                            <label class="form-label-custom">Semester (Optional)</label>
+                            <select id="genSemesterId" class="form-select select-custom">
+                                <option value="">-- Auto-derive from Course --</option>
+                                @foreach (var s in semesters)
+                                {
+                                    if (Model?.SemesterId == s.Id)
+                                    {
+                                        <option value="@s.Id" selected>@s.Name</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@s.Id">@s.Name</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+
+                        <!-- Subject -->
+                        <div class="col-12">
+                            <label class="form-label-custom">Subject / Module (Optional)</label>
+                            <select id="genSubjectId" class="form-select select-custom">
+                                <option value="">-- General Course Scope --</option>
+                            </select>
+                        </div>
+
+                        <!-- Unit -->
+                        <div class="col-md-6">
+                            <label class="form-label-custom">Unit / Chapter</label>
+                            <select id="genUnitId" class="form-select select-custom">
+                                <option value="">-- All Units --</option>
+                            </select>
+                        </div>
+
+                        <!-- Topic -->
+                        <div class="col-md-6">
+                            <label class="form-label-custom">Specific Topic</label>
+                            <select id="genTopicId" class="form-select select-custom">
+                                <option value="">-- Entire Unit --</option>
+                            </select>
+                        </div>
+
+                        <!-- Custom Topic / Focus Area -->
+                        <div class="col-12">
+                            <label class="form-label-custom">Focus Topic / Core Concepts</label>
+                            <input type="text" id="genCustomTopic" class="form-control form-control-custom" placeholder="e.g. Normalization, B-Trees, Concurrency control" />
+                        </div>
+
+                        <!-- Difficulty & Type -->
+                        <div class="col-md-6">
+                            <label class="form-label-custom">Difficulty</label>
+                            <select id="genDifficulty" class="form-select select-custom">
+                                <option value="Easy" selected="@(Model?.Difficulty == "Easy")">Easy (Foundational)</option>
+                                <option value="Medium" selected="@(Model?.Difficulty == "Medium" || Model == null)">Medium (Standard)</option>
+                                <option value="Hard" selected="@(Model?.Difficulty == "Hard")">Hard (Advanced Analytical)</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label-custom">Assignment Type</label>
+                            <select id="genAssignmentType" class="form-select select-custom">
+                                <option value="Theory / Descriptive" selected="@(Model?.AssignmentType == "Theory / Descriptive" || Model == null)">Theory / Descriptive</option>
+                                <option value="Case Study Analysis" selected="@(Model?.AssignmentType == "Case Study Analysis")">Case Study Analysis</option>
+                                <option value="Critical Problem Solving" selected="@(Model?.AssignmentType == "Critical Problem Solving")">Critical Problem Solving</option>
+                                <option value="Analytical & Research" selected="@(Model?.AssignmentType == "Analytical & Research")">Analytical & Research</option>
+                                <option value="Practical & Lab Exercise" selected="@(Model?.AssignmentType == "Practical & Lab Exercise")">Practical & Lab Exercise</option>
+                            </select>
+                        </div>
+
+                        <!-- Questions & Marks -->
+                        <div class="col-md-6">
+                            <label class="form-label-custom">No. of Questions</label>
+                            <input type="number" id="genNumQuestions" min="1" max="15" value="@(Model?.Questions?.Count > 0 ? Model.Questions.Count : 5)" class="form-control form-control-custom" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label-custom">Total Marks</label>
+                            <input type="number" id="genTotalMarks" min="5" max="200" step="1" value="@(Model?.TotalMarks > 0 ? (int)Model.TotalMarks : 50)" class="form-control form-control-custom" />
+                        </div>
+
+                        <!-- Due Date -->
+                        <div class="col-12">
+                            <label class="form-label-custom">Submission Deadline</label>
+                            <input type="datetime-local" id="genDueDate" value="@(Model?.DueDate > DateTime.MinValue ? Model.DueDate.ToString("yyyy-MM-ddTHH:mm") : DateTime.Now.AddDays(7).ToString("yyyy-MM-ddT23:59"))" class="form-control form-control-custom" />
+                        </div>
+
+                        <!-- Special Instructions -->
+                        <div class="col-12">
+                            <label class="form-label-custom">Faculty Guidance / Special Instructions</label>
+                            <textarea id="genSpecialInstructions" rows="3" class="form-control form-control-custom" placeholder="Optional notes for AI regarding formatting, citations, word counts, or special rubric focus...">@(Model?.Instructions)</textarea>
+                        </div>
+
+                        <!-- Inline Form Validation Alert -->
+                        <div class="col-12">
+                            <div id="genInlineAlert" class="alert alert-warning py-2 px-3 small mb-0" style="display: none; border-radius: 12px; border: 1px solid #fde68a;">
+                                <i class="fa-solid fa-triangle-exclamation me-1 text-warning"></i> <span id="genInlineAlertText"></span>
+                            </div>
+                        </div>
+
+                        <!-- Generate Button -->
+                        <div class="col-12 pt-1">
+                            <button type="button" id="btnGenerate" class="btn btn-ai-generate w-100 shadow-sm" onclick="generateAssignment(); return false;">
+                                <i class="fa-solid fa-wand-magic-sparkles me-2"></i> Generate Assignment with AI
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Live Preview & Interactive Editor -->
+        <div class="col-xl-8 col-lg-7">
+            <!-- Loading Indicator -->
+            <div id="aiLoadingSpinner" class="generator-card ai-spinner">
+                <div class="spinner-border text-primary mb-3" style="width: 3.2rem; height: 3.2rem;" role="status"></div>
+                <h4 class="font-weight-bold text-dark">Synthesizing Assignment with AI...</h4>
+                <p id="spinnerText" class="text-muted mb-0">Grounding questions in official syllabus modules, balancing marks, and compiling rubric matrix...</p>
+            </div>
+
+            <!-- Error Banner -->
+            <div id="aiErrorAlert" class="alert alert-danger shadow-sm mb-4" style="border-radius: 14px; display: none;">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation fs-5"></i>
+                    <strong id="aiErrorMessage">Error generating assignment.</strong>
+                </div>
+            </div>
+
+            <!-- Success Banner -->
+            <div id="aiSuccessAlert" class="alert alert-success shadow-sm mb-4" style="border-radius: 14px; display: none;">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-circle-check fs-5"></i>
+                    <span id="aiSuccessMessage">Assignment updated successfully!</span>
+                </div>
+            </div>
+
+            <!-- Workspace Card -->
+            <div id="assignmentWorkspaceCard" class="generator-card" style="@(isEditing ? "" : "display: none;")">
+                <!-- Action Toolbar -->
+                <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom flex-wrap gap-2">
+                    <div>
+                        <span class="badge bg-light text-dark border px-3 py-2 font-weight-bold" style="font-size: 13px;">
+                            <i class="fa-solid fa-scale-balanced text-primary me-1"></i>
+                            Total Marks: <span id="displayTotalMarks">@(Model?.TotalMarks ?? 50)</span>
+                        </span>
+                        <span id="marksBalanceBadge" class="badge bg-success ms-1 px-3 py-2 font-weight-bold" style="font-size: 13px;">
+                            <i class="fa-solid fa-check me-1"></i> Marks Balanced
+                        </span>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="button" id="btnToggleEdit" class="btn btn-sm btn-outline-secondary px-3 py-2 font-weight-bold" style="border-radius: 10px;" onclick="toggleEditMode()">
+                            <i class="fa-solid fa-pen-to-square me-1"></i> <span id="btnEditLabel">Edit Content</span>
+                        </button>
+                        <button type="button" id="btnRegenerate" class="btn btn-sm btn-outline-primary px-3 py-2 font-weight-bold" style="border-radius: 10px;" onclick="generateAssignment()">
+                            <i class="fa-solid fa-arrows-rotate me-1"></i> Regenerate
+                        </button>
+                        <button type="button" id="btnSaveDraft" class="btn btn-sm btn-warning text-dark px-3 py-2 font-weight-bold shadow-sm" style="border-radius: 10px;" onclick="persistAssignment(false)">
+                            <i class="fa-solid fa-file-pen me-1"></i> Save Draft
+                        </button>
+                        <button type="button" id="btnPublish" class="btn btn-sm btn-success px-4 py-2 font-weight-bold shadow-sm" style="border-radius: 10px;" onclick="persistAssignment(true)">
+                            <i class="fa-solid fa-cloud-arrow-up me-1"></i> Publish
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Assignment Metadata Form Fields -->
+                <div class="mb-4">
+                    <label class="form-label-custom">Assignment Title</label>
+                    <input type="text" id="targetTitle" class="form-control form-control-custom fw-bold fs-5" value="@(Model?.Title ?? "")" placeholder="e.g. Relational Query Optimization & Normalization Assignment" />
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label-custom">Assignment Overview & Objectives</label>
+                    <textarea id="targetDescription" rows="3" class="form-control form-control-custom" placeholder="Curriculum overview and objectives...">@(Model?.Description ?? "")</textarea>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label-custom">Student Instructions</label>
+                    <textarea id="targetInstructions" rows="3" class="form-control form-control-custom" placeholder="Guidelines for submission...">@(Model?.Instructions ?? "")</textarea>
+                </div>
+
+                <!-- Topic-based Questions Section -->
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-clipboard-question text-primary me-2"></i>Assignment Questions</h5>
+                        <button type="button" id="btnAddQuestion" class="btn btn-sm btn-light border font-weight-bold" style="border-radius: 8px;" onclick="addQuestionCard()">
+                            <i class="fa-solid fa-plus me-1"></i> Add Question
+                        </button>
+                    </div>
+
+                    <div id="questionsContainer">
+                        @if (Model?.Questions != null && Model.Questions.Any())
+                        {
+                            @for (int i = 0; i < Model.Questions.Count; i++)
+                            {
+                                var q = Model.Questions[i];
+                                <div class="question-card" data-index="@i">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="q-badge">Question @(i + 1)</span>
+                                            <div class="input-group input-group-sm" style="width: 140px;">
+                                                <span class="input-group-text bg-white">Marks</span>
+                                                <input type="number" step="0.5" min="1" class="form-control q-marks-input" value="@q.Marks" onchange="recalculateQuestionMarks()" />
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-danger border-0" onclick="removeQuestion(this)">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </div>
+                                    <textarea class="form-control form-control-custom mb-2 q-text-input" rows="2" placeholder="Question prompt...">@q.QuestionText</textarea>
+                                    <input type="text" class="form-control form-control-custom form-control-sm text-muted q-guide-input" placeholder="Expected answer concepts / guidelines..." value="@q.ExpectedAnswerGuidelines" />
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
+                <!-- Marking Criteria Breakdown -->
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-list-check text-primary me-2"></i>Marking Criteria</h5>
+                        <button type="button" id="btnAddCriteria" class="btn btn-sm btn-light border font-weight-bold" style="border-radius: 8px;">
+                            <i class="fa-solid fa-plus me-1"></i> Add Criterion
+                        </button>
+                    </div>
+                    <div id="criteriaContainer">
+                        @if (Model?.MarkingCriteria != null && Model.MarkingCriteria.Any())
+                        {
+                            @foreach (var c in Model.MarkingCriteria)
+                            {
+                                <div class="d-flex gap-2 mb-2 criteria-row align-items-center">
+                                    <input type="text" class="form-control form-control-custom c-name" style="width: 30%;" value="@c.Criterion" placeholder="Criterion" />
+                                    <div class="input-group" style="width: 120px;">
+                                        <input type="number" class="form-control form-control-custom c-weight" value="@c.Weightage" />
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    <input type="text" class="form-control form-control-custom c-desc flex-grow-1" value="@c.Description" placeholder="Description" />
+                                    <button type="button" class="btn btn-sm text-danger" onclick="$(this).closest('.criteria-row').remove()"><i class="fa-solid fa-trash"></i></button>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
+                <!-- 4-Level Evaluation Rubrics Matrix -->
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-table-list text-primary me-2"></i>Detailed Evaluation Rubrics</h5>
+                        <button type="button" id="btnAddRubricRow" class="btn btn-sm btn-light border font-weight-bold" style="border-radius: 8px;">
+                            <i class="fa-solid fa-plus me-1"></i> Add Rubric Dimension
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered rubric-table" id="rubricsTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 20%;">Dimension / Max</th>
+                                    <th style="width: 20%;">Excellent (80-100%)</th>
+                                    <th style="width: 20%;">Good (65-79%)</th>
+                                    <th style="width: 20%;">Fair (50-64%)</th>
+                                    <th style="width: 20%;">Poor (0-49%)</th>
+                                    <th style="width: 5%;"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (Model?.Rubrics != null && Model.Rubrics.Any())
+                                {
+                                    @foreach (var r in Model.Rubrics)
+                                    {
+                                        <tr class="rubric-row">
+                                            <td>
+                                                <input type="text" class="form-control form-control-custom form-control-sm mb-1 r-crit" value="@r.Criterion" placeholder="Criterion" />
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text">Max</span>
+                                                    <input type="number" class="form-control r-max" value="@r.MaxMarks" />
+                                                </div>
+                                            </td>
+                                            <td><textarea class="form-control form-control-custom form-control-sm r-exc" rows="3">@r.Excellent</textarea></td>
+                                            <td><textarea class="form-control form-control-custom form-control-sm r-good" rows="3">@r.Good</textarea></td>
+                                            <td><textarea class="form-control form-control-custom form-control-sm r-fair" rows="3">@r.Fair</textarea></td>
+                                            <td><textarea class="form-control form-control-custom form-control-sm r-poor" rows="3">@r.Poor</textarea></td>
+                                            <td class="text-center align-middle">
+                                                <button type="button" class="btn btn-sm text-danger" onclick="$(this).closest('tr').remove()"><i class="fa-solid fa-trash"></i></button>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Bottom Save & Publish Controls -->
+                <div class="d-flex justify-content-between align-items-center pt-3 border-top flex-wrap gap-2">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="chkAllowLate" checked="@(Model?.AllowLateSubmission ?? false)" />
+                        <label class="form-check-label font-weight-bold text-dark" for="chkAllowLate">Allow Late Submissions</label>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="button" id="btnBottomSaveDraft" class="btn btn-warning text-dark px-4 py-2 font-weight-bold shadow-sm" style="border-radius: 12px;" onclick="persistAssignment(false)">
+                            <i class="fa-solid fa-file-pen me-1"></i> Save Draft
+                        </button>
+                        <button type="button" id="btnBottomPublish" class="btn btn-success px-4 py-2 font-weight-bold shadow-sm" style="border-radius: 12px;" onclick="persistAssignment(true)">
+                            <i class="fa-solid fa-cloud-arrow-up me-1"></i> Publish Assignment
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Empty State Placeholder -->
+            <div id="aiEmptyPlaceholder" class="generator-card ai-placeholder-sticky p-4" style="@(isEditing ? "display: none;" : "")">
+                <div class="text-center py-3">
+                    <div class="mb-3" style="display: inline-flex; width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #eff6ff, #e0e7ff); align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.12);">
+                        <i class="fa-solid fa-wand-magic-sparkles text-primary" style="font-size: 32px;"></i>
+                    </div>
+                    <h4 class="font-weight-bold text-dark mb-2">AI Assignment Generator Ready</h4>
+                    <p class="text-muted small mx-auto mb-4" style="max-width: 440px;">
+                        Synthesize curriculum-grounded questions, student instructions, marking criteria, and rubrics.
+                    </p>
+                </div>
+
+                <div class="border rounded-3 p-3 bg-light mb-4">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="step-badge">1</span>
+                        <div>
+                            <strong class="d-block text-dark" style="font-size: 13.5px;">Select Course & Syllabus Scope</strong>
+                            <span class="text-muted" style="font-size: 12px;">Pick your assigned Course on the left (target program auto-syncs).</span>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="step-badge">2</span>
+                        <div>
+                            <strong class="d-block text-dark" style="font-size: 13.5px;">Specify Topic & Constraints</strong>
+                            <span class="text-muted" style="font-size: 12px;">Enter custom concepts, choose difficulty, questions, and marks.</span>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="step-badge">3</span>
+                        <div>
+                            <strong class="d-block text-dark" style="font-size: 13.5px;">Generate, Review & Publish</strong>
+                            <span class="text-muted" style="font-size: 12px;">Click "Generate Assignment with AI" to synthesize, edit live, and save.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center text-muted" style="font-size: 12px;">
+                    <i class="fa-solid fa-shield-halved text-success me-1"></i> AI ensures strictly structured questions and balanced rubrics.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let currentAssignmentId = @(Model?.AssignmentId ?? 0);
+        let currentProgramId = @(Model?.ProgramId ?? 0);
+        let currentCourseId = @(Model?.CourseId ?? 0);
+        let currentSemesterId = @(Model?.SemesterId ?? 0);
+        let currentSubjectId = @(Model?.SubjectId ?? 0);
+        let currentUnitId = @(Model?.UnitId ?? 0);
+        let currentTopicId = @(Model?.TopicId ?? 0);
+
+        function getVal(id) {
+            const el = document.getElementById(id);
+            return el ? el.value : '';
+        }
+
+        function generateAssignment() {
+            try {
+                console.log('[AI Generator] generateAssignment initiated');
+
+                // 1. Immediately update button UI & state
+                const btnGen = document.getElementById('btnGenerate');
+                if (btnGen) {
+                    btnGen.disabled = true;
+                    btnGen.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Generating Assignment with AI...';
+                }
+                const btnRegen = document.getElementById('btnRegenerate');
+                if (btnRegen) {
+                    btnRegen.disabled = true;
+                }
+
+                // 2. Immediately show spinner & hide workspace
+                const spinnerElem = document.getElementById('aiLoadingSpinner');
+                if (spinnerElem) spinnerElem.style.display = 'block';
+                const emptyElem = document.getElementById('aiEmptyPlaceholder');
+                if (emptyElem) emptyElem.style.display = 'none';
+                const wsElem = document.getElementById('assignmentWorkspaceCard');
+                if (wsElem) wsElem.style.display = 'none';
+                const errAlert = document.getElementById('aiErrorAlert');
+                if (errAlert) errAlert.style.display = 'none';
+                const succAlert = document.getElementById('aiSuccessAlert');
+                if (succAlert) succAlert.style.display = 'none';
+
+                if (spinnerElem) {
+                    try { spinnerElem.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e){}
+                }
+
+                // 3. Resolve Program & Course with pure DOM
+                let programId = parseInt(getVal('genProgramId')) || 0;
+                let courseId = parseInt(getVal('genCourseId')) || 0;
+                const customTopic = (getVal('genCustomTopic') || '').trim();
+                const customTopicLower = customTopic.toLowerCase();
+
+                const courseSelect = document.getElementById('genCourseId');
+                const progSelect = document.getElementById('genProgramId');
+
+                // Auto-match topic with course options if course not yet selected
+                if (!courseId && customTopicLower && courseSelect && courseSelect.options) {
+                    for (let i = 0; i < courseSelect.options.length; i++) {
+                        const opt = courseSelect.options[i];
+                        const optVal = parseInt(opt.value) || 0;
+                        if (optVal > 0) {
+                            const optText = (opt.text || '').toLowerCase();
+                            const cleanText = optText.split('(')[0].trim();
+                            if (optText.includes(customTopicLower) || customTopicLower.includes(cleanText)) {
+                                courseId = optVal;
+                                courseSelect.value = courseId;
+                                const prog = parseInt(opt.getAttribute('data-prog')) || 0;
+                                if (prog) {
+                                    programId = prog;
+                                    if (progSelect) progSelect.value = programId;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Fallback to first available course in dropdown
+                if (!courseId && courseSelect && courseSelect.options) {
+                    for (let i = 0; i < courseSelect.options.length; i++) {
+                        const opt = courseSelect.options[i];
+                        const optVal = parseInt(opt.value) || 0;
+                        if (optVal > 0) {
+                            courseId = optVal;
+                            courseSelect.value = courseId;
+                            const prog = parseInt(opt.getAttribute('data-prog')) || 0;
+                            if (prog) {
+                                programId = prog;
+                                if (progSelect) progSelect.value = programId;
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                // Resolve program from selected course
+                if (!programId && courseId && courseSelect) {
+                    const opt = courseSelect.querySelector('option[value="' + courseId + '"]');
+                    if (opt) {
+                        const prog = parseInt(opt.getAttribute('data-prog')) || 0;
+                        if (prog) {
+                            programId = prog;
+                            if (progSelect) progSelect.value = programId;
+                        }
+                    }
+                }
+                if (!programId && progSelect && progSelect.options) {
+                    for (let i = 0; i < progSelect.options.length; i++) {
+                        const optVal = parseInt(progSelect.options[i].value) || 0;
+                        if (optVal > 0) {
+                            programId = optVal;
+                            progSelect.value = programId;
+                            break;
+                        }
+                    }
+                }
+
+                if (courseSelect) courseSelect.classList.remove('is-invalid');
+                if (progSelect) progSelect.classList.remove('is-invalid');
+                const inlineAlert = document.getElementById('genInlineAlert');
+                if (inlineAlert) inlineAlert.style.display = 'none';
+
+                const semId = parseInt(getVal('genSemesterId')) || null;
+                const subId = parseInt(getVal('genSubjectId')) || null;
+                const unitId = parseInt(getVal('genUnitId')) || null;
+                const topicId = parseInt(getVal('genTopicId')) || null;
+                const difficulty = getVal('genDifficulty') || 'Medium';
+                const assignmentType = getVal('genAssignmentType') || 'Theory / Descriptive';
+                const numQuestions = parseInt(getVal('genNumQuestions')) || 5;
+                const totalMarks = parseFloat(getVal('genTotalMarks')) || 50;
+                const specialInstr = getVal('genSpecialInstructions') || '';
+
+                const originalGenHtml = '<i class="fa-solid fa-wand-magic-sparkles me-2"></i> Generate Assignment with AI';
+
+                const requestPayload = {
+                    programId: programId,
+                    courseId: courseId,
+                    semesterId: semId,
+                    subjectId: subId,
+                    unitId: unitId,
+                    topicId: topicId,
+                    difficulty: difficulty,
+                    assignmentType: assignmentType,
+                    numberOfQuestions: numQuestions,
+                    totalMarks: totalMarks,
+                    customTopic: customTopic || 'Curriculum Assignment',
+                    submissionInstructions: specialInstr
+                };
+
+                fetch('/Assignment/GenerateAiAssignment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestPayload)
+                })
+                .then(async response => {
+                    if (btnGen) {
+                        btnGen.disabled = false;
+                        btnGen.innerHTML = originalGenHtml;
+                    }
+                    if (btnRegen) btnRegen.disabled = false;
+                    if (spinnerElem) spinnerElem.style.display = 'none';
+
+                    if (response.redirected && response.url.indexOf('Login') !== -1) {
+                        alert('Your session has expired. Redirecting to login...');
+                        window.location.href = response.url;
+                        return;
+                    }
+
+                    const res = await response.json();
+                    if (!res.success) {
+                        const msg = res.message || 'Failed to generate assignment.';
+                        const errElem = document.getElementById('aiErrorMessage');
+                        if (errElem) errElem.textContent = msg;
+                        if (errAlert) errAlert.style.display = 'block';
+                        if (emptyElem) emptyElem.style.display = 'block';
+                        return;
+                    }
+
+                    renderGeneratedAssignment(res.data);
+                    const wsElemNow = document.getElementById('assignmentWorkspaceCard');
+                    if (wsElemNow) {
+                        wsElemNow.style.display = 'block';
+                        try { wsElemNow.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch(e){}
+                    }
+                })
+                .catch(err => {
+                    if (btnGen) {
+                        btnGen.disabled = false;
+                        btnGen.innerHTML = originalGenHtml;
+                    }
+                    if (btnRegen) btnRegen.disabled = false;
+                    if (spinnerElem) spinnerElem.style.display = 'none';
+                    const errMsg = 'Network or server error while generating assignment. Please retry.';
+                    const errElem = document.getElementById('aiErrorMessage');
+                    if (errElem) errElem.textContent = errMsg;
+                    if (errAlert) errAlert.style.display = 'block';
+                    if (emptyElem) emptyElem.style.display = 'block';
+                });
+            } catch (err) {
+                console.error('[AI Generator] Unhandled exception in generateAssignment:', err);
+                const btnGen = document.getElementById('btnGenerate');
+                if (btnGen) {
+                    btnGen.disabled = false;
+                    btnGen.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles me-2"></i> Generate Assignment with AI';
+                }
+                const spinnerElem = document.getElementById('aiLoadingSpinner');
+                if (spinnerElem) spinnerElem.style.display = 'none';
+                alert('Generation Error: ' + err.message);
+            }
+        }
+
+        function renderGeneratedAssignment(data) {
+            if (!data) return;
+            const tTitle = document.getElementById('targetTitle');
+            if (tTitle) tTitle.value = data.title || 'Assignment';
+            const tDesc = document.getElementById('targetDescription');
+            if (tDesc) tDesc.value = data.description || '';
+            const tInstr = document.getElementById('targetInstructions');
+            if (tInstr) tInstr.value = data.instructions || '';
+
+            // Render Questions
+            let qHtml = '';
+            (data.questions || []).forEach(function(q, i) {
+                qHtml += `
+                    <div class="question-card" data-index="${i}">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="q-badge">Question ${q.questionNumber || (i + 1)}</span>
+                                <div class="input-group input-group-sm" style="width: 140px;">
+                                    <span class="input-group-text bg-white">Marks</span>
+                                    <input type="number" step="0.5" min="1" class="form-control q-marks-input" value="${q.marks}" onchange="recalculateQuestionMarks()" />
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger border-0" onclick="removeQuestion(this)" title="Delete Question">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                        <textarea class="form-control form-control-custom mb-2 q-text-input" rows="2" placeholder="Question prompt...">${q.questionText || ''}</textarea>
+                        <input type="text" class="form-control form-control-custom form-control-sm text-muted q-guide-input" placeholder="Expected answer concepts / guidelines..." value="${q.expectedAnswerGuidelines || ''}" />
+                    </div>`;
+            });
+            const qCont = document.getElementById('questionsContainer');
+            if (qCont) qCont.innerHTML = qHtml;
+
+            // Render Marking Criteria
+            let cHtml = '';
+            (data.markingCriteria || []).forEach(function(c, i) {
+                cHtml += `
+                    <div class="d-flex gap-2 mb-2 criteria-row align-items-center">
+                        <input type="text" class="form-control form-control-custom c-name" style="width: 30%;" value="${c.criterion || ''}" placeholder="Criterion" />
+                        <div class="input-group" style="width: 120px;">
+                            <input type="number" class="form-control form-control-custom c-weight" value="${c.weightage || 25}" />
+                            <span class="input-group-text">%</span>
+                        </div>
+                        <input type="text" class="form-control form-control-custom c-desc flex-grow-1" value="${c.description || ''}" placeholder="Description" />
+                        <button type="button" class="btn btn-sm text-danger" onclick="this.closest('.criteria-row').remove()"><i class="fa-solid fa-trash"></i></button>
+                    </div>`;
+            });
+            const cCont = document.getElementById('criteriaContainer');
+            if (cCont) cCont.innerHTML = cHtml;
+
+            // Render Rubrics
+            let rHtml = '';
+            (data.rubrics || []).forEach(function(r, i) {
+                rHtml += `
+                    <tr class="rubric-row">
+                        <td>
+                            <input type="text" class="form-control form-control-custom form-control-sm mb-1 r-crit" value="${r.criterion || ''}" placeholder="Criterion" />
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">Max</span>
+                                <input type="number" class="form-control r-max" value="${r.maxMarks || 10}" />
+                            </div>
+                        </td>
+                        <td><textarea class="form-control form-control-custom form-control-sm r-exc" rows="3">${r.excellent || ''}</textarea></td>
+                        <td><textarea class="form-control form-control-custom form-control-sm r-good" rows="3">${r.good || ''}</textarea></td>
+                        <td><textarea class="form-control form-control-custom form-control-sm r-fair" rows="3">${r.fair || ''}</textarea></td>
+                        <td><textarea class="form-control form-control-custom form-control-sm r-poor" rows="3">${r.poor || ''}</textarea></td>
+                        <td class="text-center align-middle">
+                            <button type="button" class="btn btn-sm text-danger" onclick="this.closest('tr').remove()"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>`;
+            });
+            const rBody = document.querySelector('#rubricsTable tbody');
+            if (rBody) rBody.innerHTML = rHtml;
+
+            recalculateQuestionMarks();
+        }
+
+        function persistAssignment(publish) {
+            let programId = parseInt($('#genProgramId').val()) || 0;
+            let courseId = parseInt($('#genCourseId').val()) || 0;
+
+            if (!programId && courseId) {
+                const derivedProg = parseInt($('#genCourseId option:selected').data('prog')) || 0;
+                if (derivedProg) {
+                    programId = derivedProg;
+                    $('#genProgramId').val(programId);
+                }
+            }
+
+            const title = ($('#targetTitle').val() || '').trim();
+            if (!title) {
+                $('#targetTitle').addClass('is-invalid').focus();
+                $('#aiErrorMessage').text('Please provide an Assignment Title.');
+                $('#aiErrorAlert').fadeIn();
+                const titleElem = document.getElementById('targetTitle');
+                if (titleElem) titleElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+            $('#targetTitle').removeClass('is-invalid');
+
+            let dueDateVal = $('#genDueDate').val();
+            if (!dueDateVal) {
+                const d = new Date();
+                d.setDate(d.getDate() + 7);
+                dueDateVal = d.toISOString().slice(0, 16);
+                $('#genDueDate').val(dueDateVal);
+            }
+
+            const totalMarks = parseFloat($('#genTotalMarks').val()) || 50;
+
+            // Collect questions
+            const questions = [];
+            $('#questionsContainer .question-card').each(function(idx) {
+                const text = $(this).find('.q-text-input').val();
+                const marks = parseFloat($(this).find('.q-marks-input').val()) || 0;
+                const guidelines = $(this).find('.q-guide-input').val();
+                if (text && text.trim()) {
+                    questions.push({
+                        questionNumber: idx + 1,
+                        questionText: text.trim(),
+                        marks: marks,
+                        expectedAnswerGuidelines: guidelines || ''
+                    });
+                }
+            });
+
+            if (questions.length === 0) {
+                $('#aiErrorMessage').text('Please ensure at least one question prompt is defined.');
+                $('#aiErrorAlert').fadeIn();
+                return;
+            }
+
+            // Collect Criteria
+            const criteria = [];
+            $('#criteriaContainer .criteria-row').each(function() {
+                const name = $(this).find('.c-name').val();
+                const weight = parseFloat($(this).find('.c-weight').val()) || 0;
+                const desc = $(this).find('.c-desc').val();
+                if (name && name.trim()) {
+                    criteria.push({
+                        criterion: name.trim(),
+                        weightage: weight,
+                        description: desc || ''
+                    });
+                }
+            });
+
+            // Collect Rubrics
+            const rubrics = [];
+            $('#rubricsTable tbody .rubric-row').each(function() {
+                const crit = $(this).find('.r-crit').val();
+                const max = parseFloat($(this).find('.r-max').val()) || 0;
+                const exc = $(this).find('.r-exc').val();
+                const good = $(this).find('.r-good').val();
+                const fair = $(this).find('.r-fair').val();
+                const poor = $(this).find('.r-poor').val();
+                if (crit && crit.trim()) {
+                    rubrics.push({
+                        criterion: crit.trim(),
+                        maxMarks: max,
+                        excellent: exc || '',
+                        good: good || '',
+                        fair: fair || '',
+                        poor: poor || ''
+                    });
+                }
+            });
+
+            const payload = {
+                assignmentId: currentAssignmentId > 0 ? currentAssignmentId : null,
+                programId: programId,
+                courseId: courseId,
+                semesterId: parseInt($('#genSemesterId').val()) || null,
+                subjectId: parseInt($('#genSubjectId').val()) || null,
+                unitId: parseInt($('#genUnitId').val()) || null,
+                topicId: parseInt($('#genTopicId').val()) || null,
+                difficulty: $('#genDifficulty').val() || 'Medium',
+                assignmentType: $('#genAssignmentType').val() || 'Theory / Descriptive',
+                title: title,
+                description: $('#targetDescription').val() || '',
+                instructions: $('#targetInstructions').val() || '',
+                dueDate: dueDateVal,
+                totalMarks: totalMarks,
+                passMarks: Math.round(totalMarks * 0.4),
+                allowLateSubmission: $('#chkAllowLate').is(':checked'),
+                latePenalty: 10,
+                questions: questions,
+                markingCriteria: criteria,
+                rubrics: rubrics,
+                publish: publish
+            };
+
+            const $btn = publish ? $('#btnPublish, #btnBottomPublish') : $('#btnSaveDraft, #btnBottomSaveDraft');
+            const originalText = $btn.html();
+            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> ' + (publish ? 'Publishing...' : 'Saving Draft...'));
+
+            $.ajax({
+                url: '@Url.Action("SaveAiAssignment", "Assignment")',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(payload),
+                success: function(res) {
+                    $btn.prop('disabled', false).html(originalText);
+
+                    if (typeof res === 'string' && (res.indexOf('<!DOCTYPE') !== -1 || res.indexOf('login') !== -1)) {
+                        alert('Your session has expired. Redirecting to login...');
+                        window.location.href = '/Auth/LoginOptional?ReturnUrl=' + encodeURIComponent(window.location.pathname);
+                        return;
+                    }
+
+                    if (!res.success) {
+                        $('#aiErrorMessage').text(res.message || 'Error saving assignment.');
+                        $('#aiErrorAlert').fadeIn();
+                        const errElem = document.getElementById('aiErrorAlert');
+                        if (errElem) errElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        return;
+                    }
+
+                    currentAssignmentId = res.assignmentId;
+                    $('#aiSuccessMessage').text(res.message);
+                    $('#aiSuccessAlert').fadeIn();
+                    const succElem = document.getElementById('aiSuccessAlert');
+                    if (succElem) succElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                    setTimeout(function() {
+                        window.location.href = '@Url.Action("FacultyDashboard", "Assignment")';
+                    }, 1200);
+                },
+                error: function(xhr) {
+                    $btn.prop('disabled', false).html(originalText);
+
+                    if (xhr.status === 401 || xhr.status === 403 || (xhr.responseText && (xhr.responseText.indexOf('<!DOCTYPE') !== -1 || xhr.responseText.indexOf('login') !== -1))) {
+                        alert('Your session has expired. Redirecting to login...');
+                        window.location.href = '/Auth/LoginOptional?ReturnUrl=' + encodeURIComponent(window.location.pathname);
+                        return;
+                    }
+
+                    $('#aiErrorMessage').text('Network error while saving assignment. Please retry.');
+                    $('#aiErrorAlert').fadeIn();
+                }
+            });
+        }
+
+        let isEditMode = false;
+        function toggleEditMode() {
+            isEditMode = !isEditMode;
+            if (isEditMode) {
+                $('#btnEditLabel').text('Done Editing');
+                $('#btnToggleEdit').removeClass('btn-outline-secondary').addClass('btn-primary text-white');
+                $('#targetTitle, #targetDescription, #targetInstructions, .q-text-input, .q-marks-input').addClass('bg-white border-primary shadow-sm');
+                $('#targetTitle').focus();
+            } else {
+                $('#btnEditLabel').text('Edit Content');
+                $('#btnToggleEdit').removeClass('btn-primary text-white').addClass('btn-outline-secondary');
+                $('#targetTitle, #targetDescription, #targetInstructions, .q-text-input, .q-marks-input').removeClass('bg-white border-primary shadow-sm');
+            }
+        }
+
+        function addQuestionCard() {
+            const count = $('#questionsContainer .question-card').length + 1;
+            const html = `
+                <div class="question-card" data-index="${count - 1}">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="q-badge">Question ${count}</span>
+                            <div class="input-group input-group-sm" style="width: 140px;">
+                                <span class="input-group-text bg-white">Marks</span>
+                                <input type="number" step="0.5" min="1" class="form-control q-marks-input" value="10" onchange="recalculateQuestionMarks()" />
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-danger border-0" onclick="removeQuestion(this)" title="Delete Question">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                    <textarea class="form-control form-control-custom mb-2 q-text-input" rows="2" placeholder="Question prompt..."></textarea>
+                    <input type="text" class="form-control form-control-custom form-control-sm text-muted q-guide-input" placeholder="Expected answer concepts / guidelines..." />
+                </div>`;
+            $('#questionsContainer').append(html);
+            recalculateQuestionMarks();
+            const $newCard = $('#questionsContainer .question-card').last();
+            $newCard.find('.q-text-input').focus();
+        }
+
+        function addCriteriaRow() {
+            const html = `
+                <div class="d-flex gap-2 mb-2 criteria-row align-items-center">
+                    <input type="text" class="form-control form-control-custom c-name" style="width: 30%;" placeholder="Criterion" />
+                    <div class="input-group" style="width: 120px;">
+                        <input type="number" class="form-control form-control-custom c-weight" value="20" />
+                        <span class="input-group-text">%</span>
+                    </div>
+                    <input type="text" class="form-control form-control-custom c-desc flex-grow-1" placeholder="Description" />
+                    <button type="button" class="btn btn-sm text-danger" onclick="$(this).closest('.criteria-row').remove()"><i class="fa-solid fa-trash"></i></button>
+                </div>`;
+            $('#criteriaContainer').append(html);
+        }
+
+        function addRubricRow() {
+            const html = `
+                <tr class="rubric-row">
+                    <td>
+                        <input type="text" class="form-control form-control-custom form-control-sm mb-1 r-crit" placeholder="Dimension Name" />
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">Max</span>
+                            <input type="number" class="form-control r-max" value="10" />
+                        </div>
+                    </td>
+                    <td><textarea class="form-control form-control-custom form-control-sm r-exc" rows="3" placeholder="Excellent descriptor (80-100%)..."></textarea></td>
+                    <td><textarea class="form-control form-control-custom form-control-sm r-good" rows="3" placeholder="Good descriptor (65-79%)..."></textarea></td>
+                    <td><textarea class="form-control form-control-custom form-control-sm r-fair" rows="3" placeholder="Fair descriptor (50-64%)..."></textarea></td>
+                    <td><textarea class="form-control form-control-custom form-control-sm r-poor" rows="3" placeholder="Poor descriptor (0-49%)..."></textarea></td>
+                    <td class="text-center align-middle">
+                        <button type="button" class="btn btn-sm text-danger" onclick="$(this).closest('tr').remove()"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>`;
+            $('#rubricsTable tbody').append(html);
+        }
+
+        function removeQuestion(btn) {
+            const $container = $('#questionsContainer');
+            if ($container.find('.question-card').length <= 1) {
+                alert('An assignment must contain at least one question.');
+                return;
+            }
+            $(btn).closest('.question-card').fadeOut(200, function() {
+                $(this).remove();
+                $('#questionsContainer .question-card').each(function(idx) {
+                    $(this).find('.q-badge').text('Question ' + (idx + 1));
+                    $(this).attr('data-index', idx);
+                });
+                recalculateQuestionMarks();
+            });
+        }
+
+        function recalculateQuestionMarks() {
+            let sum = 0;
+            const inputs = document.querySelectorAll('.q-marks-input');
+            inputs.forEach(function(inp) {
+                sum += parseFloat(inp.value) || 0;
+            });
+            const totalInput = document.getElementById('genTotalMarks');
+            const target = parseFloat(totalInput ? totalInput.value : 50) || 50;
+            const disp = document.getElementById('displayTotalMarks');
+            if (disp) disp.textContent = sum + ' / ' + target;
+
+            const badge = document.getElementById('marksBalanceBadge');
+            if (badge) {
+                if (Math.abs(sum - target) < 0.01) {
+                    badge.className = 'badge bg-success';
+                    badge.innerHTML = '<i class="fa-solid fa-check me-1"></i> Marks Balanced';
+                } else {
+                    badge.className = 'badge bg-warning text-dark';
+                    badge.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-1"></i> Mismatch: Δ ${Math.round((target - sum) * 100) / 100}`;
+                }
+            }
+        }
+
+        function loadSubjects(courseId, selectedSubjectId) {
+            $('#genSubjectId').html('<option value="">-- Loading Subjects... --</option>');
+            $.get('@Url.Action("GetSubjectsByCourse", "Assignment")', { courseId: courseId }, function(data) {
+                let html = '<option value="">-- General Course Scope --</option>';
+                $.each(data, function(i, item) {
+                    const sel = (selectedSubjectId && item.id === selectedSubjectId) ? 'selected' : '';
+                    html += `<option value="${item.id}" ${sel}>${item.name} (${item.code || ''})</option>`;
+                });
+                $('#genSubjectId').html(html);
+
+                if (selectedSubjectId) {
+                    loadUnits(selectedSubjectId, currentUnitId);
+                }
+            });
+        }
+
+        function loadUnits(subjectId, selectedUnitId) {
+            $('#genUnitId').html('<option value="">-- Loading Units... --</option>');
+            $.get('@Url.Action("GetUnitsBySubject", "Assignment")', { subjectId: subjectId }, function(data) {
+                let html = '<option value="">-- All Units --</option>';
+                $.each(data, function(i, item) {
+                    const sel = (selectedUnitId && item.id === selectedUnitId) ? 'selected' : '';
+                    html += `<option value="${item.id}" ${sel}>${item.name}</option>`;
+                });
+                $('#genUnitId').html(html);
+
+                if (selectedUnitId) {
+                    loadTopics(selectedUnitId, currentTopicId);
+                }
+            });
+        }
+
+        function loadTopics(unitId, selectedTopicId) {
+            $('#genTopicId').html('<option value="">-- Loading Topics... --</option>');
+            $.get('@Url.Action("GetTopicsByUnit", "Assignment")', { unitId: unitId }, function(data) {
+                let html = '<option value="">-- Entire Unit --</option>';
+                $.each(data, function(i, item) {
+                    const sel = (selectedTopicId && item.id === selectedTopicId) ? 'selected' : '';
+                    html += `<option value="${item.id}" ${sel}>${item.name}</option>`;
+                });
+                $('#genTopicId').html(html);
+            });
+        }
+
+        // Expose functions globally to window
+        window.generateAssignment = generateAssignment;
+        window.persistAssignment = persistAssignment;
+        window.renderGeneratedAssignment = renderGeneratedAssignment;
+        window.toggleEditMode = toggleEditMode;
+        window.addQuestionCard = addQuestionCard;
+        window.addCriteriaRow = addCriteriaRow;
+        window.addRubricRow = addRubricRow;
+        window.removeQuestion = removeQuestion;
+        window.recalculateQuestionMarks = recalculateQuestionMarks;
+        window.loadSubjects = loadSubjects;
+        window.loadUnits = loadUnits;
+        window.loadTopics = loadTopics;
+
+        $(document).ready(function() {
+            // Initial Cascades if editing
+            if (currentCourseId > 0) {
+                loadSubjects(currentCourseId, currentSubjectId);
+            }
+
+            // Auto-select if only 1 program option exists
+            const $progOpts = $('#genProgramId option').filter(function() { return $(this).val() !== "" && $(this).val() !== "0"; });
+            if ($progOpts.length === 1 && !$('#genProgramId').val()) {
+                $('#genProgramId').val($progOpts.val());
+            }
+
+            // Auto-select if only 1 course option exists
+            const $courseOpts = $('#genCourseId option').filter(function() { return $(this).val() !== "" && $(this).val() !== "0"; });
+            if ($courseOpts.length === 1 && !$('#genCourseId').val()) {
+                $('#genCourseId').val($courseOpts.val()).trigger('change');
+            }
+
+            // Program Change -> Load Courses & Semesters
+            $('#genProgramId').change(function() {
+                const progId = $(this).val();
+                $(this).removeClass('is-invalid');
+                $('#genInlineAlert').hide();
+                if (!progId) return;
+
+                $('#genCourseId').html('<option value="">-- Loading Courses... --</option>');
+                $.get('@Url.Action("GetCoursesByProgram", "Assignment")', { programId: progId }, function(data) {
+                    let html = '<option value="">-- Select Course --</option>';
+                    $.each(data, function(i, item) {
+                        html += `<option value="${item.id}" data-prog="${item.programId || progId}" data-sem="${item.semesterId || ''}">${item.name} (${item.code || ''})</option>`;
+                    });
+                    $('#genCourseId').html(html);
+
+                    if (data && data.length === 1) {
+                        $('#genCourseId').val(data[0].id).trigger('change');
+                    }
+                });
+
+                $.get('@Url.Action("GetSemestersByProgram", "Assignment")', { programId: progId }, function(data) {
+                    let html = '<option value="">-- Auto-derive from Course --</option>';
+                    $.each(data, function(i, item) {
+                        html += `<option value="${item.id}">${item.name}</option>`;
+                    });
+                    $('#genSemesterId').html(html);
+                });
+            });
+
+            // Course Change -> Load Subjects & auto-select Semester & Program
+            $('#genCourseId').change(function() {
+                const courseId = $(this).val();
+                $(this).removeClass('is-invalid');
+                $('#genInlineAlert').hide();
+
+                if (!courseId) return;
+
+                const semId = $(this).find(':selected').data('sem');
+                if (semId) {
+                    $('#genSemesterId').val(semId);
+                }
+
+                const progId = $(this).find(':selected').data('prog');
+                if (progId && !$('#genProgramId').val()) {
+                    $('#genProgramId').val(progId).removeClass('is-invalid');
+                }
+
+                loadSubjects(courseId);
+            });
+
+            // Subject Change -> Load Units
+            $('#genSubjectId').change(function() {
+                const subjectId = $(this).val();
+                if (subjectId) {
+                    loadUnits(subjectId);
+                }
+            });
+
+            // Unit Change -> Load Topics
+            $('#genUnitId').change(function() {
+                const unitId = $(this).val();
+                if (unitId) {
+                    loadTopics(unitId);
+                }
+            });
+
+            // Multi-layer click bindings for Generate and Regenerate
+            $(document).on('click', '#btnGenerate', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                generateAssignment();
+            });
+
+            $(document).on('click', '#btnRegenerate', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                generateAssignment();
+            });
+
+            const nativeBtnGen = document.getElementById('btnGenerate');
+            if (nativeBtnGen) {
+                nativeBtnGen.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    generateAssignment();
+                });
+            }
+
+            recalculateQuestionMarks();
+        });
+    </script>
+}

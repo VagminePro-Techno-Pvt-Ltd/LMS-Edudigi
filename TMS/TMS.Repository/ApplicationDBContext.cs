@@ -1,3 +1,7 @@
+using TMS.Models.Audit;
+using TMS.Common;
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -115,10 +119,18 @@ namespace TMS.Repository
         public DbSet<InteractivePPT> InteractivePPTs { get; set; }
         public DbSet<PPTSlideInteraction> PPTSlideInteractions { get; set; }
 
+        // ─── Feature 77: Student At-Risk Alerts & Moderation ───
+        public DbSet<CourseActivityDeadline> CourseActivityDeadlines { get; set; }
+        public DbSet<StudentRiskAlert> StudentRiskAlerts { get; set; }
+        public DbSet<ContentModerationFlag> ContentModerationFlags { get; set; }
 
-
-
-
+        // ─── Feature 68: Certification Exams & Automatic Digital Certificate Generation ───
+        public DbSet<CertificationExam> CertificationExams { get; set; }
+        public DbSet<CertificationExamQuestion> CertificationExamQuestions { get; set; }
+        public DbSet<CertificationExamQuestionOption> CertificationExamQuestionOptions { get; set; }
+        public DbSet<CertificationExamAttempt> CertificationExamAttempts { get; set; }
+        public DbSet<CertificationExamStudentAnswer> CertificationExamStudentAnswers { get; set; }
+        public DbSet<IssuedCertificate> IssuedCertificates { get; set; }
 
         #endregion
         #region Training schedule
@@ -160,11 +172,15 @@ namespace TMS.Repository
         public DbSet<ProctoringSession> ProctoringSessions { get; set; }
         public DbSet<ProctoringIncident> ProctoringIncidents { get; set; }
 
+        public DbSet<AuditLog> AuditLogs { get; set; }
+
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        public ApplicationDBContext(DbContextOptions<ApplicationDBContext> options) : base(options)
+        private readonly IAuditUserProvider? _auditUserProvider;
+
+        public ApplicationDBContext(DbContextOptions<ApplicationDBContext> options, IAuditUserProvider? auditUserProvider = null) : base(options)
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
-
+            _auditUserProvider = auditUserProvider;
         }
 
         protected override void OnModelCreating(ModelBuilder builder)
@@ -398,7 +414,460 @@ namespace TMS.Repository
                 b.Property(c => c.Language).HasMaxLength(20);
             });
 
+            // ─── Feature 77: Student At-Risk & Moderation ───
+            builder.Entity<CourseActivityDeadline>(entity =>
+            {
+                entity.HasIndex(x => new { x.CourseId, x.ActivityType, x.ActivityId }).IsUnique();
+                entity.HasIndex(x => x.CourseId);
+                entity.HasOne(x => x.Course).WithMany().HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.NoAction);
+            });
+
+            builder.Entity<StudentRiskAlert>(entity =>
+            {
+                entity.HasIndex(x => new { x.StudentId, x.IsResolved });
+                entity.HasIndex(x => new { x.CourseId, x.StudentId });
+                entity.HasOne(x => x.Student).WithMany().HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.Course).WithMany().HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.NoAction);
+            });
+
+            builder.Entity<ContentModerationFlag>(entity =>
+            {
+                entity.HasIndex(x => x.Status);
+                entity.HasIndex(x => x.AuthorUserId);
+                entity.HasOne(x => x.AuthorUser).WithMany().HasForeignKey(x => x.AuthorUserId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.ReviewedByUser).WithMany().HasForeignKey(x => x.ReviewedByUserId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.Program).WithMany().HasForeignKey(x => x.ProgramId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(x => x.Course).WithMany().HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.NoAction);
+            });
+
+            
+            builder.Entity<AuditLog>(b =>
+            {
+                b.ToTable("AuditLogs");
+                b.HasKey(x => x.Id);
+                b.Property(x => x.ActionType).IsRequired().HasMaxLength(100);
+                b.Property(x => x.ModuleName).IsRequired().HasMaxLength(100);
+                b.Property(x => x.Status).IsRequired().HasMaxLength(50);
+                b.Property(x => x.Username).HasMaxLength(150);
+                b.Property(x => x.UserRole).HasMaxLength(50);
+                b.Property(x => x.EntityType).HasMaxLength(100);
+                b.Property(x => x.EntityId).HasMaxLength(100);
+                b.Property(x => x.IpAddress).HasMaxLength(50);
+                b.Property(x => x.CorrelationId).HasMaxLength(100);
+                b.HasIndex(x => x.TimestampUtc).HasDatabaseName("IX_AuditLogs_TimestampUtc");
+                b.HasIndex(x => x.UserId).HasDatabaseName("IX_AuditLogs_UserId");
+                b.HasIndex(x => x.ModuleName).HasDatabaseName("IX_AuditLogs_ModuleName");
+                b.HasIndex(x => x.ActionType).HasDatabaseName("IX_AuditLogs_ActionType");
+                b.HasIndex(x => x.Status).HasDatabaseName("IX_AuditLogs_Status");
+            });
+
+
             base.OnModelCreating(builder);
         }
+
+        #region Audit Trail Interceptor
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            if (_auditUserProvider?.IsTrackingSuppressed() == true)
+            {
+                return await base.SaveChangesAsync(cancellationToken);
+            }
+
+            List<AuditEntry>? auditEntries = null;
+            try
+            {
+                auditEntries = OnBeforeSaveChanges();
+            }
+            catch
+            {
+                // Never block save operations if audit gathering fails
+            }
+
+            var result = await base.SaveChangesAsync(cancellationToken);
+
+            if (auditEntries != null && auditEntries.Count > 0)
+            {
+                try
+                {
+                    await OnAfterSaveChangesAsync(auditEntries, cancellationToken);
+                }
+                catch
+                {
+                    // Never block save operations if audit persistence fails
+                }
+            }
+
+            return result;
+        }
+
+        public override int SaveChanges()
+        {
+            if (_auditUserProvider?.IsTrackingSuppressed() == true)
+            {
+                return base.SaveChanges();
+            }
+
+            List<AuditEntry>? auditEntries = null;
+            try
+            {
+                auditEntries = OnBeforeSaveChanges();
+            }
+            catch
+            {
+                // Never block save operations if audit gathering fails
+            }
+
+            var result = base.SaveChanges();
+
+            if (auditEntries != null && auditEntries.Count > 0)
+            {
+                try
+                {
+                    OnAfterSaveChanges(auditEntries);
+                }
+                catch
+                {
+                    // Never block save operations if audit persistence fails
+                }
+            }
+
+            return result;
+        }
+
+        private List<AuditEntry> OnBeforeSaveChanges()
+        {
+            ChangeTracker.DetectChanges();
+            var auditEntries = new List<AuditEntry>();
+
+            var currentUserId = _auditUserProvider?.GetUserId();
+            var currentUsername = _auditUserProvider?.GetUsername();
+            var currentUserRole = _auditUserProvider?.GetUserRole();
+            var currentIp = _auditUserProvider?.GetIpAddress();
+            var currentCorrelationId = _auditUserProvider?.GetCorrelationId();
+
+            foreach (var entry in ChangeTracker.Entries())
+            {
+                if (entry.Entity is AuditLog || entry.State is EntityState.Detached or EntityState.Unchanged)
+                    continue;
+
+                var entityType = entry.Entity.GetType().Name;
+                int proxyIdx = entityType.IndexOf('_');
+                if (proxyIdx > 0) entityType = entityType.Substring(0, proxyIdx);
+
+                // Exclude high-frequency background/cache/indexing entities
+                if (entityType is "DocumentChunk" or "DocumentIndexStatus" or "LearningAssistantAnswerCache" or "LearningAssistantQueryLog" or "LearningAssistantCitationLog")
+                    continue;
+
+                var auditEntry = new AuditEntry(entry)
+                {
+                    EntityType = entityType,
+                    UserId = currentUserId,
+                    Username = currentUsername,
+                    UserRole = currentUserRole,
+                    IpAddress = currentIp,
+                    CorrelationId = currentCorrelationId
+                };
+
+                // Fall back to entity properties if user not in context
+                if (!auditEntry.UserId.HasValue)
+                {
+                    var updatedByProp = entry.Properties.FirstOrDefault(p => p.Metadata.Name == "UpdatedBy");
+                    if (updatedByProp?.CurrentValue is int uId && uId > 0)
+                        auditEntry.UserId = uId;
+                    else
+                    {
+                        var createdByProp = entry.Properties.FirstOrDefault(p => p.Metadata.Name == "CreatedBy");
+                        if (createdByProp?.CurrentValue is int cId && cId > 0)
+                            auditEntry.UserId = cId;
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(auditEntry.Username))
+                {
+                    auditEntry.Username = auditEntry.UserId.HasValue ? $"User #{auditEntry.UserId}" : "System";
+                }
+                if (string.IsNullOrWhiteSpace(auditEntry.UserRole))
+                {
+                    auditEntry.UserRole = auditEntry.UserId.HasValue ? "User" : "System";
+                }
+
+                if (entry.State != EntityState.Added)
+                {
+                    auditEntry.EntityId = GetPrimaryKeyValue(entry);
+                }
+
+                foreach (var property in entry.Properties)
+                {
+                    var propName = property.Metadata.Name;
+                    if (IsSensitiveProperty(propName)) continue;
+                    if (propName is "UpdatedOn" or "UpdatedBy") continue;
+
+                    switch (entry.State)
+                    {
+                        case EntityState.Added:
+                            auditEntry.NewValues[propName] = property.CurrentValue;
+                            auditEntry.ChangedFields.Add(propName);
+                            break;
+
+                        case EntityState.Deleted:
+                            auditEntry.OldValues[propName] = property.OriginalValue;
+                            auditEntry.ChangedFields.Add(propName);
+                            break;
+
+                        case EntityState.Modified:
+                            if (property.IsModified)
+                            {
+                                var orig = property.OriginalValue;
+                                var curr = property.CurrentValue;
+                                if (!Equals(orig, curr))
+                                {
+                                    auditEntry.OldValues[propName] = orig;
+                                    auditEntry.NewValues[propName] = curr;
+                                    auditEntry.ChangedFields.Add(propName);
+                                }
+                            }
+                            break;
+                    }
+                }
+
+                // If modified but no auditable fields changed, skip
+                if (entry.State == EntityState.Modified && auditEntry.ChangedFields.Count == 0)
+                    continue;
+
+                var (module, action) = DetermineModuleAndAction(entry, auditEntry.ChangedFields);
+                auditEntry.ModuleName = module;
+                auditEntry.ActionType = action;
+
+                auditEntries.Add(auditEntry);
+            }
+
+            return auditEntries;
+        }
+
+        private async Task OnAfterSaveChangesAsync(List<AuditEntry> auditEntries, CancellationToken ct)
+        {
+            foreach (var auditEntry in auditEntries)
+            {
+                if (auditEntry.TargetEntry.State == EntityState.Added || string.IsNullOrEmpty(auditEntry.EntityId))
+                {
+                    auditEntry.EntityId = GetPrimaryKeyValue(auditEntry.TargetEntry);
+                }
+
+                AuditLogs.Add(auditEntry.ToAuditLog());
+            }
+
+            await base.SaveChangesAsync(ct);
+        }
+
+        private void OnAfterSaveChanges(List<AuditEntry> auditEntries)
+        {
+            foreach (var auditEntry in auditEntries)
+            {
+                if (auditEntry.TargetEntry.State == EntityState.Added || string.IsNullOrEmpty(auditEntry.EntityId))
+                {
+                    auditEntry.EntityId = GetPrimaryKeyValue(auditEntry.TargetEntry);
+                }
+
+                AuditLogs.Add(auditEntry.ToAuditLog());
+            }
+
+            base.SaveChanges();
+        }
+
+        private static string? GetPrimaryKeyValue(EntityEntry entry)
+        {
+            var key = entry.Metadata.FindPrimaryKey();
+            if (key == null) return null;
+            var values = key.Properties
+                .Select(p => entry.Property(p.Name).CurrentValue?.ToString())
+                .Where(v => !string.IsNullOrEmpty(v));
+            return string.Join(",", values);
+        }
+
+        private static bool IsSensitiveProperty(string propName)
+        {
+            return propName.Contains("Password", StringComparison.OrdinalIgnoreCase) ||
+                   propName.Contains("Token", StringComparison.OrdinalIgnoreCase) ||
+                   propName.Contains("Secret", StringComparison.OrdinalIgnoreCase) ||
+                   propName.Contains("ApiKey", StringComparison.OrdinalIgnoreCase) ||
+                   propName.Contains("SecurityStamp", StringComparison.OrdinalIgnoreCase) ||
+                   propName.Contains("ConcurrencyStamp", StringComparison.OrdinalIgnoreCase) ||
+                   propName.Contains("Pin", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static (string Module, string Action) DetermineModuleAndAction(EntityEntry entry, List<string> changedFields)
+        {
+            var entityName = entry.Entity.GetType().Name;
+            int proxyIdx = entityName.IndexOf('_');
+            if (proxyIdx > 0) entityName = entityName.Substring(0, proxyIdx);
+
+            var state = entry.State;
+
+            switch (entityName)
+            {
+                case "UserMaster":
+                    if (state == EntityState.Added) return ("UserManagement", "CREATE_USER");
+                    if (state == EntityState.Deleted) return ("UserManagement", "DELETE_USER");
+                    if (changedFields.Contains("IsActive")) return ("UserManagement", "USER_STATUS_CHANGE");
+                    if (changedFields.Contains("RoleId")) return ("UserManagement", "USER_ROLE_CHANGE");
+                    return ("UserManagement", "UPDATE_USER");
+
+                case "RoleMaster":
+                    return ("RolesAndPermissions", state == EntityState.Added ? "CREATE_ROLE" : state == EntityState.Deleted ? "DELETE_ROLE" : "UPDATE_ROLE");
+
+                case "RolePermissions":
+                    return ("RolesAndPermissions", state == EntityState.Added ? "GRANT_PERMISSION" : state == EntityState.Deleted ? "REVOKE_PERMISSION" : "UPDATE_PERMISSION");
+
+                case "CourseMaster":
+                    return ("Courses", state == EntityState.Added ? "CREATE_COURSE" : state == EntityState.Deleted ? "DELETE_COURSE" : "UPDATE_COURSE");
+
+                case "CourseCategoryMaster":
+                    return ("Academics", state == EntityState.Added ? "CREATE_PROGRAM" : state == EntityState.Deleted ? "DELETE_PROGRAM" : "UPDATE_PROGRAM");
+
+                case "SemesterMaster":
+                    return ("Academics", state == EntityState.Added ? "CREATE_SEMESTER" : state == EntityState.Deleted ? "DELETE_SEMESTER" : "UPDATE_SEMESTER");
+
+                case "SubjectMaster":
+                    return ("Academics", state == EntityState.Added ? "CREATE_SUBJECT" : state == EntityState.Deleted ? "DELETE_SUBJECT" : "UPDATE_SUBJECT");
+
+                case "UnitMaster":
+                    return ("Academics", state == EntityState.Added ? "CREATE_UNIT" : state == EntityState.Deleted ? "DELETE_UNIT" : "UPDATE_UNIT");
+
+                case "CourseFacultyMapMaster":
+                    return ("FacultyMapping", state == EntityState.Added ? "ASSIGN_FACULTY" : state == EntityState.Deleted ? "REMOVE_FACULTY_MAPPING" : "UPDATE_FACULTY_MAPPING");
+
+                case "CourseEnrollment":
+                    return ("Enrollment", state == EntityState.Added ? "ENROLL_STUDENT" : state == EntityState.Deleted ? "DROP_ENROLLMENT" : "UPDATE_ENROLLMENT_STATUS");
+
+                case "AssignmentMaster":
+                    return ("Assignments", state == EntityState.Added ? "CREATE_ASSIGNMENT" : state == EntityState.Deleted ? "DELETE_ASSIGNMENT" : "UPDATE_ASSIGNMENT");
+
+                case "AssignmentSubmission":
+                    return ("Assignments", state == EntityState.Added ? "SUBMIT_ASSIGNMENT" : "UPDATE_ASSIGNMENT_SUBMISSION");
+
+                case "AssignmentGrade":
+                    return ("Assignments", "EVALUATE_ASSIGNMENT");
+
+                case "InternalAssessment":
+                    return ("InternalAssessment", state == EntityState.Added ? "CREATE_ASSESSMENT" : state == EntityState.Deleted ? "DELETE_ASSESSMENT" : "UPDATE_ASSESSMENT");
+
+                case "InternalAssessmentPolicy":
+                    return ("InternalAssessment", state == EntityState.Added ? "CREATE_ASSESSMENT_POLICY" : "UPDATE_ASSESSMENT_POLICY");
+
+                case "InternalAssessmentWindow":
+                    return ("InternalAssessment", state == EntityState.Added ? "SCHEDULE_ASSESSMENT_WINDOW" : "UPDATE_ASSESSMENT_WINDOW");
+
+                case "InternalAssessmentQuestion":
+                    return ("InternalAssessment", state == EntityState.Added ? "ADD_ASSESSMENT_QUESTION" : state == EntityState.Deleted ? "DELETE_ASSESSMENT_QUESTION" : "UPDATE_ASSESSMENT_QUESTION");
+
+                case "InternalAssessmentSubmission":
+                    if (changedFields.Contains("Marks") || changedFields.Contains("Grade") || changedFields.Contains("EvaluatedBy"))
+                        return ("InternalAssessment", "UPDATE_STUDENT_MARKS");
+                    return ("InternalAssessment", state == EntityState.Added ? "SUBMIT_ASSESSMENT" : "UPDATE_ASSESSMENT_SUBMISSION");
+
+                case "InternalAssessmentQuestionAnswer":
+                    if (changedFields.Contains("AwardedMarks") || changedFields.Contains("EvaluatedMarks"))
+                        return ("InternalAssessment", "GRADE_ASSESSMENT_ANSWER");
+                    return ("InternalAssessment", state == EntityState.Added ? "SUBMIT_ASSESSMENT_ANSWER" : "UPDATE_ASSESSMENT_ANSWER");
+
+                case "QuestionPaper":
+                    return ("Examination", state == EntityState.Added ? "CREATE_QUESTION_PAPER" : state == EntityState.Deleted ? "DELETE_QUESTION_PAPER" : "UPDATE_QUESTION_PAPER");
+
+                case "QuestionPaperQuestion":
+                    return ("Examination", state == EntityState.Added ? "ADD_PAPER_QUESTION" : state == EntityState.Deleted ? "REMOVE_PAPER_QUESTION" : "UPDATE_PAPER_QUESTION");
+
+                case "QuestionBank":
+                    return ("QuestionBank", state == EntityState.Added ? "ADD_QUESTION_BANK_ITEM" : state == EntityState.Deleted ? "DELETE_QUESTION_BANK_ITEM" : "UPDATE_QUESTION_BANK_ITEM");
+
+                case "ProcessedAssessmentResult":
+                    if (changedFields.Contains("GraceMarksAwarded"))
+                        return ("InternalAssessment", "APPLY_GRACE_MARKS");
+                    return ("InternalAssessment", "UPDATE_STUDENT_RESULT");
+
+                case "InstitutionalGradingPolicy":
+                    return ("InternalAssessment", "UPDATE_GRADING_POLICY");
+
+                case "ExamMaster":
+                    return ("Examination", state == EntityState.Added ? "CREATE_EXAM" : state == EntityState.Deleted ? "DELETE_EXAM" : "UPDATE_EXAM");
+
+                case "ExamResult":
+                    return ("Examination", "UPDATE_EXAM_RESULT");
+
+                case "CertificationExam":
+                    return ("DigitalCertificates", state == EntityState.Added ? "CREATE_CERTIFICATION_EXAM" : state == EntityState.Deleted ? "DELETE_CERTIFICATION_EXAM" : "UPDATE_CERTIFICATION_EXAM");
+
+                case "CertificationExamQuestion":
+                    return ("DigitalCertificates", state == EntityState.Added ? "ADD_CERT_QUESTION" : "UPDATE_CERT_QUESTION");
+
+                case "IssuedCertificate":
+                    if (changedFields.Contains("RevocationReason") || changedFields.Contains("Status"))
+                        return ("DigitalCertificates", "REVOKE_CERTIFICATE");
+                    return ("DigitalCertificates", state == EntityState.Added ? "ISSUE_CERTIFICATE" : "UPDATE_CERTIFICATE");
+
+                case "CertificationExamAttempt":
+                    return ("DigitalCertificates", state == EntityState.Added ? "START_CERTIFICATION_EXAM" : "SUBMIT_CERTIFICATION_EXAM");
+
+                case "LectureMaterial":
+                    return ("ContentLibrary", state == EntityState.Added ? "ADD_LECTURE_MATERIAL" : state == EntityState.Deleted ? "DELETE_LECTURE_MATERIAL" : "UPDATE_LECTURE_MATERIAL");
+
+                case "ClassSeries":
+                case "ClassInstance":
+                case "ClassAttendance":
+                    return ("ClassesAndAttendance", state == EntityState.Added ? $"CREATE_{entityName.ToUpperInvariant()}" : $"UPDATE_{entityName.ToUpperInvariant()}");
+
+                default:
+                    return (entityName, $"{state}_{entityName}".ToUpperInvariant());
+            }
+        }
+
+        private sealed class AuditEntry
+        {
+            public EntityEntry TargetEntry { get; }
+            public string ModuleName { get; set; } = string.Empty;
+            public string ActionType { get; set; } = string.Empty;
+            public string EntityType { get; set; } = string.Empty;
+            public string? EntityId { get; set; }
+            public Dictionary<string, object?> OldValues { get; } = new();
+            public Dictionary<string, object?> NewValues { get; } = new();
+            public List<string> ChangedFields { get; } = new();
+            public int? UserId { get; set; }
+            public string? Username { get; set; }
+            public string? UserRole { get; set; }
+            public string? IpAddress { get; set; }
+            public string? CorrelationId { get; set; }
+            public string? Details { get; set; }
+
+            public AuditEntry(EntityEntry entry)
+            {
+                TargetEntry = entry;
+            }
+
+            public AuditLog ToAuditLog()
+            {
+                return new AuditLog
+                {
+                    UserId = UserId,
+                    Username = Username,
+                    UserRole = UserRole,
+                    ActionType = ActionType,
+                    ModuleName = ModuleName,
+                    EntityType = EntityType,
+                    EntityId = EntityId,
+                    OldValuesJson = OldValues.Count > 0 ? JsonSerializer.Serialize(OldValues) : null,
+                    NewValuesJson = NewValues.Count > 0 ? JsonSerializer.Serialize(NewValues) : null,
+                    ChangedFieldsJson = ChangedFields.Count > 0 ? string.Join(", ", ChangedFields) : null,
+                    TimestampUtc = DateTime.UtcNow,
+                    IpAddress = IpAddress,
+                    Status = "SUCCESS",
+                    CorrelationId = CorrelationId,
+                    Details = Details
+                };
+            }
+        }
+        #endregion
+
+
     }
+
 }
+

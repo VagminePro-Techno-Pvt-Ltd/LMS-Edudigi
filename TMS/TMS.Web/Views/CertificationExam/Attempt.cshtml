@@ -1,0 +1,256 @@
+@model TMS.ViewModels.Academics.StudentExamTakingViewModel
+@{
+    ViewData["Title"] = $"{Model.ExamTitle} — Examination in Progress";
+    Layout = "_Layout";
+}
+
+<style>
+    .exam-attempt-bar {
+        position: sticky;
+        top: 0;
+        z-index: 1020;
+        background: #142a4c;
+        color: #ffffff;
+        padding: 14px 20px;
+        border-radius: 12px;
+        margin-bottom: 24px;
+        box-shadow: 0 4px 14px rgba(20, 42, 76, 0.2);
+    }
+    .timer-badge {
+        background: #ffffff;
+        color: #142a4c;
+        font-size: 20px;
+        font-weight: 800;
+        padding: 6px 18px;
+        border-radius: 30px;
+        letter-spacing: 1px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+    .timer-badge.warning {
+        background: #ef4444;
+        color: #ffffff;
+        animation: pulse 1s infinite;
+    }
+    @@keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+    .question-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 24px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+    }
+    .option-label {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        margin-bottom: 8px;
+        width: 100%;
+    }
+    .option-label:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+    .option-label:has(input:checked) {
+        background: #eff6ff;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 1px #3b82f6;
+        color: #1d4ed8;
+        font-weight: 600;
+    }
+</style>
+
+<div class="container py-3">
+    <!-- Top Sticky Bar with Timer & Submit -->
+    <div class="exam-attempt-bar d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <h4 class="fw-bold mb-0 text-white">@Model.ExamTitle</h4>
+            <small style="color: #cbd5e1;"><i class="fa-solid fa-stamp text-warning me-1"></i> Certification Topic: @Model.CertificationTopic</small>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            <div id="examTimer" class="timer-badge">
+                <i class="fa-regular fa-clock"></i> <span id="timerDisplay">--:--</span>
+            </div>
+            <button type="button" class="btn btn-danger px-4 fw-bold" onclick="confirmSubmit()">
+                <i class="fa-solid fa-check me-1"></i> Submit Exam
+            </button>
+        </div>
+    </div>
+
+    <!-- Questions Form -->
+    <form id="examSubmitForm" asp-action="Submit" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="attemptId" value="@Model.AttemptId" />
+
+        <div class="row">
+            <div class="col-lg-12">
+                @foreach (var q in Model.Questions)
+                {
+                    <div class="question-card" id="q_card_@q.QuestionId">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-primary px-3 py-2">Question @q.QuestionIndex</span>
+                                <span class="badge bg-light text-dark border">
+                                    @(q.QuestionType switch
+                                    {
+                                        "SingleChoice" => "Single Choice",
+                                        "MultipleChoice" => "Multiple Choice (Select all that apply)",
+                                        "TrueFalse" => "True / False",
+                                        _ => q.QuestionType
+                                    })
+                                </span>
+                            </div>
+                            <span class="badge bg-light text-primary border">@q.Marks Marks</span>
+                        </div>
+
+                        <h5 class="fw-bold text-dark mb-4" style="line-height:1.5;">@q.QuestionText</h5>
+
+                        <div class="options-group">
+                            @foreach (var opt in q.Options)
+                            {
+                                bool isChecked = q.SelectedOptionIds.Contains(opt.OptionId);
+                                string inputType = q.QuestionType == "MultipleChoice" ? "checkbox" : "radio";
+                                string inputName = q.QuestionType == "MultipleChoice" ? $"q_{q.QuestionId}_{opt.OptionId}" : $"q_{q.QuestionId}";
+
+                                <label class="option-label">
+                                    <input type="@inputType"
+                                           class="form-check-input q-opt-input"
+                                           name="@inputName"
+                                           value="@opt.OptionId"
+                                           data-qid="@q.QuestionId"
+                                           data-type="@q.QuestionType"
+                                           @(isChecked ? "checked" : "")
+                                           onchange="onAnswerChanged(@q.QuestionId)" />
+                                    <span>@opt.OptionText</span>
+                                </label>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <div class="card p-4 text-center border-0 shadow-sm bg-white mb-5 rounded-3">
+                    <h5 class="fw-bold text-dark mb-2">Finished All Questions?</h5>
+                    <p class="text-muted small mb-3">Once submitted, your answers will be evaluated immediately and your digital certificate will be generated automatically.</p>
+                    <div>
+                        <button type="button" class="btn btn-primary btn-lg px-5 fw-bold" onclick="confirmSubmit()">
+                            <i class="fa-solid fa-paper-plane me-2"></i> Submit &amp; Finalize Result
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Submit Confirmation Modal -->
+<div class="modal fade" id="submitModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold text-dark"><i class="fa-solid fa-circle-question text-primary me-2"></i> Confirm Submission</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <i class="fa-solid fa-clipboard-check text-success mb-3" style="font-size:48px;"></i>
+                <h5 class="fw-bold text-dark">Are you ready to submit your exam?</h5>
+                <p class="text-muted small mb-0">Your answers will be finalized, evaluated against institutional standards, and your official digital certificate will be generated.</p>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Continue Reviewing</button>
+                <button type="button" class="btn btn-danger px-4" onclick="document.getElementById('examSubmitForm').submit();">
+                    <i class="fa-solid fa-check me-1"></i> Yes, Submit Exam
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    let remainingSeconds = @Model.RemainingSeconds;
+    const attemptId = @Model.AttemptId;
+    let timerInterval;
+    let submitModalObj;
+
+    document.addEventListener("DOMContentLoaded", function () {
+        submitModalObj = new bootstrap.Modal(document.getElementById('submitModal'));
+        updateTimerDisplay();
+        timerInterval = setInterval(countdownTick, 1000);
+    });
+
+    function countdownTick() {
+        if (remainingSeconds <= 0) {
+            clearInterval(timerInterval);
+            document.getElementById('timerDisplay').innerText = "00:00";
+            alert("Examination time has expired! Your answers are being submitted automatically.");
+            document.getElementById('examSubmitForm').submit();
+            return;
+        }
+
+        remainingSeconds--;
+        updateTimerDisplay();
+
+        // Autosave remaining time every 30 seconds
+        if (remainingSeconds % 30 === 0) {
+            saveAnswerAjax(0, "");
+        }
+    }
+
+    function updateTimerDisplay() {
+        const minutes = Math.floor(remainingSeconds / 60);
+        const seconds = remainingSeconds % 60;
+        const display = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        const timerElem = document.getElementById('timerDisplay');
+        timerElem.innerText = display;
+
+        const badge = document.getElementById('examTimer');
+        if (remainingSeconds < 300) { // Less than 5 minutes
+            badge.classList.add('warning');
+        } else {
+            badge.classList.remove('warning');
+        }
+    }
+
+    function onAnswerChanged(questionId) {
+        const inputs = document.querySelectorAll(`input.q-opt-input[data-qid='${questionId}']:checked`);
+        const selectedIds = [];
+        inputs.forEach(inp => selectedIds.push(inp.value));
+        const selectedStr = selectedIds.join(',');
+
+        saveAnswerAjax(questionId, selectedStr);
+    }
+
+    async function saveAnswerAjax(questionId, selectedOptionIds) {
+        try {
+            const formData = new FormData();
+            formData.append('attemptId', attemptId);
+            formData.append('questionId', questionId);
+            formData.append('selectedOptionIds', selectedOptionIds);
+            formData.append('remainingSeconds', remainingSeconds);
+
+            await fetch('/CertificationExam/SaveAnswer', {
+                method: 'POST',
+                body: formData
+            });
+        } catch (e) {
+            console.error("Autosave sync error", e);
+        }
+    }
+
+    function confirmSubmit() {
+        submitModalObj.show();
+    }
+</script>
+}

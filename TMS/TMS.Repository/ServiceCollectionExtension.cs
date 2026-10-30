@@ -33,7 +33,8 @@ namespace TMS.Repository
                 {
                     var builder = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<ApplicationDBContext>();
                     builder.UseSqlServer(connectionString);
-                    return new ApplicationDBContext(builder.Options);
+                    var userProvider = provider.GetService<TMS.Common.IAuditUserProvider>();
+                    return new ApplicationDBContext(builder.Options, userProvider);
                 }
 
                 var factory = new ContextFactory();

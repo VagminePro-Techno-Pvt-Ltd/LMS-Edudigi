@@ -1,0 +1,145 @@
+@model TMS.ViewModels.Academics.CertificationExamResultViewModel
+@{
+    ViewData["Title"] = "Certification Exam Result";
+}
+
+<style>
+    .result-hero {
+        background: linear-gradient(135deg, #142a4c 0%, #1e3a8a 100%);
+        color: #ffffff;
+        border-radius: 16px;
+        padding: 36px 30px;
+        margin-bottom: 24px;
+        box-shadow: 0 10px 30px rgba(20, 42, 76, 0.15);
+        text-align: center;
+    }
+    .grade-badge-circle {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background: #ffffff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    .cert-announcement-card {
+        background: #ffffff;
+        border: 2px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 28px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    }
+</style>
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <a asp-action="StudentDashboard" class="btn btn-outline-secondary">
+            <i class="fa-solid fa-arrow-left me-1"></i> Back to Certification Exams
+        </a>
+    </div>
+
+    <!-- Result Hero Banner -->
+    <div class="result-hero">
+        <div class="grade-badge-circle">
+            <span class="fs-1 fw-bold @(Model.IsPassed ? "text-success" : "text-primary")">@Model.Grade</span>
+        </div>
+        <h2 class="fw-bold mb-2 text-white">@(Model.IsPassed ? "Congratulations! Examination Qualified" : "Examination Completed")</h2>
+        <p class="fs-5 mb-0" style="color: #cbd5e1;">@Model.ExamTitle</p>
+        <p class="small text-white-50"><strong class="text-white">Certification Topic:</strong> @Model.CertificationTopic</p>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <!-- Score Breakdown -->
+        <div class="col-lg-5">
+            <div class="card h-100 border-0 shadow-sm" style="border-radius:14px; border:1px solid #e2e8f0 !important;">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-chart-pie text-primary me-2"></i> Performance Evaluation</h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="text-muted">Student Name</span>
+                        <strong class="text-dark">@Model.StudentName</strong>
+                    </div>
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="text-muted">Marks Scored</span>
+                        <strong class="text-dark">@Model.TotalScore / @Model.MaxScore</strong>
+                    </div>
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="text-muted">Percentage</span>
+                        <strong class="text-primary">@Model.Percentage%</strong>
+                    </div>
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="text-muted">Passing Benchmark</span>
+                        <strong class="text-secondary">@Model.PassingPercentage%</strong>
+                    </div>
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="text-muted">Final Awarded Grade</span>
+                        <span class="badge @(Model.IsPassed ? "bg-success" : "bg-primary") px-3 py-1 fs-6">Grade @Model.Grade</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2">
+                        <span class="text-muted">Status</span>
+                        <strong class="@(Model.IsPassed ? "text-success" : "text-muted")">
+                            @(Model.IsPassed ? "Successfully Qualified" : "Completed / Participation")
+                        </strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Automatic Digital Certificate Card -->
+        <div class="col-lg-7">
+            <div class="cert-announcement-card h-100 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span style="width:42px; height:42px; border-radius:10px; background:#fef3c7; color:#d97706; display:flex; align-items:center; justify-content:center; font-size:20px;">
+                            <i class="fa-solid fa-certificate"></i>
+                        </span>
+                        <div>
+                            <h4 class="fw-bold mb-0 text-dark">Official Digital Certificate</h4>
+                            <small class="text-success fw-semibold"><i class="fa-solid fa-circle-check"></i> Automatically Generated &amp; Verified</small>
+                        </div>
+                    </div>
+
+                    <p class="text-secondary mb-4" style="line-height:1.6;">
+                        Your digital certificate has been automatically issued and registered on the university verification network.
+                        It contains your awarded grade, issue date, unique digital certificate ID, and an encrypted QR verification code.
+                    </p>
+
+                    <div class="p-3 bg-light rounded-3 border mb-4">
+                        <div class="row g-2 small">
+                            <div class="col-sm-6">
+                                <span class="text-muted d-block">Certificate ID:</span>
+                                <strong class="text-dark">@(Model.CertificateNumber ?? "Generating...")</strong>
+                            </div>
+                            <div class="col-sm-6">
+                                <span class="text-muted d-block">Issued On:</span>
+                                <strong class="text-dark">@Model.SubmittedAt.ToString("dd MMMM yyyy")</strong>
+                            </div>
+                            <div class="col-12 mt-2">
+                                <span class="text-muted d-block">Verification URL:</span>
+                                <a href="/CertificationExam/Verify?token=@Model.VerificationToken" target="_blank" class="text-primary text-break">
+                                    https://edudigi.org/CertificationExam/Verify?token=@Model.VerificationToken
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    @if (Model.CertificateId.HasValue)
+                    {
+                        <a asp-action="DownloadCertificate" asp-route-certificateId="@Model.CertificateId" class="btn btn-success btn-lg w-100 fw-bold shadow-sm">
+                            <i class="fa-solid fa-file-arrow-down me-2"></i> Download Official PDF Certificate
+                        </a>
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning mb-0">Certificate is finalizing. Please refresh the page in a moment.</div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
