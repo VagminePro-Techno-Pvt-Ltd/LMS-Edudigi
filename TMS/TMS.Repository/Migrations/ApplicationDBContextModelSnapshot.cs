@@ -2397,6 +2397,157 @@ namespace TMS.Repository.Migrations
                     b.ToTable("LectureQuizQuestion");
                 });
 
+            modelBuilder.Entity("TMS.Models.Academics.LectureTranscript", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnOrder(0);
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("int")
+                        .HasColumnOrder(10002);
+
+                    b.Property<DateTime>("CreatedOn")
+                        .HasColumnType("datetime2")
+                        .HasColumnOrder(10003);
+
+                    b.Property<double>("DurationSeconds")
+                        .HasColumnType("float")
+                        .HasColumnOrder(6);
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasColumnOrder(9);
+
+                    b.Property<string>("FullText")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnOrder(7);
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit")
+                        .HasColumnOrder(10001);
+
+                    b.Property<string>("Language")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnOrder(5);
+
+                    b.Property<DateTime?>("LastProcessedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnOrder(11);
+
+                    b.Property<int>("LectureMaterialId")
+                        .HasColumnType("int")
+                        .HasColumnOrder(3);
+
+                    b.Property<string>("Provider")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnOrder(8);
+
+                    b.Property<int>("RetryCount")
+                        .HasColumnType("int")
+                        .HasColumnOrder(10);
+
+                    b.Property<string>("SegmentsJson")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnOrder(12);
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasColumnOrder(4);
+
+                    b.Property<int?>("UpdatedBy")
+                        .HasColumnType("int")
+                        .HasColumnOrder(10004);
+
+                    b.Property<DateTime?>("UpdatedOn")
+                        .HasColumnType("datetime2")
+                        .HasColumnOrder(10005);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("LectureMaterialId");
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.ToTable("LectureTranscript");
+                });
+
+            modelBuilder.Entity("TMS.Models.Academics.LectureTranscriptSegment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnOrder(0);
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("int")
+                        .HasColumnOrder(10002);
+
+                    b.Property<DateTime>("CreatedOn")
+                        .HasColumnType("datetime2")
+                        .HasColumnOrder(10003);
+
+                    b.Property<double>("EndTimeSeconds")
+                        .HasColumnType("float")
+                        .HasColumnOrder(5);
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit")
+                        .HasColumnOrder(10001);
+
+                    b.Property<int>("LectureTranscriptId")
+                        .HasColumnType("int")
+                        .HasColumnOrder(3);
+
+                    b.Property<int>("SequenceOrder")
+                        .HasColumnType("int")
+                        .HasColumnOrder(7);
+
+                    b.Property<string>("Speaker")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnOrder(8);
+
+                    b.Property<double>("StartTimeSeconds")
+                        .HasColumnType("float")
+                        .HasColumnOrder(4);
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnOrder(6);
+
+                    b.Property<int?>("UpdatedBy")
+                        .HasColumnType("int")
+                        .HasColumnOrder(10004);
+
+                    b.Property<DateTime?>("UpdatedOn")
+                        .HasColumnType("datetime2")
+                        .HasColumnOrder(10005);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("LectureTranscriptId");
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.ToTable("LectureTranscriptSegment");
+                });
+
             modelBuilder.Entity("TMS.Models.Academics.LectureVideoProgress", b =>
                 {
                     b.Property<int>("Id")
@@ -8950,6 +9101,58 @@ namespace TMS.Repository.Migrations
                     b.Navigation("UpdatedByUser");
                 });
 
+            modelBuilder.Entity("TMS.Models.Academics.LectureTranscript", b =>
+                {
+                    b.HasOne("TMS.Models.Account.UserMaster", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("TMS.Models.Masters.LectureMaterial", "LectureMaterial")
+                        .WithMany()
+                        .HasForeignKey("LectureMaterialId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("TMS.Models.Account.UserMaster", "UpdatedByUser")
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("LectureMaterial");
+
+                    b.Navigation("UpdatedByUser");
+                });
+
+            modelBuilder.Entity("TMS.Models.Academics.LectureTranscriptSegment", b =>
+                {
+                    b.HasOne("TMS.Models.Account.UserMaster", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("TMS.Models.Academics.LectureTranscript", "LectureTranscript")
+                        .WithMany("Segments")
+                        .HasForeignKey("LectureTranscriptId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("TMS.Models.Account.UserMaster", "UpdatedByUser")
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("LectureTranscript");
+
+                    b.Navigation("UpdatedByUser");
+                });
+
             modelBuilder.Entity("TMS.Models.Academics.LectureVideoProgress", b =>
                 {
                     b.HasOne("TMS.Models.Account.UserMaster", "CreatedByUser")
@@ -11093,6 +11296,11 @@ namespace TMS.Repository.Migrations
             modelBuilder.Entity("TMS.Models.Academics.FacultyQuizAssessment", b =>
                 {
                     b.Navigation("Questions");
+                });
+
+            modelBuilder.Entity("TMS.Models.Academics.LectureTranscript", b =>
+                {
+                    b.Navigation("Segments");
                 });
 
             modelBuilder.Entity("TMS.Models.Academics.StudentQuizAttempt", b =>

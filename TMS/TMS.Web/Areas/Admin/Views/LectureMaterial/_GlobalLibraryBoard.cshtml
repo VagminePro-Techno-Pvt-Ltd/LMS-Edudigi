@@ -125,7 +125,7 @@ else
                             <a href="javascript:void(0);"
                                class="btn btn-sm btn-outline-secondary view-file-link"
                                data-filepath="@item.FilePath"
-                               data-material-type="@item.MaterialType"
+                               data-material-type="@item.MaterialType" data-materialtype="@item.MaterialType" data-material-id="@item.Id"
                                data-title="@item.Title"
                                title="Preview file"
                                style="border-radius: var(--cl-radius-sm);">
@@ -149,6 +149,14 @@ else
                         </a>
                         @if (item.MaterialType == "Video" || item.MaterialType == "VideoURL")
                         {
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-primary manage-transcript-btn"
+                                    data-material-id="@item.Id"
+                                    data-title="@item.Title"
+                                    title="Manage AI Transcript"
+                                    style="border-radius: var(--cl-radius-sm); color:#2563eb; border-color:#93c5fd; background:#eff6ff;">
+                                <i class="fa fa-closed-captioning"></i>
+                            </button>
                             <a href="/Admin/VideoQuiz/Manage?materialId=@item.Id"
                                class="btn btn-sm btn-outline-purple"
                                title="Manage Video Quiz"

@@ -231,7 +231,7 @@
                                                     <a href="javascript:void(0);"
                                                        class="cl-file-action view-file-link"
                                                        data-filepath="@mat.FilePath"
-                                                       data-material-type="@mat.MaterialType"
+                                                       data-material-type="@mat.MaterialType" data-materialtype="@mat.MaterialType" data-material-id="@mat.Id"
                                                        data-title="@mat.Title">
                                                         <i class="fa fa-eye me-1"></i>View
                                                     </a>
@@ -251,6 +251,14 @@
                                                 </a>
                                                 @if (mat.MaterialType == "Video" || mat.MaterialType == "VideoURL")
                                                 {
+                                                    <button type="button"
+                                                            class="cl-edit-btn manage-transcript-btn"
+                                                            data-material-id="@mat.Id"
+                                                            data-title="@mat.Title"
+                                                            title="Manage AI Transcript"
+                                                            style="background:#eff6ff;color:#2563eb;">
+                                                        <i class="fa fa-closed-captioning"></i>
+                                                    </button>
                                                     <a href="/Admin/VideoQuiz/Manage?materialId=@mat.Id"
                                                        class="cl-edit-btn"
                                                        title="Manage Video Quiz"

@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.ResponseCompression;
 using TMS.Repository;
 using TMS.ViewModels;
 using TMS.Web.Infrastructure;
@@ -20,20 +21,22 @@ builder.Services.Configure<ZoomSettings>(
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
 {
     options.ValueLengthLimit = int.MaxValue;
-    options.MultipartBodyLengthLimit = int.MaxValue;
+    options.MultipartBodyLengthLimit = 2147483648L; // 2GB
     options.MultipartHeadersLengthLimit = int.MaxValue;
 });
 builder.Services.Configure<Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerOptions>(options =>
 {
-    options.Limits.MaxRequestBodySize = int.MaxValue;
+    options.Limits.MaxRequestBodySize = 2147483648L; // 2GB
+    options.Limits.MinRequestBodyDataRate = null;
 });
 builder.Services.Configure<IISServerOptions>(options =>
 {
-    options.MaxRequestBodySize = int.MaxValue;
+    options.MaxRequestBodySize = 2147483648L; // 2GB
 });
 builder.WebHost.ConfigureKestrel((context, options) =>
 {
-    options.Limits.MaxRequestBodySize = 209715200; // 200MB
+    options.Limits.MaxRequestBodySize = 2147483648L; // 2GB
+    options.Limits.MinRequestBodyDataRate = null;
 });
 
 
@@ -92,6 +95,33 @@ builder.Services.AddScoped<TMS.Web.Services.ICertificationExamService, TMS.Web.S
 builder.Services.AddScoped<TMS.Common.IAuditUserProvider, TMS.Web.Services.HttpAuditUserProvider>();
 builder.Services.AddScoped<TMS.Web.Services.IAuditLogService, TMS.Web.Services.AuditLogService>();
 
+// In-Memory Caching & Response Compression for Fast Website Performance
+builder.Services.AddMemoryCache();
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[]
+    {
+        "image/svg+xml",
+        "application/json",
+        "application/javascript",
+        "text/css",
+        "text/javascript",
+        "text/html"
+    });
+});
+
+// Lecture Video Transcription
+builder.Services.AddSingleton<TMS.Web.Services.ILectureTranscriptionQueue, TMS.Web.Services.LectureTranscriptionQueue>();
+builder.Services.AddScoped<TMS.Web.Services.ITranscriptExportService, TMS.Web.Services.TranscriptExportService>();
+builder.Services.AddHttpClient<TMS.Web.Services.ILectureTranscriptionService, TMS.Web.Services.LectureTranscriptionService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(240);
+});
+builder.Services.AddHostedService<TMS.Web.BackgroundServices.LectureTranscriptionBackgroundService>();
+
 
 // Reverse-proxy / ngrok: honor X-Forwarded-Proto, X-Forwarded-Host so Request.Scheme and Request.Host
 // match the public URL (required for Microsoft Office Online Viewer src= absolute URLs).
@@ -142,7 +172,7 @@ else
     app.UseHsts();
 }
 
-// app.UseHttpsRedirection();
+app.UseResponseCompression();
 
 // Configure static files with no-cache headers for development
 if (app.Environment.IsDevelopment())
@@ -151,7 +181,19 @@ if (app.Environment.IsDevelopment())
     {
         OnPrepareResponse = ctx =>
         {
-            ctx.Context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
+            var p = ctx.Context.Request.Path.Value ?? string.Empty;
+            if (p.StartsWith("/lib/", StringComparison.OrdinalIgnoreCase) || p.StartsWith("/fonts/", StringComparison.OrdinalIgnoreCase) || p.StartsWith("/app-assets/", StringComparison.OrdinalIgnoreCase))
+            {
+                ctx.Context.Response.Headers["Cache-Control"] = "public, max-age=604800, immutable";
+            }
+            else if (p.StartsWith("/css/", StringComparison.OrdinalIgnoreCase) || p.StartsWith("/js/", StringComparison.OrdinalIgnoreCase))
+            {
+                ctx.Context.Response.Headers["Cache-Control"] = "public, max-age=86400";
+            }
+            else
+            {
+                ctx.Context.Response.Headers.Append("Cache-Control", "public, max-age=3600");
+            }
             ctx.Context.Response.Headers.Append("Expires", "0");
         }
     });
@@ -169,6 +211,19 @@ app.UseSession();
 
 app.UseStatusCodePages(async context =>
 {
+    var path = context.HttpContext.Request.Path.Value ?? string.Empty;
+
+    // Do not redirect static assets, scripts, styles, or API endpoints to HTML error pages
+    if (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/lib/", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/js/", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/css/", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase) ||
+        Path.HasExtension(path))
+    {
+        return;
+    }
+
     var response = context.HttpContext.Response;
     if (response.StatusCode == StatusCodes.Status403Forbidden)
     {
@@ -215,6 +270,8 @@ app.MapControllerRoute(
     name: "assignmentsHub",
     pattern: "Assignments",
     defaults: new { controller = "Assignment", action = "Index" });
+
+app.MapControllers();
 
 app.MapControllerRoute(
     name: "defaultArea",

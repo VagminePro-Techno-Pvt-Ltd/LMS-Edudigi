@@ -87,6 +87,52 @@ BEGIN
     ON [dbo].[LectureVideoProgress]([StudentId], [LectureMaterialId]);
 END
 
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'LectureTranscript')
+BEGIN
+    CREATE TABLE [dbo].[LectureTranscript](
+        [Id] [int] IDENTITY(1,1) NOT NULL,
+        [LectureMaterialId] [int] NOT NULL,
+        [Status] [nvarchar](30) NOT NULL DEFAULT 'Pending',
+        [Language] [nvarchar](50) NULL,
+        [DurationSeconds] [float] NOT NULL DEFAULT 0,
+        [FullText] [nvarchar](max) NULL,
+        [Provider] [nvarchar](50) NULL,
+        [ErrorMessage] [nvarchar](1000) NULL,
+        [RetryCount] [int] NOT NULL DEFAULT 0,
+        [LastProcessedAt] [datetime2](7) NULL,
+        [SegmentsJson] [nvarchar](max) NULL,
+        [IsActive] [bit] NOT NULL DEFAULT 1,
+        [CreatedBy] [int] NULL,
+        [CreatedOn] [datetime2](7) NOT NULL DEFAULT GETUTCDATE(),
+        [UpdatedBy] [int] NULL,
+        [UpdatedOn] [datetime2](7) NULL,
+        CONSTRAINT [PK_LectureTranscript] PRIMARY KEY CLUSTERED ([Id] ASC)
+    );
+    CREATE NONCLUSTERED INDEX [IX_LectureTranscript_LectureMaterialId] ON [dbo].[LectureTranscript]([LectureMaterialId]);
+    CREATE NONCLUSTERED INDEX [IX_LectureTranscript_Status] ON [dbo].[LectureTranscript]([Status]);
+END
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'LectureTranscriptSegment')
+BEGIN
+    CREATE TABLE [dbo].[LectureTranscriptSegment](
+        [Id] [int] IDENTITY(1,1) NOT NULL,
+        [LectureTranscriptId] [int] NOT NULL,
+        [StartTimeSeconds] [float] NOT NULL DEFAULT 0,
+        [EndTimeSeconds] [float] NOT NULL DEFAULT 0,
+        [Text] [nvarchar](max) NOT NULL,
+        [SequenceOrder] [int] NOT NULL DEFAULT 0,
+        [Speaker] [nvarchar](100) NULL,
+        [IsActive] [bit] NOT NULL DEFAULT 1,
+        [CreatedBy] [int] NULL,
+        [CreatedOn] [datetime2](7) NOT NULL DEFAULT GETUTCDATE(),
+        [UpdatedBy] [int] NULL,
+        [UpdatedOn] [datetime2](7) NULL,
+        CONSTRAINT [PK_LectureTranscriptSegment] PRIMARY KEY CLUSTERED ([Id] ASC)
+    );
+    CREATE NONCLUSTERED INDEX [IX_LectureTranscriptSegment_LectureTranscriptId] ON [dbo].[LectureTranscriptSegment]([LectureTranscriptId]);
+    CREATE NONCLUSTERED INDEX [IX_LectureTranscriptSegment_StartTimeSeconds] ON [dbo].[LectureTranscriptSegment]([StartTimeSeconds]);
+END
+
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'PPTSlideInteractions')
 BEGIN
     CREATE TABLE [dbo].[PPTSlideInteractions](

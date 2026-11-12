@@ -200,7 +200,7 @@ namespace TMS.Web.Controllers
         // GET  /DocumentViewer/Stream/{id}
         // Streams the raw file inline (for PDF, Images, fallback)
         // ══════════════════════════════════════════════════════════
-        [HttpGet]
+        [HttpGet, HttpHead]
         [Route("DocumentViewer/Stream/{id}")]
         public async Task<IActionResult> Stream(int id)
         {
@@ -233,13 +233,13 @@ namespace TMS.Web.Controllers
                 return NotFound("File not found on server.");
 
             var contentType = GetContentType(absolutePath);
-            var fileBytes = await System.IO.File.ReadAllBytesAsync(absolutePath);
+            // Optimized: streaming via PhysicalFile with HTTP 206 range processing (0 bytes buffered in RAM)
 
             // Serve inline so the browser renders it (not a download)
             Response.Headers["Content-Disposition"] =
                 $"inline; filename=\"{Uri.EscapeDataString(material.OriginalFileName ?? Path.GetFileName(absolutePath))}\"";
 
-            return File(fileBytes, contentType);
+            return PhysicalFile(absolutePath, contentType, enableRangeProcessing: true);
         }
 
         // ══════════════════════════════════════════════════════════
@@ -277,10 +277,10 @@ namespace TMS.Web.Controllers
                 return NotFound("File not found on server.");
 
             var contentType = GetContentType(absolutePath);
-            var fileBytes = await System.IO.File.ReadAllBytesAsync(absolutePath);
+            // Optimized: streaming via PhysicalFile with HTTP 206 range processing (0 bytes buffered in RAM)
             var fileName = material.OriginalFileName ?? Path.GetFileName(absolutePath);
 
-            return File(fileBytes, contentType, fileName);
+            return PhysicalFile(absolutePath, contentType, fileName, enableRangeProcessing: true);
         }
 
         // ══════════════════════════════════════════════════════════

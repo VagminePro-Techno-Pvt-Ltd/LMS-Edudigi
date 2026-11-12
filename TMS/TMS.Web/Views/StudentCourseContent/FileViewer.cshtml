@@ -304,7 +304,31 @@ else if (fileExt == ".xlsx")
         </div>
         
         <div class="fv-viewer-wrapper" id="viewerWrapper">
-            @if (viewerType == "PDF")
+            @if (viewerType == "Video")
+            {
+                <div class="d-flex flex-column h-100" style="background:#000;">
+                    <video id="fileViewerVideo" width="100%" controls autoplay style="max-height:65vh; background:#000;" onloadeddata="hideLoader()">
+                        <source src="@previewUrl" type="video/mp4">
+                        Your browser does not support video.
+                    </video>
+                    <div id="fvTranscriptSection" class="p-3 bg-white" style="flex:1; overflow-y:auto; border-top:1px solid #e2e8f0;">
+                        <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-primary text-white"><i class="fa fa-closed-captioning me-1"></i> AI Transcript</span>
+                                <input type="text" id="fvSearchInput" class="form-control form-control-sm" placeholder="Search transcript..." style="width:200px; border-radius:20px; font-size:12px;" oninput="fvFilterTranscript(this.value)">
+                            </div>
+                            <div class="d-flex gap-2">
+                                <a href="/api/transcription/video/@Model.Id/download/txt" class="btn btn-sm btn-outline-secondary"><i class="fa fa-file-lines me-1"></i> TXT</a>
+                                <a href="/api/transcription/video/@Model.Id/download/pdf" class="btn btn-sm btn-outline-secondary"><i class="fa fa-file-pdf text-danger me-1"></i> PDF</a>
+                            </div>
+                        </div>
+                        <div id="fvTranscriptContent" class="small">
+                            <div class="text-muted text-center py-3"><div class="spinner-border spinner-border-sm text-primary me-2"></div> Loading transcript...</div>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (viewerType == "PDF")
             {
                 <!-- Native Local Browser PDF Renderer -->
                 <iframe id="mainIframe" class="fv-iframe" src="@previewUrl" onload="hideLoader()"></iframe>
@@ -506,4 +530,91 @@ else if (fileExt == ".xlsx")
             else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
         }
     }
+
+    // Video Transcript loader in FileViewer
+    var _fvTranscriptData = null;
+    var _fvLastActiveIndex = -1;
+
+    function initFvTranscript() {
+        var matId = @Model.Id;
+        var videoEl = document.getElementById('fileViewerVideo');
+        if (!videoEl || matId <= 0) return;
+
+        videoEl.addEventListener('timeupdate', function() {
+            fvHighlightSegment(videoEl.currentTime);
+        });
+
+        fetch('/api/transcription/video/' + matId)
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                var container = document.getElementById('fvTranscriptContent');
+                if (!container) return;
+
+                if (!res.success || !res.data || !res.data.segments || res.data.segments.length === 0) {
+                    var statusMsg = res.data && res.data.status === 'Processing'
+                        ? 'AI is currently transcribing this lecture. Please refresh shortly.'
+                        : 'No transcript available for this lecture.';
+                    container.innerHTML = '<div class="text-muted text-center py-3">' + statusMsg + '</div>';
+                    return;
+                }
+
+                _fvTranscriptData = res.data;
+                var html = '';
+                res.data.segments.forEach(function(s, idx) {
+                    html += '<div class="fv-seg-item p-2 mb-1 rounded d-flex gap-2" data-start="' + s.startTimeSeconds + '" data-end="' + s.endTimeSeconds + '" data-text="' + (s.text||'').toLowerCase() + '" style="cursor:pointer; border-left:3px solid transparent;" onclick="fvSeekTime(' + s.startTimeSeconds + ')">'
+                          + '<span class="badge bg-light text-primary border" style="font-family:monospace; align-self:flex-start;">' + s.formattedStartTime + '</span>'
+                          + '<div>' + (s.speaker ? '<strong class="text-muted small d-block">' + s.speaker + '</strong>' : '') + '<span class="text-dark">' + s.text + '</span></div>'
+                          + '</div>';
+                });
+                container.innerHTML = html;
+            })
+            .catch(function(err) {
+                var c = document.getElementById('fvTranscriptContent');
+                if (c) c.innerHTML = '<div class="text-muted text-center py-3">Could not load transcript.</div>';
+            });
+    }
+
+    window.fvSeekTime = function(sec) {
+        var v = document.getElementById('fileViewerVideo');
+        if (v) { v.currentTime = sec; v.play(); }
+    };
+
+    function fvHighlightSegment(cur) {
+        if (!_fvTranscriptData || !_fvTranscriptData.segments) return;
+        var activeIdx = -1;
+        var segs = _fvTranscriptData.segments;
+        for (var i = 0; i < segs.length; i++) {
+            if (cur >= segs[i].startTimeSeconds && cur <= segs[i].endTimeSeconds) {
+                activeIdx = i;
+                break;
+            }
+        }
+        if (activeIdx !== _fvLastActiveIndex) {
+            _fvLastActiveIndex = activeIdx;
+            var rows = document.querySelectorAll('.fv-seg-item');
+            rows.forEach(function(r, idx) {
+                if (idx === activeIdx) {
+                    r.style.background = '#eff6ff';
+                    r.style.borderLeftColor = '#2563eb';
+                    r.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                } else {
+                    r.style.background = '';
+                    r.style.borderLeftColor = 'transparent';
+                }
+            });
+        }
+    }
+
+    window.fvFilterTranscript = function(term) {
+        term = (term || '').trim().toLowerCase();
+        var rows = document.querySelectorAll('.fv-seg-item');
+        rows.forEach(function(r) {
+            var txt = r.getAttribute('data-text') || '';
+            r.style.display = (!term || txt.indexOf(term) !== -1) ? 'flex' : 'none';
+        });
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initFvTranscript();
+    });
 </script>

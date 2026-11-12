@@ -1,0 +1,450 @@
+<!-- ─── FACULTY AI TRANSCRIPT MANAGEMENT MODAL ─── -->
+<div class="modal fade" id="facultyTranscriptModal" tabindex="-1" aria-labelledby="facultyTranscriptModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content border-0 shadow-lg" style="border-radius:16px; overflow:hidden;">
+            <!-- Header -->
+            <div class="modal-header border-0 text-white" style="background:linear-gradient(135deg, #2563eb, #4f46e5); padding:16px 24px;">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-3 p-2 d-flex align-items-center justify-content-center" style="background:rgba(255,255,255,0.2); width:40px; height:40px;">
+                        <i class="fa fa-closed-captioning fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0" id="facultyTranscriptModalLabel">Lecture Transcript Manager</h5>
+                        <p class="mb-0 small text-white-50" id="transcriptModalVideoTitle">Manage and edit AI-generated lecture transcript</p>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span id="transcriptStatusBadge" class="badge bg-light text-dark px-3 py-2 rounded-pill fw-bold" style="font-size:12px;">Loading...</span>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+
+            <!-- Body -->
+            <div class="modal-body p-4" style="background:#f8fafc; max-height:calc(85vh - 140px); overflow-y:auto;">
+                <!-- Error banner if failed -->
+                <div id="transcriptErrorAlert" class="alert alert-danger d-none align-items-center gap-2" role="alert">
+                    <i class="fa fa-triangle-exclamation fs-5"></i>
+                    <div>
+                        <strong class="d-block">Transcription Note</strong>
+                        <span id="transcriptErrorMessage"></span>
+                    </div>
+                </div>
+
+                <!-- Processing / Loading state -->
+                <div id="transcriptLoadingState" class="text-center py-5">
+                    <div class="spinner-border text-primary mb-3" style="width:3rem; height:3rem;" role="status"></div>
+                    <h6 class="fw-bold text-dark" id="transcriptLoadingTitle">Loading transcript...</h6>
+                    <p class="text-muted small" id="transcriptLoadingDesc">Fetching timestamped segments from the server.</p>
+                </div>
+
+                <!-- Empty / None state -->
+                <div id="transcriptEmptyState" class="text-center py-5 d-none bg-white rounded-3 border p-4">
+                    <div style="font-size:48px; margin-bottom:12px;">🎙️</div>
+                    <h5 class="fw-bold text-dark mb-1">No Transcript Available</h5>
+                    <p class="text-muted small mb-4 mx-auto" style="max-width:440px;">
+                        This lecture video does not have an AI transcript yet. You can generate timestamped segments automatically now.
+                    </p>
+                    <button type="button" class="btn btn-primary px-4 py-2 fw-bold" id="btnStartTranscription" style="border-radius:10px;">
+                        <i class="fa fa-wand-magic-sparkles me-1"></i> Generate AI Transcript
+                    </button>
+                </div>
+
+                <!-- Ready state: Transcript Editor -->
+                <div id="transcriptReadyState" class="d-none">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3 bg-white p-3 rounded-3 border">
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="text-muted small"><i class="fa fa-clock text-primary me-1"></i> Duration: <strong id="transcriptDuration" class="text-dark">--:--</strong></span>
+                            <span class="text-muted small"><i class="fa fa-language text-primary me-1"></i> Language: <strong id="transcriptLang" class="text-dark">English</strong></span>
+                            <span class="text-muted small"><i class="fa fa-list text-primary me-1"></i> Segments: <strong id="transcriptSegmentCount" class="text-dark">0</strong></span>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a id="btnDownloadTxt" href="#" class="btn btn-sm btn-outline-secondary fw-semibold">
+                                <i class="fa fa-file-lines me-1"></i> TXT
+                            </a>
+                            <a id="btnDownloadPdf" href="#" class="btn btn-sm btn-outline-secondary fw-semibold">
+                                <i class="fa fa-file-pdf me-1 text-danger"></i> PDF
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" id="btnAddSegmentBtn">
+                                <i class="fa fa-plus me-1"></i> Add Segment
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive bg-white rounded-3 border shadow-sm">
+                        <table class="table table-hover align-middle mb-0" id="transcriptSegmentsTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:70px;">#</th>
+                                    <th style="width:130px;">Start (sec)</th>
+                                    <th style="width:130px;">End (sec)</th>
+                                    <th style="width:150px;">Speaker</th>
+                                    <th>Segment Text</th>
+                                    <th style="width:60px;" class="text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transcriptSegmentsTbody">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="modal-footer border-0 px-4 py-3 bg-white justify-content-between">
+                <div>
+                    <button type="button" class="btn btn-outline-danger btn-sm fw-semibold" id="btnRegenerateTranscript">
+                        <i class="fa fa-rotate me-1"></i> Regenerate Transcript
+                    </button>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-light fw-semibold" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary fw-bold px-4" id="btnSaveTranscriptChanges">
+                        <i class="fa fa-floppy-disk me-1"></i> Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    var _activeTranscriptMaterialId = 0;
+    var _transcriptPollTimer = null;
+
+    function openFacultyTranscriptModal(materialId, title) {
+        _activeTranscriptMaterialId = parseInt(materialId) || 0;
+        if (!_activeTranscriptMaterialId) return;
+
+        document.getElementById('transcriptModalVideoTitle').textContent = title || 'Lecture Video';
+        document.getElementById('btnDownloadTxt').href = '/api/transcription/video/' + _activeTranscriptMaterialId + '/download/txt';
+        document.getElementById('btnDownloadPdf').href = '/api/transcription/video/' + _activeTranscriptMaterialId + '/download/pdf';
+
+        // Reset views
+        document.getElementById('transcriptLoadingState').classList.remove('d-none');
+        document.getElementById('transcriptEmptyState').classList.add('d-none');
+        document.getElementById('transcriptReadyState').classList.add('d-none');
+        document.getElementById('transcriptErrorAlert').classList.add('d-none');
+        document.getElementById('btnSaveTranscriptChanges').disabled = true;
+
+        var modal = new bootstrap.Modal(document.getElementById('facultyTranscriptModal'));
+        modal.show();
+
+        loadTranscriptData();
+    }
+
+    function formatTimeDisplay(sec) {
+        sec = parseFloat(sec) || 0;
+        var m = Math.floor(sec / 60);
+        var s = Math.floor(sec % 60);
+        return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    function loadTranscriptData() {
+        if (!_activeTranscriptMaterialId) return;
+
+        fetch('/api/transcription/video/' + _activeTranscriptMaterialId)
+            .then(function(res) {
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return res.json();
+            })
+            .then(function(result) {
+                if (!result.success || !result.data) {
+                    showTranscriptEmpty();
+                    return;
+                }
+
+                var data = result.data;
+                updateStatusBadge(data.status);
+
+                if (data.status === 'Processing') {
+                    showTranscriptProcessing();
+                    startTranscriptPolling();
+                } else if (data.status === 'Pending') {
+                    showTranscriptPending();
+                    startTranscriptPolling();
+                } else if (data.status === 'Failed') {
+                    showTranscriptFailed(data.errorMessage);
+                } else if (data.status === 'Ready' && data.segments && data.segments.length > 0) {
+                    showTranscriptReady(data);
+                } else {
+                    showTranscriptEmpty();
+                }
+            })
+            .catch(function(err) {
+                console.error(err);
+                showTranscriptEmpty();
+            });
+    }
+
+    function updateStatusBadge(status) {
+        var badge = document.getElementById('transcriptStatusBadge');
+        if (!badge) return;
+
+        badge.className = 'badge px-3 py-2 rounded-pill fw-bold';
+        if (status === 'Ready') {
+            badge.classList.add('bg-success', 'text-white');
+            badge.innerHTML = '<i class="fa fa-circle-check me-1"></i> Ready';
+        } else if (status === 'Processing') {
+            badge.classList.add('bg-warning', 'text-dark');
+            badge.innerHTML = '<i class="fa fa-spinner fa-spin me-1"></i> Processing';
+        } else if (status === 'Pending') {
+            badge.classList.add('bg-secondary', 'text-white');
+            badge.innerHTML = '<i class="fa fa-clock me-1"></i> Pending';
+        } else if (status === 'Failed') {
+            badge.classList.add('bg-danger', 'text-white');
+            badge.innerHTML = '<i class="fa fa-triangle-exclamation me-1"></i> Failed';
+        } else {
+            badge.classList.add('bg-light', 'text-dark');
+            badge.textContent = 'None';
+        }
+    }
+
+    function showTranscriptProcessing() {
+        document.getElementById('transcriptLoadingState').classList.remove('d-none');
+        document.getElementById('transcriptLoadingTitle').textContent = 'AI Transcription in Progress...';
+        document.getElementById('transcriptLoadingDesc').textContent = 'Generating timestamped speech segments. This page will update automatically.';
+        document.getElementById('transcriptEmptyState').classList.add('d-none');
+        document.getElementById('transcriptReadyState').classList.add('d-none');
+        document.getElementById('btnSaveTranscriptChanges').disabled = true;
+    }
+
+    function showTranscriptPending() {
+        document.getElementById('transcriptLoadingState').classList.remove('d-none');
+        document.getElementById('transcriptLoadingTitle').textContent = 'Transcription Task Queued';
+        document.getElementById('transcriptLoadingDesc').textContent = 'The video is queued for background processing. Waiting for worker pickup...';
+        document.getElementById('transcriptEmptyState').classList.add('d-none');
+        document.getElementById('transcriptReadyState').classList.add('d-none');
+        document.getElementById('btnSaveTranscriptChanges').disabled = true;
+    }
+
+    function showTranscriptFailed(msg) {
+        stopTranscriptPolling();
+        document.getElementById('transcriptLoadingState').classList.add('d-none');
+        document.getElementById('transcriptEmptyState').classList.remove('d-none');
+        document.getElementById('transcriptReadyState').classList.add('d-none');
+        document.getElementById('transcriptErrorAlert').classList.remove('d-none');
+        document.getElementById('transcriptErrorMessage').textContent = msg || 'Speech-to-text processing failed. Please retry.';
+        document.getElementById('btnStartTranscription').innerHTML = '<i class="fa fa-rotate me-1"></i> Retry AI Transcription';
+    }
+
+    function showTranscriptEmpty() {
+        stopTranscriptPolling();
+        document.getElementById('transcriptLoadingState').classList.add('d-none');
+        document.getElementById('transcriptEmptyState').classList.remove('d-none');
+        document.getElementById('transcriptReadyState').classList.add('d-none');
+        document.getElementById('transcriptErrorAlert').classList.add('d-none');
+        document.getElementById('btnStartTranscription').innerHTML = '<i class="fa fa-wand-magic-sparkles me-1"></i> Generate AI Transcript';
+        document.getElementById('btnSaveTranscriptChanges').disabled = true;
+    }
+
+    function showTranscriptReady(data) {
+        stopTranscriptPolling();
+        document.getElementById('transcriptLoadingState').classList.add('d-none');
+        document.getElementById('transcriptEmptyState').classList.add('d-none');
+        document.getElementById('transcriptErrorAlert').classList.add('d-none');
+        document.getElementById('transcriptReadyState').classList.remove('d-none');
+        document.getElementById('btnSaveTranscriptChanges').disabled = false;
+
+        document.getElementById('transcriptDuration').textContent = formatTimeDisplay(data.durationSeconds);
+        document.getElementById('transcriptLang').textContent = data.language || 'English';
+        document.getElementById('transcriptSegmentCount').textContent = data.segments.length;
+
+        var tbody = document.getElementById('transcriptSegmentsTbody');
+        tbody.innerHTML = '';
+
+        data.segments.forEach(function(seg, idx) {
+            tbody.appendChild(createSegmentRow(idx + 1, seg.id, seg.startTimeSeconds, seg.endTimeSeconds, seg.speaker, seg.text));
+        });
+    }
+
+    function createSegmentRow(num, id, start, end, speaker, text) {
+        var tr = document.createElement('tr');
+        tr.className = 'segment-edit-row';
+        tr.dataset.segmentId = id || 0;
+
+        tr.innerHTML =
+            '<td class="text-muted fw-bold">' + num + '</td>' +
+            '<td><input type="number" step="0.5" min="0" class="form-control form-control-sm seg-start" value="' + (start || 0) + '"></td>' +
+            '<td><input type="number" step="0.5" min="0" class="form-control form-control-sm seg-end" value="' + (end || 0) + '"></td>' +
+            '<td><input type="text" class="form-control form-control-sm seg-speaker" value="' + (speaker || 'Instructor') + '"></td>' +
+            '<td><textarea class="form-control form-control-sm seg-text" rows="2" style="resize:vertical;">' + (text || '') + '</textarea></td>' +
+            '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger border-0 p-1" onclick="deleteSegmentRow(this)" title="Delete Segment"><i class="fa fa-trash"></i></button></td>';
+
+        return tr;
+    }
+
+    function deleteSegmentRow(btn) {
+        var tr = btn.closest('tr');
+        if (tr) {
+            tr.remove();
+            renumberSegments();
+        }
+    }
+
+    function renumberSegments() {
+        var rows = document.querySelectorAll('#transcriptSegmentsTbody tr');
+        rows.forEach(function(r, idx) {
+            var numTd = r.querySelector('td:first-child');
+            if (numTd) numTd.textContent = idx + 1;
+        });
+        document.getElementById('transcriptSegmentCount').textContent = rows.length;
+    }
+
+    document.getElementById('btnAddSegmentBtn').addEventListener('click', function() {
+        var tbody = document.getElementById('transcriptSegmentsTbody');
+        var rows = tbody.querySelectorAll('tr');
+        var lastEnd = 0;
+        if (rows.length > 0) {
+            var lastRow = rows[rows.length - 1];
+            var endInp = lastRow.querySelector('.seg-end');
+            if (endInp) lastEnd = parseFloat(endInp.value) || 0;
+        }
+
+        var newRow = createSegmentRow(rows.length + 1, 0, lastEnd, lastEnd + 10, 'Instructor', '');
+        tbody.appendChild(newRow);
+        renumberSegments();
+        newRow.scrollIntoView({ behavior: 'smooth' });
+    });
+
+    document.getElementById('btnStartTranscription').addEventListener('click', function() {
+        if (!_activeTranscriptMaterialId) return;
+
+        showTranscriptProcessing();
+        fetch('/api/transcription/video/' + _activeTranscriptMaterialId + '/queue', { method: 'POST' })
+            .then(function(res) { return res.json(); })
+            .then(function() {
+                startTranscriptPolling();
+            })
+            .catch(function(err) {
+                console.error(err);
+                showTranscriptFailed('Failed to queue transcription.');
+            });
+    });
+
+    document.getElementById('btnRegenerateTranscript').addEventListener('click', function() {
+        if (!_activeTranscriptMaterialId) return;
+        if (!confirm('Are you sure you want to regenerate this transcript? Any manual edits will be overwritten by the new AI transcript.'))
+            return;
+
+        showTranscriptProcessing();
+        fetch('/api/transcription/video/' + _activeTranscriptMaterialId + '/regenerate', { method: 'POST' })
+            .then(function(res) { return res.json(); })
+            .then(function(result) {
+                if (result.success) {
+                    loadTranscriptData();
+                } else {
+                    showTranscriptFailed(result.message);
+                }
+            })
+            .catch(function(err) {
+                console.error(err);
+                showTranscriptFailed('Error triggering regeneration.');
+            });
+    });
+
+    document.getElementById('btnSaveTranscriptChanges').addEventListener('click', function() {
+        if (!_activeTranscriptMaterialId) return;
+
+        var rows = document.querySelectorAll('#transcriptSegmentsTbody tr');
+        var segments = [];
+        var seq = 1;
+
+        rows.forEach(function(r) {
+            var segId = parseInt(r.dataset.segmentId) || null;
+            var start = parseFloat(r.querySelector('.seg-start').value) || 0;
+            var end = parseFloat(r.querySelector('.seg-end').value) || 0;
+            var speaker = r.querySelector('.seg-speaker').value || 'Speaker';
+            var text = r.querySelector('.seg-text').value || '';
+
+            if (text.trim().length > 0) {
+                segments.push({
+                    id: segId,
+                    startTimeSeconds: start,
+                    endTimeSeconds: end,
+                    speaker: speaker,
+                    text: text.trim(),
+                    sequenceOrder: seq++
+                });
+            }
+        });
+
+        var savePayload = {
+            lectureMaterialId: _activeTranscriptMaterialId,
+            language: document.getElementById('transcriptLang').textContent || 'English',
+            segments: segments
+        };
+
+        var saveBtn = document.getElementById('btnSaveTranscriptChanges');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fa fa-spinner fa-spin me-1"></i> Saving...';
+
+        fetch('/api/transcription/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(savePayload)
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(result) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fa fa-floppy-disk me-1"></i> Save Changes';
+
+            if (result.success) {
+                alert('Transcript saved successfully.');
+                loadTranscriptData();
+            } else {
+                alert('Error saving transcript: ' + (result.message || 'Unknown error'));
+            }
+        })
+        .catch(function(err) {
+            console.error(err);
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fa fa-floppy-disk me-1"></i> Save Changes';
+            alert('Failed to save transcript changes.');
+        });
+    });
+
+    function startTranscriptPolling() {
+        stopTranscriptPolling();
+        _transcriptPollTimer = setInterval(function() {
+            fetch('/api/transcription/video/' + _activeTranscriptMaterialId + '/status')
+                .then(function(r) { return r.json(); })
+                .then(function(resp) {
+                    if (resp.success && resp.data) {
+                        var st = resp.data.status;
+                        updateStatusBadge(st);
+                        if (st === 'Ready' || st === 'Failed') {
+                            stopTranscriptPolling();
+                            loadTranscriptData();
+                        }
+                    }
+                })
+                .catch(function(){});
+        }, 3000);
+    }
+
+    function stopTranscriptPolling() {
+        if (_transcriptPollTimer) {
+            clearInterval(_transcriptPollTimer);
+            _transcriptPollTimer = null;
+        }
+    }
+
+    // Modal close cleanup
+    document.getElementById('facultyTranscriptModal').addEventListener('hidden.bs.modal', function () {
+        stopTranscriptPolling();
+        _activeTranscriptMaterialId = 0;
+    });
+
+    // Delegate click handler for open transcript buttons anywhere on the page
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.manage-transcript-btn');
+        if (btn) {
+            e.preventDefault();
+            var matId = btn.getAttribute('data-material-id');
+            var title = btn.getAttribute('data-title');
+            openFacultyTranscriptModal(matId, title);
+        }
+    });
+</script>
+

@@ -423,6 +423,10 @@ namespace TMS.Web.Controllers
             {
                 viewerType = "Image";
             }
+            else if (new[] { ".mp4", ".webm", ".ogg", ".mov" }.Contains(ext) || material.MaterialType == "Video" || material.MaterialType == "VideoURL")
+            {
+                viewerType = "Video";
+            }
 
             ViewBag.ViewerType = viewerType;
             ViewBag.FileExtension = ext;
@@ -503,7 +507,7 @@ namespace TMS.Web.Controllers
             }
 
             var contentType = GetContentType(absolutePath);
-            var fileBytes = await System.IO.File.ReadAllBytesAsync(absolutePath);
+            // Optimized: streaming via PhysicalFile with HTTP 206 range processing (0 bytes buffered in RAM)
             
             var cd = new System.Net.Mime.ContentDisposition
             {
@@ -512,7 +516,7 @@ namespace TMS.Web.Controllers
             };
             Response.Headers.ContentDisposition = cd.ToString();
 
-            return File(fileBytes, contentType);
+            return PhysicalFile(absolutePath, contentType, enableRangeProcessing: true);
         }
 
         [HttpGet]
@@ -555,10 +559,10 @@ namespace TMS.Web.Controllers
             }
 
             var contentType = GetContentType(absolutePath);
-            var fileBytes = await System.IO.File.ReadAllBytesAsync(absolutePath);
+            // Optimized: streaming via PhysicalFile with HTTP 206 range processing (0 bytes buffered in RAM)
             var fileName = material.OriginalFileName ?? System.IO.Path.GetFileName(absolutePath);
 
-            return File(fileBytes, contentType, fileName);
+            return PhysicalFile(absolutePath, contentType, fileName, enableRangeProcessing: true);
         }
 
         private string GetContentType(string path)

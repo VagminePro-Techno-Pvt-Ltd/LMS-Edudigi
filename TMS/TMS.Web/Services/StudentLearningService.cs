@@ -65,8 +65,7 @@ namespace TMS.Web.Services
                 .AnyAsync(e =>
                     e.StudentId == studentId &&
                     e.CourseId == courseId &&
-                    e.IsActive &&
-                    (e.Status == 0 || e.Status == (int)EnrollmentStatus.Active));
+                    e.IsActive);
         }
 
         public async Task<List<int>> GetEnrolledCourseIdsAsync(int studentId)
@@ -77,8 +76,7 @@ namespace TMS.Web.Services
                 .AsNoTracking()
                 .Where(e =>
                     e.StudentId == studentId &&
-                    e.IsActive &&
-                    (e.Status == 0 || e.Status == (int)EnrollmentStatus.Active))
+                    e.IsActive)
                 .Select(e => e.CourseId)
                 .Distinct()
                 .ToListAsync();
@@ -702,19 +700,28 @@ namespace TMS.Web.Services
 
             try
             {
-                var mappings = await _db.CourseMaterialMappings
-                    .AsNoTracking()
-                    .Where(m => cIds.Contains(m.CourseId) && m.IsActive && m.LectureMaterial != null && m.LectureMaterial.IsActive)
-                    .Select(m => new { m.CourseId, m.LectureMaterialId })
-                    .ToListAsync();
-
                 var directMats = await _db.LectureMaterials
                     .AsNoTracking()
                     .Where(m => m.CourseId.HasValue && cIds.Contains(m.CourseId.Value) && m.IsActive)
                     .Select(m => new { CourseId = m.CourseId.Value, LectureMaterialId = m.Id })
                     .ToListAsync();
 
-                var allCourseMaterialPairs = mappings.Concat(directMats).Distinct().ToList();
+                var allCourseMaterialPairs = directMats;
+
+                try
+                {
+                    var mappings = await _db.CourseMaterialMappings
+                        .AsNoTracking()
+                        .Where(m => cIds.Contains(m.CourseId) && m.IsActive && m.LectureMaterial != null && m.LectureMaterial.IsActive)
+                        .Select(m => new { m.CourseId, m.LectureMaterialId })
+                        .ToListAsync();
+
+                    if (mappings.Any())
+                    {
+                        allCourseMaterialPairs = mappings.Concat(directMats).Distinct().ToList();
+                    }
+                }
+                catch { }
 
                 var completedMatIds = await GetCompletedMaterialIdsSafeAsync(studentId);
                 var completedSet = new HashSet<int>(completedMatIds);
@@ -800,7 +807,7 @@ namespace TMS.Web.Services
             {
                 return await _db.LectureVideoProgresses
                     .AsNoTracking()
-                    .Where(p => p.StudentId == studentId && p.IsActive && (p.IsCompleted || p.ProgressPercentage >= 75 || p.WatchedSeconds > 0))
+                    .Where(p => p.StudentId == studentId && p.IsActive && (p.IsCompleted || p.ProgressPercentage >= 75))
                     .Select(p => p.LectureMaterialId)
                     .Distinct()
                     .ToListAsync();
@@ -812,7 +819,7 @@ namespace TMS.Web.Services
                     await DatabaseInitializer.EnsureTablesCreatedAsync(_db);
                     return await _db.LectureVideoProgresses
                         .AsNoTracking()
-                        .Where(p => p.StudentId == studentId && p.IsActive && (p.IsCompleted || p.ProgressPercentage >= 75 || p.WatchedSeconds > 0))
+                        .Where(p => p.StudentId == studentId && p.IsActive && (p.IsCompleted || p.ProgressPercentage >= 75))
                         .Select(p => p.LectureMaterialId)
                         .Distinct()
                         .ToListAsync();

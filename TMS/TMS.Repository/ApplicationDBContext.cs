@@ -102,6 +102,8 @@ namespace TMS.Repository
         // ─── Lecture Video Quiz (LectureMaterial-based) ───
         public DbSet<LectureQuizQuestion> LectureQuizQuestions { get; set; }
         public DbSet<LectureQuizAttempt> LectureQuizAttempts { get; set; }
+        public DbSet<LectureTranscript> LectureTranscripts { get; set; }
+        public DbSet<LectureTranscriptSegment> LectureTranscriptSegments { get; set; }
 
         // ─── Announcements ───
         public DbSet<Announcement> Announcements { get; set; }

@@ -27,23 +27,29 @@ namespace TMS.Models.Masters
         [Required]
         public string FilePath { get; set; } = default!;
 
+        [NotMapped]
         public string? FileHash { get; set; }
 
         public DateTime UploadedOn { get; set; } = DateTime.UtcNow;
 
-        // ─── Cloud Drive Integration ───
+        // ─── Cloud Drive Integration (NotMapped for LMS-SilverOak compatibility) ───
+        [NotMapped]
         [StringLength(20)]
         public string Source { get; set; } = "Local"; // "Local", "GoogleDrive", "OneDrive"
 
+        [NotMapped]
         [StringLength(500)]
         public string? ExternalFileId { get; set; }  // Cloud file ID (Google/OneDrive)
 
+        [NotMapped]
         [StringLength(100)]
         public string? MimeType { get; set; }
 
+        [NotMapped]
         [StringLength(500)]
         public string? OriginalFileName { get; set; }
 
+        [NotMapped]
         public long? FileSizeBytes { get; set; }
     }
 }

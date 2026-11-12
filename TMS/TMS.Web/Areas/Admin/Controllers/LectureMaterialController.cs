@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -35,6 +36,8 @@ namespace TMS.Web.Areas.Admin.Controllers
         private readonly TMS.Repository.ApplicationDBContext _db;
         private readonly IDocumentIndexService? _documentIndexService;
         private readonly ILearningAssistantCacheService? _cacheService;
+        private readonly ILectureTranscriptionQueue? _transcriptionQueue;
+        private readonly IConfiguration? _configuration;
 
         public LectureMaterialController(
             IMasterBaseManager<LectureMaterialViewModel> lectureMaterialManager,
@@ -48,7 +51,9 @@ namespace TMS.Web.Areas.Admin.Controllers
             IMasterManager<SemesterMasterViewModel> semesterManager,
             TMS.Repository.ApplicationDBContext db,
             IDocumentIndexService? documentIndexService = null,
-            ILearningAssistantCacheService? cacheService = null)
+            ILearningAssistantCacheService? cacheService = null,
+            ILectureTranscriptionQueue? transcriptionQueue = null,
+            IConfiguration? configuration = null)
         {
             _lectureMaterialManager = lectureMaterialManager;
             _courseManager = courseManager;
@@ -62,6 +67,8 @@ namespace TMS.Web.Areas.Admin.Controllers
             _db = db;
             _documentIndexService = documentIndexService;
             _cacheService = cacheService;
+            _transcriptionQueue = transcriptionQueue;
+            _configuration = configuration;
         }
 
 
@@ -74,6 +81,7 @@ namespace TMS.Web.Areas.Admin.Controllers
             ViewData["Title"] = "Content Library";
 
             int userId = GetUserId();
+
             bool isFaculty = IsFacultyRole();
 
             // 1. Fetch all courses (filtered by faculty role if needed)
@@ -193,6 +201,7 @@ namespace TMS.Web.Areas.Admin.Controllers
         public async Task<IActionResult> GetGlobalLibraryBoard(string? search, string? sourceFilter, string? typeFilter)
         {
             int userId = GetUserId();
+
             string? userRole = User.FindFirstValue(ClaimTypes.Role);
 
             var allItems = await _lectureMaterialManager.GetAsync(null, m => m.IsActive);
@@ -250,6 +259,7 @@ namespace TMS.Web.Areas.Admin.Controllers
         public async Task<IActionResult> QuickAssign(int materialId, int courseId, int? quadrantId)
         {
             int userId = GetUserId();
+
 
             var course = await _courseManager.GetAsync(courseId, new[] { "Semester" });
             if (course == null)
@@ -326,6 +336,7 @@ namespace TMS.Web.Areas.Admin.Controllers
         public async Task<IActionResult> GetAssignableCourses()
         {
             int userId = GetUserId();
+
             bool isFaculty = IsFacultyRole();
 
             List<CourseMasterViewModel> courses;
@@ -452,9 +463,13 @@ namespace TMS.Web.Areas.Admin.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [RequestSizeLimit(2147483648)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 2147483648, ValueLengthLimit = int.MaxValue)]
         public async Task<IActionResult> Item(LectureMaterialViewModel model, IFormFile? uploadFile)
         {
             int userId = GetUserId();
+            string? newCreatedPhysicalPath = null;
+
 
             model.SelectedCourseIds ??= new List<int>();
 
@@ -503,28 +518,82 @@ namespace TMS.Web.Areas.Admin.Controllers
                 ModelState.Remove("CourseQuadrantId");
             }
 
+            // ─── MATERIAL TYPE VALIDATION ───
+            if (string.IsNullOrWhiteSpace(model.MaterialType))
+            {
+                ModelState.AddModelError("MaterialType", "Please select a material type.");
+                await SetDropdowns(model);
+                return View(model);
+            }
+
+            // ─── PRESERVE EXISTING RECORD IN EDIT MODE IF FILE UNCHANGED ───
+            if (model.Id > 0 && string.IsNullOrWhiteSpace(model.FilePath) && (uploadFile == null || uploadFile.Length == 0))
+            {
+                var existingRecord = await _lectureMaterialManager.GetAsync(model.Id);
+                if (existingRecord != null && !string.IsNullOrWhiteSpace(existingRecord.FilePath))
+                {
+                    model.FilePath = existingRecord.FilePath;
+                    if (string.IsNullOrWhiteSpace(model.FileHash)) model.FileHash = existingRecord.FileHash;
+                    model.OriginalFileName ??= existingRecord.OriginalFileName;
+                    model.MimeType ??= existingRecord.MimeType;
+                    model.FileSizeBytes ??= existingRecord.FileSizeBytes;
+                    if (string.IsNullOrWhiteSpace(model.Source)) model.Source = existingRecord.Source ?? "Local";
+                    if (string.IsNullOrWhiteSpace(model.ExternalFileId)) model.ExternalFileId = existingRecord.ExternalFileId;
+                }
+            }
+
             // ─── SOURCE-BASED FILE HANDLING ───
-            if (model.Source == "GoogleDrive" || model.Source == "OneDrive")
+            if (string.Equals(model.Source, "GoogleDrive", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(model.Source, "OneDrive", StringComparison.OrdinalIgnoreCase))
             {
                 // Cloud files: FilePath is a URL/link, ExternalFileId stores cloud ID
-                if (string.IsNullOrWhiteSpace(model.FilePath) && string.IsNullOrWhiteSpace(model.ExternalFileId))
+                if (string.IsNullOrWhiteSpace(model.FilePath) && !string.IsNullOrWhiteSpace(model.ExternalFileId))
+                {
+                    model.FilePath = model.ExternalFileId;
+                }
+                if (string.IsNullOrWhiteSpace(model.ExternalFileId) && !string.IsNullOrWhiteSpace(model.FilePath))
+                {
+                    model.ExternalFileId = model.FilePath;
+                }
+
+                if (string.IsNullOrWhiteSpace(model.FilePath))
                 {
                     ModelState.AddModelError("FilePath", "Please select a file from cloud drive.");
                     await SetDropdowns(model);
                     return View(model);
                 }
-                // FilePath is set from the cloud picker JS on the client side
+                // FilePath is confirmed set from the cloud picker
                 ModelState.Remove("FilePath");
             }
-            else if (model.MaterialType == "Video" || model.MaterialType == "Document")
+            else if (string.Equals(model.MaterialType, "Video", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(model.MaterialType, "Document", StringComparison.OrdinalIgnoreCase))
             {
                 // ─── LOCAL FILE UPLOAD ───
                 if (uploadFile != null && uploadFile.Length > 0)
                 {
-                    const long maxFileSize = 100 * 1024 * 1024;
+                    bool isVideo = string.Equals(model.MaterialType, "Video", StringComparison.OrdinalIgnoreCase);
+                    long maxFileSize;
+                    if (isVideo)
+                    {
+                        maxFileSize = 2147483648L; // 2GB
+                        if (_configuration != null && long.TryParse(_configuration["UploadSettings:MaxVideoSizeBytes"], out var vLimit) && vLimit > 0)
+                        {
+                            maxFileSize = vLimit;
+                        }
+                    }
+                    else
+                    {
+                        maxFileSize = 100 * 1024 * 1024L; // 100MB
+                        if (_configuration != null && long.TryParse(_configuration["UploadSettings:MaxDocumentSizeBytes"], out var dLimit) && dLimit > 0)
+                        {
+                            maxFileSize = dLimit;
+                        }
+                    }
+
                     if (uploadFile.Length > maxFileSize)
                     {
-                        ModelState.AddModelError("FilePath", "File size cannot exceed 100MB.");
+                        long maxMb = maxFileSize / (1024 * 1024);
+                        ModelState.AddModelError("FilePath", $"File size cannot exceed {maxMb}MB.");
                         await SetDropdowns(model);
                         return View(model);
                     }
@@ -542,55 +611,78 @@ namespace TMS.Web.Areas.Admin.Controllers
                     if (!Directory.Exists(uploadsFolder))
                         Directory.CreateDirectory(uploadsFolder);
 
-                    // ─── DEDUPLICATION LOGIC ───
+                    // High-performance single-pass streaming with incremental MD5 hash
+                    string uniqueFileName = $"{Guid.NewGuid()}_{Path.GetFileName(uploadFile.FileName)}";
+                    string filePath = Path.Combine(uploadsFolder, uniqueFileName);
                     string fileHash = string.Empty;
-                    using (var md5 = MD5.Create())
+
+                    try
                     {
-                        using (var stream = uploadFile.OpenReadStream())
+                        using (var md5 = MD5.Create())
                         {
-                            var hashBytes = md5.ComputeHash(stream);
-                            fileHash = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+                            using (var inputStream = uploadFile.OpenReadStream())
+                            using (var outputStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true))
+                            using (var cryptoStream = new CryptoStream(outputStream, md5, CryptoStreamMode.Write))
+                            {
+                                await inputStream.CopyToAsync(cryptoStream);
+                                await cryptoStream.FlushFinalBlockAsync();
+                            }
+                            fileHash = BitConverter.ToString(md5.Hash ?? Array.Empty<byte>()).Replace("-", "").ToLowerInvariant();
                         }
-                    }
 
-                    var existingItem = (await _lectureMaterialManager.GetAsync(null, m => m.FileHash == fileHash && m.IsActive)).FirstOrDefault();
+                        var existingItem = (await _lectureMaterialManager.GetAsync(null, m => m.FileHash == fileHash && m.IsActive)).FirstOrDefault();
 
-                    if (existingItem != null)
-                    {
-                        model.FilePath = existingItem.FilePath;
-                        model.FileHash = fileHash;
-                    }
-                    else
-                    {
-                        string uniqueFileName = $"{Guid.NewGuid()}_{Path.GetFileName(uploadFile.FileName)}";
-                        string filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                        using (var fileStream = new FileStream(filePath, FileMode.Create))
+                        if (existingItem != null && !string.IsNullOrWhiteSpace(existingItem.FilePath))
                         {
-                            await uploadFile.CopyToAsync(fileStream);
+                            // Deduplication hit: remove redundant disk file to save storage
+                            try { if (System.IO.File.Exists(filePath)) System.IO.File.Delete(filePath); } catch { }
+                            model.FilePath = existingItem.FilePath;
+                            model.FileHash = fileHash;
                         }
-                        model.FilePath = $"/uploads/lectures/{uniqueFileName}";
-                        model.FileHash = fileHash;
-                    }
+                        else
+                        {
+                            newCreatedPhysicalPath = filePath;
+                            model.FilePath = $"/uploads/lectures/{uniqueFileName}";
+                            model.FileHash = fileHash;
+                        }
 
-                    // Track file metadata
-                    model.OriginalFileName = uploadFile.FileName;
-                    model.FileSizeBytes = uploadFile.Length;
-                    model.MimeType = uploadFile.ContentType;
-                    model.Source = "Local";
+                        // Track file metadata
+                        model.OriginalFileName = uploadFile.FileName;
+                        model.FileSizeBytes = uploadFile.Length;
+                        model.MimeType = uploadFile.ContentType;
+                        model.Source = "Local";
+                        ModelState.Remove("FilePath");
+                    }
+                    catch (Exception ex)
+                    {
+                        try { if (System.IO.File.Exists(filePath)) System.IO.File.Delete(filePath); } catch { }
+                        ModelState.AddModelError("FilePath", "An error occurred while uploading and saving the file: " + ex.Message);
+                        await SetDropdowns(model);
+                        return View(model);
+                    }
                 }
-                else if (model.Id == 0)
+                else if (string.IsNullOrWhiteSpace(model.FilePath))
                 {
                     ModelState.AddModelError("FilePath", "Please upload a file.");
                     await SetDropdowns(model);
                     return View(model);
                 }
+                else
+                {
+                    // Existing FilePath preserved in edit mode
+                    ModelState.Remove("FilePath");
+                }
             }
-            else if (model.MaterialType == "VideoURL")
+            else if (string.Equals(model.MaterialType, "VideoURL", StringComparison.OrdinalIgnoreCase))
             {
+                if (string.IsNullOrWhiteSpace(model.ContentPath) && !string.IsNullOrWhiteSpace(model.FilePath))
+                {
+                    model.ContentPath = model.FilePath;
+                }
+
                 if (string.IsNullOrWhiteSpace(model.ContentPath))
                 {
-                    ModelState.AddModelError("FilePath", "Please enter a valid video URL.");
+                    ModelState.AddModelError("ContentPath", "Please enter a valid video URL.");
                     await SetDropdowns(model);
                     return View(model);
                 }
@@ -611,6 +703,15 @@ namespace TMS.Web.Areas.Admin.Controllers
                 model.MimeType = null;
                 model.FileSizeBytes = null;
                 model.FileHash = null;
+                ModelState.Remove("FilePath");
+            }
+
+            // ─── FINAL GUARD BEFORE PERSISTENCE ───
+            if (string.IsNullOrWhiteSpace(model.FilePath))
+            {
+                ModelState.AddModelError("FilePath", "A valid file or link is required.");
+                await SetDropdowns(model);
+                return View(model);
             }
 
             // Save SelectedCourseIds BEFORE model gets replaced
@@ -629,8 +730,32 @@ namespace TMS.Web.Areas.Admin.Controllers
                 return View(model);
             }
 
+            if (!ModelState.IsValid)
+            {
+                if (!string.IsNullOrEmpty(newCreatedPhysicalPath) && System.IO.File.Exists(newCreatedPhysicalPath))
+                {
+                    try { System.IO.File.Delete(newCreatedPhysicalPath); } catch { }
+                }
+                await SetDropdowns(model);
+                return View(model);
+            }
+
             // ─── SAVE LectureMaterial to Central Library ───
-            var saveResult = await _lectureMaterialManager.AddUpdateResultAsync(model, userId);
+            ModelResultViewModel<LectureMaterialViewModel> saveResult;
+            try
+            {
+                saveResult = await _lectureMaterialManager.AddUpdateResultAsync(model, userId);
+            }
+            catch (Exception ex)
+            {
+                if (!string.IsNullOrEmpty(newCreatedPhysicalPath) && System.IO.File.Exists(newCreatedPhysicalPath))
+                {
+                    try { System.IO.File.Delete(newCreatedPhysicalPath); } catch { }
+                }
+                ModelState.AddModelError(string.Empty, "An error occurred while saving the lecture material. Please verify all fields and try again.");
+                await SetDropdowns(model);
+                return View(model);
+            }
 
             if (saveResult.Result)
             {
@@ -698,6 +823,20 @@ namespace TMS.Web.Areas.Admin.Controllers
                     }
                 }
 
+                // 5. Automatically queue transcription for video uploads
+                if (_transcriptionQueue != null && model.Id > 0 &&
+                    (model.MaterialType == "Video" || model.MaterialType == "VideoURL"))
+                {
+                    try
+                    {
+                        _transcriptionQueue.Queue(model.Id);
+                    }
+                    catch
+                    {
+                        // Queueing failure is non-fatal for upload completion
+                    }
+                }
+
                 TempData["Success"] = assignToCourse
                     ? "Content saved and assigned to course(s) successfully."
                     : "Content saved to Central Library successfully.";
@@ -705,6 +844,10 @@ namespace TMS.Web.Areas.Admin.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            if (!string.IsNullOrEmpty(newCreatedPhysicalPath) && System.IO.File.Exists(newCreatedPhysicalPath))
+            {
+                try { System.IO.File.Delete(newCreatedPhysicalPath); } catch { }
+            }
             SetApplicationResult(false, "Error while saving data.");
             await SetDropdowns(model);
             return View(model);

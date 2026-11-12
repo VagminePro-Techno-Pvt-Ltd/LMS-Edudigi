@@ -196,6 +196,48 @@
         #quizToastContainer { right:10px; top:60px; }
         #quizPendingBanner { font-size:12px; padding:8px 16px; bottom:60px; }
     }
+    /* === AI LECTURE TRANSCRIPTION STYLES === */
+    .fpm-transcript-wrapper { border-top: 1px solid #e2e8f0; background: #fff; }
+    .fpm-transcript-nav { background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+    .fpm-segment-row {
+        display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px;
+        border-radius: 8px; margin-bottom: 6px; cursor: pointer;
+        transition: all 0.18s ease; border-left: 3px solid transparent;
+    }
+    .fpm-segment-row:hover { background: #f1f5f9; }
+    .fpm-segment-row.active {
+        background: #eff6ff !important;
+        border-left-color: #2563eb !important;
+        box-shadow: 0 2px 8px rgba(37,99,235,0.08);
+    }
+    .fpm-segment-badge {
+        font-size: 11px; font-weight: 700; color: #2563eb;
+        background: #e0e7ff; padding: 2px 8px; border-radius: 6px;
+        font-family: monospace; white-space: nowrap; flex-shrink: 0;
+        transition: all 0.18s ease;
+    }
+    .fpm-segment-row.active .fpm-segment-badge {
+        background: #2563eb; color: #fff;
+    }
+    .fpm-segment-text-wrap { flex: 1; min-width: 0; }
+    .fpm-segment-speaker {
+        font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 2px; display: block;
+    }
+    .fpm-segment-text {
+        font-size: 13.5px; color: #334155; line-height: 1.5; display: block;
+    }
+    .fpm-segment-row.active .fpm-segment-text {
+        color: #0f172a; font-weight: 600;
+    }
+    .fpm-highlight-match {
+        background: #fef08a; color: #854d0e; font-weight: 700; border-radius: 2px; padding: 0 2px;
+    }
+    @@media(max-width:600px){
+        .fpm-transcript-nav { flex-direction: column; align-items: stretch !important; gap: 8px; }
+        .fpm-transcript-nav .d-flex { justify-content: space-between; }
+        .fpm-segment-row { padding: 8px 10px; gap: 8px; }
+        .fpm-segment-text { font-size: 12.5px; }
+    }
 </style>
 
 <script>
@@ -354,12 +396,21 @@ window.openFilePreview = function(filePath, title, materialId, matType) {
         materialId = 0;
     }
 
+    var isVideoResource = (FPM_VIDEOS.indexOf(ext) !== -1 || matType === 'video' || matType === 'videourl' || _isVideoTypeYT);
+    if (materialId > 0 && isVideoResource) {
+        html += buildFpmTranscriptHtml(materialId, title);
+    }
+
     var body = document.getElementById('filePreviewBody');
     if (body) body.innerHTML = html;
 
     if (typeof bootstrap !== 'undefined') {
         var modal = new bootstrap.Modal(document.getElementById('filePreviewModal'));
         modal.show();
+    }
+
+    if (materialId > 0 && isVideoResource) {
+        setTimeout(function() { initFpmTranscript(materialId); }, 150);
     }
 
     if (materialId > 0 && typeof initVideoQuiz === 'function') {
@@ -509,6 +560,7 @@ function updateProgressVisualization() {
     var progressBar = document.getElementById('videoProgressBar');
     var dur = getVideoDuration();
     var current = getVideoCurrentTime();
+    highlightCurrentTranscriptSegment(current);
     if (!progressBar || dur <= 0) return;
 
     var currentPercent = (current / dur) * 100;
@@ -776,6 +828,7 @@ function startUnifiedTracking() {
     
     _trackingInterval = setInterval(function() {
         var current = getVideoCurrentTime();
+    highlightCurrentTranscriptSegment(current);
         var dur     = getVideoDuration();
         
         if (dur <= 0) return; // Wait for load
@@ -1090,6 +1143,9 @@ document.addEventListener('DOMContentLoaded', function() {
             clearInterval(_checkInterval);
             clearInterval(_trackingInterval);
             stopProgressTracking();
+            if (_fpmTranscriptPollTimer) { clearInterval(_fpmTranscriptPollTimer); _fpmTranscriptPollTimer = null; }
+            _fpmCurrentTranscript = null;
+            _fpmLastActiveIndex = -1;
             _quizOpen = false;
 
             var overlay = document.getElementById('quizOverlayModal');
@@ -1184,6 +1240,263 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// ── AI LECTURE TRANSCRIPTION COMPONENT ──────────────────────────────────────
+var _fpmCurrentTranscript = null;
+var _fpmTranscriptClientCache = {};
+var _fpmTranscriptPollTimer = null;
+var _fpmLastActiveIndex = -1;
+var _fpmUserIsScrolling = false;
+
+function buildFpmTranscriptHtml(materialId, title) {
+    return ''
+        + '<div class="fpm-transcript-wrapper" id="fpmTranscriptContainer">'
+        + '    <div class="fpm-transcript-nav d-flex align-items-center justify-content-between px-3 py-2 border-bottom flex-wrap gap-2">'
+        + '        <ul class="nav nav-pills gap-1" id="fpmTranscriptTabs" role="tablist">'
+        + '            <li class="nav-item">'
+        + '                <button class="nav-link active py-1 px-3 fw-bold small" id="fpm-tab-transcript" data-bs-toggle="pill" data-bs-target="#fpm-pane-transcript" type="button" style="border-radius:20px;">'
+        + '                    <i class="fa fa-closed-captioning me-1"></i> Transcript'
+        + '                </button>'
+        + '            </li>'
+        + '            <li class="nav-item">'
+        + '                <button class="nav-link py-1 px-3 fw-bold small text-muted" id="fpm-tab-info" data-bs-toggle="pill" data-bs-target="#fpm-pane-info" type="button" style="border-radius:20px;">'
+        + '                    <i class="fa fa-circle-info me-1"></i> Lecture Info'
+        + '                </button>'
+        + '            </li>'
+        + '        </ul>'
+        + '        <div class="d-flex align-items-center gap-2 flex-wrap">'
+        + '            <div class="position-relative" style="width:200px;">'
+        + '                <input type="text" id="fpmTranscriptSearch" class="form-control form-control-sm ps-4" placeholder="Search transcript..." style="border-radius:20px; font-size:12px;" oninput="filterTranscriptSearch(this.value)">'
+        + '                <i class="fa fa-search position-absolute top-50 start-0 translate-middle-y ms-2 text-muted" style="font-size:11px;"></i>'
+        + '            </div>'
+        + '            <span id="fpmTranscriptSearchMatches" class="badge bg-light text-secondary border small d-none">0 matches</span>'
+        + '            <a href="/api/transcription/video/' + materialId + '/download/txt" class="btn btn-sm btn-outline-secondary py-1 px-2 fw-semibold" title="Download TXT Transcript" style="font-size:11px; border-radius:6px;">'
+        + '                <i class="fa fa-file-lines me-1"></i>TXT'
+        + '            </a>'
+        + '            <a href="/api/transcription/video/' + materialId + '/download/pdf" class="btn btn-sm btn-outline-secondary py-1 px-2 fw-semibold" title="Download PDF Transcript" style="font-size:11px; border-radius:6px;">'
+        + '                <i class="fa fa-file-pdf text-danger me-1"></i>PDF'
+        + '            </a>'
+        + '        </div>'
+        + '    </div>'
+        + '    <div class="tab-content" id="fpmTranscriptTabContent">'
+        + '        <div class="tab-pane fade show active p-3" id="fpm-pane-transcript" style="max-height:250px; overflow-y:auto; background:#fff;">'
+        + '            <div id="fpmTranscriptLoading" class="text-center py-4 text-muted">'
+        + '                <div class="spinner-border spinner-border-sm text-primary me-2"></div> Loading transcript...'
+        + '            </div>'
+        + '            <div id="fpmTranscriptNotice" class="alert alert-light border text-center py-3 d-none mb-0 small text-muted"></div>'
+        + '            <div id="fpmTranscriptList" class="d-none"></div>'
+        + '        </div>'
+        + '        <div class="tab-pane fade p-3" id="fpm-pane-info" style="max-height:250px; overflow-y:auto; background:#fff;">'
+        + '            <h6 class="fw-bold mb-1 text-dark">' + escHtml(title || 'Lecture Video') + '</h6>'
+        + '            <p class="text-muted small mb-2">Interactive Transcript &amp; Video Learning</p>'
+        + '            <p class="text-muted small mb-0">Follow along with the timestamped transcript. Click on any timestamp to jump directly to that point in the lecture video. The active segment highlights in real-time as the lecture progresses.</p>'
+        + '        </div>'
+        + '    </div>'
+        + '</div>';
+}
+
+function initFpmTranscript(materialId) {
+    if (_fpmTranscriptPollTimer) { clearInterval(_fpmTranscriptPollTimer); _fpmTranscriptPollTimer = null; }
+    _fpmCurrentTranscript = null;
+    _fpmLastActiveIndex = -1;
+
+    var pane = document.getElementById('fpm-pane-transcript');
+    if (pane) {
+        pane.addEventListener('mouseenter', function() { _fpmUserIsScrolling = true; });
+        pane.addEventListener('mouseleave', function() { _fpmUserIsScrolling = false; });
+        pane.addEventListener('touchstart', function() { _fpmUserIsScrolling = true; }, { passive: true });
+        pane.addEventListener('touchend', function() { setTimeout(function(){ _fpmUserIsScrolling = false; }, 1500); }, { passive: true });
+    }
+
+    var video = document.getElementById('quizVideo');
+    if (video) {
+        video.addEventListener('timeupdate', function() {
+            highlightCurrentTranscriptSegment(video.currentTime);
+        });
+    }
+
+    loadFpmTranscriptData(materialId);
+}
+
+function loadFpmTranscriptData(materialId) {
+    if (_fpmTranscriptClientCache[materialId] && _fpmTranscriptClientCache[materialId].status === 'Ready') {
+        renderFpmTranscriptData(_fpmTranscriptClientCache[materialId], materialId);
+        return;
+    }
+    fetch('/api/transcription/video/' + materialId)
+        .then(function(res) {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+        })
+        .then(function(result) {
+            var loadEl = document.getElementById('fpmTranscriptLoading');
+            var noticeEl = document.getElementById('fpmTranscriptNotice');
+            var listEl = document.getElementById('fpmTranscriptList');
+
+            if (loadEl) loadEl.classList.add('d-none');
+
+            if (!result || !result.success || !result.data) {
+                if (noticeEl) {
+                    noticeEl.classList.remove('d-none');
+                    noticeEl.innerHTML = '<i class="fa fa-closed-captioning me-1"></i> No transcript available for this lecture yet.';
+                }
+                return;
+            }
+
+            var t = result.data;
+            _fpmCurrentTranscript = t;
+
+            if (t.status === 'Processing' || t.status === 'Pending' || t.status === 'None') {
+                if (noticeEl) {
+                    noticeEl.classList.remove('d-none');
+                    noticeEl.innerHTML = '<div class="spinner-border spinner-border-sm text-primary me-2"></div> AI is generating the transcript for this lecture. Updating automatically...';
+                }
+                pollFpmTranscript(materialId);
+            } else if (t.status === 'Failed') {
+                if (noticeEl) {
+                    noticeEl.classList.remove('d-none');
+                    noticeEl.innerHTML = '<i class="fa fa-circle-exclamation text-danger me-1"></i> ' + (t.errorMessage ? escHtml(t.errorMessage) : 'Transcript is currently unavailable for this video.');
+                }
+            } else if (t.status === 'Ready' && t.segments && t.segments.length > 0) {
+                if (noticeEl) noticeEl.classList.add('d-none');
+                if (listEl) {
+                    listEl.classList.remove('d-none');
+                    var html = '';
+                    t.segments.forEach(function(s, idx) {
+                        html += '<div class="fpm-segment-row" data-index="' + idx + '" data-start="' + s.startTimeSeconds + '" data-end="' + s.endTimeSeconds + '" data-text="' + escHtml(s.text.toLowerCase()) + '" onclick="seekToTranscriptTimestamp(' + s.startTimeSeconds + ')">'
+                              + '    <span class="fpm-segment-badge">' + s.formattedStartTime + '</span>'
+                              + '    <div class="fpm-segment-text-wrap">'
+                              + (s.speaker ? '<span class="fpm-segment-speaker">' + escHtml(s.speaker) + '</span>' : '')
+                              + '        <span class="fpm-segment-text">' + escHtml(s.text) + '</span>'
+                              + '    </div>'
+                              + '</div>';
+                    });
+                    listEl.innerHTML = html;
+                }
+            } else {
+                if (noticeEl) {
+                    noticeEl.classList.remove('d-none');
+                    noticeEl.innerHTML = '<i class="fa fa-closed-captioning me-1"></i> No transcript segments available.';
+                }
+            }
+        })
+        .catch(function(err) {
+            console.error('Transcript load error:', err);
+            var loadEl = document.getElementById('fpmTranscriptLoading');
+            var noticeEl = document.getElementById('fpmTranscriptNotice');
+            if (loadEl) loadEl.classList.add('d-none');
+            if (noticeEl) {
+                noticeEl.classList.remove('d-none');
+                noticeEl.innerHTML = '<i class="fa fa-closed-captioning me-1"></i> Transcript unavailable.';
+            }
+        });
+}
+
+function renderFpmTranscriptData(t, materialId) {
+    _fpmCurrentTranscript = t;
+    var loadEl = document.getElementById('fpmTranscriptLoading');
+    var noticeEl = document.getElementById('fpmTranscriptNotice');
+    var listEl = document.getElementById('fpmTranscriptList');
+    if (loadEl) loadEl.classList.add('d-none');
+    if (t.status === 'Ready' && t.segments && t.segments.length > 0) {
+        if (noticeEl) noticeEl.classList.add('d-none');
+        if (listEl) {
+            listEl.classList.remove('d-none');
+            var html = '';
+            t.segments.forEach(function(s, idx) {
+                html += '<div class=\"fpm-segment-row\" data-index=\"' + idx + '\" data-start=\"' + s.startTimeSeconds + '\" data-end=\"' + s.endTimeSeconds + '\" data-text=\"' + escHtml(s.text.toLowerCase()) + '\" onclick=\"seekToTranscriptTimestamp(' + s.startTimeSeconds + ')\">'
+                      + '    <span class=\"fpm-segment-badge\">' + s.formattedStartTime + '</span>'
+                      + '    <div class=\"fpm-segment-text-wrap\">'
+                      + (s.speaker ? '<span class=\"fpm-segment-speaker\">' + escHtml(s.speaker) + '</span>' : '')
+                      + '        <span class=\"fpm-segment-text\">' + escHtml(s.text) + '</span>'
+                      + '    </div>'
+                      + '</div>';
+            });
+            listEl.innerHTML = html;
+        }
+    }
+}
+
+function pollFpmTranscript(materialId) {
+    if (_fpmTranscriptPollTimer) return;
+    _fpmTranscriptPollTimer = setInterval(function() {
+        fetch('/api/transcription/video/' + materialId + '/status')
+            .then(function(r) { return r.json(); })
+            .then(function(resp) {
+                if (resp && resp.success && resp.data) {
+                    var st = resp.data.status;
+                    if (st === 'Ready' || st === 'Failed') {
+                        clearInterval(_fpmTranscriptPollTimer);
+                        _fpmTranscriptPollTimer = null;
+                        loadFpmTranscriptData(materialId);
+                    }
+                }
+            })
+            .catch(function(){});
+    }, 2500);
+}
+
+window.seekToTranscriptTimestamp = function(seconds) {
+    setVideoCurrentTime(seconds);
+    playVideoElement();
+};
+
+function highlightCurrentTranscriptSegment(currentSeconds) {
+    if (!_fpmCurrentTranscript || !_fpmCurrentTranscript.segments || _fpmCurrentTranscript.segments.length === 0)
+        return;
+
+    var activeIdx = -1;
+    var segs = _fpmCurrentTranscript.segments;
+    for (var i = 0; i < segs.length; i++) {
+        if (currentSeconds >= segs[i].startTimeSeconds && currentSeconds <= segs[i].endTimeSeconds) {
+            activeIdx = i;
+            break;
+        }
+    }
+
+    if (activeIdx !== _fpmLastActiveIndex) {
+        _fpmLastActiveIndex = activeIdx;
+        var rows = document.querySelectorAll('#fpmTranscriptList .fpm-segment-row');
+        rows.forEach(function(r, idx) {
+            if (idx === activeIdx) {
+                r.classList.add('active');
+                var pane = document.getElementById('fpm-pane-transcript');
+                if (pane && !_fpmUserIsScrolling) {
+                    var rTop = r.offsetTop - pane.offsetTop;
+                    pane.scrollTo({ top: Math.max(0, rTop - 60), behavior: 'smooth' });
+                }
+            } else {
+                r.classList.remove('active');
+            }
+        });
+    }
+}
+
+function filterTranscriptSearch(term) {
+    term = (term || '').trim().toLowerCase();
+    var rows = document.querySelectorAll('#fpmTranscriptList .fpm-segment-row');
+    var badge = document.getElementById('fpmTranscriptSearchMatches');
+    var matches = 0;
+
+    rows.forEach(function(row) {
+        var text = row.getAttribute('data-text') || '';
+        if (!term || text.indexOf(term) !== -1) {
+            row.style.display = 'flex';
+            matches++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    if (badge) {
+        if (term) {
+            badge.classList.remove('d-none');
+            badge.textContent = matches + ' matches';
+        } else {
+            badge.classList.add('d-none');
+        }
+    }
+}
 
 function escHtml(str) {
     if (!str) return '';

@@ -48,7 +48,7 @@ namespace TMS.Web.Controllers
 
             var enrollments = await _enrollmentManager.GetAsync(
                 includes: new[] { "Course", "Course.CourseCategory", "Course.Semester" },
-                predicate: e => e.StudentId == studentId && e.IsActive && (e.Status == 0 || e.Status == (int)EnrollmentStatus.Active)
+                predicate: e => e.StudentId == studentId && e.IsActive
             );
 
             var enrolledCourses = enrollments?
